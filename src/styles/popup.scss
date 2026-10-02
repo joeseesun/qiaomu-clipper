@@ -406,3 +406,10 @@
 }
 .metadata-property-key { cursor: copy; }
 .metadata-property-key:focus-visible, .metadata-properties-header:focus-visible { outline: 1px solid var(--text-muted); outline-offset: -1px; }
+
+// Keep the compact Chrome popup short; editors and expanded properties retain room.
+#popup.is-chromium:not(.is-side-panel):not(.is-embedded):has(.metadata-properties.collapsed):not(:has(#note-content-container.is-editing)):not(:has(.variables-panel.show)):has(#interpreter[style*="none"]) {
+    --popup-height: 380px;
+    --popup-max-height: 380px;
+    --chromium-popup-height: 380px;
+}

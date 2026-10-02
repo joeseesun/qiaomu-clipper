@@ -1519,7 +1519,7 @@ window.addEventListener('resize', debouncedSetPopupDimensions);
 function updateClipSummary() {
     const content = (document.getElementById('note-content-field') as HTMLTextAreaElement)?.value || '';
     const summary = document.getElementById('clip-preview-summary');
-    if (summary) summary.textContent = `${content.length.toLocaleString()} ${getMessage('qiaomuCharacters')} · ${content.replace(/[#*_`>]/g, '').replace(/\s+/g, ' ').slice(0, 100)}`;
+    if (summary) summary.textContent = `${content.length.toLocaleString()} ${getMessage('qiaomuCharacters')} · ${content.replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/[#*_`>]/g, '').replace(/\s+/g, ' ').slice(0, 100)}`;
 }
 
 function setupCompactPopup() {

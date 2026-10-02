@@ -44,3 +44,7 @@ integration/qmreader/*.py
 integration/qmreader/backfill-*.cjs
 integration/qmreader/migrate-*.cjs
 integration/qmreader/unified-submissions.test.cjs
+
+# Full-window acceptance captures may contain unrelated browser context.
+docs/reader-preview-acceptance.png
+docs/popup-compact-acceptance.png
