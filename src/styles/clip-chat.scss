@@ -1,0 +1,81 @@
+// AI chat panel next to the article (reading and editing pages).
+:root { --clip-chat-width: 400px; }
+.clip-chat {
+	position: fixed; top: var(--clip-bar-offset); right: 0; bottom: 0; z-index: 800; width: var(--clip-chat-width); max-width: 100vw; display: flex; flex-direction: column;
+	background: var(--background-primary); border-inline-start: 1px solid var(--divider-color, var(--background-modifier-border));
+	font-family: var(--font-ui, var(--font-default)); font-size: 14px; color: var(--text-normal); transition: top .2s ease;
+	&[hidden] { display: none; }
+	* { box-sizing: border-box; }
+	svg { mix-blend-mode: normal !important; } // reading mode multiplies every svg; the white send icon would vanish
+	.clip-chat-resize { position: absolute; top: 0; bottom: 0; inset-inline-start: -4px; width: 8px; cursor: col-resize; z-index: 2; touch-action: none;
+		&::after { content: ''; position: absolute; top: 0; bottom: 0; inset-inline-start: 3px; width: 2px; background: var(--text-accent, var(--text-muted)); opacity: 0; transition: opacity .15s; }
+		&:hover::after, &.is-dragging::after { opacity: .5; } }
+	.clip-chat-header { display: flex; align-items: center; gap: 6px; padding: 10px 12px; border-bottom: 1px solid var(--divider-color, var(--background-modifier-border)); }
+	.clip-chat-title { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; font-weight: 600; svg { width: 16px; height: 16px; color: var(--text-muted); } }
+	.clip-chat-model { width: auto; max-width: 210px; height: 28px; text-overflow: ellipsis; padding: 0 22px 0 8px; border: none; background-color: transparent; box-shadow: none; font-size: 13px; color: var(--text-muted); &[hidden] { display: none; } }
+	.clip-chat-icon { display: flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 28px; height: 28px; padding: 0; border: none; border-radius: 6px; background: transparent; box-shadow: none; color: var(--text-muted); cursor: pointer;
+		svg { width: 16px; height: 16px; } &:hover { background: var(--background-modifier-hover, rgb(128 128 128 / 14%)); color: var(--text-normal); } }
+	.clip-chat-history { position: absolute; top: 49px; inset-inline: 0; z-index: 3; max-height: 50%; overflow-y: auto; padding: 6px; background: var(--background-primary); border-bottom: 1px solid var(--divider-color, var(--background-modifier-border)); box-shadow: 0 8px 20px rgb(0 0 0 / 12%);
+		&[hidden] { display: none; }
+		.clip-chat-history-empty { padding: 12px; text-align: center; color: var(--text-muted); font-size: 13px; }
+		.clip-chat-history-item { display: flex; align-items: center; gap: 4px; border-radius: 8px; &:hover, &.is-current { background: var(--background-secondary); } }
+		.clip-chat-history-open { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: auto; height: auto; padding: 8px 10px; border: none; background: transparent; box-shadow: none; text-align: start; cursor: pointer; color: var(--text-normal); }
+		.clip-chat-history-title { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+		.clip-chat-history-time { font-size: 11px; color: var(--text-faint, var(--text-muted)); }
+	}
+	.clip-chat-quote { display: flex; align-items: flex-start; gap: 8px; margin: 0 12px 8px; padding: 8px 6px 8px 10px; border-inline-start: 3px solid var(--text-accent, var(--text-muted)); border-radius: 0 6px 6px 0; background: var(--background-secondary); color: var(--text-muted); font-size: 12.5px; line-height: 1.5;
+		&[hidden] { display: none; }
+		> svg { width: 14px; height: 14px; margin-top: 2px; flex-shrink: 0; }
+		.clip-chat-quote-text { flex: 1; min-width: 0; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+		.clip-chat-icon { width: 22px; height: 22px; margin-top: -2px; }
+	}
+	.clip-chat-quoted { margin: 0; padding: 6px 10px; border-inline-start: 3px solid var(--divider-color); border-radius: 0 6px 6px 0; background: var(--background-secondary); color: var(--text-muted); font-size: 12.5px; line-height: 1.5; overflow-wrap: anywhere; }
+	.clip-chat-context { padding: 8px 14px; font-size: 12px; color: var(--text-faint, var(--text-muted)); }
+	.clip-chat-messages { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 14px 14px; display: flex; flex-direction: column; gap: 14px; }
+	.clip-chat-message { display: flex; flex-direction: column; gap: 6px; max-width: 100%;
+		&.is-user { align-self: flex-end; max-width: 88%; .clip-chat-body { background: var(--background-secondary); padding: 8px 12px; border-radius: 12px; white-space: pre-wrap; } }
+		&.is-error .clip-chat-body { color: var(--text-error, #c0392b); white-space: pre-wrap; }
+	}
+	.clip-chat-body { line-height: 1.65; overflow-wrap: anywhere;
+		> :first-child { margin-top: 0; } > :last-child { margin-bottom: 0; }
+		p, ul, ol, pre, blockquote, table { margin: 0 0 10px; }
+		ul, ol { padding-inline-start: 1.5em; }
+		a { color: var(--text-accent); }
+		code { padding: .1em .35em; border-radius: 4px; background: var(--background-secondary); font-size: 90%; }
+		pre { padding: 10px 12px; overflow: auto; border-radius: 8px; background: var(--background-secondary); code { padding: 0; background: transparent; } }
+		blockquote { margin-inline: 0; padding-inline-start: 12px; border-inline-start: 3px solid var(--divider-color); color: var(--text-muted); }
+		table { border-collapse: collapse; th, td { padding: 4px 10px; border: 1px solid var(--divider-color); } }
+		&.is-thinking::after { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--text-muted); animation: clip-chat-pulse 1s ease-in-out infinite; }
+	}
+	.clip-chat-actions { display: flex; gap: 4px; }
+	.clip-chat-action { display: inline-flex; align-items: center; gap: 4px; width: auto; height: 26px; padding: 0 8px; border: none; border-radius: 6px; background: transparent; box-shadow: none; font-size: 12px; color: var(--text-muted); cursor: pointer;
+		svg { width: 14px; height: 14px; } &:hover { background: var(--background-modifier-hover, rgb(128 128 128 / 14%)); color: var(--text-normal); } }
+	.clip-chat-empty { margin: auto 0; padding: 20px; text-align: center; color: var(--text-muted); line-height: 1.6; }
+	.clip-chat-link { width: auto; height: 30px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--background-modifier-border); background: transparent; box-shadow: none; color: var(--text-normal); cursor: pointer; }
+	.clip-chat-suggestions { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 14px 10px; &:empty { display: none; } }
+	.clip-chat-chip { width: auto; height: 30px; padding: 0 12px; border: 1px solid var(--background-modifier-border); border-radius: 15px; background: transparent; box-shadow: none; font-size: 13px; color: var(--text-normal); cursor: pointer; &:hover { background: var(--background-modifier-hover, rgb(128 128 128 / 14%)); } }
+	.clip-chat-composer { display: flex; align-items: flex-end; gap: 8px; margin: 0 12px 12px; padding: 8px 8px 8px 12px; border: 1px solid var(--background-modifier-border); border-radius: 14px; background: var(--background-primary);
+		&:focus-within { border-color: var(--background-modifier-border-focus, var(--text-muted)); }
+		textarea { flex: 1; min-width: 0; min-height: 40px; max-height: 160px; padding: 6px 0; border: none; border-radius: 0; background: transparent; box-shadow: none; resize: none; font: inherit; outline: none; }
+	}
+	.clip-chat-send { display: flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 32px; height: 32px; padding: 0; border: none; border-radius: 50%; background: var(--text-normal); color: var(--background-primary); box-shadow: none; cursor: pointer;
+		svg { width: 15px; height: 15px; } &:hover { background: var(--text-normal); opacity: .88; } &:disabled { opacity: .4; cursor: default; } }
+}
+@keyframes clip-chat-pulse { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
+// Make room for the panel instead of covering the article.
+html.clip-chat-open .ce-main { padding-inline-end: var(--clip-chat-width); }
+html.clip-chat-resizing { cursor: col-resize; user-select: none; -webkit-user-select: none; .clip-chat, .ce-main { transition: none; } }
+@media (max-width: 760px) { .clip-chat { width: 100vw; } html.clip-chat-open .ce-main { padding-inline-end: 0; } }
+
+// One capsule: Highlight | Ask AI. Buttons are scoped under the capsule because buttons.scss styles `button:not(.clickable-icon)`.
+.clip-ask-pill {
+	position: fixed; z-index: 1000; display: inline-flex; align-items: center; padding: 3px; border-radius: 16px;
+	background: var(--text-normal); color: var(--background-primary); box-shadow: 0 4px 14px rgb(0 0 0 / 22%); font-size: 13px; font-weight: 600;
+	&[hidden] { display: none; }
+	.clip-ask-pill-button { display: inline-flex; align-items: center; gap: 5px; width: auto; height: 26px; padding: 0 10px; border: none; border-radius: 13px; background: transparent; color: inherit; box-shadow: none; font: inherit; cursor: pointer;
+		svg { width: 14px; height: 14px; mix-blend-mode: normal !important; }  // reading mode multiplies svg; keep the icon visible
+		&:hover { background: rgb(128 128 128 / 40%); }
+	}
+	.clip-ask-pill-button + .clip-ask-pill-button { margin-inline-start: 2px; position: relative;
+		&::before { content: ''; position: absolute; inset-inline-start: -2px; top: 6px; bottom: 6px; width: 1px; background: currentColor; opacity: .3; } }
+}

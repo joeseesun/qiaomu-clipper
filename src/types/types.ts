@@ -75,6 +75,11 @@ export interface Settings {
 	legacyMode: boolean;
 	silentOpen: boolean;
 	openBehavior: 'popup' | 'embedded' | 'reader';
+	defaultTemplateId?: string;
+	tripleKeyShortcuts?: boolean;
+	tripleKeys?: { read: string; edit: string; clip: string };
+	tripleKeyBlockedSites?: string[];
+	selectionToolbar?: boolean;
 	highlighterEnabled: boolean;
 	alwaysShowHighlights: boolean;
 	highlightBehavior: string;

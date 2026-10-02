@@ -4,6 +4,8 @@
 @import 'styles/reader/transcripts';
 @import 'styles/reader/comments';
 @import 'styles/reader/outline';
+@import 'styles/clip-bar';
+@import 'styles/clip-chat';
 
 ::view-transition-old(root),
 ::view-transition-new(root) {

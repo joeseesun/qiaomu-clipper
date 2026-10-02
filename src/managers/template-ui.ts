@@ -49,6 +49,9 @@ export function updateTemplateList(loadedTemplates?: Template[]): void {
 		template != null && typeof template === 'object' && 'id' in template && 'name' in template
 	);
 
+	// Let other settings (default template picker) follow the current list
+	document.dispatchEvent(new CustomEvent('qiaomu-templates-updated', { detail: validTemplates }));
+
 	// Clear existing templates
 	templateList.textContent = '';
 	validTemplates.forEach((template, index) => {

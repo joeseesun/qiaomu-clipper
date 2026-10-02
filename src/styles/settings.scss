@@ -657,3 +657,10 @@ label {
 		&:empty { display: none; }
 	}
 }
+
+.triple-key-fields { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 8px;
+	.triple-key-field { display: flex; align-items: center; gap: 8px; margin: 0; font-size: var(--font-ui-small); color: var(--text-muted); }
+	.triple-key-field input { width: 44px; height: 32px; padding: 0; text-align: center; text-transform: uppercase; font-weight: 600; }
+	.btn { width: auto; }
+}
+.triple-key-error { color: var(--text-error); &[hidden] { display: none; } }

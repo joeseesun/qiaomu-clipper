@@ -1,5 +1,13 @@
-import { loadClipPreview, saveClipPreview } from '../utils/clip-preview';
+import { listenTripleKey, normalizeTripleKeys } from '../utils/triple-key';
+import { loadClipPreview } from '../utils/clip-preview';
+import { createClipBar, autoHideBar, setClipBarHighlights } from '../utils/clip-bar';
+import { mountClipChat } from '../utils/clip-chat';
+import { updateClipPreview } from '../utils/clip-preview';
+import { generateFrontmatter } from '../utils/obsidian-note-creator';
 import { marked } from 'marked';
+import { highlightExtension } from '../utils/marked-highlight';
+
+marked.use({ extensions: [highlightExtension] });
 import DOMPurify from 'dompurify';
 import browser from '../utils/browser-polyfill';
 import { Reader } from '../utils/reader';
@@ -10,7 +18,7 @@ import { getDomain } from '../utils/string-utils';
 import { extractContentBySelector as extractContentBySelectorShared } from '../utils/shared';
 import { setPageUrl, setPageTitle, updatePageDomainSettings, getHighlights, repositionHighlights } from '../utils/highlighter';
 import { throttle } from '../utils/throttle';
-import { loadSettings } from '../utils/storage-utils';
+import { loadSettings, generalSettings } from '../utils/storage-utils';
 import Defuddle from 'defuddle';
 
 type MessageListener = (request: any, sender: any, sendResponse: (response?: any) => void) => true | undefined;
@@ -442,32 +450,33 @@ async function showClipPreview(id: string) {
     setPageTitle(draft.clip.title);
     Reader.isReaderPage = true;
     Reader.preExtractedContent = { content: container.innerHTML, title: draft.clip.title, domain: getDomain(draft.clip.url) };
-    Reader.onClip = async () => {
-        const button = document.getElementById('qiaomu-reader-clip') as HTMLButtonElement;
-        if (button.disabled) return;
-        button.disabled = true;
-        status.textContent = '正在剪藏…';
-        try { status.textContent = (await saveClipPreview(draft)).join(' · '); }
-        catch (error) { status.textContent = String(error); }
-        finally {
-            const done = draft.localDone && (!draft.aggregate || draft.rssDone);
-            button.disabled = Boolean(done);
-            if (done) button.textContent = '已剪藏';
-        }
-    };
+    const openEditor = () => { location.href = browser.runtime.getURL(`editor.html?id=${id}`); };
+    Reader.onEdit = openEditor;
     await Reader.apply(document);
     document.title = draft.clip.title;
-    const status = document.createElement('p');
-    status.id = 'qiaomu-preview-status';
-    status.setAttribute('role', 'status');
-    status.setAttribute('aria-live', 'polite');
-    status.style.cssText = 'max-width:var(--reader-max-width,38rem);margin:72px auto 0;padding:0 20px;font-size:14px;color:var(--text-muted);';
-    status.textContent = `保存到 ${draft.local.vault || 'Obsidian'} / ${draft.local.folder || '/'}${draft.aggregate ? ' · 同时提交到公开 RSS' : ''}`;
-    document.body.prepend(status);
-    if (draft.localDone && (!draft.aggregate || draft.rssDone)) {
-        const button = document.getElementById('qiaomu-reader-clip') as HTMLButtonElement;
-        button.disabled = true;
-        button.textContent = '已剪藏';
-        status.textContent = `${draft.native ? '本地已保存' : '已发送到 Obsidian'}${draft.aggregate ? ' · RSS 已收录' : ''}`;
-    }
+    document.documentElement.classList.add('qiaomu-preview');
+    const title = document.createElement('span');
+    title.textContent = draft.clip.title;
+    await loadSettings();
+    const chat = mountClipChat({
+        onHighlight: () => Reader.highlightSelection(document),
+        getContext: () => ({ title: draft.clip.title, markdown: draft.clip.markdown, url: draft.clip.url }),
+        onInsert: async text => {
+            draft.clip.markdown = `${draft.clip.markdown.trimEnd()}\n\n${text}\n`;
+            draft.local.content = await generateFrontmatter(draft.properties ?? []) + draft.clip.markdown;
+            await updateClipPreview(draft);
+        },
+    });
+    const bar = createClipBar({ onToggleChat: chat.toggle, mode: 'read', id, draft, title, domain: getDomain(draft.clip.url), url: draft.clip.url });
+    document.body.prepend(bar);
+    const readerSettings = document.querySelector('.obsidian-reader-settings');
+    if (readerSettings) bar.querySelector('.clip-bar-extras')?.appendChild(readerSettings);
+    autoHideBar(bar);
+    // Highlights are restored just after the page renders and can change while reading.
+    const updateHighlights = () => setClipBarHighlights(bar, getHighlights().length);
+    updateHighlights();
+    setTimeout(updateHighlights, 800);
+    browser.storage.onChanged.addListener(changes => { if (changes.highlights) setTimeout(updateHighlights, 200); });
+    const editKey = () => normalizeTripleKeys(generalSettings.tripleKeys).edit;
+    listenTripleKey(() => [editKey()].filter(Boolean), openEditor, () => generalSettings.tripleKeyShortcuts !== false);
 }

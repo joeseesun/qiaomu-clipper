@@ -399,6 +399,7 @@
     a { display: flex; align-items: center; gap: 9px; min-height: 34px; padding: 7px 9px; font-size: var(--font-ui-small); line-height: 1.25; color: var(--text-normal); text-decoration: none; border-radius: 5px; corner-shape: round; }
     a:hover, a:focus-visible { background: var(--background-secondary); }
     a:focus-visible { outline: 1px solid var(--text-muted); outline-offset: -1px; }
+    a[hidden] { display: none; }
     svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--text-muted); }
 }
 #popup-tools-toggle { width: 32px; padding: 6px; border: none; background: transparent; box-shadow: none; }
@@ -424,8 +425,75 @@
 .action-buttons #clip-btn { border-radius: var(--radius-s); }
 
 // The default popup follows its content instead of keeping an empty article area.
-#popup.is-chromium:not(.is-side-panel):not(.is-embedded):has(.metadata-properties.collapsed):not(:has(#note-content-container.is-editing)):not(:has(.variables-panel.show)):has(#interpreter[style*="none"]) {
+#popup.is-chromium:not(.is-side-panel):not(.is-embedded):not(:has(.variables-panel.show)) {
     height: auto; max-height: 540px;
     #popup-container { height: auto; }
     .clipper { height: auto; }
 }
+
+// Header: the title is the first thing to edit, tools sit beside it.
+#popup-header { flex-shrink: 0; align-items: flex-start; padding: 6px calc(var(--popup-padding) * 0.5) 0 0; }
+#popup-header #note-name-field {
+    flex: 1; min-width: 0; border: none; border-radius: 0; background: transparent; resize: none;
+    padding: 6px 6px; min-height: 2rem; max-height: 4.5rem; overflow-y: auto;
+    font-size: var(--font-ui-medium); font-weight: 600;
+    border-radius: 6px; outline: none; box-shadow: none; margin-inline-start: calc(var(--popup-padding) - 6px);
+    &:hover, &:focus, &:focus-visible { outline: none; box-shadow: none; background: var(--background-secondary); }
+    &::-webkit-scrollbar { display: none; }
+}
+#popup-header .popup-actions { margin-inline-start: 0; flex-shrink: 0; }
+
+.clipper .clipper-body { min-height: 0; overflow-x: hidden; overflow-y: auto; flex: 1 1 auto; display: flex; flex-direction: column; }
+.clipper .clipper-body > * { flex-shrink: 0; }
+#popup.is-chromium:not(.is-side-panel):not(.is-embedded) .clipper-body { max-height: 400px; }
+
+// Quick actions
+.clipper #note-content-container { border-top: 0; display: flex; flex-direction: column; flex-grow: 0; padding: 4px var(--popup-padding) 8px; min-height: 0; gap: 6px; }
+.clipper .clip-content-actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.clipper .clip-content-actions button {
+    display: flex; align-items: center; justify-content: center; gap: 5px; width: auto; height: 34px; padding: 0 6px;
+    border: 1px solid var(--background-modifier-border); border-radius: 6px; background: transparent; box-shadow: none;
+    color: var(--text-normal); font-size: var(--font-ui-small); font-weight: 500; white-space: nowrap;
+    svg { width: 15px; height: 15px; color: var(--text-muted); flex-shrink: 0; }
+    &:hover { background: var(--background-modifier-hover); }
+    &:focus-visible { outline: 1px solid var(--text-muted); outline-offset: -1px; }
+    &:disabled { opacity: .5; }
+}
+.clipper #clip-action-status { font-size: var(--font-ui-small); color: var(--text-muted); margin: 0; line-height: 1.4; }
+.clipper #clip-action-status:empty { display: none; }
+
+// AI is a quiet status chip, shown only when the template asks for it.
+.clipper .clipper-body #interpreter { margin: 0 var(--popup-padding) 8px; }
+.clipper .interpreter-icon { width: 14px; height: 14px; flex-shrink: 0; color: var(--text-muted); }
+
+// One list style for template, destination and sharing.
+.clipper .settings-list { border-top: 1px solid var(--divider-color); }
+.clipper .setting-row {
+    display: flex; align-items: center; gap: 12px; min-height: 40px; padding: 0 var(--popup-padding); margin: 0;
+    border-bottom: 1px solid var(--divider-color); font-size: var(--font-ui-small); font-weight: 400; color: var(--text-muted); cursor: pointer;
+    &:hover { background: var(--background-secondary); }
+    &:focus-visible { outline: 1px solid var(--text-muted); outline-offset: -1px; }
+    > span:first-child { flex-shrink: 0; }
+    svg { width: 14px; height: 14px; flex-shrink: 0; transition: transform .15s; }
+}
+.clipper select#template-select {
+    flex: 1; min-width: 0; width: auto; height: 100%; border: none; background-color: transparent; box-shadow: none; border-radius: 0;
+    color: var(--text-normal); font-size: var(--font-ui-small); font-weight: 400; text-align: end; text-align-last: end; cursor: pointer;
+    padding: 0 22px 0 0; background-position: right 0 center; background-size: 18px; background-repeat: no-repeat;
+    &:hover, &:focus { background-color: transparent; box-shadow: none; color: var(--text-normal); }
+}
+.clipper #destination-summary { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: end; color: var(--text-normal); }
+.clipper .destination:not(.collapsed) #destination-toggle svg { transform: rotate(180deg); }
+.clipper .destination .vault-path-container { padding: 8px var(--popup-padding) 10px; border-bottom: 1px solid var(--divider-color); }
+.clipper .destination.collapsed .vault-path-container { display: none !important; }
+.clipper input.switch {
+    appearance: none; -webkit-appearance: none; flex-shrink: 0; margin: 0 0 0 auto; width: 34px; height: 20px; padding: 0; border: none; border-radius: 10px;
+    background: var(--background-modifier-border-hover); position: relative; cursor: pointer; transition: background .15s; box-shadow: none;
+    &::after, &:checked::after { content: ''; position: absolute; inset: 2px auto auto 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; -webkit-mask: none; mask: none; transition: transform .15s; }
+    &:checked { background: var(--interactive-accent); }
+    &:checked::after { transform: translateX(14px); }
+    &:focus-visible { outline: 2px solid var(--background-modifier-border-focus); outline-offset: 2px; }
+}
+.clipper .clipper-footer { border-top: 0; gap: 8px; padding-top: 10px; }
+.clipper .qiaomu-rss-control:not(:has(*:not(:empty):not([hidden]))) { display: none; }
+

@@ -8,7 +8,7 @@ import { debugLog } from './debug';
 import { getMessage } from './i18n';
 import { updateTokenCount } from './token-counter';
 
-const RATE_LIMIT_RESET_TIME = 60000; // 1 minute in milliseconds
+const RATE_LIMIT_RESET_TIME = 5000; // guards against double clicks; retries after a failure stay quick
 let lastRequestTime = 0;
 
 // Store event listeners for cleanup
@@ -436,30 +436,15 @@ export function collectPromptVariables(template: Template | null): PromptVariabl
 		}
 	}
 
-	if (template?.noteContentFormat) {
-		while ((match = promptRegex.exec(template.noteContentFormat)) !== null) {
+	// Only the template can ask for AI; page text that happens to contain {{"..."}} must not trigger it.
+	const sources = [template?.noteContentFormat, template?.noteNameFormat, template?.path, ...(template?.properties ?? []).map(property => property.value)];
+	for (const source of sources) {
+		if (!source) continue;
+		promptRegex.lastIndex = 0;
+		while ((match = promptRegex.exec(source)) !== null) {
 			addPrompt(match[1], match[2] || '');
 		}
 	}
-
-	if (template?.properties) {
-		for (const property of template.properties) {
-			let propertyValue = property.value;
-			while ((match = promptRegex.exec(propertyValue)) !== null) {
-				addPrompt(match[1], match[2] || '');
-			}
-		}
-	}
-
-	const allInputs = document.querySelectorAll('input, textarea');
-	allInputs.forEach((input) => {
-		if (input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement) {
-			let inputValue = input.value;
-			while ((match = promptRegex.exec(inputValue)) !== null) {
-				addPrompt(match[1], match[2] || '');
-			}
-		}
-	});
 
 	return Array.from(promptMap.values());
 }
@@ -526,15 +511,16 @@ export async function initializeInterpreter(template: Template, variables: { [ke
 	}
 
 	if (template) {
-		// Only add click listener if auto-run is disabled
-		if (interpretBtn && !generalSettings.interpreterAutoRun) {
+		// Keep the action available for retries, including after an automatic run.
+		if (interpretBtn) {
 			const clickListener = async () => {
 				const selectedModelId = modelSelect.value;
 				const modelConfig = generalSettings.models.find(m => m.id === selectedModelId);
 				if (!modelConfig) {
-					throw new Error(`Model configuration not found for ${selectedModelId}`);
+					showInterpreterError(new Error(`Model configuration not found for "${selectedModelId}"`));
+					return;
 				}
-				await handleInterpreterUI(template, variables, tabId, currentUrl, modelConfig);
+				await handleInterpreterUI(template, variables, tabId, currentUrl, modelConfig).catch(() => { /* Error and retry are displayed in the interpreter. */ });
 			};
 			storeListener(interpretBtn, 'click', clickListener);
 		}
@@ -558,7 +544,9 @@ export async function initializeInterpreter(template: Template, variables: { [ke
 					option.textContent = model.name;
 					modelSelect.appendChild(option);
 				});
-				modelSelect.value = generalSettings.interpreterModel || (enabledModels[0]?.id ?? '');
+				modelSelect.value = enabledModels.some(m => m.id === generalSettings.interpreterModel)
+					? generalSettings.interpreterModel!
+					: (enabledModels[0]?.id ?? '');
 			}
 
 			// Validate that the selected model is still enabled
@@ -574,6 +562,17 @@ export async function initializeInterpreter(template: Template, variables: { [ke
 	}
 }
 
+// Shows the hint plus the real cause, so a failure can be fixed (key, model, network) instead of guessed at.
+function showInterpreterError(error: unknown) {
+	const el = document.getElementById('interpreter-error');
+	if (!el) return;
+	const detail = (error instanceof Error ? error.message : String(error)).trim();
+	el.textContent = detail ? `${getMessage('qiaomuAiFailed')}\n${detail.slice(0, 300)}` : getMessage('qiaomuAiFailed');
+	el.title = detail;
+	el.style.display = 'block';
+	document.getElementById('interpreter')?.classList.add('error');
+}
+
 export async function handleInterpreterUI(
 	template: Template,
 	variables: { [key: string]: string },
@@ -586,7 +585,9 @@ export async function handleInterpreterUI(
 	const interpreterErrorMessage = document.getElementById('interpreter-error') as HTMLDivElement;
 	const responseTimer = document.getElementById('interpreter-timer') as HTMLSpanElement;
 	const clipButton = document.getElementById('clip-btn') as HTMLButtonElement;
-	const moreButton = document.getElementById('more-btn') as HTMLButtonElement;
+	let timerInterval: number | undefined;
+	const wasClipDisabled = clipButton?.disabled ?? false;
+	if (interpretBtn.classList.contains('processing')) return;
 	const promptContextTextarea = document.getElementById('prompt-context') as HTMLTextAreaElement;
 
 	try {
@@ -596,6 +597,8 @@ export async function handleInterpreterUI(
 
 		// Remove any previous done or error classes
 		interpreterContainer?.classList.remove('done', 'error');
+		interpretBtn.classList.remove('done', 'error');
+		interpretBtn.disabled = true;
 
 		// Find the provider for this model
 		const provider = generalSettings.providers.find(p => p.id === modelConfig.providerId);
@@ -619,15 +622,14 @@ export async function handleInterpreterUI(
 
 		// Start the timer
 		const startTime = performance.now();
-		let timerInterval: number;
+
 
 		// Change button text and add class
 		interpretBtn.textContent = getMessage('thinking');
 		interpretBtn.classList.add('processing');
 
 		// Disable the clip button
-		clipButton.disabled = true;
-		moreButton.disabled = true;
+		if (clipButton) clipButton.disabled = true;
 
 		// Show and update the timer
 		responseTimer.style.display = 'inline';
@@ -663,9 +665,6 @@ export async function handleInterpreterUI(
 		// Update fields with details of the model that was used
 		replaceModelVariables(modelConfig, provider);
 
-		// Re-enable clip button
-		clipButton.disabled = false;
-		moreButton.disabled = false;
 
 		// Adjust height for noteNameField after content is replaced
 		const noteNameField = document.getElementById('note-name-field') as HTMLTextAreaElement | null;
@@ -677,10 +676,10 @@ export async function handleInterpreterUI(
 		console.error('Error processing LLM:', error);
 		
 		// Revert button text and remove class in case of error
-		interpretBtn.textContent = getMessage('error');
+		interpretBtn.textContent = getMessage('qiaomuAiRetry');
 		interpretBtn.classList.remove('processing');
 		interpretBtn.classList.add('error');
-		interpretBtn.disabled = true;
+		interpretBtn.disabled = false;
 
 		// Add error class to interpreter container
 		interpreterContainer?.classList.add('error');
@@ -689,18 +688,17 @@ export async function handleInterpreterUI(
 		responseTimer.style.display = 'none';
 
 		// Display the error message
-		interpreterErrorMessage.textContent = error instanceof Error ? error.message : 'An unknown error occurred while processing the interpreter request.';
-		interpreterErrorMessage.style.display = 'block';
+		showInterpreterError(error);
 
-		// Re-enable the clip button
-		clipButton.disabled = false;
-		moreButton.disabled = false;
 
 		if (error instanceof Error) {
 			throw new Error(`${error.message}`);
 		} else {
 			throw new Error('An unknown error occurred while processing the interpreter request.');
 		}
+	} finally {
+		if (timerInterval !== undefined) window.clearInterval(timerInterval);
+		if (clipButton) clipButton.disabled = wasClipDisabled;
 	}
 }
 

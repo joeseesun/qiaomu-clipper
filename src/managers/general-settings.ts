@@ -19,6 +19,7 @@ import dayjs from 'dayjs';
 import weekOfYear from 'dayjs/plugin/weekOfYear';
 import { showModal, hideModal } from '../utils/modal-utils';
 import { LocalSaveResult } from '../utils/local-save';
+import { DEFAULT_TRIPLE_KEYS, TRIPLE_COMMANDS, TripleCommand, normalizeTripleKeys, normalizeSites } from '../utils/triple-key';
 
 dayjs.extend(weekOfYear);
 
@@ -220,6 +221,7 @@ export function initializeGeneralSettings(): void {
 		initializeVaultInput();
 		initializeLocalVaultSettings();
 		initializeOpenBehaviorDropdown();
+		initializeDefaultTemplateDropdown();
 		initializeKeyboardShortcuts();
 		initializeToggles();
 		setShortcutInstructions();
@@ -410,6 +412,75 @@ function initializeOpenBehaviorDropdown(): void {
 			saveSettings({ ...generalSettings, openBehavior: value as Settings['openBehavior'] });
 		}
 	);
+}
+
+function populateDefaultTemplateDropdown(templates: Template[]): void {
+	const dropdown = document.getElementById('default-template-dropdown') as HTMLSelectElement | null;
+	if (!dropdown) return;
+	dropdown.textContent = '';
+	templates.forEach(template => {
+		const option = document.createElement('option');
+		option.value = template.id;
+		option.textContent = template.name;
+		dropdown.appendChild(option);
+	});
+	dropdown.value = templates.some(t => t.id === generalSettings.defaultTemplateId) ? generalSettings.defaultTemplateId! : (templates[0]?.id ?? '');
+}
+
+// Templates load after the general settings are built, so the list follows every template list update.
+// Per-action shortcut letters: one character each, no duplicates; an empty box switches the action off.
+function initializeTripleKeyFields(): void {
+	const inputs = Object.fromEntries(TRIPLE_COMMANDS.map(command => [command, document.getElementById(`triple-key-${command}`) as HTMLInputElement | null])) as Record<TripleCommand, HTMLInputElement | null>;
+	const error = document.getElementById('triple-key-error');
+	if (!inputs.read || !inputs.edit || !inputs.clip) return;
+
+	const fill = (keys: Record<TripleCommand, string>) => TRIPLE_COMMANDS.forEach(command => { inputs[command]!.value = keys[command]; });
+	fill(normalizeTripleKeys(generalSettings.tripleKeys));
+
+	const showError = (message: string) => { if (error) { error.hidden = !message; error.textContent = message; } };
+	const save = () => {
+		const typed = Object.fromEntries(TRIPLE_COMMANDS.map(command => [command, inputs[command]!.value.trim().toLowerCase()])) as Record<TripleCommand, string>;
+		const invalid = TRIPLE_COMMANDS.find(command => typed[command] && !/^[a-z0-9]$/.test(typed[command]));
+		const filled = TRIPLE_COMMANDS.filter(command => typed[command]);
+		const duplicate = filled.some((command, index) => filled.findIndex(other => typed[other] === typed[command]) !== index);
+		if (invalid) return showError(getMessage('tripleKeyInvalid'));
+		if (duplicate) return showError(getMessage('tripleKeyDuplicate'));
+		showError('');
+		saveSettings({ ...generalSettings, tripleKeys: typed });
+	};
+	TRIPLE_COMMANDS.forEach(command => {
+		inputs[command]!.addEventListener('input', () => { inputs[command]!.value = inputs[command]!.value.toLowerCase(); save(); });
+		inputs[command]!.addEventListener('focus', () => inputs[command]!.select());
+	});
+	document.getElementById('triple-key-reset')?.addEventListener('click', () => {
+		fill(DEFAULT_TRIPLE_KEYS);
+		showError('');
+		saveSettings({ ...generalSettings, tripleKeys: { ...DEFAULT_TRIPLE_KEYS } });
+	});
+}
+
+function initializeDefaultTemplateDropdown(): void {
+	const dropdown = document.getElementById('default-template-dropdown') as HTMLSelectElement | null;
+	if (dropdown) {
+		populateDefaultTemplateDropdown(getTemplates());
+		document.addEventListener('qiaomu-templates-updated', event => populateDefaultTemplateDropdown((event as CustomEvent<Template[]>).detail));
+		dropdown.addEventListener('change', () => saveSettings({ ...generalSettings, defaultTemplateId: dropdown.value }));
+	}
+	initializeSettingToggle('selection-toolbar-toggle', generalSettings.selectionToolbar !== false, (checked) => {
+		saveSettings({ ...generalSettings, selectionToolbar: checked });
+	});
+	initializeTripleKeyFields();
+	const sites = document.getElementById('triple-key-sites') as HTMLTextAreaElement | null;
+	if (sites) {
+		sites.value = normalizeSites(generalSettings.tripleKeyBlockedSites).join('\n');
+		sites.addEventListener('input', debounce(() => {
+			saveSettings({ ...generalSettings, tripleKeyBlockedSites: normalizeSites(sites.value.split(/[\n,;\s]+/)) });
+		}, 400));
+		sites.addEventListener('blur', () => { sites.value = normalizeSites(generalSettings.tripleKeyBlockedSites).join('\n'); });
+	}
+	initializeSettingToggle('triple-key-toggle', generalSettings.tripleKeyShortcuts !== false, (checked) => {
+		saveSettings({ ...generalSettings, tripleKeyShortcuts: checked });
+	});
 }
 
 function initializeResetDefaultTemplateButton(): void {

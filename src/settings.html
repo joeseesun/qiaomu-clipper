@@ -192,6 +192,63 @@
 											</select>
 										</div>
 									</div>
+									<div class="setting-item mod-horizontal">
+										<div class="setting-item-info">
+											<label for="default-template-dropdown" data-i18n="defaultTemplateTitle">Default template</label>
+											<div class="setting-item-description" data-i18n="defaultTemplateDescription">
+												Used when no template trigger matches the page, and for keyboard shortcut clipping.
+											</div>
+										</div>
+										<div class="setting-item-control">
+											<select id="default-template-dropdown"></select>
+										</div>
+									</div>
+									<div class="setting-item mod-horizontal mod-toggle">
+										<div class="setting-item-info">
+											<label for="triple-key-toggle" data-i18n="tripleKeyTitle">Triple-press shortcuts</label>
+											<div class="setting-item-description" data-i18n="tripleKeyDescription">
+												On a web page, press A three times for reading mode, E for the editor, and Q to clip with the default template. Ignored while typing in text fields.
+											</div>
+										</div>
+										<div class="setting-item-control">
+											<div class="checkbox-container">
+												<input type="checkbox" id="triple-key-toggle" />
+											</div>
+										</div>
+									</div>
+									<div class="setting-item" id="triple-key-keys">
+										<div class="setting-item-info">
+											<label data-i18n="tripleKeyKeysTitle">Shortcut keys</label>
+											<div class="setting-item-description" data-i18n="tripleKeyKeysDescription">Choose one letter or digit for each action. Leave it empty to turn that action off.</div>
+										</div>
+										<div class="triple-key-fields">
+											<label class="triple-key-field"><span data-i18n="qiaomuActionReadShort">Read</span><input type="text" id="triple-key-read" maxlength="1" autocomplete="off" spellcheck="false" /></label>
+											<label class="triple-key-field"><span data-i18n="qiaomuActionEditShort">Edit</span><input type="text" id="triple-key-edit" maxlength="1" autocomplete="off" spellcheck="false" /></label>
+											<label class="triple-key-field"><span data-i18n="qiaomuEditorClip">Clip</span><input type="text" id="triple-key-clip" maxlength="1" autocomplete="off" spellcheck="false" /></label>
+											<button type="button" id="triple-key-reset" class="btn" data-i18n="tripleKeyReset">Restore defaults</button>
+										</div>
+										<div class="setting-item-description triple-key-error" id="triple-key-error" role="alert" hidden></div>
+									</div>
+									<div class="setting-item">
+										<div class="setting-item-info">
+											<label for="triple-key-sites" data-i18n="tripleKeySitesTitle">Turn off on these sites</label>
+											<div class="setting-item-description" data-i18n="tripleKeySitesDescription">One site per line, for example mail.google.com. Subdomains are included. You can also turn it off for the current site from the clipper menu.</div>
+										</div>
+										<textarea id="triple-key-sites" rows="3" spellcheck="false" autocomplete="off" placeholder="mail.google.com"></textarea>
+									</div>
+									<div class="setting-item mod-horizontal mod-toggle">
+										<div class="setting-item-info">
+											<label for="selection-toolbar-toggle" data-i18n="selectionToolbarTitle">Selection toolbar</label>
+											<div class="setting-item-description" data-i18n="selectionToolbarDescription">
+												Show a small toolbar next to selected text in the reading and editing pages, with Highlight and Ask AI.
+											</div>
+										</div>
+										<div class="setting-item-control">
+											<div class="checkbox-container">
+												<input type="checkbox" id="selection-toolbar-toggle" />
+											</div>
+										</div>
+									</div>
 									<div class="setting-item mod-horizontal mod-toggle">
 										<div class="setting-item-info">
 											<label for="silent-open-toggle" data-i18n="silentOpen">Save clipped note without opening&nbsp;it</label>
@@ -355,7 +412,8 @@
 											<label data-i18n="readerFont">Font options</label>
 											<div class="setting-item-description" data-i18n="readerFontDescription">Add fonts installed on your system. Press enter to add a font.</div>
 										</div>
-										<input type="text" id="reader-font-input" data-i18n="readerFontPlaceholder" placeholder="Press enter to add a font" autocomplete="off" spellcheck="false" />
+										<input type="text" id="reader-font-input" list="reader-font-datalist" data-i18n="readerFontPlaceholder" placeholder="Press enter to add a font" autocomplete="off" spellcheck="false" />
+										<datalist id="reader-font-datalist"></datalist>
 										<ul id="reader-font-list" class="setting-item-list"></ul>
 									</div>
 								</div>
@@ -635,7 +693,7 @@
 								<div class="setting-item setting-item-heading"><h3 data-i18n="allProperties">All properties</h3></div>
 								<div class="setting-items">
 								<div class="add-btn" style="display: none;">
-									<a id="add-property-type-btn">+ Add property</a>
+									<a id="add-property-type-btn" data-i18n="addProperty">+ Add property</a>
 								</div>
 								<div id="property-types-list" class="properties-list"></div>
 								</div>
@@ -883,7 +941,7 @@
 							</div>
 							<div class="setting-item-control">
 								<select id="provider-preset" name="preset">
-									<option value="">Custom</option>
+									<option value="" data-i18n="custom">Custom</option>
 								</select>
 							</div>
 						</div>

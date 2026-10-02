@@ -51,6 +51,17 @@
 				"https://*/*"
 			],
 			"js": [
+				"triple-key.js"
+			],
+			"all_frames": true,
+			"run_at": "document_start"
+		},
+		{
+			"matches": [
+				"http://*/*",
+				"https://*/*"
+			],
+			"js": [
 				"content-loader.js"
 			]
 		}
@@ -59,6 +70,7 @@
 		{
 			"resources": [
 				"reader.css",
+				"fonts/ZhuqueFangsong-Regular.woff",
 				"reader-script.js",
 				"browser-polyfill.min.js",
 				"style.css",
@@ -91,6 +103,9 @@
 				"mac": "Alt+Shift+H"
 			},
 			"description": "__MSG_commandToggleHighlighter__"
+		},
+		"open_editor": {
+			"description": "__MSG_commandOpenEditor__"
 		},
 		"toggle_reader": {
 			"suggested_key": {

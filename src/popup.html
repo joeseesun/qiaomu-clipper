@@ -9,11 +9,7 @@
 	</head>
 	<body id="popup-container">
 		<div id="popup-header">
-			<div id="template-container">
-				<select id="template-select">
-					<option value=""></option>
-				</select>
-			</div>
+			<textarea id="note-name-field" type="text" data-i18n="noteName" rows="1"></textarea>
 			<div class="popup-actions">
                 <div class="popup-tools">
                     <button type="button" id="popup-tools-toggle" class="clickable-icon" data-i18n-title="more" aria-label="More" aria-haspopup="menu" aria-expanded="false"><i data-lucide="ellipsis"></i></button>
@@ -22,6 +18,7 @@
                         <a href="#" id="highlighter-mode" role="menuitem"><i data-lucide="highlighter"></i><span data-i18n="highlightPage"></span></a>
                         <a href="#" id="embedded-mode" role="menuitem"><i data-lucide="picture-in-picture-2"></i><span data-i18n="openEmbedded"></span></a>
                         <a href="#" id="reader-mode" role="menuitem"><i data-lucide="book-open"></i><span data-i18n="qiaomuReadingMode"></span></a>
+                        <a href="#" id="toggle-triple-site" role="menuitem"><i data-lucide="keyboard"></i><span id="toggle-triple-site-label"></span></a>
                         <a href="#" id="edit-clip-markdown" role="menuitem"><i data-lucide="file-text"></i><span data-i18n="qiaomuEditMarkdown"></span></a>
 
                         <a href="https://rss.qiaomu.ai/feeds/user-submitted.xml" target="_blank" rel="noopener noreferrer" role="menuitem"><i data-lucide="rss"></i><span data-i18n="qiaomuPublicRss"></span></a>
@@ -32,42 +29,55 @@
 		</div>
 		<p class="error-message" style="display: none;"></p>
 		<div class="clipper">
-			<textarea id="note-name-field" type="text" data-i18n="noteName" rows="1"></textarea>
-			<div class="metadata-properties-header collapsed" role="button" tabindex="0" aria-expanded="false">
-				<span data-i18n="properties"></span>
-				<i data-lucide="chevron-down"></i>
-			</div>
-			<div class="metadata-properties collapsed"></div>
-			<div id="note-content-container">
-                <div class="clip-content-actions" role="group" data-i18n-aria-label="qiaomuContentActions">
-                    <button type="button" id="preview-clip" class="clickable-icon" data-i18n-title="qiaomuReadingMode" data-i18n-aria-label="qiaomuReadingMode"><i data-lucide="eye"></i></button>
-                    <button type="button" id="copy-content" class="clickable-icon" data-i18n-title="qiaomuCopyMarkdown" data-i18n-aria-label="qiaomuCopyMarkdown"><i data-lucide="copy"></i></button>
-                    <button type="button" id="save-downloads" class="clickable-icon" data-i18n-title="qiaomuSaveMarkdown" data-i18n-aria-label="qiaomuSaveMarkdown"><i data-lucide="download"></i></button>
-                </div>
-                <p id="clip-action-status" role="status" aria-live="polite"></p>
-				<textarea id="note-content-field" rows="4" data-i18n="notesAboutPage"></textarea>
-			</div>
-			<div class="clipper-footer">
-				<div class="vault-path-container">
-					<div id="vault-container" style="display: none;">
-						<select id="vault-select"></select>
+			<div class="clipper-body">
+				<div id="note-content-container">
+					<div class="clip-content-actions" role="group" data-i18n-aria-label="qiaomuContentActions">
+						<button type="button" id="preview-clip" data-i18n-title="qiaomuReadingMode" data-i18n-aria-label="qiaomuReadingMode"><i data-lucide="eye"></i><span data-i18n="qiaomuActionRead"></span></button>
+						<button type="button" id="copy-content" data-i18n-title="qiaomuCopyMarkdown" data-i18n-aria-label="qiaomuCopyMarkdown"><i data-lucide="copy"></i><span data-i18n="qiaomuActionCopy"></span></button>
+						<button type="button" id="save-downloads" data-i18n-title="qiaomuSaveMarkdown" data-i18n-aria-label="qiaomuSaveMarkdown"><i data-lucide="download"></i><span data-i18n="qiaomuActionDownload"></span></button>
+						<button type="button" id="open-editor" data-i18n-title="qiaomuEditClip" data-i18n-aria-label="qiaomuEditClip"><i data-lucide="pen-line"></i><span data-i18n="qiaomuActionEdit"></span></button>
 					</div>
-					<input id="path-name-field" type="text" data-i18n="folder"/>
+					<p id="clip-action-status" role="status" aria-live="polite"></p>
 				</div>
 				<div id="interpreter" style="display: none;">
 					<textarea id="prompt-context" rows="3"></textarea>
 					<div class="interpreter-controls">
+						<i data-lucide="sparkles" class="interpreter-icon"></i>
 						<select id="model-select" style="display: none;"></select>
-						<button id="interpret-btn" data-i18n="interpret"></button>
 						<span id="interpreter-timer" style="display: none;"></span>
+						<button id="interpret-btn" data-i18n="interpret"></button>
 					</div>
-					<div id="token-counter" class="token-counter"></div>
-					<div id="interpreter-error" style="display: none;"></div>
+					<div class="token-counter" id="token-counter"></div>
+					<div id="interpreter-error" role="alert" style="display: none;"></div>
 				</div>
+				<div class="settings-list">
+					<label class="setting-row" for="template-select">
+						<span data-i18n="qiaomuTemplate"></span>
+						<select id="template-select"><option value=""></option></select>
+					</label>
+					<div class="destination collapsed">
+						<div id="destination-toggle" class="setting-row" role="button" tabindex="0" aria-expanded="false">
+							<span data-i18n="qiaomuDestination"></span>
+							<span id="destination-summary"></span>
+							<i data-lucide="chevron-down"></i>
+						</div>
+						<div class="vault-path-container">
+							<div id="vault-container" style="display: none;">
+								<select id="vault-select"></select>
+							</div>
+							<input id="path-name-field" type="text" data-i18n="folder"/>
+						</div>
+					</div>
+					<label class="setting-row" for="qiaomu-rss-enabled">
+						<span data-i18n="qiaomuShareRss">分享到乔木 RSS</span>
+						<input type="checkbox" id="qiaomu-rss-enabled" class="switch" checked>
+					</label>
+				</div>
+			</div>
+			<div class="clipper-footer">
 				<div class="qiaomu-rss-control">
 					<div id="qiaomu-local-status" role="status" aria-live="polite"></div>
 					<button type="button" id="qiaomu-local-retry" hidden>重试本地保存</button>
-					<label for="qiaomu-rss-enabled"><input type="checkbox" id="qiaomu-rss-enabled" checked><span data-i18n="qiaomuShareRss">分享到乔木 RSS</span></label>
 					<div id="qiaomu-rss-status" role="status" aria-live="polite"></div>
 					<button type="button" id="qiaomu-rss-retry" hidden>重试 RSS 同步</button>
 				</div>
@@ -76,6 +86,7 @@
 				</div>
 			</div>
 		</div>
+		<div id="clip-data-holder" hidden><div class="metadata-properties"></div><textarea id="note-content-field"></textarea></div>
 		<script type="module" src="popup.js"></script>
 	</body>
 </html>
