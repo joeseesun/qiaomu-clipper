@@ -11,6 +11,8 @@ import { updatePromptContextVisibility } from './interpreter-settings';
 import { showSettingsSection } from './settings-section-ui';
 import { updatePropertyType } from './property-types-manager';
 import { getMessage } from '../utils/i18n';
+import browser from '../utils/browser-polyfill';
+import { LocalSaveResult } from '../utils/local-save';
 import {
 	parse,
 	standardFilterMetadata,
@@ -201,6 +203,26 @@ export function showTemplateEditor(template: Template | null): void {
 	if (pathInput) {
 		pathInput.value = editingTemplate.path || '';
 		validateTemplateField(pathInput, false);
+	}
+	const browse = document.getElementById('template-path-browse') as HTMLButtonElement | null;
+	const pathStatus = document.getElementById('template-path-status');
+	if (pathStatus) pathStatus.textContent = '';
+	if (browse && pathInput && pathStatus) {
+		browse.onclick = async () => {
+			const templateId = editingTemplate.id;
+			browse.disabled = true;
+			pathStatus.textContent = '';
+			try {
+				const vault = (document.getElementById('template-vault') as HTMLSelectElement | null)?.value || '';
+				const result = await browser.runtime.sendMessage({ action: 'qiaomuLocalChooseFolder', payload: { vault, folder: pathInput.value } }) as LocalSaveResult;
+				if (templates[editingTemplateIndex]?.id !== templateId || result?.cancelled) return;
+				if (!result?.ok || typeof result.folder !== 'string') { pathStatus.textContent = result?.error || '文件夹选择失败'; return; }
+				setTemplateEditorValue(pathInput, result.folder);
+				pathInput.dispatchEvent(new Event('input', { bubbles: true }));
+				validateTemplateField(pathInput, false);
+			} catch { pathStatus.textContent = '无法浏览文件夹，请检查本地保存助手或手动填写路径'; }
+			finally { browse.disabled = false; }
+		};
 	}
 
 	const behaviorSelect = document.getElementById('template-behavior') as HTMLSelectElement;

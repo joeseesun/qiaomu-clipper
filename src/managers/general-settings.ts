@@ -18,6 +18,7 @@ import { getClipHistory } from '../utils/storage-utils';
 import dayjs from 'dayjs';
 import weekOfYear from 'dayjs/plugin/weekOfYear';
 import { showModal, hideModal } from '../utils/modal-utils';
+import { LocalSaveResult } from '../utils/local-save';
 
 dayjs.extend(weekOfYear);
 
@@ -217,6 +218,7 @@ export function initializeGeneralSettings(): void {
 		initializeLegacyModeToggle();
 		initializeSilentOpenToggle();
 		initializeVaultInput();
+		initializeLocalVaultSettings();
 		initializeOpenBehaviorDropdown();
 		initializeKeyboardShortcuts();
 		initializeToggles();
@@ -276,6 +278,62 @@ function initializeShowMoreActionsToggle(): void {
 	initializeSettingToggle('show-more-actions-toggle', generalSettings.showMoreActionsButton, (checked) => {
 		saveSettings({ ...generalSettings, showMoreActionsButton: checked });
 	});
+}
+
+async function initializeLocalVaultSettings(): Promise<void> {
+	const input = document.getElementById('local-vault-path') as HTMLInputElement | null;
+	const button = document.getElementById('local-vault-save') as HTMLButtonElement | null;
+	const choose = document.getElementById('local-vault-choose') as HTMLButtonElement | null;
+	const status = document.getElementById('local-vault-status');
+	if (!input || !button || !status) return;
+	let edited = false;
+	input.addEventListener('input', () => { edited = true; });
+	choose?.addEventListener('click', async () => {
+		choose.disabled = true;
+		button.disabled = true;
+		edited = true;
+		try {
+			const result = await browser.runtime.sendMessage({ action: 'qiaomuLocalChooseVault' }) as LocalSaveResult;
+			if (result?.cancelled) return;
+			if (!result?.ok || !result.vaultPath) { status.textContent = result?.error || '文件夹选择失败'; return; }
+			input.value = result.vaultPath;
+			status.textContent = `已选择 ${result.vault}，点击“保存库地址”生效。`;
+		} catch { status.textContent = '本地保存助手未连接，请先安装或更新助手'; }
+		finally { choose.disabled = false; button.disabled = false; }
+	});
+	const configure = async () => {
+		if (button.disabled) return;
+		button.disabled = true;
+		if (choose) choose.disabled = true;
+		edited = true;
+		status.textContent = '正在验证笔记库地址…';
+		try {
+			const result = await browser.runtime.sendMessage({ action: 'qiaomuLocalConfigure', payload: { vaultPath: input.value.trim() } }) as LocalSaveResult;
+			if (!result?.ok || !result.vault || !result.vaultPath) {
+				status.textContent = result?.error || '库地址保存失败，请检查本地保存助手';
+				return;
+			}
+			if (!generalSettings.vaults.includes(result.vault)) {
+				generalSettings.vaults.push(result.vault);
+				await saveSettings();
+				updateVaultList();
+			}
+			await browser.storage.local.set({ qiaomuNativeConfigured: true });
+			await setLocalStorage('lastSelectedVault', result.vault);
+			input.value = result.vaultPath;
+			status.textContent = `已保存：${result.vaultPath}。重新打开剪藏弹窗即可使用，失败的笔记可点击“重试本地保存”。`;
+		} catch {
+			status.textContent = '本地保存助手未连接，请先安装或更新助手';
+		} finally { button.disabled = false; if (choose) choose.disabled = false; }
+	};
+	button.addEventListener('click', configure);
+	input.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); configure(); } });
+	try {
+		const result = await browser.runtime.sendMessage({ action: 'qiaomuLocalStatus' }) as LocalSaveResult;
+		if (edited) return;
+		if (result?.ok && result.vaultPath) { input.value = result.vaultPath; status.textContent = `当前保存到：${result.vaultPath}`; }
+		else { status.textContent = '本地保存助手未连接。安装助手后可在这里切换笔记库地址。'; }
+	} catch { if (!edited) status.textContent = '本地保存助手未连接。安装助手后可在这里切换笔记库地址。'; }
 }
 
 function initializeVaultInput(): void {

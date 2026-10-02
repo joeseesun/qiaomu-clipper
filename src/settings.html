@@ -137,6 +137,18 @@
 								<div class="setting-item-description" data-i18n="vaultsDescription">By default, clipped notes are saved to the currently open vault. You can add vaults here if you want the option to save to different vaults. Vault names must exactly match the name of the Obsidian vault. Press <strong>enter</strong> to add a&nbsp;vault.</div>
 								<input type="text" id="vault-input" data-i18n="addVaultPlaceholder" placeholder="Press enter to add a vault" autocomplete="off" spellcheck="false" />
 								<ul id="vault-list" class="setting-item-list"></ul>
+								<div class="setting-item">
+									<div class="setting-item-info">
+										<label for="local-vault-path">静默保存的笔记库地址</label>
+										<div class="setting-item-description">选择本机 Obsidian 笔记库文件夹，或填写完整路径。保存后自动识别库名，剪藏直接写入此库，无需打开 Obsidian。</div>
+									</div>
+									<div class="setting-item-control">
+										<input type="text" id="local-vault-path" placeholder="请选择笔记库文件夹" autocomplete="off" spellcheck="false" />
+										<button type="button" id="local-vault-choose" class="btn">选择文件夹</button>
+										<button type="button" id="local-vault-save" class="btn">保存库地址</button>
+									</div>
+									<div id="local-vault-status" class="setting-item-description" role="status" aria-live="polite"></div>
+								</div>
 								</div>
 							</div>
 							<div class="setting-group" id="hotkeys-subsection">
@@ -723,7 +735,11 @@
 										<div class="setting-item" id="path-name-container" style="display: none;">
 											<label for="template-path-name" data-i18n="noteLocation">Note location</label>
 											<div class="setting-item-description" data-i18n="noteLocationDescription">The folder or path of the note.</div>
-											<input type="text" id="template-path-name" placeholder="Clippings" />
+											<div class="note-location-control">
+												<input type="text" id="template-path-name" placeholder="Clippings" />
+												<button type="button" id="template-path-browse" class="clickable-icon" aria-label="浏览笔记文件夹" title="浏览笔记文件夹"><i data-lucide="folder-open"></i></button>
+											</div>
+											<div id="template-path-status" class="setting-item-description" role="status" aria-live="polite"></div>
 										</div>
 										<div class="setting-item">
 											<label for="template-vault" data-i18n="vault">Vault</label>
@@ -812,11 +828,11 @@
 						</div>
 						<div class="setting-item model-selection-container" style="display: none;">
 							<div class="setting-item-info">
-								<label data-i18n="popularModels">Popular models</label>
-								<div class="setting-item-description" data-i18n="popularModelsDescription">Choose from commonly used models or enter custom model details.</div>
+								<label for="provider-model-select" data-i18n="providerModels">Provider models</label>
+								<div class="setting-item-description" data-i18n="providerModelsDescription">Choose a model from your configured provider or enter a custom model ID.</div>
 							</div>
 							<div class="setting-item-control">
-								<div class="radio-container" id="model-selection-radios">
+								<div class="provider-model-options" id="model-selection-radios">
 								</div>
 							</div>
 						</div>

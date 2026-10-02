@@ -52,6 +52,7 @@
 	}
 
 	&.is-enabled {
+		--toggle-thumb-color: var(--text-on-accent);
 		background-color: var(--interactive-accent);
 
 		&:after {

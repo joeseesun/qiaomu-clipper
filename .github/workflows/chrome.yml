@@ -1,0 +1,30 @@
+name: Chrome extension
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      TZ: America/Los_Angeles
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      - run: npm test
+      - run: npx tsc --noEmit
+      - run: python3 -m unittest discover -s native -p 'test_*.py'
+      - run: npm run build:chrome
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qiaomu-clipper-chrome
+          path: builds/qiaomu-clipper-*-chrome.zip

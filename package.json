@@ -1,7 +1,7 @@
 {
-	"name": "obsidian-clipper",
+	"name": "qiaomu-clipper",
 	"version": "1.7.1",
-	"description": "Official web clipper for Obsidian.",
+	"description": "Save web clips to Obsidian and Qiaomu RSS.",
 	"bin": {
 		"obsidian-clipper": "./dist/cli.cjs"
 	},
@@ -70,6 +70,16 @@
 		"knap": "^0.6.0",
 		"linkedom": "^0.18.0",
 		"lucide": "^0.359.0",
-		"lz-string": "^1.5.0"
+		"lz-string": "^1.5.0",
+		"marked": "^17.0.6"
+	},
+	"private": true,
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/joeseesun/qiaomu-clipper.git"
+	},
+	"homepage": "https://github.com/joeseesun/qiaomu-clipper",
+	"bugs": {
+		"url": "https://github.com/joeseesun/qiaomu-clipper/issues"
 	}
 }

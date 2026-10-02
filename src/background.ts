@@ -1,3 +1,4 @@
+import { submitQiaomuClip, QiaomuClip } from './utils/qiaomu-rss';
 import browser from 'webextension-polyfill';
 import { detectBrowser } from './utils/browser-detection';
 import { updateCurrentActiveTab, isValidUrl, isBlankPage, isNormalPageUrl } from './utils/active-tab-manager';
@@ -7,6 +8,52 @@ import { Settings } from './types/types';
 import { debugLog } from './utils/debug';
 import { incrementStat } from './utils/storage-utils';
 import { hasStoredHighlights } from './utils/url-utils';
+
+// Accept RSS writes only from our own extension pages, never a website content script.
+const qiaomuInFlight = new Map<string, Promise<unknown>>();
+const qiaomuLocalInFlight = new Map<string, Promise<unknown>>();
+browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime.MessageSender) => {
+	const message = request as { action?: string; payload?: { requestId?: string; vaultPath?: string; vault?: string; folder?: string } };
+	if (!['qiaomuLocalStatus', 'qiaomuLocalSave', 'qiaomuLocalConfigure', 'qiaomuLocalChooseVault', 'qiaomuLocalChooseFolder'].includes(message?.action || '')) return;
+	if (sender.id !== browser.runtime.id || !sender.url?.startsWith(browser.runtime.getURL(''))) return Promise.resolve({ ok: false, error: '无效的本地保存请求' });
+	if (message.action === 'qiaomuLocalStatus') return browser.runtime.sendNativeMessage('ai.qiaomu.clipper', { action: 'status' }).catch(() => ({ ok: false }));
+	if (message.action === 'qiaomuLocalChooseFolder') return browser.runtime.sendNativeMessage('ai.qiaomu.clipper', { action: 'chooseNoteFolder', vault: message.payload?.vault, folder: message.payload?.folder })
+		.catch(() => ({ ok: false, error: '浏览文件夹需要本地保存助手，请先安装或更新助手，也可手动填写相对路径' }));
+	if (message.action === 'qiaomuLocalChooseVault') return browser.runtime.sendNativeMessage('ai.qiaomu.clipper', { action: 'chooseVault' })
+		.catch(() => ({ ok: false, error: '本地保存助手未连接，请先安装或更新助手' }));
+	if (message.action === 'qiaomuLocalConfigure') {
+		if (typeof message.payload?.vaultPath !== 'string') return Promise.resolve({ ok: false, error: '请输入笔记库路径' });
+		return browser.runtime.sendNativeMessage('ai.qiaomu.clipper', { action: 'configure', vaultPath: message.payload.vaultPath })
+			.catch(() => ({ ok: false, error: '本地保存助手未连接，请先安装或更新助手' }));
+	}
+	const payload = message.payload;
+	if (!payload || !/^[a-zA-Z0-9-]{8,80}$/.test(payload.requestId || '')) return Promise.resolve({ ok: false, error: '保存请求标识无效' });
+	const key = `qiaomuLocalPending:${payload.requestId}`;
+	if (qiaomuLocalInFlight.has(key)) return qiaomuLocalInFlight.get(key);
+	const job = browser.storage.local.set({ [key]: payload })
+		.then(() => browser.runtime.sendNativeMessage('ai.qiaomu.clipper', { ...payload, action: 'save' }))
+		.then(async result => { if ((result as { ok?: boolean })?.ok) await browser.storage.local.remove(key); return result; })
+		.catch(() => ({ ok: false, error: '本地保存助手未连接，请检查安装后重试' }))
+		.finally(() => qiaomuLocalInFlight.delete(key));
+	qiaomuLocalInFlight.set(key, job);
+	return job;
+});
+browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime.MessageSender) => {
+	const message = request as { action?: string; clip?: QiaomuClip };
+	if (message?.action !== 'qiaomuSubmitClip') return;
+	if (sender.id !== browser.runtime.id || !sender.url?.startsWith(browser.runtime.getURL('')) || !message.clip) return Promise.resolve({ error: '无效的剪藏请求' });
+	const clip = message.clip;
+	const key = clip.url;
+	if (qiaomuInFlight.has(key)) return qiaomuInFlight.get(key);
+	const pendingKey = `qiaomuPending:${clip.url}`;
+	const job = browser.storage.local.set({ [pendingKey]: clip })
+		.then(() => submitQiaomuClip(clip))
+		.then(async result => { if (result.accepted) await browser.storage.local.remove(pendingKey); return result; })
+		.catch(error => ({ error: error instanceof Error ? error.message : 'RSS 同步失败' }))
+		.finally(() => qiaomuInFlight.delete(key));
+	qiaomuInFlight.set(key, job);
+	return job;
+});
 
 const YOUTUBE_EMBED_RULE_ID = 9001;
 const YOUTUBE_INNERTUBE_RULE_ID = 9002;

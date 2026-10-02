@@ -1,0 +1,1 @@
+Built-in image_gen, 2026-10-01. Pure black rounded square with centered white geometric paperclip at 45 degrees. Consistent bold round stroke, generous negative space, readable at 16px. Vercel Geist monochrome restraint. No Q, page, bookmark, triangle, text, gradients, texture, shadow or mockup.

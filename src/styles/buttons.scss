@@ -40,7 +40,7 @@ button,
 	}
 	&:active,
 	&:focus {
-		box-shadow: 0 0 0 2px var(--background-modifier-border-focus);
+		box-shadow: var(--input-shadow);
 		transition:
 			box-shadow .15s ease-in-out;
 	}
@@ -54,7 +54,7 @@ button,
 		}
 		&:active,
 		&:focus {
-			box-shadow: 0 0 0 2px var(--background-modifier-border-focus);
+			box-shadow: var(--input-shadow);
 			transition:
 				box-shadow .15s ease-in-out;
 		}
@@ -114,4 +114,9 @@ button.clickable-icon {
 			}
 		}
 	}
+}
+button:focus-visible,
+.btn:focus-visible {
+	outline: 1px solid var(--text-muted);
+	outline-offset: 2px;
 }

@@ -183,77 +183,66 @@
 
 .action-buttons {
 	display: flex;
-	align-items: center;
+	align-items: stretch;
 	position: relative;
 	width: 100%;
-	
-	#clip-btn {
-		flex: 1;
-		cursor: default;
-	}
-	#clip-btn:focus ~ .menu-btn #more-btn {
+	height: var(--input-height);
+	border-radius: var(--radius-s);
+	box-shadow: var(--input-shadow);
+
+	#clip-btn,
+	#more-btn {
+		height: 100%;
+		margin: 0;
 		box-shadow: none;
-		border-inline-start: 1px solid rgba(var(--mono-rgb-100), 0.12);
-		&:hover {
-			border-inline-start: 1px solid rgba(var(--mono-rgb-100), 0.22);
+		cursor: default;
+
+		&:hover,
+		&:active,
+		&:focus {
+			box-shadow: none;
+		}
+		&:focus-visible {
+			outline: 1px solid var(--text-on-accent);
+			outline-offset: -3px;
 		}
 	}
-	.menu-btn {
-		background-color: var(--background-primary);
-		position: absolute;
-		right: 0;
-		cursor: default;
-		border-start-start-radius: 0;
-		border-start-end-radius: var(--radius-s);
-		border-end-start-radius: 0;
-		border-end-end-radius: var(--radius-s);
+
+	#clip-btn {
+		flex: 1;
+		min-width: 0;
+		border-start-end-radius: 0;
+		border-end-end-radius: 0;
 	}
+
+	.menu-btn {
+		position: relative;
+		display: flex;
+		flex: 0 0 var(--input-height);
+		height: 100%;
+		background-color: transparent;
+	}
+
 	.share-btn {
 		display: none;
 		cursor: default;
 	}
+
 	#more-btn {
-		cursor: default;
-		color: white;
+		width: 100%;
+		padding: 0;
+		color: var(--text-on-accent);
 		background-color: var(--interactive-accent);
-		box-shadow: inset 0 0 0 1px rgba(var(--mono-rgb-100), 0.12);
-		border: none;
+		border-inline-start: 1px solid rgba(var(--mono-rgb-0), 0.2);
 		border-start-start-radius: 0;
-		border-start-end-radius: var(--radius-s);
 		border-end-start-radius: 0;
-		border-end-end-radius: var(--radius-s);
-		width: auto;
-		white-space: nowrap;
-		padding: 0 0.25rem;
-		display: flex;
-		align-items: center;
-		justify-content: center;
+
 		svg.lucide-icon {
 			stroke-width: 2.5px;
 		}
 		@media (hover: hover) {
 			&:hover {
 				background-color: var(--interactive-accent-hover);
-				box-shadow: inset 0 0 0 1px rgba(var(--mono-rgb-100), 0.16);
-				border: none;
-			}
-		}
-	}
-}
-
-@media (prefers-color-scheme: dark) {
-	.action-buttons {
-
-		#more-btn {
-			box-shadow: inset 0 1px 0 0px rgba(var(--mono-rgb-100), 0.12);
-			border: none;
-			border-inline-start: 1px solid rgba(var(--mono-rgb-100), 0.12);
-			@media (hover: hover) {
-				&:hover {
-					box-shadow: inset 0 1px 0 0px rgba(var(--mono-rgb-100), 0.16);
-					border: none;
-					border-inline-start: 1px solid rgba(var(--mono-rgb-100), 0.16);
-				}
 			}
 		}
 	}
@@ -262,6 +251,14 @@
 .is-tablet,
 .is-mobile {
 	.action-buttons {
+		box-shadow: none;
+		#clip-btn {
+			border-radius: var(--radius-s);
+			box-shadow: var(--input-shadow);
+		}
+		.menu-btn {
+			display: none;
+		}
 		#more-btn {
 			display: none;
 		}
@@ -373,3 +370,50 @@
 		}
 	}
 }
+
+.qiaomu-rss-control {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px 8px;
+	font-size: 12px;
+	label { display: flex; align-items: center; gap: 6px; min-height: 32px; cursor: pointer; }
+	input[type="checkbox"] { margin: 0; }
+	a { margin-left: auto; color: var(--text-muted); }
+	#qiaomu-local-status, #qiaomu-rss-status { width: 100%; color: var(--text-muted); overflow-wrap: anywhere; }
+	#qiaomu-local-status:empty, #qiaomu-rss-status:empty { display: none; }
+	button[hidden] { display: none; }
+}
+
+.popup-tools { position: relative; }
+#popup-tools-menu {
+    position: absolute; top: calc(100% + 6px); right: 0; z-index: 30;
+    width: 220px; padding: 6px; border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-m); background: var(--background-primary);
+    box-shadow: 0 6px 20px rgb(0 0 0 / 12%);
+    &[hidden] { display: none; }
+    a { display: flex; align-items: center; gap: 10px; padding: 10px; color: var(--text-normal); text-decoration: none; border-radius: var(--radius-s); }
+    a:hover, a:focus-visible { background: var(--background-secondary); }
+    svg { width: 18px; height: 18px; flex-shrink: 0; }
+}
+#popup-tools-toggle { width: 32px; padding: 6px; border: none; background: transparent; box-shadow: none; }
+#note-content-container {
+    display: flex; flex-direction: column; padding: 12px var(--popup-padding); gap: 10px;
+    #preview-clip { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 42px; flex-shrink: 0; }
+    #clip-preview-summary { font-size: var(--font-ui-small); color: var(--text-muted); margin: 0; line-height: 1.5; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+    #note-content-field { display: none; padding: 0; min-height: 100px; }
+    &.is-editing #note-content-field { display: block; }
+}
+.metadata-property-key { cursor: copy; }
+.metadata-property-key:focus-visible, .metadata-properties-header:focus-visible { outline: 1px solid var(--text-muted); outline-offset: -1px; }
+
+// Keep the compact Chrome popup short; editors and expanded properties retain room.
+#popup.is-chromium:not(.is-side-panel):not(.is-embedded):has(.metadata-properties.collapsed):not(:has(#note-content-container.is-editing)):not(:has(.variables-panel.show)):has(#interpreter[style*="none"]) {
+    --popup-height: 460px;
+    --popup-max-height: 460px;
+    --chromium-popup-height: 460px;
+}
+
+.clipper { min-height: 0; }
+.clipper #note-content-container { min-height: 0; }
+.clipper .clipper-footer { flex-shrink: 0; }

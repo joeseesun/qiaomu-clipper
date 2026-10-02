@@ -1,3 +1,6 @@
+import { loadClipPreview, saveClipPreview } from '../utils/clip-preview';
+import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 import browser from '../utils/browser-polyfill';
 import { Reader } from '../utils/reader';
 import { initializeI18n, getMessage } from '../utils/i18n';
@@ -18,6 +21,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 	await initializeI18n();
 
 	const params = new URLSearchParams(window.location.search);
+	const previewId = params.get('preview');
+	if (previewId) { await showClipPreview(previewId); return; }
 	let url = params.get('url');
 
 	if (!url) {
@@ -419,4 +424,50 @@ async function setupReaderPageMessageHandler(articleUrl: string, defuddleResult:
 	};
 
 	browser.runtime.onMessage.addListener(readerPageMessageListener);
+}
+
+async function showClipPreview(id: string) {
+    const draft = await loadClipPreview(id);
+    if (!draft) { document.body.textContent = '剪藏预览已过期，请重新打开预览'; return; }
+    const rendered = DOMPurify.sanitize(await marked.parse(draft.clip.markdown));
+    const container = document.createElement('div');
+    container.innerHTML = rendered;
+    container.querySelectorAll<HTMLElement>('[href], [src]').forEach(element => {
+        const attr = element.hasAttribute('href') ? 'href' : 'src';
+        try { element.setAttribute(attr, new URL(element.getAttribute(attr)!, draft.clip.url).href); } catch { element.removeAttribute(attr); }
+        if (element.tagName === 'A') { element.setAttribute('target', '_blank'); element.setAttribute('rel', 'noopener noreferrer'); }
+    });
+    Object.defineProperty(document, 'URL', { value: draft.clip.url, configurable: true });
+    setPageUrl(draft.clip.url);
+    setPageTitle(draft.clip.title);
+    Reader.isReaderPage = true;
+    Reader.preExtractedContent = { content: container.innerHTML, title: draft.clip.title, domain: getDomain(draft.clip.url) };
+    Reader.onClip = async () => {
+        const button = document.getElementById('qiaomu-reader-clip') as HTMLButtonElement;
+        if (button.disabled) return;
+        button.disabled = true;
+        status.textContent = '正在剪藏…';
+        try { status.textContent = (await saveClipPreview(draft)).join(' · '); }
+        catch (error) { status.textContent = String(error); }
+        finally {
+            const done = draft.localDone && (!draft.aggregate || draft.rssDone);
+            button.disabled = Boolean(done);
+            if (done) button.textContent = '已剪藏';
+        }
+    };
+    await Reader.apply(document);
+    document.title = draft.clip.title;
+    const status = document.createElement('p');
+    status.id = 'qiaomu-preview-status';
+    status.setAttribute('role', 'status');
+    status.setAttribute('aria-live', 'polite');
+    status.style.cssText = 'max-width:var(--reader-max-width,38rem);margin:72px auto 0;padding:0 20px;font-size:14px;color:var(--text-muted);';
+    status.textContent = `保存到 ${draft.local.vault || 'Obsidian'} / ${draft.local.folder || '/'}${draft.aggregate ? ' · 同时提交到公开 RSS' : ''}`;
+    document.body.prepend(status);
+    if (draft.localDone && (!draft.aggregate || draft.rssDone)) {
+        const button = document.getElementById('qiaomu-reader-clip') as HTMLButtonElement;
+        button.disabled = true;
+        button.textContent = '已剪藏';
+        status.textContent = `${draft.native ? '本地已保存' : '已发送到 Obsidian'}${draft.aggregate ? ' · RSS 已收录' : ''}`;
+    }
 }
