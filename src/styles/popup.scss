@@ -409,7 +409,11 @@
 
 // Keep the compact Chrome popup short; editors and expanded properties retain room.
 #popup.is-chromium:not(.is-side-panel):not(.is-embedded):has(.metadata-properties.collapsed):not(:has(#note-content-container.is-editing)):not(:has(.variables-panel.show)):has(#interpreter[style*="none"]) {
-    --popup-height: 380px;
-    --popup-max-height: 380px;
-    --chromium-popup-height: 380px;
+    --popup-height: 460px;
+    --popup-max-height: 460px;
+    --chromium-popup-height: 460px;
 }
+
+.clipper { min-height: 0; }
+.clipper #note-content-container { min-height: 0; }
+.clipper .clipper-footer { flex-shrink: 0; }
