@@ -108,6 +108,18 @@ label {
 	align-items: center;
 }
 
+#local-vault-path { flex: 1; min-width: 0; }
+#local-vault-choose, #local-vault-save { margin-left: 8px; width: auto; flex-shrink: 0; }
+#local-vault-status { margin-top: 8px; overflow-wrap: anywhere; }
+.note-location-control {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	> input, > .knap-editor { flex: 1; min-width: 0; }
+	> button { flex-shrink: 0; }
+}
+#template-path-status:empty { display: none; }
+
 .setting-items {
 	background-color: var(--settings-items-backgroud);
 	border-radius: var(--radius-m);
@@ -514,7 +526,7 @@ label {
 	}
 
 	&.color-links .reader-preview-link {
-		color: var(--text-accent-hover, #8a5cf5);
+		color: var(--text-accent-hover, #383838);
 	}
 }
 
@@ -632,4 +644,16 @@ label {
 	line-height: 1.5;
 	margin: 0;
 	color: var(--text-normal, #222);
+}
+
+#model-modal .provider-model-options {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	align-items: center;
+	gap: 8px;
+
+	.setting-item-description {
+		grid-column: 1 / -1;
+		&:empty { display: none; }
+	}
 }

@@ -62,8 +62,8 @@
 	transform: scale(0.95);
 
 	@media (prefers-color-scheme: dark) {
-		--obsidian-clipper-background-primary: #1e1e1e;
-		--obsidian-clipper-background-primary-rgb: 26, 26, 26;
+		--obsidian-clipper-background-primary: #000000;
+		--obsidian-clipper-background-primary-rgb: 0, 0, 0;
 		--obsidian-clipper-box-shadow: 0 0 0 1px rgba(255,255,255,0.1),
 			0px 16px 28px -4px rgba(0, 0, 0, 0.15),
 			0px 8px 16px -4px rgba(0, 0, 0, 0.06);
@@ -238,13 +238,15 @@ body.obsidian-highlighter-active {
 			}
 		}
 		&.mod-cta {
-			background-color: #895DF4 !important;
-			color: white !important;
+			background-color: #ededed !important;
+			color: #000000 !important;
 			padding: 0 8px !important;
 			box-shadow: var(--obsidian-highlighter-button-border) !important;
 			@media (hover: hover) {
 				&:hover {
-					background-color: #A68AF9 !important;
+					background-color: #cccccc !important;
+					color: #000000 !important;
+					svg, svg path, svg line { color: #000000 !important; }
 				}
 			}
 		}

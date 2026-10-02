@@ -286,7 +286,7 @@
 		"message": "將網路內容以私密且穩定的格式儲存下來，供您離線存取使用。這是 Obsidian 官方推出的瀏覽器擴充套件。"
 	},
 	"extensionName": {
-		"message": "Obsidian 網頁擷取器"
+		"message": "喬木剪藏"
 	},
 	"failedToCopyText": {
 		"message": "複製文字失敗"
@@ -1094,5 +1094,50 @@
 	},
 	"version": {
 		"message": "版本"
+	},
+	"providerModels": {
+		"message": "供應商模型"
+	},
+	"providerModelsDescription": {
+		"message": "從已設定供應商取得模型清單，也可手動填寫模型 ID。"
+	},
+	"providerModelsLoading": {
+		"message": "正在取得供應商模型…"
+	},
+	"providerModelsRefresh": {
+		"message": "重新整理模型清單"
+	},
+	"providerModelsEmpty": {
+		"message": "供應商未回傳模型，可手動填寫模型 ID。"
+	},
+	"providerModelsFailed": {
+		"message": "取得模型失敗，請檢查供應商位址、API Key 和網路後重試，也可手動填寫模型 ID。"
+	},
+	"providerModelsMissingKey": {
+		"message": "請先設定供應商 API Key，也可手動填寫模型 ID。"
+	},
+	"providerModelsDeployment": {
+		"message": "請將 Azure 部署名稱填寫為模型 ID。"
+	},
+	"qiaomuPreviewClip": {
+		"message": "預覽剪藏內容"
+	},
+	"qiaomuEditMarkdown": {
+		"message": "編輯 Markdown"
+	},
+	"qiaomuPublicRss": {
+		"message": "公開 RSS"
+	},
+	"qiaomuCopyProperty": {
+		"message": "複製屬性內容"
+	},
+	"qiaomuCopyFailed": {
+		"message": "複製失敗，請重試"
+	},
+	"qiaomuCharacters": {
+		"message": "字元"
+	},
+	"qiaomuClip": {
+		"message": "剪藏"
 	}
 }

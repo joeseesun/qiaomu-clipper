@@ -1,0 +1,80 @@
+import { Provider } from '../types/types';
+
+export interface ProviderModel {
+	id: string;
+	name: string;
+}
+
+// Derive discovery from the configured inference URL, including custom gateways.
+export function modelListRequest(provider: Provider): { url: URL; headers: Record<string, string>; kind: string } {
+	const url = new URL(provider.baseUrl);
+	const headers: Record<string, string> = { Accept: 'application/json' };
+	let kind = 'openai';
+	if (url.hostname === 'generativelanguage.googleapis.com') {
+		kind = 'gemini';
+		url.pathname = url.pathname.replace(/\/models(?:\/.*)?$/, '/models');
+		headers['x-goog-api-key'] = provider.apiKey;
+		url.searchParams.delete('key');
+		url.searchParams.set('pageSize', '1000');
+	} else if (/\/api\/(chat|generate)\/?$/.test(url.pathname)) {
+		kind = 'ollama';
+		url.pathname = url.pathname.replace(/\/(chat|generate)\/?$/, '/tags');
+		if (provider.apiKey) headers.Authorization = `Bearer ${provider.apiKey}`;
+	} else if (url.hostname.endsWith('.openai.azure.com') || url.pathname.includes('/deployments/')) {
+		// Azure model IDs are deployment names, not the model catalog IDs.
+		throw new Error('deployment-models');
+	} else {
+		const anthropic = /\/messages\/?$/.test(url.pathname);
+		url.pathname = url.pathname.replace(/\/(chat\/completions|completions|responses|messages)\/?$/, '').replace(/\/$/, '') + '/models';
+		if (anthropic) {
+			kind = 'anthropic';
+			headers['x-api-key'] = provider.apiKey;
+			headers['anthropic-version'] = '2023-06-01';
+			headers['anthropic-dangerous-direct-browser-access'] = 'true';
+			url.searchParams.set('limit', '1000');
+		} else if (provider.apiKey) {
+			headers.Authorization = `Bearer ${provider.apiKey}`;
+		}
+	}
+	return { url, headers, kind };
+}
+
+export async function fetchProviderModels(provider: Provider, signal?: AbortSignal): Promise<ProviderModel[]> {
+	if (provider.apiKeyRequired && !provider.apiKey.trim()) throw new Error('missing-api-key');
+	const { url, headers, kind } = modelListRequest(provider);
+	const models = new Map<string, ProviderModel>();
+	const controller = new AbortController();
+	const abort = () => controller.abort();
+	if (signal?.aborted) controller.abort();
+	signal?.addEventListener('abort', abort, { once: true });
+	const timeout = setTimeout(abort, 15000);
+	const pages = new Set<string>();
+	try {
+		while (true) {
+			if (pages.has(url.href)) throw new Error('invalid-model-list');
+			pages.add(url.href);
+			const response = await fetch(url.href, { headers, signal: controller.signal, credentials: 'omit' });
+			if (!response.ok) throw new Error(`http-${response.status}`);
+			const data = await response.json();
+			const entries = kind === 'gemini' || kind === 'ollama' ? data.models : data.data;
+			if (!Array.isArray(entries)) throw new Error('invalid-model-list');
+			for (const entry of entries) {
+				if (!entry || typeof entry !== 'object') continue;
+				if (kind === 'gemini' && !entry.supportedGenerationMethods?.includes('generateContent')) continue;
+				const id = kind === 'gemini' ? entry.name?.replace(/^models\//, '') : kind === 'ollama' ? entry.model || entry.name : entry.id;
+				if (typeof id !== 'string' || !id.trim()) continue;
+				const name = entry.displayName || entry.display_name || (kind !== 'gemini' ? entry.name : undefined);
+				models.set(id, { id, name: typeof name === 'string' && name.trim() ? name : id });
+			}
+			if (kind === 'gemini' && data.nextPageToken) {
+				url.searchParams.set('pageToken', data.nextPageToken);
+			} else if (kind === 'anthropic' && data.has_more && data.last_id) {
+				url.searchParams.set('after_id', data.last_id);
+			} else break;
+		}
+		return [...models.values()].sort((a, b) => a.name.localeCompare(b.name));
+	} finally {
+		clearTimeout(timeout);
+		signal?.removeEventListener('abort', abort);
+	}
+}

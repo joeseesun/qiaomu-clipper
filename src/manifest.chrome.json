@@ -1,13 +1,14 @@
 {
 	"manifest_version": 3,
 	"default_locale": "en",
-	"name": "Obsidian Web Clipper",
-	"homepage_url": "https://obsidian.md/",
+	"name": "乔木剪藏 · Obsidian + RSS",
+	"homepage_url": "https://github.com/joeseesun/qiaomu-clipper",
 	"version": "1.7.1",
-	"description": "Save and highlight web pages in a private and durable format that you can access offline. The official extension for Obsidian.",
+	"description": "Save web pages to Obsidian and optionally submit their URL, title and content to Qiaomu RSS reader submissions.",
 	"permissions": [
 		"activeTab",
 		"clipboardWrite",
+		"nativeMessaging",
 		"commands",
 		"contextMenus",
 		"sidePanel",
@@ -40,15 +41,32 @@
 	},
 	"content_scripts": [
 		{
-			"matches": ["http://*/*", "https://*/*"],
-			"js": ["content-loader.js"]
+			"matches": [
+				"http://*/*",
+				"https://*/*"
+			],
+			"js": [
+				"content-loader.js"
+			]
 		}
 	],
 	"web_accessible_resources": [
 		{
-			"resources": ["reader.css", "reader-script.js", "browser-polyfill.min.js", "style.css", "side-panel.html", "flatten-shadow-dom.js", "highlighter.css"],
-			"extension_ids": ["*"],
-			"matches": [ "*://*/*" ]
+			"resources": [
+				"reader.css",
+				"reader-script.js",
+				"browser-polyfill.min.js",
+				"style.css",
+				"side-panel.html",
+				"flatten-shadow-dom.js",
+				"highlighter.css"
+			],
+			"extension_ids": [
+				"*"
+			],
+			"matches": [
+				"*://*/*"
+			]
 		}
 	],
 	"content_security_policy": {

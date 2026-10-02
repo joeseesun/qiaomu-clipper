@@ -286,7 +286,7 @@
 		"message": "Save content from the web in a private and durable format that you can access offline. The official browser extension for Obsidian."
 	},
 	"extensionName": {
-		"message": "Obsidian Web Clipper"
+		"message": "Qiaomu Clipper"
 	},
 	"failedToCopyText": {
 		"message": "Failed to copy text"
@@ -1094,5 +1094,50 @@
 	},
 	"version": {
 		"message": "Version"
+	},
+	"providerModels": {
+		"message": "Provider models"
+	},
+	"providerModelsDescription": {
+		"message": "Choose a model from your configured provider or enter a custom model ID."
+	},
+	"providerModelsLoading": {
+		"message": "Fetching provider models…"
+	},
+	"providerModelsRefresh": {
+		"message": "Refresh model list"
+	},
+	"providerModelsEmpty": {
+		"message": "The provider returned no models. You can enter a model ID manually."
+	},
+	"providerModelsFailed": {
+		"message": "Could not fetch models. Check the provider URL, API key and network, then refresh, or enter a model ID manually."
+	},
+	"providerModelsMissingKey": {
+		"message": "Configure the provider API key first, or enter a model ID manually."
+	},
+	"providerModelsDeployment": {
+		"message": "Enter your Azure deployment name as the model ID."
+	},
+	"qiaomuPreviewClip": {
+		"message": "Preview clipped content"
+	},
+	"qiaomuEditMarkdown": {
+		"message": "Edit Markdown"
+	},
+	"qiaomuPublicRss": {
+		"message": "Public RSS"
+	},
+	"qiaomuCopyProperty": {
+		"message": "Copy property value"
+	},
+	"qiaomuCopyFailed": {
+		"message": "Copy failed; please try again"
+	},
+	"qiaomuCharacters": {
+		"message": "characters"
+	},
+	"qiaomuClip": {
+		"message": "Clip"
 	}
 }

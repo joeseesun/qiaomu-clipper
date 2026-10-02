@@ -5,6 +5,7 @@ import { initializeIcons } from '../icons/icons';
 import { showModal, hideModal } from '../utils/modal-utils';
 import { getMessage, translatePage } from '../utils/i18n';
 import { debugLog } from '../utils/debug';
+import { fetchProviderModels } from '../utils/provider-models';
 
 export interface PresetProvider {
 	id: string;
@@ -871,127 +872,89 @@ async function showModelModal(model: ModelConfig, index?: number) {
 		modelSelectionRadios.textContent = '';
 		modelIdDescriptionContainer.textContent = getMessage('providerModelIdDescription');
 
-		const updateModelOptions = () => {
-			const selectedProviderId = providerSelect.value;
-			const provider = generalSettings.providers.find(p => p.id === selectedProviderId);
-			
-			nameInput.value = (index !== undefined && model.providerId === selectedProviderId) ? model.name : '';
-			providerModelIdInput.value = (index !== undefined && model.providerId === selectedProviderId) ? model.providerModelId || '' : '';
-			nameInput.disabled = false;
-			providerModelIdInput.disabled = false;
-			// Clear model selection radios
+		let requestController: AbortController | undefined;
+		let requestVersion = 0;
+		const updateModelOptions = async (refresh = false) => {
+			requestController?.abort();
+			requestController = new AbortController();
+			const version = ++requestVersion;
+			const provider = generalSettings.providers.find(p => p.id === providerSelect.value);
+			if (!refresh) {
+				const editing = index !== undefined && model.providerId === providerSelect.value;
+				nameInput.value = editing ? model.name : '';
+				providerModelIdInput.value = editing ? model.providerModelId || '' : '';
+			}
+			nameInput.disabled = !provider;
+			providerModelIdInput.disabled = !provider;
+			providerModelIdInput.oninput = null;
 			modelSelectionRadios.textContent = '';
-			modelSelectionContainer.style.display = 'none';
+			modelSelectionContainer.style.display = provider ? 'block' : 'none';
 			modelIdDescriptionContainer.textContent = getMessage('providerModelIdDescription');
+			if (!provider) return;
 
-			if (provider && cachedPresetProviders) {
-				const presetProvider = Object.values(cachedPresetProviders).find(
-					preset => preset.name === provider.name 
-				);
+			const preset = cachedPresetProviders && (cachedPresetProviders[provider.presetId || ''] || Object.values(cachedPresetProviders).find(p => p.name === provider.name));
+			if (preset?.modelsList) {
+				const link = document.createElement('a');
+				link.href = preset.modelsList;
+				link.target = '_blank';
+				link.rel = 'noopener noreferrer';
+				link.textContent = getMessage('modelsListFor', provider.name);
+				modelIdDescriptionContainer.append(' ', link);
+			}
 
-				if (presetProvider?.modelsList) {
-					modelIdDescriptionContainer.textContent = getMessage('providerModelIdDescription') + ' ';
-					const linkElement = document.createElement('a');
-					linkElement.href = presetProvider.modelsList;
-					linkElement.target = '_blank';
-					linkElement.textContent = getMessage('modelsListFor', provider.name);
-					modelIdDescriptionContainer.appendChild(linkElement);
-					modelIdDescriptionContainer.appendChild(document.createTextNode('.'));
+			const status = document.createElement('div');
+			status.className = 'setting-item-description';
+			status.setAttribute('role', 'status');
+			status.textContent = getMessage('providerModelsLoading');
+			const select = document.createElement('select');
+			select.id = 'provider-model-select';
+			select.setAttribute('aria-label', getMessage('providerModels'));
+			const custom = document.createElement('option');
+			custom.value = '';
+			custom.textContent = getMessage('custom');
+			select.appendChild(custom);
+			select.disabled = true;
+			const refreshButton = document.createElement('button');
+			refreshButton.type = 'button';
+			refreshButton.className = 'clickable-icon';
+			refreshButton.title = getMessage('providerModelsRefresh');
+			refreshButton.setAttribute('aria-label', refreshButton.title);
+			const icon = document.createElement('i');
+			icon.setAttribute('data-lucide', 'refresh-cw');
+			refreshButton.appendChild(icon);
+			refreshButton.onclick = () => { void updateModelOptions(true); };
+			modelSelectionRadios.append(select, refreshButton, status);
+			initializeIcons(modelSelectionRadios);
+			try {
+				const available = await fetchProviderModels(provider, requestController.signal);
+				if (version !== requestVersion) return;
+				for (const item of available) {
+					const option = document.createElement('option');
+					option.value = item.id;
+					option.textContent = item.name === item.id ? item.id : `${item.name} (${item.id})`;
+					select.appendChild(option);
 				}
-
-				if (presetProvider?.popularModels?.length) {
-					modelSelectionContainer.style.display = 'block';
-					
-					presetProvider.popularModels.forEach((popModel, idx) => {
-						const radioId = `pop-model-${idx}`;
-						const radio = document.createElement('div');
-						radio.className = 'radio-option';
-						
-						// Create radio input
-						const radioInput = document.createElement('input');
-						radioInput.type = 'radio';
-						radioInput.name = 'model-selection';
-						radioInput.id = radioId;
-						radioInput.value = popModel.id;
-						
-						// Create label
-						const label = document.createElement('label');
-						label.setAttribute('for', radioId);
-						label.textContent = popModel.name;
-						
-						// Add recommended tag if applicable
-						if (popModel.recommended) {
-							label.appendChild(document.createTextNode(' '));
-							const tagSpan = document.createElement('span');
-							tagSpan.className = 'tag';
-							tagSpan.textContent = getMessage('recommended');
-							label.appendChild(tagSpan);
-						}
-						
-						radio.appendChild(radioInput);
-						radio.appendChild(label);
-						modelSelectionRadios.appendChild(radio);
-
-						if (index !== undefined && model.providerId === selectedProviderId && popModel.id === model.providerModelId) {
-							radioInput.checked = true;
-						}
-					});
-
-					const otherRadio = document.createElement('div');
-					otherRadio.className = 'radio-option';
-					
-					// Create other radio input
-					const otherRadioInput = document.createElement('input');
-					otherRadioInput.type = 'radio';
-					otherRadioInput.name = 'model-selection';
-					otherRadioInput.id = 'model-other';
-					otherRadioInput.value = 'other';
-					
-					// Create other label
-					const otherLabel = document.createElement('label');
-					otherLabel.setAttribute('for', 'model-other');
-					otherLabel.textContent = getMessage('custom');
-					
-					otherRadio.appendChild(otherRadioInput);
-					otherRadio.appendChild(otherLabel);
-					modelSelectionRadios.appendChild(otherRadio);
-
-					const popularMatch = presetProvider.popularModels.some(pm => pm.id === model.providerModelId);
-					if (index !== undefined && model.providerId === selectedProviderId && !popularMatch) {
-						otherRadioInput.checked = true;
-					} else if (index === undefined) {
-						const recommended = presetProvider.popularModels.find(pm => pm.recommended);
-						if (!recommended) {
-							otherRadioInput.checked = true;
-						}
-					}
-
-					modelSelectionRadios.addEventListener('change', (e) => {
-						const target = e.target as HTMLInputElement;
-						if (!target || target.name !== 'model-selection') return;
-
-						if (target.value === 'other') {
-							if (!(index !== undefined && model.providerId === selectedProviderId && !popularMatch && target.id === 'model-other')) {
-								nameInput.value = '';
-								providerModelIdInput.value = '';
-							}
-							nameInput.disabled = false;
-							providerModelIdInput.disabled = false;
-						} else {
-							const selectedPopModel = presetProvider.popularModels?.find(m => m.id === target.value);
-							if (selectedPopModel) {
-								nameInput.value = selectedPopModel.name;
-								providerModelIdInput.value = selectedPopModel.id;
-								nameInput.disabled = false; 
-								providerModelIdInput.disabled = false; 
-							}
-						}
-					});
-				}
+				select.disabled = false;
+				select.value = available.some(m => m.id === providerModelIdInput.value) ? providerModelIdInput.value : '';
+				status.textContent = available.length ? '' : getMessage('providerModelsEmpty');
+				providerModelIdInput.oninput = () => {
+					select.value = available.some(m => m.id === providerModelIdInput.value) ? providerModelIdInput.value : '';
+				};
+				select.onchange = () => {
+					const selected = available.find(m => m.id === select.value);
+					nameInput.value = selected?.name || '';
+					providerModelIdInput.value = selected?.id || '';
+				};
+			} catch (error) {
+				if (version !== requestVersion) return;
+				select.disabled = false;
+				const reason = error instanceof Error ? error.message : '';
+				status.textContent = getMessage(reason === 'missing-api-key' ? 'providerModelsMissingKey' : reason === 'deployment-models' ? 'providerModelsDeployment' : 'providerModelsFailed');
 			}
 		};
 
-		providerSelect.addEventListener('change', updateModelOptions);
+		// Assign handlers so reopening this modal does not accumulate listeners.
+		providerSelect.onchange = () => { void updateModelOptions(); };
 
 		if (index !== undefined) {
 			providerSelect.value = model.providerId;

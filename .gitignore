@@ -24,3 +24,23 @@ assets/shared
 .cursorrules
 .env
 context/
+
+# Read-only production snapshots (not source files)
+integration/qmreader/*.production.js
+integration/qmreader/*.production.html
+integration/qmreader/staging/
+
+integration/qmreader/unified/
+
+# Native helper test artifacts
+__pycache__/
+
+# Local acceptance records and server operations stay outside the extension repository.
+docs/*progress*.md
+docs/*metadata*.md
+docs/clipper-*.png
+docs/qiaomu-clippings-live.png
+integration/qmreader/*.py
+integration/qmreader/backfill-*.cjs
+integration/qmreader/migrate-*.cjs
+integration/qmreader/unified-submissions.test.cjs

@@ -149,7 +149,7 @@ module.exports = (env, argv) => {
 					{ from: "src/settings.html", to: "settings.html" },
 					{ from: "src/highlights.html", to: "highlights.html" },
 					{ from: "src/reader.html", to: "reader.html" },
-					{ from: "src/icons", to: "icons" },
+					{ from: "src/icons", to: "icons", globOptions: { ignore: ["**/*.ts"] } },
 					{ from: "node_modules/webextension-polyfill/dist/browser-polyfill.min.js", to: "browser-polyfill.min.js" },
 					{ from: "src/flatten-shadow-dom.js", to: "flatten-shadow-dom.js" },
 					{
@@ -175,7 +175,7 @@ module.exports = (env, argv) => {
 			...(isProduction ? [
 				new ZipPlugin({
 					path: path.resolve(__dirname, 'builds'),
-					filename: `obsidian-web-clipper-${package.version}-${browserName}.zip`,
+					filename: `qiaomu-clipper-${package.version}-${browserName}.zip`,
 				})
 			] : [])
 		]
