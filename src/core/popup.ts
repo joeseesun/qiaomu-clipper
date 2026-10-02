@@ -444,25 +444,8 @@ function setupEventListeners(tabId: number) {
 			});
 		}
 
-	const moreButton = document.getElementById('more-btn');
-	const moreDropdown = document.getElementById('more-dropdown');
 	const copyContentButton = document.getElementById('copy-content');
 	const saveDownloadsButton = document.getElementById('save-downloads');
-	const shareContentButton = document.getElementById('share-content');
-
-	if (moreButton && moreDropdown) {
-		moreButton.addEventListener('click', (e) => {
-			e.stopPropagation();
-			moreDropdown.classList.toggle('show');
-		});
-
-		// Close dropdown when clicking outside
-		document.addEventListener('click', (e) => {
-			if (!moreButton.contains(e.target as Node)) {
-				moreDropdown.classList.remove('show');
-			}
-		});
-	}
 
 	if (copyContentButton) {
 		copyContentButton.addEventListener('click', async () => {
@@ -828,7 +811,7 @@ function buildTemplateFieldsSkeleton(template: Template | null) {
                 event.preventDefault();
                 try {
                     await navigator.clipboard.writeText(propertyType === 'checkbox' ? String(inputElement.checked) : inputElement.value);
-                    const status = document.getElementById('clip-preview-summary');
+                    const status = document.getElementById('clip-action-status');
                     if (status) status.textContent = `${property.name}: ${getMessage('copied')}`;
                 } catch { metadataPropertyKey.title = getMessage('qiaomuCopyFailed'); }
             };
@@ -954,7 +937,6 @@ async function fillTemplateFieldValues(currentTabId: number, template: Template 
 	const noteContentField = document.getElementById('note-content-field') as HTMLTextAreaElement;
 	if (noteContentField) {
 		noteContentField.value = template.noteContentFormat ? formattedContent : '';
-		updateClipSummary();
 	}
 
 	if (generalSettings.interpreterEnabled) {
@@ -1246,17 +1228,11 @@ export async function copyToClipboard(content: string) {
 		const tabInfo = await getCurrentTabInfo();
 		await incrementStat('copyToClipboard', vault, path, tabInfo.url, tabInfo.title);
 
-		// Change the main button text temporarily
-		const clipButton = document.getElementById('clip-btn');
-		if (clipButton) {
-			const originalText = clipButton.textContent || getMessage('addToObsidian');
-			clipButton.textContent = getMessage('copied');
-
-			// Reset the text after 1.5 seconds
-			setTimeout(() => {
-				clipButton.textContent = originalText;
-			}, 1500);
-		}
+        const status = document.getElementById('clip-action-status');
+        if (status) {
+            status.textContent = getMessage('copied');
+            setTimeout(() => { status.textContent = ''; }, 1500);
+        }
 	} catch (error) {
 		console.error('Failed to copy to clipboard:', error);
 		showError('failedToCopyText');
@@ -1301,38 +1277,10 @@ async function handleSaveToDownloads() {
 }
 
 function determineMainAction() {
-	const mainButton = document.getElementById('clip-btn');
-	const moreDropdown = document.getElementById('more-dropdown');
-	const secondaryActions = moreDropdown?.querySelector('.secondary-actions');
-	if (!mainButton || !secondaryActions) return;
-
-	// Clear existing secondary actions
-	secondaryActions.textContent = '';
-
-	// Set up actions based on saved behavior
-	switch (loadedSettings.saveBehavior) {
-		case 'copyToClipboard':
-			mainButton.textContent = getMessage('copyToClipboard');
-			mainButton.onclick = () => copyContent();
-			// Add direct actions to secondary
-			addSecondaryAction(secondaryActions, 'addToObsidian', () => handleClipObsidian());
-			addSecondaryAction(secondaryActions, 'saveFile', handleSaveToDownloads);
-			break;
-		case 'saveFile':
-			mainButton.textContent = getMessage('saveFile');
-			mainButton.onclick = () => handleSaveToDownloads();
-			// Add direct actions to secondary
-			addSecondaryAction(secondaryActions, 'addToObsidian', () => handleClipObsidian());
-			addSecondaryAction(secondaryActions, 'copyToClipboard', copyContent);
-			break;
-		default: // 'addToObsidian'
-			mainButton.textContent = nativeLocalSave ? '剪藏' : getMessage('addToObsidian');
-			mainButton.onclick = () => handleClipObsidian();
-			// Add direct actions to secondary
-			addSecondaryAction(secondaryActions, 'copyToClipboard', copyContent);
-			addSecondaryAction(secondaryActions, 'saveFile', handleSaveToDownloads);
-			if (nativeLocalSave) addSecondaryAction(secondaryActions, 'addToObsidian', () => handleClipObsidian(true));
-	}
+    const mainButton = document.getElementById('clip-btn');
+    if (!mainButton) return;
+    mainButton.textContent = getMessage('qiaomuClipToObsidian');
+    mainButton.onclick = () => handleClipObsidian();
 }
 
 async function syncQiaomuClip(clip: QiaomuClip): Promise<boolean> {
@@ -1360,7 +1308,7 @@ async function initializeQiaomuRss(): Promise<void> {
 	nativeLocalSave = Boolean(nativeStatus?.ok || saved.qiaomuNativeConfigured);
 	if (nativeStatus?.ok) {
 		await browser.storage.local.set({ qiaomuNativeConfigured: true });
-		if (localStatus) { localStatus.textContent = `保存到 ${nativeStatus.vault}`; localStatus.title = nativeStatus.vaultPath || ''; }
+		if (localStatus) localStatus.textContent = '';
 	} else if (nativeLocalSave && localStatus) localStatus.textContent = '本地保存助手未连接，请检查安装后重试';
 	const localPendingKey = Object.keys(saved).find(key => key.startsWith('qiaomuLocalPending:'));
 	if (localPendingKey) {
@@ -1516,13 +1464,10 @@ async function copyContent() {
 // Update the resize event listener to use the debounced version
 window.addEventListener('resize', debouncedSetPopupDimensions);
 
-function updateClipSummary() {
-    const content = (document.getElementById('note-content-field') as HTMLTextAreaElement)?.value || '';
-    const summary = document.getElementById('clip-preview-summary');
-    if (summary) summary.textContent = `${content.length.toLocaleString()} ${getMessage('qiaomuCharacters')} · ${content.replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/[#*_`>]/g, '').replace(/\s+/g, ' ').slice(0, 100)}`;
-}
-
 function setupCompactPopup() {
+    document.querySelectorAll('[data-i18n-aria-label]').forEach(element => {
+        element.setAttribute('aria-label', getMessage(element.getAttribute('data-i18n-aria-label')!));
+    });
     const toggle = document.getElementById('popup-tools-toggle') as HTMLButtonElement;
     const menu = document.getElementById('popup-tools-menu') as HTMLElement;
     const close = () => { menu.hidden = true; toggle.setAttribute('aria-expanded', 'false'); };
@@ -1547,7 +1492,6 @@ function setupCompactPopup() {
         document.getElementById('note-content-container')?.classList.toggle('is-editing');
         (document.getElementById('note-content-field') as HTMLTextAreaElement)?.focus();
     });
-    document.getElementById('note-content-field')?.addEventListener('input', updateClipSummary);
     document.getElementById('preview-clip')?.addEventListener('click', async () => {
         if (!currentTemplate) return;
         const button = document.getElementById('preview-clip') as HTMLButtonElement;
@@ -1564,7 +1508,7 @@ function setupCompactPopup() {
                 native: nativeLocalSave,
             });
         } catch (error) {
-            const status = document.getElementById('clip-preview-summary');
+            const status = document.getElementById('clip-action-status');
             if (status) status.textContent = String(error);
         } finally { button.disabled = false; }
     });

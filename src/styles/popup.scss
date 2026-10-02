@@ -385,35 +385,47 @@
 	button[hidden] { display: none; }
 }
 
+
 .popup-tools { position: relative; }
 #popup-tools-menu {
+    --radius-m: 8px;
+    --radius-s: 5px;
     position: absolute; top: calc(100% + 6px); right: 0; z-index: 30;
-    width: 220px; padding: 6px; border: 1px solid var(--background-modifier-border);
-    border-radius: var(--radius-m); background: var(--background-primary);
-    box-shadow: 0 6px 20px rgb(0 0 0 / 12%);
+    width: 204px; max-width: calc(100vw - 32px); padding: 5px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 8px; corner-shape: round; background: var(--background-primary);
+    box-shadow: 0 4px 14px rgb(0 0 0 / 10%);
     &[hidden] { display: none; }
-    a { display: flex; align-items: center; gap: 10px; padding: 10px; color: var(--text-normal); text-decoration: none; border-radius: var(--radius-s); }
+    a { display: flex; align-items: center; gap: 9px; min-height: 34px; padding: 7px 9px; font-size: var(--font-ui-small); line-height: 1.25; color: var(--text-normal); text-decoration: none; border-radius: 5px; corner-shape: round; }
     a:hover, a:focus-visible { background: var(--background-secondary); }
-    svg { width: 18px; height: 18px; flex-shrink: 0; }
+    a:focus-visible { outline: 1px solid var(--text-muted); outline-offset: -1px; }
+    svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--text-muted); }
 }
 #popup-tools-toggle { width: 32px; padding: 6px; border: none; background: transparent; box-shadow: none; }
-#note-content-container {
-    display: flex; flex-direction: column; padding: 12px var(--popup-padding); gap: 10px;
-    #preview-clip { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 42px; flex-shrink: 0; }
-    #clip-preview-summary { font-size: var(--font-ui-small); color: var(--text-muted); margin: 0; line-height: 1.5; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+.clipper #note-content-container {
+    display: flex; flex-direction: column; flex-grow: 0; min-height: 0;
+    padding: 8px var(--popup-padding); gap: 8px;
+    .clip-content-actions { display: flex; align-items: center; gap: 8px; }
+    .clickable-icon { width: 36px; height: 36px; padding: 8px; border: none; border-radius: 6px; background: transparent; box-shadow: none; color: var(--text-muted); }
+    .clickable-icon svg { width: 20px; height: 20px; }
+    .clickable-icon:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
+    .clickable-icon:focus-visible { outline: 1px solid var(--text-muted); outline-offset: -1px; }
+    .clickable-icon:disabled { opacity: .5; }
+    #clip-action-status { font-size: var(--font-ui-small); color: var(--text-muted); margin: 0; line-height: 1.4; }
+    #clip-action-status:empty { display: none; }
     #note-content-field { display: none; padding: 0; min-height: 100px; }
+    &.is-editing { flex-grow: 1; }
     &.is-editing #note-content-field { display: block; }
 }
 .metadata-property-key { cursor: copy; }
 .metadata-property-key:focus-visible, .metadata-properties-header:focus-visible { outline: 1px solid var(--text-muted); outline-offset: -1px; }
-
-// Keep the compact Chrome popup short; editors and expanded properties retain room.
-#popup.is-chromium:not(.is-side-panel):not(.is-embedded):has(.metadata-properties.collapsed):not(:has(#note-content-container.is-editing)):not(:has(.variables-panel.show)):has(#interpreter[style*="none"]) {
-    --popup-height: 460px;
-    --popup-max-height: 460px;
-    --chromium-popup-height: 460px;
-}
-
 .clipper { min-height: 0; }
-.clipper #note-content-container { min-height: 0; }
 .clipper .clipper-footer { flex-shrink: 0; }
+.action-buttons #clip-btn { border-radius: var(--radius-s); }
+
+// The default popup follows its content instead of keeping an empty article area.
+#popup.is-chromium:not(.is-side-panel):not(.is-embedded):has(.metadata-properties.collapsed):not(:has(#note-content-container.is-editing)):not(:has(.variables-panel.show)):has(#interpreter[style*="none"]) {
+    height: auto; max-height: 540px;
+    #popup-container { height: auto; }
+    .clipper { height: auto; }
+}

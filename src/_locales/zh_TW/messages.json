@@ -1139,5 +1139,23 @@
 	},
 	"qiaomuClip": {
 		"message": "剪藏"
+	},
+	"qiaomuReadingMode": {
+		"message": "閱讀模式"
+	},
+	"qiaomuCopyMarkdown": {
+		"message": "複製 Markdown"
+	},
+	"qiaomuSaveMarkdown": {
+		"message": "儲存為 Markdown"
+	},
+	"qiaomuShareRss": {
+		"message": "分享到喬木 RSS"
+	},
+	"qiaomuClipToObsidian": {
+		"message": "剪藏到 Obsidian"
+	},
+	"qiaomuContentActions": {
+		"message": "剪藏內容操作"
 	}
 }

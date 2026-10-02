@@ -36,7 +36,7 @@ npm run build:chrome
 
 默认使用 Obsidian URI 保存；要实现静默保存，请另行安装 [本地助手](native/README.md)（Python 3，macOS / Linux Chrome）。本机设置 → 常规 → 仓库选择实际 Obsidian 库根目录；模板“笔记位置”选择库内子文件夹。未安装助手时仍可手动填写相对路径。
 
-**公开提交：**“同时提交到 RSS”当前默认勾选，可取消。勾选后点击剪藏会公开提交网页链接、标题、剪藏正文和封面；不要将私人页面或个人笔记提交到公开 RSS。预览本身不会上传草稿。[公开 RSS](https://rss.qiaomu.ai/feeds/user-submitted.xml)
+**公开提交：**“分享到乔木 RSS”当前默认勾选，可取消。勾选后点击剪藏会公开提交网页链接、标题、剪藏正文和封面；不要将私人页面或个人笔记提交到公开 RSS。预览本身不会上传草稿。[公开 RSS](https://rss.qiaomu.ai/feeds/user-submitted.xml)
 
 ## 开发与验证
 
