@@ -103,7 +103,7 @@ Certification statements, after publisher review: no sale of user data; no use/t
 ## Reviewer test instructions (English)
 
 No Qiaomu account is needed for basic clipping, reading, editing, copy or download. No AI account or helper is required to verify the basic workflow.
-1. Install the uploaded package and open a public article, e.g. https://developer.chrome.com/docs/extensions/overview .
+1. Install the uploaded package and open a public article, e.g. https://developer.chrome.com/docs/webstore/publish .
 2. Click the extension toolbar icon. Turn OFF Share to Qiaomu RSS for tests that should stay local.
 3. Use Read to view the current draft, and Edit to modify its title/properties/Markdown. Switch back and verify the edits persist. Copy or download Markdown and confirm the draft contents.
 4. With Obsidian installed and a local vault open, configure/select a vault and relative folder, then click Clip to Obsidian. Without the helper, the standard Obsidian URI workflow opens Obsidian. Chrome may ask to open the external application.
@@ -136,3 +136,5 @@ References checked 2026-10-02:
 - 图片：`screenshot-clipping.jpg`（1280×800）为当前 popup.html 和生产 CSS 渲染的界面示例，未执行扩展业务脚本，不构成实际安装验收证据。`promo-440x280.jpg` 为品牌宣传图。
 - Native Messaging 安装时使用商店 ID；旧开发版 ID 不适用于商店版本。
 - 最终提交前仍须以准确上传包完成干净安装验收并补充真实运行截图。
+
+补充验收：生产构建所在的已安装开发版实测提取公开 Chrome 发布文档、复制 Markdown、编辑标题并切换至阅读模式，标题保留成功；RSS 在测试草稿中关闭，没有触发公开投稿。此项不替代商店安装包的全新安装验收。
