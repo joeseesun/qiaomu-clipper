@@ -786,7 +786,7 @@
 		"message": "Default"
 	},
 	"readerFontDescription": {
-		"message": "Add fonts installed on your system. Press enter to add a font."
+		"message": "Pick a built-in Chinese font, or click the box to choose from the fonts installed on this computer."
 	},
 	"readerFontNotFound": {
 		"message": "Not found"
@@ -1157,5 +1157,203 @@
 	},
 	"qiaomuContentActions": {
 		"message": "Clipped content actions"
+	},
+	"qiaomuAiRetry": {
+		"message": "Retry"
+	},
+	"qiaomuAiFailed": {
+		"message": "AI processing failed. Retry, or choose a template without AI prompts."
+	},
+	"qiaomuActionRead": {
+		"message": "Read"
+	},
+	"qiaomuActionCopy": {
+		"message": "Copy"
+	},
+	"qiaomuActionDownload": {
+		"message": "Download"
+	},
+	"qiaomuDestination": {
+		"message": "Save to"
+	},
+	"qiaomuActionEdit": {
+		"message": "Edit"
+	},
+	"qiaomuEditClip": {
+		"message": "Edit properties and content"
+	},
+	"qiaomuTemplate": {
+		"message": "Template"
+	},
+	"qiaomuEditorBody": {
+		"message": "Content"
+	},
+	"qiaomuEditorDone": {
+		"message": "Done"
+	},
+	"qiaomuEditorCopied": {
+		"message": "Copied"
+	},
+	"qiaomuEditorProperties": {
+		"message": "Properties"
+	},
+	"qiaomuEditorClip": {
+		"message": "Clip"
+	},
+	"qiaomuEditorClipped": {
+		"message": "Clipped"
+	},
+	"defaultTemplateTitle": {
+		"message": "Default template"
+	},
+	"defaultTemplateDescription": {
+		"message": "Used when no template trigger matches the page, and for keyboard shortcut clipping."
+	},
+	"tripleKeyTitle": {
+		"message": "Triple-press shortcuts"
+	},
+	"tripleKeyDescription": {
+		"message": "Press a letter three times quickly on a web page to open reading mode, open the editor, or clip with the default template. Ignored while typing in text fields."
+	},
+	"qiaomuActionPreview": {
+		"message": "Preview"
+	},
+	"qiaomuActionEditShort": {
+		"message": "Edit"
+	},
+	"qiaomuActionReadShort": {
+		"message": "Read"
+	},
+	"commandOpenEditor": {
+		"message": "Edit the clip of this page"
+	},
+	"readerFontZhuque": {
+		"message": "Zhuque Fangsong"
+	},
+	"readerFontSongti": {
+		"message": "Songti"
+	},
+	"readerFontKaiti": {
+		"message": "Kaiti"
+	},
+	"readerFontPingfang": {
+		"message": "PingFang / Hei"
+	},
+	"qiaomuHighlightCount": {
+		"message": "$1 highlights on this page"
+	},
+	"qiaomuChatTitle": {
+		"message": "AI chat"
+	},
+	"qiaomuChatPlaceholder": {
+		"message": "Ask about this article… (Enter to send, Shift+Enter for a new line)"
+	},
+	"qiaomuChatNew": {
+		"message": "New chat"
+	},
+	"qiaomuChatSend": {
+		"message": "Send"
+	},
+	"qiaomuChatStop": {
+		"message": "Stop"
+	},
+	"qiaomuChatContext": {
+		"message": "Answers use this article ($1 characters)"
+	},
+	"qiaomuChatInsert": {
+		"message": "Add to note"
+	},
+	"qiaomuChatInserted": {
+		"message": "Added to the note"
+	},
+	"qiaomuChatNoModel": {
+		"message": "No model is available yet. Add a provider and model under AI settings first."
+	},
+	"qiaomuChatOpenSettings": {
+		"message": "Open settings"
+	},
+	"qiaomuChatSuggestSummary": {
+		"message": "Summarize this article"
+	},
+	"qiaomuChatSuggestPoints": {
+		"message": "Extract key points and data"
+	},
+	"qiaomuChatSuggestTranslate": {
+		"message": "Translate to Chinese"
+	},
+	"qiaomuChatSuggestCritic": {
+		"message": "What deserves skepticism?"
+	},
+	"qiaomuChatTruncated": {
+		"message": "article truncated"
+	},
+	"qiaomuChatSystem": {
+		"message": "You are a reading assistant. Answer using the article below; say so when the article does not cover something and never invent facts. Reply in the language of the question, in concise Markdown."
+	},
+	"qiaomuChatError": {
+		"message": "Could not answer:"
+	},
+	"qiaomuChatHistory": {
+		"message": "Conversation history"
+	},
+	"qiaomuChatNoHistory": {
+		"message": "No earlier conversations about this article"
+	},
+	"qiaomuChatAskSelection": {
+		"message": "Ask AI"
+	},
+	"qiaomuChatAboutSelection": {
+		"message": "About this passage selected from the article:"
+	},
+	"qiaomuChatQuoteExplain": {
+		"message": "Explain this passage"
+	},
+	"qiaomuChatQuoteTranslate": {
+		"message": "Translate this passage"
+	},
+	"qiaomuChatQuoteSummary": {
+		"message": "Summarize this passage"
+	},
+	"qiaomuChatQuoteRewrite": {
+		"message": "Rewrite more concisely"
+	},
+	"selectionToolbarTitle": {
+		"message": "Selection toolbar"
+	},
+	"selectionToolbarDescription": {
+		"message": "Show a small toolbar next to selected text in the reading and editing pages, with Highlight and Ask AI."
+	},
+	"tripleKeyKeysTitle": {
+		"message": "Shortcut keys"
+	},
+	"tripleKeyKeysDescription": {
+		"message": "Choose one letter or digit for each action; leave it empty to turn the action off. Defaults: Read A, Edit E, Clip Q."
+	},
+	"tripleKeyReset": {
+		"message": "Restore defaults"
+	},
+	"tripleKeyInvalid": {
+		"message": "Use a single letter or digit."
+	},
+	"tripleKeyDuplicate": {
+		"message": "The same key cannot be used for two actions."
+	},
+	"tripleKeySitesTitle": {
+		"message": "Turn off on these sites"
+	},
+	"tripleKeySitesDescription": {
+		"message": "One site per line, for example mail.google.com. Subdomains are included. You can also turn it off for the current site from the clipper menu."
+	},
+	"tripleKeySiteOff": {
+		"message": "Turn off triple-press keys on $1"
+	},
+	"tripleKeySiteOn": {
+		"message": "Turn triple-press keys back on for $1"
+	},
+	"tripleKeySiteDisabled": {
+		"message": "Triple-press keys are off on $1"
+	},
+	"tripleKeySiteEnabled": {
+		"message": "Triple-press keys are on again for $1"
 	}
 }

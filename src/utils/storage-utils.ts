@@ -66,6 +66,11 @@ interface StorageData {
 		silentOpen?: boolean;
 		openBehavior?: boolean | 'popup' | 'embedded';
 		saveBehavior?: 'addToObsidian' | 'copyToClipboard' | 'saveFile';
+		defaultTemplateId?: string;
+		tripleKeyShortcuts?: boolean;
+		tripleKeys?: { read: string; edit: string; clip: string };
+		tripleKeyBlockedSites?: string[];
+		selectionToolbar?: boolean;
 	};
 	vaults?: string[];
 	highlighter_settings?: {
@@ -188,6 +193,11 @@ export async function loadSettings(): Promise<Settings> {
 		openBehavior: typeof data.general_settings?.openBehavior === 'boolean' 
 			? (data.general_settings.openBehavior ? 'embedded' : 'popup') 
 			: (data.general_settings?.openBehavior ?? defaultSettings.openBehavior),
+		defaultTemplateId: data.general_settings?.defaultTemplateId,
+		tripleKeyShortcuts: data.general_settings?.tripleKeyShortcuts ?? true,
+		tripleKeys: data.general_settings?.tripleKeys,
+		tripleKeyBlockedSites: data.general_settings?.tripleKeyBlockedSites,
+		selectionToolbar: data.general_settings?.selectionToolbar ?? true,
 		highlighterEnabled: data.highlighter_settings?.highlighterEnabled ?? defaultSettings.highlighterEnabled,
 		alwaysShowHighlights: data.highlighter_settings?.alwaysShowHighlights ?? defaultSettings.alwaysShowHighlights,
 		highlightBehavior: data.highlighter_settings?.highlightBehavior ?? defaultSettings.highlightBehavior,
@@ -240,6 +250,11 @@ export async function saveSettings(settings?: Partial<Settings>): Promise<void> 
 			silentOpen: generalSettings.silentOpen,
 			openBehavior: generalSettings.openBehavior,
 			saveBehavior: generalSettings.saveBehavior,
+			defaultTemplateId: generalSettings.defaultTemplateId,
+			tripleKeyShortcuts: generalSettings.tripleKeyShortcuts,
+			tripleKeys: generalSettings.tripleKeys,
+			tripleKeyBlockedSites: generalSettings.tripleKeyBlockedSites,
+			selectionToolbar: generalSettings.selectionToolbar,
 		},
 		highlighter_settings: {
 			highlighterEnabled: generalSettings.highlighterEnabled,

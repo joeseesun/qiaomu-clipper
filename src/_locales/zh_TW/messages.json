@@ -786,7 +786,7 @@
 		"message": "預設"
 	},
 	"readerFontDescription": {
-		"message": "新增系統已安裝的字型。按 Enter 以新增字型。"
+		"message": "選擇內建中文字體，或點擊輸入框從電腦已安裝的字體中挑選並加入。"
 	},
 	"readerFontNotFound": {
 		"message": "找不到"
@@ -1157,5 +1157,203 @@
 	},
 	"qiaomuContentActions": {
 		"message": "剪藏內容操作"
+	},
+	"qiaomuAiRetry": {
+		"message": "重試"
+	},
+	"qiaomuAiFailed": {
+		"message": "AI 處理未完成。可以重試，或選擇不含 AI 提示的模板剪藏原文。"
+	},
+	"qiaomuActionRead": {
+		"message": "閱讀"
+	},
+	"qiaomuActionCopy": {
+		"message": "複製"
+	},
+	"qiaomuActionDownload": {
+		"message": "下載"
+	},
+	"qiaomuDestination": {
+		"message": "儲存位置"
+	},
+	"qiaomuActionEdit": {
+		"message": "編輯"
+	},
+	"qiaomuEditClip": {
+		"message": "編輯屬性與正文"
+	},
+	"qiaomuTemplate": {
+		"message": "範本"
+	},
+	"qiaomuEditorBody": {
+		"message": "正文"
+	},
+	"qiaomuEditorDone": {
+		"message": "完成"
+	},
+	"qiaomuEditorCopied": {
+		"message": "已複製"
+	},
+	"qiaomuEditorProperties": {
+		"message": "屬性"
+	},
+	"qiaomuEditorClip": {
+		"message": "剪藏"
+	},
+	"qiaomuEditorClipped": {
+		"message": "已剪藏"
+	},
+	"defaultTemplateTitle": {
+		"message": "預設範本"
+	},
+	"defaultTemplateDescription": {
+		"message": "頁面沒有符合的範本觸發規則時使用，也用於快速鍵剪藏。"
+	},
+	"tripleKeyTitle": {
+		"message": "三連擊快速鍵"
+	},
+	"tripleKeyDescription": {
+		"message": "在網頁上快速連按 3 次設定的字母，進入閱讀模式、開啟編輯頁，或用預設範本直接剪藏。在輸入框中打字時不會觸發。"
+	},
+	"qiaomuActionPreview": {
+		"message": "預覽"
+	},
+	"qiaomuActionEditShort": {
+		"message": "編輯"
+	},
+	"qiaomuActionReadShort": {
+		"message": "閱讀"
+	},
+	"commandOpenEditor": {
+		"message": "編輯目前頁面剪藏"
+	},
+	"readerFontZhuque": {
+		"message": "朱雀仿宋"
+	},
+	"readerFontSongti": {
+		"message": "宋體"
+	},
+	"readerFontKaiti": {
+		"message": "楷體"
+	},
+	"readerFontPingfang": {
+		"message": "蘋方 / 黑體"
+	},
+	"qiaomuHighlightCount": {
+		"message": "本頁有 $1 處劃線"
+	},
+	"qiaomuChatTitle": {
+		"message": "AI 對話"
+	},
+	"qiaomuChatPlaceholder": {
+		"message": "就這篇文章提問…（Enter 傳送，Shift+Enter 換行）"
+	},
+	"qiaomuChatNew": {
+		"message": "新對話"
+	},
+	"qiaomuChatSend": {
+		"message": "傳送"
+	},
+	"qiaomuChatStop": {
+		"message": "停止"
+	},
+	"qiaomuChatContext": {
+		"message": "根據本文（$1 字）回答"
+	},
+	"qiaomuChatInsert": {
+		"message": "加入筆記"
+	},
+	"qiaomuChatInserted": {
+		"message": "已加入筆記正文"
+	},
+	"qiaomuChatNoModel": {
+		"message": "尚無可用模型。請先在設定的「AI 解讀」中新增服務商與模型。"
+	},
+	"qiaomuChatOpenSettings": {
+		"message": "開啟設定"
+	},
+	"qiaomuChatSuggestSummary": {
+		"message": "總結這篇文章"
+	},
+	"qiaomuChatSuggestPoints": {
+		"message": "擷取關鍵觀點與數據"
+	},
+	"qiaomuChatSuggestTranslate": {
+		"message": "翻譯成中文"
+	},
+	"qiaomuChatSuggestCritic": {
+		"message": "有哪些值得懷疑的地方？"
+	},
+	"qiaomuChatTruncated": {
+		"message": "文章過長，後面的內容已省略"
+	},
+	"qiaomuChatSystem": {
+		"message": "你是閱讀助手。請根據下面這篇文章回答使用者的問題：優先使用文章中的資訊，文章沒有提到的內容要明確說明，不要編造。回答使用使用者提問的語言，以簡潔清晰的 Markdown 呈現。"
+	},
+	"qiaomuChatError": {
+		"message": "回答失敗："
+	},
+	"qiaomuChatHistory": {
+		"message": "歷史對話"
+	},
+	"qiaomuChatNoHistory": {
+		"message": "這篇文章尚無歷史對話"
+	},
+	"qiaomuChatAskSelection": {
+		"message": "問 AI"
+	},
+	"qiaomuChatAboutSelection": {
+		"message": "關於文章中的這段選取內容："
+	},
+	"qiaomuChatQuoteExplain": {
+		"message": "解釋這段話"
+	},
+	"qiaomuChatQuoteTranslate": {
+		"message": "翻譯這段話"
+	},
+	"qiaomuChatQuoteSummary": {
+		"message": "概括這段話"
+	},
+	"qiaomuChatQuoteRewrite": {
+		"message": "改寫得更簡潔"
+	},
+	"selectionToolbarTitle": {
+		"message": "選取文字工具列"
+	},
+	"selectionToolbarDescription": {
+		"message": "在閱讀與編輯頁面選取文字時，於旁邊顯示小工具列，包含「劃線」與「問 AI」。"
+	},
+	"tripleKeyKeysTitle": {
+		"message": "快速鍵字母"
+	},
+	"tripleKeyKeysDescription": {
+		"message": "為每個動作指定一個字母或數字，留空表示關閉該動作。預設：閱讀 A、編輯 E、剪藏 Q。"
+	},
+	"tripleKeyReset": {
+		"message": "恢復預設"
+	},
+	"tripleKeyInvalid": {
+		"message": "只能填一個字母或數字。"
+	},
+	"tripleKeyDuplicate": {
+		"message": "同一個字母不能用於多個動作。"
+	},
+	"tripleKeySitesTitle": {
+		"message": "在這些網站上關閉"
+	},
+	"tripleKeySitesDescription": {
+		"message": "每行一個網站，例如 mail.google.com，子網域也一併生效。也可以在剪藏選單中，對目前網站一鍵關閉。"
+	},
+	"tripleKeySiteOff": {
+		"message": "在 $1 上關閉三連擊快速鍵"
+	},
+	"tripleKeySiteOn": {
+		"message": "在 $1 上重新開啟三連擊快速鍵"
+	},
+	"tripleKeySiteDisabled": {
+		"message": "已在 $1 上關閉三連擊快速鍵"
+	},
+	"tripleKeySiteEnabled": {
+		"message": "已在 $1 上重新開啟三連擊快速鍵"
 	}
 }

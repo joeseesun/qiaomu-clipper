@@ -4,7 +4,7 @@ import { createElementWithClass, createElementWithHTML } from '../utils/dom-util
 import { initializeIcons } from '../icons/icons';
 import { debounce } from '../utils/debounce';
 import { getMessage } from '../utils/i18n';
-import { getFontCss, isFontAvailable as probeFontAvailable, sanitizeFontName, SANS_STACK, SERIF_STACK } from '../utils/font-utils';
+import { getFontCss, isFontAvailable as probeFontAvailable, sanitizeFontName, SANS_STACK, SERIF_STACK, FONT_PRESETS } from '../utils/font-utils';
 
 const THEMES: Array<{ id: string; name: string }> = [
 	{ id: 'default', name: '' },
@@ -192,6 +192,7 @@ export function updateFontList(): void {
 	const builtinFonts = [
 		{ value: '', label: getMessage('readerFontSystemSans'), fontFamily: SANS_STACK },
 		{ value: '__serif__', label: getMessage('readerFontSystemSerif'), fontFamily: SERIF_STACK },
+		...FONT_PRESETS.map(preset => ({ value: preset.value, label: getMessage(preset.labelKey), fontFamily: preset.stack })),
 	];
 
 	for (const builtin of builtinFonts) {
@@ -271,6 +272,19 @@ export async function initializeReaderSettings() {
 	const fontInput = document.getElementById('reader-font-input') as HTMLInputElement;
 
 	if (fontInput) {
+		// Offer the fonts installed on this computer (Chrome's Local Font Access); typing still works anywhere else.
+		const fontDatalist = document.getElementById('reader-font-datalist') as HTMLDataListElement | null;
+		let installedFontsLoaded = false;
+		fontInput.addEventListener('focus', async () => {
+			const queryLocalFonts = (window as unknown as { queryLocalFonts?: () => Promise<{ family: string }[]> }).queryLocalFonts;
+			if (installedFontsLoaded || !fontDatalist || !queryLocalFonts) return;
+			installedFontsLoaded = true;
+			try {
+				const families = Array.from(new Set((await queryLocalFonts.call(window)).map(font => font.family))).sort((a, b) => a.localeCompare(b));
+				fontDatalist.textContent = '';
+				families.forEach(family => { const option = document.createElement('option'); option.value = family; fontDatalist.appendChild(option); });
+			} catch { installedFontsLoaded = false; /* permission dismissed; typing a name still works */ }
+		});
 		fontInput.addEventListener('keydown', (e) => {
 			if (e.key === 'Enter') {
 				e.preventDefault();

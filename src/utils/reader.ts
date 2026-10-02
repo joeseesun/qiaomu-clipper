@@ -26,7 +26,7 @@ function hl(): HighlighterAPI {
 }
 import { copyToClipboard } from './clipboard-utils';
 import { getMessage, initializeI18n } from './i18n';
-import { getFontCss, isFontAvailable } from './font-utils';
+import { getFontCss, isFontAvailable, FONT_PRESETS } from './font-utils';
 import { createMarkdownContent } from 'defuddle/full';
 import { saveFile } from './file-utils';
 import { parseForClip } from './clip-utils';
@@ -59,6 +59,7 @@ export class Reader {
 
 	static isReaderPage: boolean = false;
 	static onClip: (() => Promise<void>) | null = null;
+	static onEdit: (() => void) | null = null;
 
 	// Callback for SPA-style navigation on the reader page.
 	// Set by reader-view.ts to handle link clicks without full page reload.
@@ -337,10 +338,11 @@ export class Reader {
 		const triggerGroup = doc.createElement('div');
 		triggerGroup.className = 'obsidian-reader-nav';
 		triggerGroup.appendChild(outlineBtn);
-		triggerGroup.appendChild(highlighterBtn);
-		triggerGroup.appendChild(clipButton);
+		// The clip preview page has its own top bar (clip-bar) for editing, copying and clipping.
+		if (!Reader.onEdit) triggerGroup.appendChild(highlighterBtn);
+		if (!Reader.onEdit) triggerGroup.appendChild(clipButton);
 		triggerGroup.appendChild(trigger);
-		triggerGroup.appendChild(addToObsidianBtn);
+		if (!Reader.onEdit) triggerGroup.appendChild(addToObsidianBtn);
 		settingsBar.appendChild(triggerGroup);
 		settingsBar.appendChild(clipDropdown);
 
@@ -374,7 +376,7 @@ export class Reader {
 			lastScrollY = window.scrollY;
 		});
 
-		window.addEventListener('scroll', () => {
+		if (!Reader.onEdit) window.addEventListener('scroll', () => {
 			if (settingsBar.classList.contains('is-open') || clipDropdown.classList.contains('is-open') || outlineOverlay.classList.contains('is-open')) return;
 			const currentY = window.scrollY;
 			const delta = currentY - lastScrollY;
@@ -605,6 +607,13 @@ export class Reader {
 		serifOption.value = '__serif__';
 		serifOption.textContent = getMessage('readerFontSystemSerif');
 		fontSelect.appendChild(serifOption);
+
+		for (const preset of FONT_PRESETS) {
+			const option = doc.createElement('option');
+			option.value = preset.value;
+			option.textContent = getMessage(preset.labelKey);
+			fontSelect.appendChild(option);
+		}
 
 		for (const font of [...this.settings.fonts].sort((a, b) => a.localeCompare(b))) {
 			const option = doc.createElement('option');
@@ -2393,6 +2402,8 @@ export class Reader {
 		// SPA navigation where we re-enter reader), don't stack a second
 		// button + three more listeners on the same document.
 		if (doc.querySelector('.obsidian-selection-action')) return;
+		// The clip preview page shows its own combined toolbar (Highlight + Ask AI).
+		if (Reader.onEdit) return;
 		const btn = doc.createElement('button');
 		btn.type = 'button';
 		btn.className = 'obsidian-selection-action';
@@ -2485,6 +2496,12 @@ export class Reader {
 		link.rel = 'stylesheet';
 		link.href = browser.runtime.getURL('highlighter.css');
 		(doc.head || doc.documentElement).appendChild(link);
+	}
+
+	// Turn the current selection into a highlight without entering highlighter mode.
+	static highlightSelection(doc: Document): void {
+		const selection = doc.getSelection();
+		if (selection && !selection.isCollapsed && selection.rangeCount > 0) hl().handleTextSelection(selection);
 	}
 
 	static toggleHighlighter(doc: Document): void {

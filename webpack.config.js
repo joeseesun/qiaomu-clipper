@@ -40,10 +40,12 @@ module.exports = (env, argv) => {
 		mode: argv.mode,
 		entry: {
 			'content-loader': './src/content-loader.ts',
+			'triple-key': './src/triple-key-content.ts',
 			popup: './src/core/popup.ts',
 			settings: './src/core/settings.ts',
 			highlights: './src/core/highlights.ts',
 			'reader-page': './src/core/reader-view.ts',
+			'clip-editor': './src/core/clip-editor.ts',
 			content: './src/content.ts',
 			background: './src/background.ts',
 			style: './src/style.scss',
@@ -149,9 +151,11 @@ module.exports = (env, argv) => {
 					{ from: "src/settings.html", to: "settings.html" },
 					{ from: "src/highlights.html", to: "highlights.html" },
 					{ from: "src/reader.html", to: "reader.html" },
+					{ from: "src/editor.html", to: "editor.html" },
 					{ from: "src/icons", to: "icons", globOptions: { ignore: ["**/*.ts"] } },
 					{ from: "node_modules/webextension-polyfill/dist/browser-polyfill.min.js", to: "browser-polyfill.min.js" },
 					{ from: "src/flatten-shadow-dom.js", to: "flatten-shadow-dom.js" },
+					{ from: "src/fonts", to: "fonts" },
 					{
 						from: 'src/_locales',
 						to: '_locales'

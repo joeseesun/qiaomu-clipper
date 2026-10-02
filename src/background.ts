@@ -632,6 +632,19 @@ browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime
 			return true;
 		}
 
+		if (typedRequest.action === "closeIframe") {
+			if (sender.tab?.id) routeMessageToTab(sender.tab.id, { action: "close-iframe" }).catch(() => {});
+			return undefined;
+		}
+
+		if (typedRequest.action === "qiaomuTripleKey") {
+			const tab = sender.tab;
+			if (tab?.id && tab.url && isValidUrl(tab.url) && !isBlankPage(tab.url)) {
+				void runTripleKeyAction(String((typedRequest as { command?: string }).command), tab.id);
+			}
+			return undefined;
+		}
+
 		if (typedRequest.action === "getActiveTabAndToggleIframe") {
 			browser.tabs.query({active: true, currentWindow: true}).then(async (tabs) => {
 				const currentTab = tabs[0];
@@ -880,6 +893,9 @@ browser.commands.onCommand.addListener(async (command, tab) => {
 	if (command === "copy_to_clipboard" && tab?.id) {
 		await sendMessageToContentScript(tab.id, { action: "copyToClipboard" });
 	}
+	if (command === "open_editor" && tab?.id) {
+		await runTripleKeyAction('edit', tab.id);
+	}
 	if (command === "toggle_reader" && tab?.id) {
 		await toggleReaderModeInTab(tab.id);
 	}
@@ -990,8 +1006,18 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
 	}
 });
 
+// Content scripts declared in the manifest only reach pages loaded afterwards; give open tabs the shortcut listener too.
+async function injectTripleKeyIntoOpenTabs(): Promise<void> {
+	if (!browser.scripting) return;
+	const tabs = await browser.tabs.query({ url: ['http://*/*', 'https://*/*'] });
+	await Promise.all(tabs.filter(tab => tab.id !== undefined).map(tab =>
+		browser.scripting.executeScript({ target: { tabId: tab.id!, allFrames: true }, files: ['triple-key.js'] }).catch(() => { /* restricted page */ })
+	));
+}
+
 browser.runtime.onInstalled.addListener(() => {
 	debouncedUpdateContextMenu(-1); // Use a dummy tabId for initial creation
+	void injectTripleKeyIntoOpenTabs();
 });
 
 async function isSidePanelOpen(windowId: number): Promise<boolean> {
@@ -1181,6 +1207,18 @@ async function updateActionPopup(openBehavior?: Settings['openBehavior']): Promi
 }
 
 let currentOpenBehavior: Settings['openBehavior'] = 'popup';
+
+// The triple-press commands open the clipper, which runs read / edit / clip once the clip is ready.
+async function runTripleKeyAction(action: string, tabId: number): Promise<void> {
+	if (action !== 'read' && action !== 'edit' && action !== 'clip') return;
+	await browser.storage.local.set({ qiaomuPendingAction: { action, at: Date.now() } });
+	try {
+		await openPopup();
+	} catch {
+		// Popups can't always be opened without a toolbar click; the embedded panel runs the same code.
+		await sendMessageToContentScript(tabId, { action: "toggle-iframe" });
+	}
+}
 
 // In reader/embedded mode, opens embedded iframe instead of popup.
 async function openPopup(): Promise<void> {

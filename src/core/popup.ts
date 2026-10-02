@@ -9,7 +9,8 @@ import { extractPageContent, initializePageContent } from '../utils/content-extr
 import { compileTemplate } from '../utils/template-compiler';
 import { initializeIcons, getPropertyTypeIcon } from '../icons/icons';
 import { findMatchingTemplate, initializeTriggers } from '../utils/triggers';
-import { getLocalStorage, setLocalStorage, loadSettings, generalSettings, Settings } from '../utils/storage-utils';
+import { getLocalStorage, setLocalStorage, loadSettings, generalSettings, saveSettings, Settings } from '../utils/storage-utils';
+import { normalizeSites, isSiteBlocked } from '../utils/triple-key';
 import { escapeHtml, unescapeValue } from '../utils/string-utils';
 import { loadTemplates, createDefaultTemplate } from '../managers/template-manager';
 import browser from '../utils/browser-polyfill';
@@ -196,7 +197,7 @@ async function initializeExtension(tabId: number) {
 		// Initialize triggers to speed up template matching
 		initializeTriggers(templates);
 
-		currentTemplate = templates[0];
+		currentTemplate = templates.find(t => t.id === loadedSettings.defaultTemplateId) || templates[0];
 		debugLog('Templates', 'Current template set to:', currentTemplate);
 
 		// Load last selected vault
@@ -396,6 +397,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
 				// Initial content load
 				await refreshFields(currentTabId);
+				await consumePendingAction();
 			} catch (error) {
 				console.error('Error initializing popup:', error);
 				showError(getMessage('pleaseReload'));
@@ -408,6 +410,26 @@ document.addEventListener('DOMContentLoaded', async function() {
 		showError(getMessage('pleaseReload'));
 	}
 });
+
+// Triple-press shortcuts (read / edit / clip) open the popup and leave the action here; run it once the clip is ready.
+async function consumePendingAction() {
+	const data = await browser.storage.local.get('qiaomuPendingAction');
+	const pending = data.qiaomuPendingAction as { action: 'read' | 'edit' | 'clip'; at: number } | undefined;
+	if (!pending) return;
+	await browser.storage.local.remove('qiaomuPendingAction');
+	if (Date.now() - pending.at > 15000) return;
+	if (pending.action === 'edit' || pending.action === 'read') {
+		document.getElementById(pending.action === 'edit' ? 'open-editor' : 'preview-clip')?.click();
+		return;
+	}
+	// Never save raw {{"prompt"}} text when the AI step failed.
+	if (document.getElementById('interpreter')?.classList.contains('error')) {
+		const status = document.getElementById('clip-action-status');
+		if (status) status.textContent = getMessage('qiaomuAiFailed');
+		return;
+	}
+	await handleClipObsidian();
+}
 
 function setupEventListeners(tabId: number) {
 	const templateDropdown = document.getElementById('template-select') as HTMLSelectElement;
@@ -681,7 +703,7 @@ async function refreshFields(tabId: number, { checkTemplateTriggers = true, rebu
 
 		if (rebuildSkeleton) {
 			buildTemplateFieldsSkeleton(currentTemplate);
-			setupMetadataToggle();
+			setupDestinationToggle();
 		}
 
 		const extractedData = await extractionPromise;
@@ -769,7 +791,7 @@ function buildTemplateFieldsSkeleton(template: Template | null) {
 
 	const existingTemplateProperties = document.querySelector('.metadata-properties') as HTMLElement;
 
-	const newTemplateProperties = createElementWithClass('div', 'metadata-properties collapsed');
+	const newTemplateProperties = createElementWithClass('div', 'metadata-properties');
 
 	if (Array.isArray(template.properties)) {
 		for (const property of template.properties) {
@@ -864,6 +886,14 @@ function buildTemplateFieldsSkeleton(template: Template | null) {
 	const hasPromptVars = generalSettings.interpreterEnabled && collectPromptVariables(template).length > 0;
 	if (interpreterContainer) interpreterContainer.style.display = hasPromptVars ? 'flex' : 'none';
 	if (interpretBtn) interpretBtn.style.display = hasPromptVars ? 'inline-block' : 'none';
+	if (interpretBtn) {
+		interpretBtn.classList.remove('done', 'error', 'processing');
+		(interpretBtn as HTMLButtonElement).disabled = false;
+		interpretBtn.textContent = getMessage('interpret');
+	}
+	interpreterContainer?.classList.remove('done', 'error');
+	const interpreterError = document.getElementById('interpreter-error');
+	if (interpreterError) interpreterError.style.display = 'none';
 
 	// Populate model dropdown immediately (only needs generalSettings)
 	if (hasPromptVars) {
@@ -877,7 +907,10 @@ function buildTemplateFieldsSkeleton(template: Template | null) {
 				option.textContent = model.name;
 				modelSelect.appendChild(option);
 			});
-			modelSelect.value = generalSettings.interpreterModel || (enabledModels[0]?.id ?? '');
+			// A stale saved model id would leave the select blank; fall back to the first enabled model.
+			modelSelect.value = enabledModels.some(m => m.id === generalSettings.interpreterModel)
+				? generalSettings.interpreterModel!
+				: (enabledModels[0]?.id ?? '');
 			modelSelect.style.display = 'inline-block';
 		}
 	}
@@ -933,6 +966,7 @@ async function fillTemplateFieldValues(currentTabId: number, template: Template 
 	if (pathField) {
 		pathField.value = formattedPath;
 	}
+	updateDestinationSummary();
 
 	const noteContentField = document.getElementById('note-content-field') as HTMLTextAreaElement;
 	if (noteContentField) {
@@ -975,53 +1009,29 @@ async function fillTemplateFieldValues(currentTabId: number, template: Template 
 	}
 }
 
-function setupMetadataToggle() {
-	const metadataHeader = document.querySelector('.metadata-properties-header') as HTMLElement;
-	const metadataProperties = document.querySelector('.metadata-properties') as HTMLElement;
-
-	if (metadataHeader && metadataProperties) {
-		metadataHeader.removeEventListener('click', toggleMetadataProperties);
-		metadataHeader.addEventListener('click', toggleMetadataProperties);
-		metadataHeader.onkeydown = event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleMetadataProperties(); } };
-
-		// Set initial state
-		getLocalStorage('qiaomuPropertiesCollapsed').then((isCollapsed) => {
-			if (isCollapsed === undefined) {
-				// If the value is not set, default to not collapsed
-				updateMetadataToggleState(true);
-			} else {
-				updateMetadataToggleState(isCollapsed);
-			}
-		});
-	}
+function updateDestinationSummary() {
+	const summary = document.getElementById('destination-summary');
+	if (!summary) return;
+	const vault = (document.getElementById('vault-select') as HTMLSelectElement | null)?.value;
+	const folder = (document.getElementById('path-name-field') as HTMLInputElement | null)?.value;
+	summary.textContent = [vault, folder].filter(Boolean).join(' / ');
 }
 
-function toggleMetadataProperties() {
-	const metadataProperties = document.querySelector('.metadata-properties') as HTMLElement;
-	const metadataHeader = document.querySelector('.metadata-properties-header') as HTMLElement;
-
-	if (metadataProperties && metadataHeader) {
-		const isCollapsed = metadataProperties.classList.toggle('collapsed');
-		metadataHeader.classList.toggle('collapsed');
-		setLocalStorage('qiaomuPropertiesCollapsed', isCollapsed);
-		metadataHeader.setAttribute('aria-expanded', String(!isCollapsed));
-	}
-}
-
-function updateMetadataToggleState(isCollapsed: boolean) {
-	const metadataProperties = document.querySelector('.metadata-properties') as HTMLElement;
-	const metadataHeader = document.querySelector('.metadata-properties-header') as HTMLElement;
-
-	if (metadataProperties && metadataHeader) {
-		metadataHeader.setAttribute('aria-expanded', String(!isCollapsed));
-		if (isCollapsed) {
-			metadataProperties.classList.add('collapsed');
-			metadataHeader.classList.add('collapsed');
-		} else {
-			metadataProperties.classList.remove('collapsed');
-			metadataHeader.classList.remove('collapsed');
-		}
-	}
+// Where the note is saved rarely changes, so show it as one summary line and expand on demand.
+function setupDestinationToggle() {
+	const toggle = document.getElementById('destination-toggle');
+	const wrapper = toggle?.closest('.destination');
+	if (!toggle || !wrapper || toggle.dataset.ready) return;
+	toggle.dataset.ready = 'true';
+	const flip = () => {
+		const collapsed = wrapper.classList.toggle('collapsed');
+		toggle.setAttribute('aria-expanded', String(!collapsed));
+	};
+	toggle.addEventListener('click', flip);
+	toggle.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); flip(); } });
+	document.getElementById('path-name-field')?.addEventListener('input', updateDestinationSummary);
+	document.getElementById('vault-select')?.addEventListener('change', updateDestinationSummary);
+	updateDestinationSummary();
 }
 
 async function getReplacedTemplate(template: Template, variables: { [key: string]: string }, tabId: number, currentUrl: string): Promise<any> {
@@ -1344,6 +1354,14 @@ async function syncLocalClip(payload: LocalSavePayload): Promise<boolean> {
 	return Boolean(result?.ok);
 }
 
+// Once everything is saved, get out of the way: close the embedded panel on the page, or the popup.
+function closeAfterSuccess() {
+	setTimeout(() => {
+		if (isIframe) browser.runtime.sendMessage({ action: 'closeIframe' }).catch(() => {});
+		else if (!isSidePanel) window.close();
+	}, 1200);
+}
+
 async function handleClipObsidian(forceOpen = false): Promise<void> {
 	if (!currentTemplate || clipInProgress) return;
 
@@ -1388,25 +1406,25 @@ async function handleClipObsidian(forceOpen = false): Promise<void> {
 		const tabInfo = await getCurrentTabInfo();
 		if (nativeLocalSave && !forceOpen) {
 			const localSaved = await syncLocalClip({ requestId: crypto.randomUUID(), content: fileContent, name: `${sanitizeFileName(noteNameField?.value || 'Untitled')}.md`, folder: pathField?.value || '', vault: selectedVault, behavior: currentTemplate.behavior });
-			if (aggregate) await syncQiaomuClip({ url: tabInfo.url, title: noteNameField?.value || tabInfo.title || '剪藏', markdown: noteContentField.value, image: tabInfo.image });
+			const rssSaved = aggregate ? await syncQiaomuClip({ url: tabInfo.url, title: noteNameField?.value || tabInfo.title || '剪藏', markdown: noteContentField.value, image: tabInfo.image }) : true;
 			if (localSaved) {
 				await incrementStat('addToObsidian', selectedVault, path, tabInfo.url, tabInfo.title);
 				lastSelectedVault = selectedVault;
 				await setLocalStorage('lastSelectedVault', lastSelectedVault);
+				if (rssSaved) closeAfterSuccess();
 			}
 			return;
 		}
 		// Start worker-owned sync before opening Obsidian, which can dismiss the popup.
-		if (aggregate) await syncQiaomuClip({ url: tabInfo.url, title: noteNameField?.value || tabInfo.title || '剪藏', markdown: noteContentField.value, image: tabInfo.image });
+		let rssSaved = true;
+		if (aggregate) rssSaved = await syncQiaomuClip({ url: tabInfo.url, title: noteNameField?.value || tabInfo.title || '剪藏', markdown: noteContentField.value, image: tabInfo.image });
 		await saveToObsidian(fileContent, noteName, path, selectedVault, currentTemplate.behavior);
 		await incrementStat('addToObsidian', selectedVault, path, tabInfo.url, tabInfo.title);
 
 		lastSelectedVault = selectedVault;
 		await setLocalStorage('lastSelectedVault', lastSelectedVault);
 
-		if (!isSidePanel && !aggregate) {
-			setTimeout(() => window.close(), 500);
-		}
+		if (rssSaved) closeAfterSuccess();
 	} catch (error) {
 		console.error('Error in handleClipObsidian:', error);
 		showError('failedToSaveFile');
@@ -1471,8 +1489,28 @@ function setupCompactPopup() {
     const toggle = document.getElementById('popup-tools-toggle') as HTMLButtonElement;
     const menu = document.getElementById('popup-tools-menu') as HTMLElement;
     const close = () => { menu.hidden = true; toggle.setAttribute('aria-expanded', 'false'); };
+    // Turn the triple-press shortcuts off (or back on) for the site of the current page.
+    const siteLabel = document.getElementById('toggle-triple-site-label');
+    let siteHost = '';
+    const refreshSiteItem = async () => {
+        try { siteHost = new URL((await getCurrentTabInfo()).url).hostname.replace(/^www\./, ''); } catch { siteHost = ''; }
+        const item = document.getElementById('toggle-triple-site');
+        if (item) item.hidden = !siteHost;
+        if (siteLabel && siteHost) siteLabel.textContent = getMessage(isSiteBlocked(siteHost, generalSettings.tripleKeyBlockedSites) ? 'tripleKeySiteOn' : 'tripleKeySiteOff', siteHost);
+    };
+    document.getElementById('toggle-triple-site')?.addEventListener('click', async event => {
+        event.preventDefault();
+        if (!siteHost) return;
+        const list = normalizeSites(generalSettings.tripleKeyBlockedSites);
+        const blocked = isSiteBlocked(siteHost, list);
+        const next = blocked ? list.filter(site => siteHost !== site && !siteHost.endsWith(`.${site}`)) : [...list, siteHost];
+        await saveSettings({ ...generalSettings, tripleKeyBlockedSites: next });
+        const status = document.getElementById('clip-action-status');
+        if (status) status.textContent = getMessage(blocked ? 'tripleKeySiteEnabled' : 'tripleKeySiteDisabled', siteHost);
+    });
     toggle.addEventListener('click', () => {
         menu.hidden = !menu.hidden;
+        if (!menu.hidden) void refreshSiteItem();
         toggle.setAttribute('aria-expanded', String(!menu.hidden));
         if (!menu.hidden) menu.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
     });
@@ -1489,8 +1527,34 @@ function setupCompactPopup() {
     });
     document.getElementById('edit-clip-markdown')?.addEventListener('click', event => {
         event.preventDefault();
-        document.getElementById('note-content-container')?.classList.toggle('is-editing');
-        (document.getElementById('note-content-field') as HTMLTextAreaElement)?.focus();
+        document.getElementById('open-editor')?.click();
+    });
+    document.getElementById('open-editor')?.addEventListener('click', async () => {
+        if (!currentTemplate) return;
+        const button = document.getElementById('open-editor') as HTMLButtonElement;
+        button.disabled = true;
+        try {
+            const markdown = (document.getElementById('note-content-field') as HTMLTextAreaElement).value;
+            const name = (document.getElementById('note-name-field') as HTMLTextAreaElement).value || 'Untitled';
+            const tab = await getCurrentTabInfo();
+            const properties = getPropertiesFromDOM();
+            await openClipPreview({
+                local: { requestId: crypto.randomUUID(), content: await generateFrontmatter(properties) + markdown, name: `${sanitizeFileName(name)}.md`, folder: (document.getElementById('path-name-field') as HTMLInputElement).value, vault: (document.getElementById('vault-select') as HTMLSelectElement).value || currentTemplate.vault || '', behavior: currentTemplate.behavior },
+                clip: { url: tab.url, title: name, markdown, image: tab.image },
+                aggregate: (document.getElementById('qiaomu-rss-enabled') as HTMLInputElement).checked,
+                native: nativeLocalSave,
+                properties,
+            }, 'editor.html?id=');
+        } catch (error) {
+            const status = document.getElementById('clip-action-status');
+            if (status) status.textContent = String(error);
+        } finally { button.disabled = false; }
+    });
+    document.addEventListener('keydown', event => {
+        if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+            event.preventDefault();
+            (document.getElementById('clip-btn') as HTMLButtonElement | null)?.click();
+        }
     });
     document.getElementById('preview-clip')?.addEventListener('click', async () => {
         if (!currentTemplate) return;
@@ -1506,6 +1570,7 @@ function setupCompactPopup() {
                 clip: { url: tab.url, title: name, markdown, image: tab.image },
                 aggregate: (document.getElementById('qiaomu-rss-enabled') as HTMLInputElement).checked,
                 native: nativeLocalSave,
+                properties: getPropertiesFromDOM(),
             });
         } catch (error) {
             const status = document.getElementById('clip-action-status');

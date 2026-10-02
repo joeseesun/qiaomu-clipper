@@ -30,6 +30,15 @@ declare global {
 
 	debugLog('Clipper', 'Initializing content script, generation', myGeneration);
 
+	// After the extension is reloaded or updated, an already-open page keeps a dead copy of this script;
+	// its leftover callbacks throw "Extension context invalidated". Nothing can be done about it but a page refresh.
+	const ignoreInvalidatedContext = (event: ErrorEvent | PromiseRejectionEvent) => {
+		const message = String((event as PromiseRejectionEvent).reason?.message ?? (event as ErrorEvent).message ?? '');
+		if (message.includes('Extension context invalidated')) event.preventDefault();
+	};
+	window.addEventListener('error', ignoreInvalidatedContext);
+	window.addEventListener('unhandledrejection', ignoreInvalidatedContext);
+
 	let isHighlighterMode = false;
 	const iframeId = 'obsidian-clipper-iframe';
 	const containerId = 'obsidian-clipper-container';

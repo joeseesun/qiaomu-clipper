@@ -1,5 +1,32 @@
+// 朱雀仿宋 (SIL OFL 1.1, TrionesType) ships inside the extension; declare it on demand so pages and iframes can use it.
+const BUNDLED_FACES: Record<string, { family: string; file: string }> = {
+	__zhuque__: { family: 'Qiaomu Zhuque Fangsong', file: 'fonts/ZhuqueFangsong-Regular.woff' },
+};
+
+function ensureBundledFace(value: string): void {
+	const face = BUNDLED_FACES[value];
+	if (!face || typeof document === 'undefined' || document.getElementById(`qiaomu-face-${value}`)) return;
+	try {
+		const api = (globalThis as any).browser ?? (globalThis as any).chrome;
+		const url = api?.runtime?.getURL?.(face.file);
+		if (!url) return;
+		const style = document.createElement('style');
+		style.id = `qiaomu-face-${value}`;
+		style.textContent = `@font-face { font-family: "${face.family}"; src: url("${url}") format("woff"); font-display: swap; }`;
+		document.head.appendChild(style);
+	} catch { /* font stays optional; the stack falls back to installed Fangsong/Songti */ }
+}
+
 export const SANS_STACK = 'ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif';
 export const SERIF_STACK = '"Iowan Old Style", "Charter", "Bitstream Charter", "Sitka Text", Cambria, Georgia, "Times New Roman", Times, serif';
+
+// Chinese reading fonts. Each stack lists the usual installed names per platform; 朱雀仿宋 is used when it is installed.
+export const FONT_PRESETS: { value: string; labelKey: string; stack: string }[] = [
+	{ value: '__zhuque__', labelKey: 'readerFontZhuque', stack: '"Qiaomu Zhuque Fangsong", "Zhuque Fangsong (technical preview)", "ZhuqueFangsong-Regular", "朱雀仿宋", "STFangsong", "FangSong", "FangSong_GB2312", "Songti SC", "Noto Serif CJK SC", serif' },
+	{ value: '__songti__', labelKey: 'readerFontSongti', stack: '"Songti SC", "STSong", "SimSun", "Source Han Serif SC", "Noto Serif CJK SC", serif' },
+	{ value: '__kaiti__', labelKey: 'readerFontKaiti', stack: '"Kaiti SC", "STKaiti", "KaiTi", "KaiTi_GB2312", "楷体", serif' },
+	{ value: '__pingfang__', labelKey: 'readerFontPingfang', stack: '"PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Source Han Sans SC", "Noto Sans CJK SC", sans-serif' },
+];
 
 // Strip anything that would break a CSS font-family value: straight quotes,
 // backslashes, and the smart/curly quotes macOS substitutes automatically
@@ -10,6 +37,8 @@ export function sanitizeFontName(name: string): string {
 
 export function getFontCss(defaultFont: string): string | null {
 	if (defaultFont === '__serif__') return SERIF_STACK;
+	const preset = FONT_PRESETS.find(font => font.value === defaultFont);
+	if (preset) { ensureBundledFace(defaultFont); return preset.stack; }
 	if (defaultFont) return `"${sanitizeFontName(defaultFont)}", ${SANS_STACK}`;
 	return null;
 }
@@ -27,7 +56,7 @@ export function isFontAvailable(
 	fontName: string,
 	{ doc = document, blocksCanvasProbe = false }: { doc?: Document; blocksCanvasProbe?: boolean } = {},
 ): boolean {
-	if (!fontName || fontName === '__serif__') return true;
+	if (!fontName || fontName === '__serif__' || FONT_PRESETS.some(font => font.value === fontName)) return true;
 	const safeName = sanitizeFontName(fontName);
 	if (!safeName) return true;
 

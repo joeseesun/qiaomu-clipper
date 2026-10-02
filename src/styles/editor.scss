@@ -1,0 +1,23 @@
+// Full-page editor opened from the popup: properties on the left, Markdown on the right. The top bar is shared (clip-bar).
+#clip-editor body { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+#clip-editor .ce-main { flex: 1; min-height: 0; display: flex; padding-top: var(--clip-bar-height); transition: padding-top .2s ease; }
+#clip-editor .ce-props {
+	width: 340px; flex-shrink: 0; overflow-y: auto; padding: 16px 20px; border-inline-end: 1px solid var(--divider-color);
+	&[hidden] { display: none; }
+	h2 { margin: 0 0 10px; padding: 0; font-size: var(--font-ui-small); font-weight: 600; color: var(--text-muted); }
+	.ce-property { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px;
+		label { margin: 0; font-size: var(--font-ui-smaller); color: var(--text-muted); }
+		input[type="text"] { height: 32px; font-size: var(--font-ui-small); }
+		input[type="checkbox"] { width: auto; align-self: flex-start; }
+	}
+}
+#clip-editor .ce-body { flex: 1; min-width: 0; display: flex; }
+#clip-editor #ce-markdown {
+	flex: 1; width: 100%; height: 100%; max-width: 860px; margin: 0 auto; padding: 20px; border: none; border-radius: 0; resize: none; background: transparent;
+	font-family: var(--font-monospace-default); font-size: var(--font-ui-small); line-height: 1.7; box-shadow: none;
+	&:focus, &:focus-visible { outline: none; box-shadow: none; }
+}
+@media (max-width: 760px) {
+	#clip-editor .ce-main { flex-direction: column; padding-top: 120px; }
+	#clip-editor .ce-props { width: auto; max-height: 40%; border-inline-end: none; border-bottom: 1px solid var(--divider-color); }
+}

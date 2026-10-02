@@ -1,0 +1,67 @@
+// Shared top bar of the reading and editing pages.
+:root { --clip-bar-height: 56px; --clip-bar-offset: 56px; }
+// offset: where fixed panels start; height: space reserved in the page (only released when the layout collapses).
+html.clip-bar-hidden { --clip-bar-offset: 0px; }
+html.clip-bar-hidden.clip-bar-collapse { --clip-bar-height: 0px; }
+.clip-bar {
+	position: fixed; top: 0; left: 0; right: 0; z-index: 900; height: 56px; box-sizing: border-box;
+	display: flex; align-items: center; gap: 10px; padding: 0 20px;
+	background: var(--background-primary); border-bottom: 1px solid var(--divider-color, var(--background-modifier-border));
+	font-family: var(--font-ui, var(--font-default)); transition: transform .2s ease;
+	&.is-hidden { transform: translateY(-100%); }
+	* { box-sizing: border-box; }
+	.clip-bar-title { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; }
+	.clip-bar-domain { flex-shrink: 0; font-size: 13px; color: var(--text-faint, var(--text-muted)); text-decoration: none; &:hover { color: var(--text-muted); text-decoration: underline; } }
+	.clip-bar-highlights {
+		display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; width: auto; height: 24px; padding: 0 8px; margin: 0; border: none; border-radius: 12px;
+		background: var(--text-highlight-bg, rgb(255 208 0 / 28%)); color: var(--text-normal); font: inherit; font-size: 12px; font-weight: 600; box-shadow: none; cursor: pointer;
+		svg { width: 13px; height: 13px; }
+		&[hidden] { display: none; }
+	}
+	.clip-bar-title > input { flex: 1; min-width: 0; height: 36px; width: 100%; border: none; background: transparent; box-shadow: none; padding: 0 8px; border-radius: 6px; font: inherit; font-size: 18px; font-weight: 600; color: var(--text-normal); outline: none; &:hover, &:focus { background: var(--background-secondary); } }
+	.clip-bar-title > span { padding: 0 8px; font-size: 18px; font-weight: 600; color: var(--text-normal); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	.clip-bar-segment { display: flex; padding: 2px; border-radius: 8px; background: var(--background-secondary); flex-shrink: 0;
+		button { width: auto; height: 30px; padding: 0 14px; border: none; border-radius: 6px; background: transparent; box-shadow: none; font: inherit; font-size: 14px; color: var(--text-muted); cursor: pointer;
+			&[aria-selected="true"] { background: var(--background-primary); color: var(--text-normal); font-weight: 600; box-shadow: 0 1px 2px rgb(0 0 0 / 12%); cursor: default; }
+		}
+	}
+	.clip-bar-rss { display: flex; align-items: center; gap: 8px; margin: 0; padding: 0 6px; font-size: 14px; color: var(--text-muted); cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+	input.switch {
+		appearance: none; -webkit-appearance: none; flex-shrink: 0; width: 34px; height: 20px; padding: 0; margin: 0; border: none; border-radius: 10px;
+		background: var(--background-modifier-border-hover, #aaa); position: relative; cursor: pointer; box-shadow: none; transition: background .15s;
+		&::after, &:checked::after { content: ''; position: absolute; inset: 2px auto auto 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; -webkit-mask: none; mask: none; transition: transform .15s; }
+		&:checked { background: var(--interactive-accent, #000); }
+		&:checked::after { transform: translateX(14px); }
+	}
+	// Quiet by default: ghost buttons, one soft primary action.
+	svg { mix-blend-mode: normal !important; }  // reading mode multiplies every svg; light icons would vanish
+	> button {
+		display: flex; align-items: center; gap: 6px; width: auto; flex: 0 0 auto; height: 32px; padding: 0 10px; margin: 0; border: none; border-radius: 8px;
+		background: transparent; box-shadow: none; color: var(--text-muted); font: inherit; font-size: 14px; font-weight: 500; cursor: pointer; transition: background .15s, color .15s;
+		svg { width: 16px; height: 16px; flex-shrink: 0; }
+		&:hover { background: var(--background-modifier-hover, rgb(128 128 128 / 14%)); color: var(--text-normal); }
+		&:focus-visible { outline: 2px solid var(--background-modifier-border-focus, currentColor); outline-offset: 1px; }
+		&:disabled { opacity: .55; cursor: default; }
+		&.is-icon { width: 32px; padding: 0; justify-content: center; &[aria-pressed="true"] { background: var(--background-modifier-hover, rgb(128 128 128 / 14%)); color: var(--text-normal); } &[hidden] { display: none; } }
+		&.is-primary { background: var(--text-normal); color: var(--background-primary); padding: 0 14px; margin-inline-start: 4px; font-weight: 600;
+			&:hover { opacity: .88; background: var(--text-normal); color: var(--background-primary); }
+		}
+	}
+	.clip-bar-extras { display: flex; align-items: center; flex-shrink: 0; }
+	// The reader's font/theme panel moves into the bar and opens right under its button.
+	.obsidian-reader-settings { position: relative; top: auto; right: auto; width: 32px; height: 32px; z-index: 1; }
+	.obsidian-reader-nav { position: static; padding: 0; background: transparent; box-shadow: none; &::before { display: none; }
+		.nav-btn { width: 32px; height: 32px; background: transparent; svg { width: 18px; height: 18px; } &:hover { background: var(--background-modifier-hover, rgb(128 128 128 / 14%)); } }
+	}
+	.obsidian-reader-settings-controls { position: absolute; top: calc(100% + 12px); right: 0; width: 300px; max-height: 80vh; overflow-y: auto; padding: 16px; border-radius: 12px; border: 1px solid var(--background-modifier-border); box-shadow: 0 8px 28px rgb(0 0 0 / 18%); }
+}
+#clip-bar-status {
+	position: fixed; left: 50%; bottom: 28px; z-index: 1000; max-width: min(520px, 90vw); padding: 10px 16px; border-radius: 8px;
+	background: var(--background-primary); color: var(--text-normal); border: 1px solid var(--background-modifier-border); box-shadow: 0 4px 16px rgb(0 0 0 / 14%);
+	font-size: 14px; transform: translate(-50%, 12px); opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s;
+	&.is-visible { opacity: 1; transform: translate(-50%, 0); }
+}
+html.qiaomu-preview .metadata { display: none; }
+html.qiaomu-preview body { padding-top: var(--clip-bar-height); transition: padding-top .2s ease; }
+@media (max-width: 1000px) { .clip-bar .clip-bar-domain { display: none; } }
+@media (max-width: 760px) { .clip-bar { flex-wrap: wrap; height: auto; padding: 8px 12px; .clip-bar-title { flex: 1 0 100%; } } }

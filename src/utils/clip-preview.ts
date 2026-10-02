@@ -2,6 +2,7 @@ import browser from './browser-polyfill';
 import { LocalSavePayload, saveLocalClip } from './local-save';
 import { QiaomuClip, QiaomuResult } from './qiaomu-rss';
 import { saveToObsidian } from './obsidian-note-creator';
+import { Property } from '../types/types';
 import { incrementStat, loadSettings, setLocalStorage } from './storage-utils';
 
 export interface ClipPreview {
@@ -9,17 +10,21 @@ export interface ClipPreview {
     clip: QiaomuClip;
     aggregate: boolean;
     native: boolean;
+    properties?: Property[];
     createdAt?: number;
     localDone?: boolean;
     rssDone?: boolean;
 }
 const prefix = 'qiaomuPreview:';
-export async function openClipPreview(draft: ClipPreview) {
+export async function openClipPreview(draft: ClipPreview, page = 'reader.html?preview=') {
     const saved = await browser.storage.local.get(null);
     const expired = Object.keys(saved).filter(key => key.startsWith(prefix) && Date.now() - (saved[key] as ClipPreview).createdAt! > 86400000);
     if (expired.length) await browser.storage.local.remove(expired);
     await browser.storage.local.set({ [prefix + draft.local.requestId]: { ...draft, createdAt: Date.now() } });
-    await browser.tabs.create({ url: browser.runtime.getURL(`reader.html?preview=${draft.local.requestId}`) });
+    await browser.tabs.create({ url: browser.runtime.getURL(`${page}${draft.local.requestId}`) });
+}
+export async function updateClipPreview(draft: ClipPreview) {
+    await browser.storage.local.set({ [prefix + draft.local.requestId]: draft });
 }
 export async function loadClipPreview(id: string): Promise<ClipPreview | null> {
     const saved = await browser.storage.local.get(prefix + id);
