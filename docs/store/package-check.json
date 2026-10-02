@@ -1,0 +1,15 @@
+{
+  "date": "2026-10-02",
+  "version": "1.7.1",
+  "zip": "qiaomu-clipper-1.7.1-chrome.zip",
+  "bytes": 10715469,
+  "sha256": "a84d5ff1fddd33e12ca03e52dc1d2546dd51621e2264e7eb10f5d10a6996535d",
+  "tests": {
+    "extension": 256,
+    "native_helper": 12,
+    "typescript": "passed",
+    "chrome_production_build": "passed"
+  },
+  "store_id": "jniolfihillilkoajpnonlbkhfkiicoo",
+  "status": "draft_not_submitted"
+}
