@@ -1,6 +1,6 @@
 # RSS 接入
 
-扩展在用户勾选“同时提交到 RSS”并点击剪藏时，通过后台发送：
+扩展在用户勾选“分享到乔木 RSS”并点击剪藏时，通过后台发送：
 
 ```json
 {"url":"https://example.com/article","title":"文章标题","markdown":"剪藏正文","image":"https://example.com/cover.jpg"}
