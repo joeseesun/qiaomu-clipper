@@ -7,7 +7,7 @@
 - 上传包：`builds/qiaomu-clipper-1.7.1-chrome.zip`（构建后检查 ZIP 根目录 manifest.json）
 - 项目主页：https://github.com/joeseesun/qiaomu-clipper
 - 支持地址：https://github.com/joeseesun/qiaomu-clipper/issues
-- 隐私政策：https://github.com/joeseesun/qiaomu-clipper/blob/main/PRIVACY.md
+- 隐私政策：https://joeseesun.github.io/qiaomu-clipper/privacy.html
 - 单一目的、权限和数据申报：见下文，需与后台实际字段及上传 Manifest 一致。
 - 类别建议：Productivity（以后台实际可用分类为准）；费用：扩展免费，用户自己的 AI 服务可能收费。
 - 开发者联系邮箱：由发布者提供/后台验证，不能用猜测的地址。
@@ -38,7 +38,7 @@
 5. 本项目基于 Obsidian Web Clipper 独立开发，保留 MIT 许可；不是 Obsidian 官方扩展，也不代表 Obsidian 官方。
 
 支持与反馈：https://github.com/joeseesun/qiaomu-clipper/issues
-隐私政策：https://github.com/joeseesun/qiaomu-clipper/blob/main/PRIVACY.md
+隐私政策：https://joeseesun.github.io/qiaomu-clipper/privacy.html
 
 ## English store listing
 
@@ -65,7 +65,7 @@ Share to Qiaomu RSS is currently enabled by default. Clipping with it enabled pu
 This is an independent project based on Obsidian Web Clipper under MIT, not an official Obsidian extension.
 
 Support: https://github.com/joeseesun/qiaomu-clipper/issues
-Privacy: https://github.com/joeseesun/qiaomu-clipper/blob/main/PRIVACY.md
+Privacy: https://joeseesun.github.io/qiaomu-clipper/privacy.html
 
 ## Privacy practices — copy-ready English fields
 

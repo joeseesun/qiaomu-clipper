@@ -6,7 +6,7 @@
 
 运行 `npm ci`、`TZ=America/Los_Angeles npm test`、`npx tsc --noEmit`、本地助手测试和 `npm run build:chrome`。上传 `builds/qiaomu-clipper-<version>-chrome.zip`；ZIP 根目录必须有 `manifest.json`，不应包含本地助手、测试、个人笔记、配置凭证或服务端运维文件。
 
-发布前统一 package 和各 manifest 版本号，完成真实界面截图、商店中英文介绍、图标、开发者支持渠道和公开可访问的隐私政策地址。仓库已公开。隐私政策地址：https://github.com/joeseesun/qiaomu-clipper/blob/main/PRIVACY.md 。完整可粘贴表单与审核步骤见 [商店提交资料](store/SUBMISSION.md)。
+发布前统一 package 和各 manifest 版本号，完成真实界面截图、商店中英文介绍、图标、开发者支持渠道和公开可访问的隐私政策地址。仓库已公开。隐私政策地址：https://joeseesun.github.io/qiaomu-clipper/privacy.html 。完整可粘贴表单与审核步骤见 [商店提交资料](store/SUBMISSION.md)。
 
 ## 当前权限用途
 
