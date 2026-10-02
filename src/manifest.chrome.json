@@ -9,7 +9,6 @@
 		"activeTab",
 		"clipboardWrite",
 		"nativeMessaging",
-		"commands",
 		"contextMenus",
 		"sidePanel",
 		"storage",
@@ -17,7 +16,6 @@
 		"declarativeNetRequest"
 	],
 	"host_permissions": [
-		"<all_urls>",
 		"http://*/*",
 		"https://*/*"
 	],

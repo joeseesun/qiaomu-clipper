@@ -6,7 +6,7 @@
 
 运行 `npm ci`、`TZ=America/Los_Angeles npm test`、`npx tsc --noEmit`、本地助手测试和 `npm run build:chrome`。上传 `builds/qiaomu-clipper-<version>-chrome.zip`；ZIP 根目录必须有 `manifest.json`，不应包含本地助手、测试、个人笔记、配置凭证或服务端运维文件。
 
-发布前统一 package 和各 manifest 版本号，完成真实界面截图、商店中英文介绍、图标、开发者支持渠道和公开可访问的隐私政策地址。当前仓库为私有，README/PRIVACY 的 GitHub 链接不能直接作为所有用户可访问的商店隐私地址；发布时需公开相应文档或放到公开网站。
+发布前统一 package 和各 manifest 版本号，完成真实界面截图、商店中英文介绍、图标、开发者支持渠道和公开可访问的隐私政策地址。仓库已公开。隐私政策地址：https://joeseesun.github.io/qiaomu-clipper/privacy.html 。完整可粘贴表单与审核步骤见 [商店提交资料](store/SUBMISSION.md)。
 
 ## 当前权限用途
 
@@ -16,12 +16,12 @@
 | storage | 模板、设置、待重试内容和预览草稿 |
 | clipboardWrite | 复制属性、Markdown，以及无助手时的 Obsidian 保存 |
 | nativeMessaging | 调用用户另行安装的本地保存助手 |
-| contextMenus、commands | 右键与键盘快捷操作 |
+| contextMenus | 右键剪藏操作 |
 | sidePanel | Chrome 侧边栏剪藏 |
 | declarativeNetRequest | 上游阅读器的 YouTube 嵌入 Referer 规则 |
 | 网页 host permissions | 网页提取、阅读模式请求、RSS 和用户配置的 AI 服务 |
 
-Manifest 仍继承较广的网页访问权限；上架前要按实际功能复查并精简重复项，逐项填写权限解释。商店隐私申报必须说明网页内容、本地存储、匿名设备编号、默认勾选的公开 RSS 投稿、可选 AI 服务的数据处理。不能宣称所有数据始终留在本机。
+Chrome Manifest 已去掉不是权限项的 commands（快捷键声明保留）和重复的 <all_urls>。HTTP/HTTPS 访问仍用于任意网页剪藏、每站三连击快捷键和用户配置的 AI 端点，逐项说明见提交资料。商店隐私申报必须说明网页内容、本地存储、匿名设备编号、默认勾选的公开 RSS 投稿、可选 AI 服务的数据处理。不能宣称所有数据始终留在本机。
 
 ## 验收与审核说明
 
