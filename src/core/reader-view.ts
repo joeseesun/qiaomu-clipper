@@ -1,11 +1,8 @@
-import { listenTripleKey, normalizeTripleKeys } from '../utils/triple-key';
 import { loadClipPreview } from '../utils/clip-preview';
-import { createClipBar, autoHideBar, setClipBarHighlights } from '../utils/clip-bar';
-import { mountClipChat } from '../utils/clip-chat';
-import { mountYouTubeStudy, transcriptText } from '../utils/youtube-study';
+import { mountYouTubeStudy } from '../utils/youtube-study';
 import { startYouTubeStudy } from '../utils/youtube-study-loader';
-import { updateClipPreview } from '../utils/clip-preview';
-import { generateFrontmatter } from '../utils/obsidian-note-creator';
+import { mountReaderPreviewShell } from '../utils/reader-preview-shell';
+import { createReaderSourceDraft } from '../utils/reader-source-draft';
 import { marked } from 'marked';
 import { highlightExtension } from '../utils/marked-highlight';
 
@@ -41,7 +38,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 	}
 
 	if (params.get('study') === 'youtube') {
-		await startYouTubeStudy(url, Number(params.get('sourceTab')), params.get('title') || '', result => setupReaderPageMessageHandler(url!, result));
+		const session = await createReaderSourceDraft(url, params.get('title') || '');
+		// Suppress the legacy reader controls before rendering, just as a normal preview does.
+		Reader.onEdit = () => {};
+		await startYouTubeStudy(url, Number(params.get('sourceTab')), session.draft.clip.title, async result => {
+			await session.populate(result);
+			await setupReaderPageMessageHandler(url!, result);
+		}, () => {
+			const shell = mountReaderPreviewShell(session.draft, true);
+			return {chat:shell.chat, ready: () => { shell.refresh(); shell.setPending(false); }};
+		});
 		return;
 	}
 
@@ -461,32 +467,9 @@ async function showClipPreview(id: string) {
     Reader.onEdit = openEditor;
     await Reader.apply(document);
     document.title = draft.clip.title;
-    document.documentElement.classList.add('qiaomu-preview');
-    const title = document.createElement('span');
-    title.textContent = draft.clip.title;
     await loadSettings();
-    const chat = mountClipChat({
-        onHighlight: () => Reader.highlightSelection(document),
-        getContext: () => ({ title: draft.clip.title, markdown: transcriptText(document.querySelector('article')!) || draft.clip.markdown, url: draft.clip.url }),
-        onInsert: async text => {
-            draft.clip.markdown = `${draft.clip.markdown.trimEnd()}\n\n${text}\n`;
-            draft.local.content = await generateFrontmatter(draft.properties ?? []) + draft.clip.markdown;
-            await updateClipPreview(draft);
-        },
-    });
+    const {chat} = mountReaderPreviewShell(draft);
     if (document.querySelector('article iframe[src*="youtube.com/embed/"]')) {
         await mountYouTubeStudy(document, document.querySelector('article')!, draft.clip.title, draft.clip.url, chat);
     }
-    const bar = createClipBar({ onToggleChat: chat.toggle, mode: 'read', id, draft, title, domain: getDomain(draft.clip.url), url: draft.clip.url });
-    document.body.prepend(bar);
-    const readerSettings = document.querySelector('.obsidian-reader-settings');
-    if (readerSettings) bar.querySelector('.clip-bar-extras')?.appendChild(readerSettings);
-    autoHideBar(bar);
-    // Highlights are restored just after the page renders and can change while reading.
-    const updateHighlights = () => setClipBarHighlights(bar, getHighlights().length);
-    updateHighlights();
-    setTimeout(updateHighlights, 800);
-    browser.storage.onChanged.addListener(changes => { if (changes.highlights) setTimeout(updateHighlights, 200); });
-    const editKey = () => normalizeTripleKeys(generalSettings.tripleKeys).edit;
-    listenTripleKey(() => [editKey()].filter(Boolean), openEditor, () => generalSettings.tripleKeyShortcuts !== false);
 }

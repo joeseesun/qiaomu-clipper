@@ -9,7 +9,7 @@ vi.mock('./reader', () => ({ Reader: {
 	apply: vi.fn(async () => { document.body.innerHTML = '<main><h1>Video</h1><article><iframe src="https://www.youtube.com/embed/dbqweBCynuI"></iframe><div class="youtube-study-toolbar"><span class="youtube-study-status"></span></div></article></main><button id="qiaomu-reader-clip"></button>'; }),
 	attachYouTubeTranscript: vi.fn(async (_doc: Document, transcript: HTMLElement) => { document.querySelector('article')!.appendChild(transcript); }),
 } }));
-vi.mock('./youtube-study', () => ({ transcriptText: (node: HTMLElement) => node.querySelector('.transcript-segment')?.textContent || '' }));
+vi.mock('./youtube-study', () => ({ mountYouTubeStudy:vi.fn(), transcriptText: (node: HTMLElement) => node.querySelector('.transcript-segment')?.textContent || '' }));
 import { startYouTubeStudy, withTranscriptDeadline } from './youtube-study-loader';
 import { Reader } from './reader';
 import { youtubeStudyPath } from './youtube-url';
@@ -51,6 +51,28 @@ it('shows a retry after missing subtitles and fetches a fresh source on retry', 
 	retry.click(); await flush();
 	expect(state.fetch).toHaveBeenCalledTimes(2);
 	expect(Reader.attachYouTubeTranscript).toHaveBeenCalledOnce();
+});
+
+it('mounts the normal reading shell before extraction and keeps its chat and bar when captions arrive', async () => {
+	let resolve!: (value: typeof result) => void;
+	state.parse.mockReturnValue(new Promise(done => { resolve = done; }));
+	const chat = {toggle:vi.fn(() => true)}; const ready=vi.fn();
+	const mount=vi.fn(() => { const bar=document.createElement('header');bar.className='clip-bar';document.body.prepend(bar);return {chat,ready}; });
+	await startYouTubeStudy(url,42,'Video',state.ready,mount);
+	const bar=document.querySelector('.clip-bar');expect(mount).toHaveBeenCalledOnce();expect(ready).not.toHaveBeenCalled();
+	await flush();resolve(result);await flush();
+	expect(Reader.attachYouTubeTranscript).toHaveBeenCalledWith(document,expect.any(HTMLElement),'Video',chat);
+	expect(ready).toHaveBeenCalledOnce();expect(document.querySelector('.clip-bar')).toBe(bar);
+});
+
+it('makes the ordinary source actions ready even when captions are unavailable, while keeping caption retry', async () => {
+	state.parse.mockResolvedValue({title:'Video',content:'<p>Video description</p>'});
+	const ready=vi.fn();const chat={toggle:vi.fn(() => true)};
+	await startYouTubeStudy(url,42,'Video',state.ready,()=>({chat,ready}));await flush();
+	expect(state.ready).toHaveBeenCalledWith(expect.objectContaining({content:'<p>Video description</p>'}));
+	expect(ready).toHaveBeenCalledOnce();
+	expect(document.querySelector<HTMLButtonElement>('[aria-label="重新加载字幕"]')!.hidden).toBe(false);
+	expect(Reader.attachYouTubeTranscript).not.toHaveBeenCalled();
 });
 
 it('bounds a stalled extraction, aborts it and ignores its eventual result', async () => {

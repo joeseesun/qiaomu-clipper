@@ -10,7 +10,7 @@
 
 [快速开始](#快速开始) · [功能巡游](#功能巡游) · [快捷键](#三连击快捷键) · [AI](#ai-解读与对话) · [隐私与边界](#隐私与边界) · [反馈](https://github.com/joeseesun/qiaomu-clipper/issues)
 
-![version](https://img.shields.io/badge/version-1.10.0-blue) ![license](https://img.shields.io/badge/license-MIT-green) ![platform](https://img.shields.io/badge/Chrome-Manifest%20V3-orange)
+![version](https://img.shields.io/badge/version-1.10.1-blue) ![license](https://img.shields.io/badge/license-MIT-green) ![platform](https://img.shields.io/badge/Chrome-Manifest%20V3-orange)
 
 </div>
 
