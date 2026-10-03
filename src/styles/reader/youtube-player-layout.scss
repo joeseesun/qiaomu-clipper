@@ -9,7 +9,7 @@ html.youtube-study.obsidian-reader-active:has(.youtube-sized-player) body {
 	}
 	.obsidian-reader-content {
 		padding-top: max(calc(var(--youtube-bar-height, 56px) + 16px), 4rem, 4vh) !important;
-		width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box; overflow: visible;
+		width: 100% !important; max-width: 100%; min-width: 0; box-sizing: border-box; overflow: visible;
 		main, article { width: 100%; min-width: 0; }
 		article > :not(.player-container):not(.youtube-sized-player):not(.youtube-player-resize) {
 			max-width: var(--line-width, 720px); margin-inline: auto;
