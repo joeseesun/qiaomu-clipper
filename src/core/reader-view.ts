@@ -2,6 +2,7 @@ import { listenTripleKey, normalizeTripleKeys } from '../utils/triple-key';
 import { loadClipPreview } from '../utils/clip-preview';
 import { createClipBar, autoHideBar, setClipBarHighlights } from '../utils/clip-bar';
 import { mountClipChat } from '../utils/clip-chat';
+import { mountYouTubeStudy, transcriptText } from '../utils/youtube-study';
 import { updateClipPreview } from '../utils/clip-preview';
 import { generateFrontmatter } from '../utils/obsidian-note-creator';
 import { marked } from 'marked';
@@ -460,13 +461,16 @@ async function showClipPreview(id: string) {
     await loadSettings();
     const chat = mountClipChat({
         onHighlight: () => Reader.highlightSelection(document),
-        getContext: () => ({ title: draft.clip.title, markdown: draft.clip.markdown, url: draft.clip.url }),
+        getContext: () => ({ title: draft.clip.title, markdown: transcriptText(document.querySelector('article')!) || draft.clip.markdown, url: draft.clip.url }),
         onInsert: async text => {
             draft.clip.markdown = `${draft.clip.markdown.trimEnd()}\n\n${text}\n`;
             draft.local.content = await generateFrontmatter(draft.properties ?? []) + draft.clip.markdown;
             await updateClipPreview(draft);
         },
     });
+    if (document.querySelector('article iframe[src*="youtube.com/embed/"]')) {
+        await mountYouTubeStudy(document, document.querySelector('article')!, draft.clip.title, draft.clip.url, chat);
+    }
     const bar = createClipBar({ onToggleChat: chat.toggle, mode: 'read', id, draft, title, domain: getDomain(draft.clip.url), url: draft.clip.url });
     document.body.prepend(bar);
     const readerSettings = document.querySelector('.obsidian-reader-settings');
