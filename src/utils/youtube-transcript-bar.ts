@@ -111,6 +111,12 @@ export function buildTranscriptBar(doc: Document, hooks: BarHooks): TranscriptBa
 	let segments: PanelSegment[] = [], state: BarState = 'loading', open = false, rendered = -1;
 	let rows: Row[] = [], starts: number[] = [], activeIndex = -1, query = '', follow = hooks.initialFollow !== false, lastUserScroll = 0, searchTimer: ReturnType<typeof setTimeout> | undefined;
 	let ignoreTimeUntil = 0, lastScroll = { target: -1, at: 0 }, resumeTimer: ReturnType<typeof setTimeout> | undefined;
+	let ours = { from: 0, to: 0, until: 0 };
+	// Our own scrolls are remembered with the stretch they cover. A scroll event that lies on that stretch while it
+	// is under way is ours; anything else (wheel, touch, scrollbar drag, keys, inertia) is the viewer's, even if it
+	// happens right after an automatic scroll.
+	const moveList = (top: number, smooth: boolean) => { ours = { from: list.scrollTop, to: top, until: Date.now() + (smooth ? 1000 : 150) }; list.scrollTo({ top, behavior: smooth ? 'smooth' : 'auto' }); };
+	const isOurScroll = () => Date.now() <= ours.until && list.scrollTop >= Math.min(ours.from, ours.to) - 2 && list.scrollTop <= Math.max(ours.from, ours.to) + 2;
 	const reduced = () => doc.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 
 	// Plain text in a row, or the text with every match wrapped in <mark>.
@@ -144,7 +150,7 @@ export function buildTranscriptBar(doc: Document, hooks: BarHooks): TranscriptBa
 		if (Math.abs(target - lastScroll.target) < 2 && now - lastScroll.at < 700) return; // a scroll to this line is already under way
 		lastScroll = { target, at: now };
 		// Small steps glide; a far jump (after a seek) just lands, so the list never sweeps past hundreds of lines.
-		list.scrollTo({ top: target, behavior: reduced() || Math.abs(target - list.scrollTop) > height * 2 ? 'auto' : 'smooth' });
+		moveList(target, !(reduced() || Math.abs(target - list.scrollTop) > height * 2));
 	};
 	const updateHere = () => {
 		const row = rows[activeIndex];
@@ -186,7 +192,7 @@ export function buildTranscriptBar(doc: Document, hooks: BarHooks): TranscriptBa
 		applyFilter();
 		const now = hooks.getTime?.(); if (now !== undefined) setActive(activeIndexAt(starts, now), false);
 		// A first look at the list starts at the current line, not at the top.
-		const row = rows[activeIndex]; if (row && follow && !query) list.scrollTop = Math.max(0, row.element.offsetTop - list.offsetTop - list.clientHeight * 0.33);
+		const row = rows[activeIndex]; if (row && follow && !query) { const top = Math.max(0, row.element.offsetTop - list.offsetTop - list.clientHeight * 0.33); ours = { from: list.scrollTop, to: top, until: Date.now() + 150 }; list.scrollTop = top; }
 		updateHere();
 	};
 	const toggle = tool('toggle', strings.expand, () => setOpen(!open));
@@ -208,11 +214,16 @@ export function buildTranscriptBar(doc: Document, hooks: BarHooks): TranscriptBa
 	press(followButton, () => { follow = !follow; hooks.onFollow?.(follow); paint(); if (follow) { lastUserScroll = 0; const row = rows[activeIndex]; if (row && !query) reveal(row, true); } updateHere(); });
 	press(here, () => { lastUserScroll = 0; clearTimeout(resumeTimer); const row = rows[activeIndex]; if (row) reveal(row, true); });
 	// The viewer taking over the scroll pauses following for a moment; our own smooth scrolls do not count.
-	// Free scrolling: any touch of the list pauses following, and every further touch restarts the countdown. When
-	// ten quiet seconds have passed, the list glides back to the line that is playing.
+	// Free scrolling. Following pauses on any sign that the viewer is moving the list (wheel, touch, a press on the
+	// scrollbar, scroll keys, and any scroll event that is not ours, which also covers dragging the scrollbar and
+	// trackpad inertia) and the countdown restarts with every one of them. Once the viewer has stopped for
+	// FOLLOW_COOLDOWN the list glides back to the playing line; the button does it at once.
 	const resume = () => { lastUserScroll = 0; const row = rows[activeIndex]; if (open && follow && !query && row) reveal(row, true); updateHere(); };
-	for (const type of ['wheel', 'touchstart', 'pointerdown', 'keydown']) list.addEventListener(type, () => { lastUserScroll = Date.now(); clearTimeout(resumeTimer); resumeTimer = setTimeout(resume, FOLLOW_COOLDOWN); }, { passive: true });
-	list.addEventListener('scroll', updateHere, { passive: true });
+	const touched = () => { lastUserScroll = Date.now(); clearTimeout(resumeTimer); resumeTimer = setTimeout(resume, FOLLOW_COOLDOWN); };
+	for (const type of ['wheel', 'touchstart', 'touchmove', 'pointerdown']) list.addEventListener(type, touched, { passive: true });
+	list.addEventListener('keydown', event => { if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) touched(); });
+	list.addEventListener('scroll', () => { updateHere(); if (!isOurScroll()) touched(); }, { passive: true });
+	list.addEventListener('scrollend', () => { ours.until = 0; });
 
 	tools.append(
 		tool('subtitles', strings.subtitles, () => { setOpen(true); void hooks.getSegments().then(found => { if (found.length) { segments = found; state = 'ready'; rendered = -1; paint(); } }); }),

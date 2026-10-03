@@ -186,3 +186,28 @@ it('does not pull the list back when following is off', () => {
 	list.dispatchEvent(new Event('wheel')); vi.advanceTimersByTime(11000); expect(list.scrollTo).not.toHaveBeenCalled();
 	vi.useRealTimers();
 });
+
+it('counts any scroll that is not one of ours as the viewer\'s (scrollbar drag, inertia, keys, touch), even right after an automatic scroll', () => {
+	vi.useFakeTimers(); vi.setSystemTime(1200000);
+	const { bar } = make({ initialOpen: true }); bar.setState('ready', longLines); const list = withLayout(bar);
+	bar.setTime(405); // our own scroll: from 0 towards 401
+	expect(list.scrollTo).toHaveBeenCalledTimes(1);
+	list.scrollTop = 200; list.dispatchEvent(new Event('scroll')); // on the stretch of our scroll: ours, ignored
+	(list.scrollTo as any).mockClear(); bar.setTime(500); expect(list.scrollTo).toHaveBeenCalledTimes(1); // following carries on
+	list.scrollTop = 1400; list.dispatchEvent(new Event('scroll')); // far off our stretch, a fraction of a second later: the viewer's
+	(list.scrollTo as any).mockClear(); vi.advanceTimersByTime(300); bar.setTime(560); expect(list.scrollTo).not.toHaveBeenCalled();
+	vi.advanceTimersByTime(10100); expect(list.scrollTo).toHaveBeenCalledTimes(1); // ten quiet seconds later it is back at the playing line
+	vi.useRealTimers();
+});
+
+it('treats touch moves and scroll keys inside the list as the viewer\'s, but ignores other keys, and our own placement on opening', () => {
+	vi.useFakeTimers(); vi.setSystemTime(1300000);
+	const { bar } = make({ getTime: () => 405, initialOpen: false }); bar.setState('ready', longLines); bar.setOpen(true); const list = withLayout(bar);
+	list.dispatchEvent(new Event('scroll')); (list.scrollTo as any).mockClear(); bar.setTime(900); expect(list.scrollTo).toHaveBeenCalledTimes(1); // the opening placement did not pause following
+	for (const make of [() => new Event('touchmove'), () => new KeyboardEvent('keydown', { key: 'PageDown' }), () => new KeyboardEvent('keydown', { key: ' ' })]) {
+		(list.scrollTo as any).mockClear(); vi.setSystemTime(Date.now() + 20000); list.dispatchEvent(make()); bar.setTime(1000 + Math.random()); expect(list.scrollTo).not.toHaveBeenCalled();
+		vi.advanceTimersByTime(10100);
+	}
+	(list.scrollTo as any).mockClear(); vi.setSystemTime(Date.now() + 20000); list.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' })); bar.setTime(1500); expect(list.scrollTo).toHaveBeenCalled(); // an unrelated key does not pause it
+	vi.useRealTimers();
+});
