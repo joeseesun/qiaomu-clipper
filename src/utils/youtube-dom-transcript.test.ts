@@ -26,3 +26,19 @@ it('builds the same markup Defuddle produces, with escaped text and second offse
 	const html = transcriptHtml([{ time: '1:02:03', text: '<script>x</script> & "q"' }]);
 	expect(html).toContain('<div class="youtube transcript">'); expect(html).toContain('data-timestamp="3723"'); expect(html).toContain('&lt;script&gt;x&lt;/script&gt; &amp; &quot;q&quot;'); expect(html).not.toContain('<script>');
 });
+
+it('waits for a late opener, never closes an already open panel, and switches from the Chapters tab', async () => {
+	// The page is still building: the opener shows up after a moment and is clicked exactly once.
+	document.body.innerHTML = '';
+	const opened = vi.fn(); setTimeout(() => { document.body.innerHTML = '<button id="late" aria-label="Show transcript">x</button>'; document.getElementById('late')!.addEventListener('click', () => { opened(); document.body.insertAdjacentHTML('beforeend', panel(rows)); }); }, 400);
+	expect((await readYouTubeTranscriptFromDom(document, true, 3000, 50)).length).toBe(2); expect(opened).toHaveBeenCalledTimes(1);
+	// Expanded but empty: only wait, do not click the opener again (that would close it).
+	const again = vi.fn();
+	document.body.innerHTML = '<ytd-engagement-panel-section-list-renderer target-id="engagement-panel-searchable-transcript" visibility="ENGAGEMENT_PANEL_VISIBILITY_EXPANDED"><div id="segments-container"></div></ytd-engagement-panel-section-list-renderer><button id="opener" aria-label="Show transcript">x</button>';
+	document.getElementById('opener')!.addEventListener('click', again);
+	expect(await readYouTubeTranscriptFromDom(document, true, 400, 50)).toEqual([]); expect(again).not.toHaveBeenCalled();
+	// Open on the Chapters tab: the Transcript chip is selected after a moment and the lines appear.
+	document.body.innerHTML = '<ytd-engagement-panel-section-list-renderer target-id="engagement-panel-searchable-transcript" visibility="ENGAGEMENT_PANEL_VISIBILITY_EXPANDED"><chip-view-model><button><div class="ytChipShapeActive">Chapters</div></button></chip-view-model><chip-view-model><button id="tab"><div>Transcript</div></button></chip-view-model><div id="segments-container"></div></ytd-engagement-panel-section-list-renderer>';
+	document.getElementById('tab')!.addEventListener('click', () => { document.getElementById('segments-container')!.innerHTML = rows; });
+	expect((await readYouTubeTranscriptFromDom(document, true, 4000, 50)).length).toBe(2);
+});

@@ -7,7 +7,7 @@ import { bilibiliVideo, videoKey } from './video-source';
 import { TRANSCRIPT_SELECTOR } from './video-source';
 import { setPageTitle, setPageUrl } from './highlighter';
 
-export async function withTranscriptDeadline<T>(extract: (signal: AbortSignal) => Promise<T>, timeoutMs = 20000): Promise<T> {
+export async function withTranscriptDeadline<T>(extract: (signal: AbortSignal) => Promise<T>, timeoutMs = 35000): Promise<T> {
 	const controller = new AbortController();
 	let timer: ReturnType<typeof setTimeout>;
 	const timeout = new Promise<never>((_, reject) => {
@@ -59,7 +59,9 @@ export async function startYouTubeStudy(url: string, sourceTabId: number, initia
 	async function load() {
 		if (loading || loaded) return;
 		loading = true; retry.hidden = true; status.textContent = '正在加载字幕… 视频可以先播放';
-		try {
+		// The first attempt often only warms the page up (YouTube builds its transcript lazily), so one quiet
+		// second attempt happens before the user is asked to press retry.
+		const once = async () => {
 			const result = await withTranscriptDeadline(async signal => {
 				// Two routes, first one that returns subtitles wins. The page itself is the reliable one: it
 				// has YouTube's cookies and origin, and Defuddle can read or open the transcript panel there.
@@ -113,6 +115,15 @@ export async function startYouTubeStudy(url: string, sourceTabId: number, initia
 			loaded = true;
 			shell?.ready();
 			if (clip) clip.disabled = false;
+		};
+		try {
+			try { await once(); }
+			catch (first) {
+				if (!article.isConnected) return;
+				status.textContent = '正在重试字幕…'; await new Promise(done => setTimeout(done, 1500));
+				if (!article.isConnected) return;
+				try { await once(); } catch (second) { throw second ?? first; }
+			}
 		} catch (error) {
 			if (article.isConnected) { status.textContent = error instanceof Error ? error.message : '字幕加载失败，请重试'; retry.hidden = false; }
 		} finally { loading = false; }

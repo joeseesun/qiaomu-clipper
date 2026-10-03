@@ -1293,14 +1293,17 @@ browser.runtime.onMessage.addListener((raw: unknown, sender) => {
 		try {
 			const tab = await browser.tabs.get(request.sourceTabId!);
 			if (!tab.url || videoKey(tab.url) !== videoKey(request.url!)) return { error: '原视频页面已切换，请重新打开学习模式' };
-			const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('原页面提取超时')), 22000));
+			const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('原页面提取超时')), 28000));
+			// Open the transcript panel first. Once YouTube has rendered the lines, Defuddle reads them straight from
+			// the page (no network, no timeouts), so the full extraction below is fast instead of racing slow fetches.
+			let domHtml = '';
+			if (videoKey(request.url!)?.startsWith('youtube:')) {
+				const dom = await Promise.race([sendMessageToContentScript(request.sourceTabId!, { action: 'qiaomuReadTranscriptDom' }), timeout]).catch(() => undefined) as { html?: string } | undefined;
+				domHtml = dom?.html || '';
+			}
 			const page = await Promise.race([sendMessageToContentScript(request.sourceTabId!, { action: 'getPageContent' }), timeout]) as Record<string, any> | undefined;
 			if (!page || typeof page.content !== 'string') return { error: '原页面没有返回内容' };
-			if (!/class="[^"]*\btranscript\b/.test(page.content) && videoKey(request.url!)?.startsWith('youtube:')) {
-				// No caption file could be fetched: read the transcript panel YouTube renders itself.
-				const dom = await Promise.race([sendMessageToContentScript(request.sourceTabId!, { action: 'qiaomuReadTranscriptDom' }), timeout]).catch(() => undefined) as { html?: string } | undefined;
-				if (dom?.html) page.content += dom.html;
-			}
+			if (domHtml && !/class="[^"]*\btranscript\b/.test(page.content)) page.content += domHtml;
 			// Everything the study page needs, without the full page HTML.
 			const { content, title, author, description, favicon, image, published, site, wordCount, language, schemaOrgData, extractedContent, metaTags } = page;
 			return { content, title, author, description, favicon, image, published, site, wordCount, language, schemaOrgData, extractedContent, metaTags };

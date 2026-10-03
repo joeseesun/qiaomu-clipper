@@ -210,7 +210,7 @@ declare global {
 
 		if (request.action === "qiaomuReadTranscriptDom") {
 			// Study mode, last resort: open YouTube's own transcript panel and read what it rendered.
-			readYouTubeTranscriptFromDom(document).then(segments => sendResponse({ html: segments.length ? transcriptHtml(segments) : '' })).catch(() => sendResponse({ html: '' }));
+			readYouTubeTranscriptFromDom(document, true, 12000).then(segments => sendResponse({ html: segments.length ? transcriptHtml(segments) : '' })).catch(() => sendResponse({ html: '' }));
 			return true;
 		}
 

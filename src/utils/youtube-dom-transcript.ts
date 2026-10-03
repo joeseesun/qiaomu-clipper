@@ -13,14 +13,39 @@ function readOpenPanel(doc: Document): PanelSegment[] {
 	return panel ? readPanelSegments(panel) : [];
 }
 
-export async function readYouTubeTranscriptFromDom(doc: Document, open = true, waitMs = 7000): Promise<PanelSegment[]> {
-	let segments = readOpenPanel(doc);
-	if (segments.length || !open) return segments;
+const isExpanded = (doc: Document) => doc.querySelector(PANEL)?.getAttribute('visibility') === 'ENGAGEMENT_PANEL_VISIBILITY_EXPANDED';
+const findOpener = (doc: Document): HTMLButtonElement | undefined => {
 	for (const selector of OPENERS) {
 		const button = Array.from(doc.querySelectorAll<HTMLButtonElement>(selector)).find(candidate => !/关闭|close|hide|隠す|收起/i.test(candidate.getAttribute('aria-label') || ''));
-		if (!button) continue;
-		button.click();
-		for (let waited = 0; waited < waitMs; waited += 250) { await wait(250); segments = readOpenPanel(doc); if (segments.length) return segments; }
+		if (button) return button;
+	}
+	return undefined;
+};
+
+// The panel can be open on the "Chapters" tab; then the transcript chip next to it has to be selected.
+const TRANSCRIPT_WORDS = /transcript|转写|轉寫|文字起こし|스크립트|transcripción|transcription|транскрип/i;
+function selectTranscriptTab(doc: Document): boolean {
+	const chips = Array.from(doc.querySelectorAll<HTMLElement>(`${PANEL} chip-view-model button`));
+	const chip = chips.find(button => TRANSCRIPT_WORDS.test((button.textContent || '') + (button.getAttribute('aria-label') || ''))) || (chips.length > 1 ? chips[chips.length - 1] : undefined);
+	if (!chip || chip.querySelector('[class*="ChipShapeActive"]') || chip.parentElement?.querySelector('[class*="ChipShapeActive"]')) return false;
+	chip.click(); return true;
+}
+
+// Keeps going until the lines appear or the time is up. The page may still be building its description when
+// study mode starts, so a missing opener is waited for rather than treated as "no transcript". An opener is
+// clicked once; if the panel is already expanded we only wait, because a second click would close it again.
+export async function readYouTubeTranscriptFromDom(doc: Document, open = true, waitMs = 12000, step = 250): Promise<PanelSegment[]> {
+	let segments = readOpenPanel(doc);
+	if (segments.length || !open) return segments;
+	let clicked = false, tabPicked = false;
+	for (let waited = 0; waited <= waitMs; waited += step) {
+		if (!clicked && !isExpanded(doc)) {
+			const opener = findOpener(doc);
+			if (opener) { opener.click(); clicked = true; }
+		}
+		await wait(step); segments = readOpenPanel(doc);
+		if (segments.length) return segments;
+		if (isExpanded(doc) && waited >= 1500 && !tabPicked) tabPicked = selectTranscriptTab(doc);
 	}
 	return segments;
 }
