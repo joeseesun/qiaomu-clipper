@@ -119,6 +119,8 @@ html.youtube-study {
 		&[aria-pressed="true"] { color: var(--text-normal); background: var(--background-modifier-hover, rgb(128 128 128 / 16%)); }
 		&:focus-visible { outline: 1px solid var(--text-muted); outline-offset: -1px; }
 	}
+	// Bilibili's embed reports no playback time, so the pop-out window could not resume where it left off.
+	article[data-video-platform="bilibili"] .youtube-mode-pip { display: none; }
 	.youtube-float-chrome { display: none; }
 	article:not([data-yt-layout="float"]) .youtube-float-chrome { display: none !important; }
 	article[data-yt-layout="float"] .youtube-mode-bar .youtube-mode-btn:not([aria-pressed="true"]) { opacity: .9; }
@@ -149,7 +151,7 @@ html.youtube-study.obsidian-reader-active:has(.youtube-sized-player) .obsidian-r
 }
 
 // The transcript starts level with the video, not a heading-margin lower.
-html.youtube-study .youtube.transcript > :first-child { margin-top: 0; }
+html.youtube-study .transcript:is(.youtube, .bilibili) > :first-child { margin-top: 0; }
 
 // Level the outline toggle with the top of the video instead of the reading page's taller top gap.
 html.youtube-study.obsidian-reader-active:has(.youtube-sized-player) .obsidian-reader-left-sidebar:not(.is-empty) { padding-top: 16px; }

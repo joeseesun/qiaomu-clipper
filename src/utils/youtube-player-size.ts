@@ -1,3 +1,4 @@
+import { PLAYER_SELECTOR } from './video-source';
 import { getLocalStorage, setLocalStorage } from './storage-utils';
 import { LAYOUT_EVENT, maxPlayerWidth, type PlayerLayout } from './youtube-player-mode';
 
@@ -5,7 +6,7 @@ export const normalizePlayerSize = (value: unknown): number => typeof value === 
 
 // Change geometry only: never move, replace or reload the live player.
 export function mountPlayerSize(article: HTMLElement): void {
-	const findPlayer = () => article.querySelector<HTMLElement>('.reader-video-wrapper') || article.querySelector<HTMLElement>('iframe[src*="youtube.com/embed/"]') || article.querySelector<HTMLElement>('a[href*="youtube.com/watch"]');
+	const findPlayer = () => article.querySelector<HTMLElement>('.reader-video-wrapper') || article.querySelector<HTMLElement>(PLAYER_SELECTOR) || article.querySelector<HTMLElement>('a[href*="youtube.com/watch"]');
 	const found = findPlayer();
 	if (!found) return;
 	const player: HTMLElement = found;

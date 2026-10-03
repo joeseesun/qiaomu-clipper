@@ -2033,6 +2033,7 @@ export class Reader {
 			let youtubeVideoElement: HTMLVideoElement | null = null;
 			const host = doc.URL ? new URL(doc.URL).hostname : '';
 			const isYouTube = host.includes('youtube.com') || host.includes('youtu.be');
+			const isBilibili = host === 'bilibili.com' || host.endsWith('.bilibili.com');
 			const browserType = await detectBrowser();
 			// Safari/Firefox block canvas font metrics, so the font-availability
 			// probe must fall back to the Font Loading API on those browsers.
@@ -2300,7 +2301,7 @@ export class Reader {
 			// document.title (which often includes the site name suffix).
 			if (title) hl().setPageTitle(title);
 
-			if (isYouTube) restoreYouTubePlayer(article, doc.URL);
+			if (isYouTube || isBilibili) restoreYouTubePlayer(article, doc.URL);
 
 			// On YouTube, replace the Defuddle-generated iframe with the
 			// preserved native video element, or fall back to embed
@@ -2387,7 +2388,7 @@ export class Reader {
 				this.saveSettings();
 			});
 
-			if (isYouTube && !Reader.onEdit) await mountYouTubeStudy(doc, article, title || doc.title, doc.URL);
+			if ((isYouTube || isBilibili) && !Reader.onEdit) await mountYouTubeStudy(doc, article, title || doc.title, doc.URL);
 
 			if (extractorType) {
 				doc.documentElement.setAttribute('data-reader-extractor', extractorType);

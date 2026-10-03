@@ -1,4 +1,5 @@
 import { getMessage } from './i18n';
+import { bilibiliEmbedUrl, isBilibiliEmbed, PLAYER_SELECTOR, TRANSCRIPT_SELECTOR } from './video-source';
 import { sourceTextNodes } from './transcript-format';
 
 // CJK-aware text boundary helpers
@@ -51,10 +52,11 @@ export function wireTranscript(
 	scroll: ScrollHelper,
 	onSettingChange?: (key: keyof TranscriptSettings, value: boolean) => void
 ): void {
-	const transcript = article.querySelector('.youtube.transcript') as HTMLElement | null;
+	const transcript = article.querySelector(TRANSCRIPT_SELECTOR) as HTMLElement | null;
 	if (!transcript || transcript.dataset.readerWired === 'true') return;
 
-	const iframe = article.querySelector('iframe[src*="youtube.com/embed/"]') as HTMLIFrameElement | null;
+	const iframe = article.querySelector(PLAYER_SELECTOR) as HTMLIFrameElement | null;
+	const bilibili = !!iframe && isBilibiliEmbed(iframe.src);
 	const videoWrapper = article.querySelector('.reader-video-wrapper') as HTMLElement | null;
 	const videoEl = videoWrapper?.querySelector('video.reader-video-player') as HTMLVideoElement | null;
 	const thumbnailLink = article.querySelector('a[href*="youtube.com/watch"]') as HTMLAnchorElement | null;
@@ -94,7 +96,7 @@ export function wireTranscript(
 
 	playerContainer.appendChild(toggleBar);
 
-	if (iframe) {
+	if (iframe && !bilibili) {
 		// Enable JS API on the embed
 		const src = new URL(iframe.src);
 		if (src.searchParams.get('enablejsapi') !== '1') {
@@ -355,6 +357,20 @@ export function wireTranscript(
 				e.preventDefault();
 			}
 		});
+	} else if (iframe && bilibili) {
+		// Bilibili's embed has no player API and reports no time: a jump reloads it at the requested
+		// second, the transcript marks the clicked line itself, and a scrub drag is coalesced into one reload.
+		let pending: ReturnType<typeof setTimeout> | undefined;
+		seekTo = (seconds: number) => {
+			const target = Math.max(0, Math.floor(seconds));
+			updateActiveSegment(target);
+			clearTimeout(pending);
+			pending = setTimeout(() => {
+				const url = new URL(iframe.src);
+				url.searchParams.set('t', String(target)); url.searchParams.set('autoplay', '1');
+				iframe.src = url.toString();
+			}, 250);
+		};
 	} else if (iframe) {
 		// Iframe embed: use postMessage API
 		seekTo = (seconds: number) => {
@@ -400,7 +416,7 @@ export function wireTranscript(
 	const togglePlayPause = () => {
 		if (videoEl) {
 			videoEl.paused ? videoEl.play() : videoEl.pause();
-		} else if (iframe?.contentWindow) {
+		} else if (iframe?.contentWindow && !bilibili) {
 			iframe.contentWindow.postMessage(JSON.stringify({
 				event: 'command',
 				func: iframePlaying ? 'pauseVideo' : 'playVideo',

@@ -9,7 +9,7 @@ import browser from './browser-polyfill';
 import { generalSettings } from './storage-utils';
 import { listenTripleKey, normalizeTripleKeys } from './triple-key';
 import { transcriptText } from './youtube-study';
-import { youtubeVideoId } from './youtube-url';
+import { videoKey } from './video-source';
 
 // The same shell for a normal clip preview and a progressively loaded video.
 export function mountReaderPreviewShell(draft: ClipPreview, pending = false) {
@@ -20,7 +20,7 @@ export function mountReaderPreviewShell(draft: ClipPreview, pending = false) {
 	Reader.onEdit = openEditor;
 	const chat = mountClipChat({
 		onHighlight: () => Reader.highlightSelection(document),
-		getContext: () => ({ title: draft.clip.title, url: draft.clip.url, markdown: youtubeVideoId(draft.clip.url) ? transcriptText(document.querySelector('article')!) || '尚未获取视频字幕文稿，请明确说明无法依据文稿回答。' : draft.clip.markdown }),
+		getContext: () => ({ title: draft.clip.title, url: draft.clip.url, markdown: videoKey(draft.clip.url) ? transcriptText(document.querySelector('article')!) || '尚未获取视频字幕文稿，请明确说明无法依据文稿回答。' : draft.clip.markdown }),
 		onInsert: async text => {
 			draft.clip.markdown = `${draft.clip.markdown.trimEnd()}\n\n${text}\n`;
 			draft.local.content = await generateFrontmatter(draft.properties ?? []) + draft.clip.markdown;
@@ -37,7 +37,7 @@ export function mountReaderPreviewShell(draft: ClipPreview, pending = false) {
 	browser.storage.onChanged.addListener(changes => { if (changes.highlights) setTimeout(updateHighlights,200); });
 	const setPending = (value: boolean) => {
 		pending = value;
-		for (const control of Array.from(bar.querySelectorAll<HTMLButtonElement>('.clip-bar-segment button[aria-selected="false"], #clip-bar-copy, #clip-bar-download, #clip-bar-ai, #clip-bar-clip'))) control.disabled = value || (control.id === 'clip-bar-clip' && Boolean(draft.localDone && (!draft.aggregate || draft.rssDone))) || (control.id === 'clip-bar-ai' && Boolean(youtubeVideoId(draft.clip.url)) && !transcriptText(document.querySelector('article')!));
+		for (const control of Array.from(bar.querySelectorAll<HTMLButtonElement>('.clip-bar-segment button[aria-selected="false"], #clip-bar-copy, #clip-bar-download, #clip-bar-ai, #clip-bar-clip'))) control.disabled = value || (control.id === 'clip-bar-clip' && Boolean(draft.localDone && (!draft.aggregate || draft.rssDone))) || (control.id === 'clip-bar-ai' && Boolean(videoKey(draft.clip.url)) && !transcriptText(document.querySelector('article')!));
 	};
 	setPending(pending);
 	listenTripleKey(() => [normalizeTripleKeys(generalSettings.tripleKeys).edit].filter(Boolean), () => { if (!pending) openEditor(); }, () => generalSettings.tripleKeyShortcuts !== false);

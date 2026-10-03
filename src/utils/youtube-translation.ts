@@ -1,4 +1,5 @@
 import { enabledChatModels, streamChat } from './chat-llm';
+import { TRANSCRIPT_SELECTOR } from './video-source';
 import { getLocalStorage, loadSettings } from './storage-utils';
 import { getMessage } from './i18n';
 import { sourceParagraphs, withoutMusicCues, translationParagraphs, renderBilingualBlocks, sourceTextNodes } from './transcript-format';
@@ -37,7 +38,7 @@ export function parseTranslation(answer: string, batch: TranslationPart[]): Map<
 
 export function mountTranslation(article: HTMLElement, toolbar: HTMLElement, status: HTMLElement): void {
 	if (article.querySelector('.youtube-translate-toggle')) return;
-	const segments = Array.from(article.querySelectorAll<HTMLElement>('.youtube.transcript .transcript-segment'));
+	const segments = Array.from(article.querySelectorAll<HTMLElement>(`${TRANSCRIPT_SELECTOR} .transcript-segment`));
 	if (!segments.length) return;
 	const texts = segments.map(segment => {
 		const clone = segment.cloneNode(true) as HTMLElement;

@@ -2,13 +2,14 @@ import { createElement, WandSparkles } from 'lucide';
 import { mountClipChat } from './clip-chat';
 import { loadSettings } from './storage-utils';
 import { youtubeVideoId } from './youtube-url';
+import { bilibiliEmbedUrl, bilibiliVideo, TRANSCRIPT_SELECTOR, PLAYER_SELECTOR } from './video-source';
 import { mountPlayerSize } from './youtube-player-size';
 import { mountPlayerMode } from './youtube-player-mode';
 import { mountTranslation } from './youtube-translation';
 
 // Read only transcript segments, excluding chapter headings and reader controls.
 export function transcriptText(article: HTMLElement): string {
-	return Array.from(article.querySelectorAll('.youtube.transcript .transcript-segment')).map(segment => {
+	return Array.from(article.querySelectorAll(`${TRANSCRIPT_SELECTOR} .transcript-segment`)).map(segment => {
 		const timestamp = segment.querySelector('strong')?.textContent?.trim() || '';
 		const clone = segment.cloneNode(true) as HTMLElement;
 		clone.querySelectorAll('.transcript-translation').forEach(node => node.remove());
@@ -19,6 +20,7 @@ export function transcriptText(article: HTMLElement): string {
 }
 
 export async function mountYouTubeStudy(doc: Document, article: HTMLElement, title: string, url: string, existingChat?: { toggle: () => boolean }): Promise<void> {
+	article.dataset.videoPlatform = bilibiliVideo(url) || article.querySelector('iframe[src*="player.bilibili.com"]') ? 'bilibili' : 'youtube';
 	mountPlayerSize(article);
 	mountPlayerMode(article);
 	if (article.querySelector('.youtube-study-feedback')) return;
@@ -28,13 +30,15 @@ export async function mountYouTubeStudy(doc: Document, article: HTMLElement, tit
 	const status = doc.createElement('span'); status.className = 'youtube-study-status'; status.setAttribute('role', 'status');
 	feedback.append(status);
 	const text = transcriptText(article);
-	const transcript = article.querySelector('.youtube.transcript');
+	const transcript = article.querySelector(TRANSCRIPT_SELECTOR);
 	if (transcript) transcript.before(feedback); else article.append(feedback);
 	const toggleGroup = article.querySelector<HTMLElement>('.player-toggle-group');
 	const controls = toggleGroup || feedback;
 	let chat: ReturnType<typeof mountClipChat> | undefined = existingChat;
 	if (!text) {
-		status.textContent = '未获取到字幕：视频可能没有字幕，或 YouTube 暂时限制了获取。打开原页转写文稿后再进入学习模式可重试。';
+		status.textContent = article.dataset.videoPlatform === 'bilibili'
+			? '未获取到字幕：视频可能没有字幕，B 站的 AI 字幕通常需要登录后才能获取。登录后重新进入学习模式可重试。'
+			: '未获取到字幕：视频可能没有字幕，或 YouTube 暂时限制了获取。打开原页转写文稿后再进入学习模式可重试。';
 		return;
 	}
 	mountTranslation(article, controls, status);
@@ -60,6 +64,19 @@ export async function mountYouTubeStudy(doc: Document, article: HTMLElement, tit
 // Markdown intentionally drops iframes. Restore only a trusted YouTube player
 // from the clip's source URL, and restore transcript classes lost in conversion.
 export function restoreYouTubePlayer(article: HTMLElement, sourceUrl: string): boolean {
+	const bilibili = bilibiliVideo(sourceUrl);
+	if (bilibili) {
+		const doc = article.ownerDocument;
+		let frame = article.querySelector<HTMLIFrameElement>('iframe[src*="player.bilibili.com/player.html"]');
+		if (!frame) {
+			frame = doc.createElement('iframe'); frame.src = bilibiliEmbedUrl(bilibili); frame.title = 'Bilibili 视频播放器';
+			frame.allow = 'autoplay; fullscreen; picture-in-picture'; frame.allowFullscreen = true;
+		}
+		article.prepend(frame);
+		const transcript = article.querySelector<HTMLElement>(TRANSCRIPT_SELECTOR);
+		if (transcript) frame.after(transcript);
+		return true;
+	}
 	const videoId = youtubeVideoId(sourceUrl);
 	if (!videoId) return false;
 	const doc = article.ownerDocument;
@@ -72,7 +89,7 @@ export function restoreYouTubePlayer(article: HTMLElement, sourceUrl: string): b
 		iframe.allowFullscreen = true;
 	}
 	article.prepend(iframe);
-	let transcript = article.querySelector<HTMLElement>('.youtube.transcript');
+	let transcript = article.querySelector<HTMLElement>(TRANSCRIPT_SELECTOR);
 	if (!transcript) {
 		const heading = Array.from(article.querySelectorAll('h2')).find(node => /^transcript$|^转写文稿$|^字幕$/i.test(node.textContent?.trim() || ''));
 		if (heading) {
