@@ -644,3 +644,5 @@
     &:focus-visible { outline: 1px solid var(--text-muted); outline-offset: 2px; }
     &:disabled { opacity: .6; cursor: default; }
 }
+
+@import 'styles/reader/youtube-player-layout';

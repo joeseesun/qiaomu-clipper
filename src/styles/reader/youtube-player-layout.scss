@@ -1,0 +1,46 @@
+// The video uses the available workspace, while text keeps the existing Aa line width.
+html.youtube-study.obsidian-reader-active:has(.youtube-sized-player) body {
+	.obsidian-reader-container {
+		grid-template-columns: 240px minmax(0, 1fr) var(--clipper-sidebar-width, 0px);
+		gap: 16px;
+		box-sizing: border-box;
+		&:has(> .obsidian-reader-left-sidebar.is-empty) { grid-template-columns: 0 minmax(0, 1fr) var(--clipper-sidebar-width, 0px); }
+		&:has(> .obsidian-reader-left-sidebar.is-collapsed:not(.is-empty)) { grid-template-columns: 44px minmax(0, 1fr) var(--clipper-sidebar-width, 0px); }
+	}
+	.obsidian-reader-content {
+		width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box; overflow: visible;
+		main, article { width: 100%; min-width: 0; }
+		article > :not(.player-container):not(.youtube-sized-player):not(.youtube-player-resize) {
+			max-width: var(--line-width, 720px); margin-inline: auto;
+		}
+		.youtube-sized-player, .youtube-player-resize {
+			// Fit both workspace width and viewport height, with room for the shared bar and controls.
+			width: calc(min(100%, max(356px, (100svh - 180px) * 16 / 9)) * var(--youtube-player-scale, 1)) !important;
+			max-width: 100%; margin-inline: auto;
+		}
+		.youtube-sized-player {
+			min-width: min(100%, 356px); height: auto !important; max-height: none !important; aspect-ratio: 16 / 9; display: block; box-shadow: none;
+			&:fullscreen { width: 100vw !important; height: 100vh !important; aspect-ratio: auto; margin: 0; }
+		}
+		.player-container.pin-player { top: var(--clip-bar-offset, 0px); }
+	}
+	.youtube-player-resize {
+		height: 24px; display: flex; justify-content: center; align-items: center;
+		cursor: nwse-resize; touch-action: none; user-select: none; box-sizing: border-box;
+		&::after { content: ''; width: 44px; height: 4px; border-radius: 4px; background: var(--text-muted); opacity: .45; }
+		&:hover::after, &:focus-visible::after { opacity: 1; }
+		&:focus-visible { outline: 1px solid var(--text-muted); outline-offset: -1px; border-radius: 4px; }
+	}
+	.youtube-size-hint { font-size: 12px; }
+}
+html.youtube-player-resizing {
+	cursor: nwse-resize; user-select: none;
+	iframe, video { pointer-events: none; }
+}
+@media (min-width: 1100px) {
+	html.youtube-study.clip-chat-open:has(.youtube-sized-player) .obsidian-reader-container { width: calc(100% - var(--clip-chat-width)); margin-inline: 0 auto; }
+}
+@media (max-width: 768px) {
+	html.youtube-study.obsidian-reader-active:has(.youtube-sized-player) body .obsidian-reader-container { grid-template-columns: minmax(0, 1fr) !important; gap: 0; }
+	html.youtube-study.obsidian-reader-active:has(.youtube-sized-player) body .obsidian-reader-content { padding-inline: 16px !important; }
+}
