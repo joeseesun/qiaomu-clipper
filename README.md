@@ -91,9 +91,19 @@ npm run build:chrome
 <details>
 <summary><b>想直接写入笔记库，不弹出 Obsidian？</b>（可选的本地保存助手）</summary>
 
-默认通过 Obsidian URI 保存。如果希望**静默保存**，直接把文件写进笔记库，请安装 [本地助手](native/README.md)（Python 3，macOS / Linux 的 Chrome）。然后在设置 → 通用里选择笔记库根目录，在模板的「保存到文件夹」里选择库内子文件夹。未安装助手时仍可手动填写相对路径。Windows 暂不支持该助手。
+默认通过 Obsidian URI 保存。如果希望**静默保存**，直接把文件写进笔记库，请安装 [本地助手](native/README.md)（Python 3，macOS / Linux 的 Chrome）。然后在设置 → 通用里选择笔记库根目录，在模板的「保存到文件夹」里选择库内子文件夹。未安装助手时仍可手动填写相对路径。助手同时负责把「学习笔记」追加到今天的日记（升级扩展后请重新运行一次 `native/install.py`）。助手是本仓库里的开源脚本（`native/`），不依赖 Obsidian 提供的任何程序。Windows 暂不支持该助手。
 
 </details>
+
+## 视频沉浸学习与学习笔记
+
+**YouTube 与 B 站视频页**，在非输入框内快速按 `aaa` 打开学习页：先显示播放器，字幕异步加载（超时可原地重试，不重启播放器）。
+
+- **布局**：页面够宽时左侧视频、右侧字幕分栏，视频固定，字幕独立滚动；窄屏自动上下排列。视频下方可切换 **停靠 / 剧场 / 小窗**（悬浮在页面角落，可拖动吸附、缩放），Chrome 里还有 **浮出窗口**（Document Picture-in-Picture，YouTube）。
+- **字幕**：点击时间戳跳转，YouTube 支持跟随高亮；可复制带时间戳的字幕、下载 TXT、基于字幕与 AI 对话、一键中文翻译（双语对照）。
+- **YouTube 原页**：转写文稿面板的「章节 / 转写文稿」旁增加 复制 / 下载 / 沉浸学习 三个按钮（设置里可关）。
+- **B 站**：播放器是官方嵌入，没有播放 API——点击时间戳会按该秒重新加载并播放，字幕高亮只跟随你点的那一行；字幕需要登录 B 站才会返回（请求在你自己的 B 站标签页里发出）。
+- **学习笔记**：按 `N`、点顶栏笔记图标、选中文字后点「记笔记」，或在 AI 回答上点「加入日记」，在右下角小卡片里写下想法；视频继续播放。笔记以一条紧凑的记录追加到**库里今天的日记**，带来源链接和可点击的视频时间点，保存后字幕行出现小铅笔标记。写入需要 [本地助手](native/README.md)（更新后才支持日记追加），并要求库里启用「日记」核心插件，格式为纯数字日期（如 `YYYY-MM-DD`）、不使用模板；不满足时会明确提示而不会写错日期。详见 [docs/LEARNING-DIARY.md](docs/LEARNING-DIARY.md) 和 [docs/STUDY-WORKSPACE.md](docs/STUDY-WORKSPACE.md)。
 
 ## 三连击快捷键
 
@@ -221,6 +231,10 @@ By default notes are sent through the Obsidian URI flow. For silent saving strai
 - RSS is a separate online service and may fail because of limits or network issues; local saving and RSS results are reported separately.
 - Firefox and Safari code is inherited from upstream; Qiaomu-specific features are validated on Chrome only.
 
+### Video study and learning notes
+
+On YouTube and Bilibili video pages press `aaa` to open the study page: video on the left, transcript on the right (stacked on narrow windows), with dock / theater / floating-window modes, click-to-seek transcripts, copy / download, translation and AI chat. While watching, press `N` (or use the note button or "Take note" on a selection) to write a note in a small card; it is appended to **today's daily note** in your vault with the source link and a clickable video time. This needs the optional [local helper](native/README.md) (re-run `native/install.py` after upgrading) and a vault with the Daily notes plugin using a numeric date format and no template. Bilibili embeds have no player API, so seeking reloads the player and the transcript does not follow playback. See [docs/LEARNING-DIARY.md](docs/LEARNING-DIARY.md).
+
 ### Development
 
 ```sh
@@ -231,7 +245,3 @@ npm run build:chrome
 ```
 
 Screenshots in this README are rendered from the built page styles with a sample article written for this project. See [privacy](PRIVACY.md), [security reporting](SECURITY.md) and the [MIT license](LICENSE). The bundled font Zhuque Fangsong is under the SIL OFL 1.1 ([license text](src/fonts/ZhuqueFangsong-OFL.txt)). Maintained by [joeseesun](https://github.com/joeseesun).
-
-### YouTube 沉浸学习
-
-在 YouTube 视频页、非输入框内快速按 `aaa` 直接打开学习页，先显示播放器，字幕异步加载；加载超时或失败可原地重试，不重启播放器：上方播放器，下方带时间戳的字幕文稿。文稿工具栏可复制字幕、下载 TXT，并使用设置中启用的 AI 模型基于文稿对话。点击字幕时间戳可跳转播放，支持跟随高亮。没有获取到字幕时会显示原因提示并禁用字幕操作；可先打开 YouTube 自带转写面板再重试。

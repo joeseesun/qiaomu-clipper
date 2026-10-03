@@ -1317,6 +1317,12 @@
 	"qiaomuChatQuoteRewrite": {
 		"message": "改寫得更簡潔"
 	},
+	"learningNotesTitle": {
+		"message": "學習筆記"
+	},
+	"learningNotesDescription": {
+		"message": "在閱讀頁與影片學習頁提供「記筆記」按鈕與 N 快捷鍵，筆記透過本地助手追加到庫裡今天的日記。"
+	},
 	"youtubePanelActionsTitle": {
 		"message": "YouTube 轉寫文稿按鈕"
 	},

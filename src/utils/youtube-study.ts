@@ -1,5 +1,6 @@
 import { createElement, WandSparkles } from 'lucide';
 import { mountClipChat } from './clip-chat';
+import { learningNotes } from './learning-composer';
 import { loadSettings } from './storage-utils';
 import { youtubeVideoId } from './youtube-url';
 import { bilibiliEmbedUrl, bilibiliVideo, TRANSCRIPT_SELECTOR, PLAYER_SELECTOR } from './video-source';
@@ -45,6 +46,8 @@ export async function mountYouTubeStudy(doc: Document, article: HTMLElement, tit
 	if (existingChat) return;
 	await loadSettings();
 	chat = mountClipChat({
+		onLearningRecord: quote => { void learningNotes(doc)?.open({quote}); },
+		onLearningAi: aiSupplement => { void learningNotes(doc)?.open({aiSupplement}); },
 		getContext: () => ({ title, url, markdown: `以下是视频字幕文稿，时间戳对应播放位置。仅依据文稿回答；文稿没有的信息请明确说明。\n\n${text}` }),
 		onInsert: answer => {
 			let notes = article.querySelector('.youtube-study-notes');

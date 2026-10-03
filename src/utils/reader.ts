@@ -42,6 +42,7 @@ import { ReaderSettings } from '../types/types';
 import { wireTranscript } from './reader-transcript';
 import { mountYouTubeStudy, restoreYouTubePlayer } from './youtube-study';
 import { mountSidebarToggle } from './sidebar-toggle';
+import { mountLearningNotes, learningSelection, learningNotes } from './learning-composer';
 
 interface ReaderContent {
 	content: string;
@@ -344,7 +345,11 @@ export class Reader {
 		if (!Reader.onEdit) triggerGroup.appendChild(highlighterBtn);
 		if (!Reader.onEdit) triggerGroup.appendChild(clipButton);
 		triggerGroup.appendChild(trigger);
-		if (!Reader.onEdit) triggerGroup.appendChild(addToObsidianBtn);
+		if (!Reader.onEdit) {
+			triggerGroup.appendChild(addToObsidianBtn);
+ const learning = mountLearningNotes({doc, getSource: () => ({title: doc.querySelector('main h1')?.textContent || doc.title, url: doc.URL}), getHighlights: () => hl().getHighlights()});
+			triggerGroup.appendChild(learning.button);
+		}
 		settingsBar.appendChild(triggerGroup);
 		settingsBar.appendChild(clipDropdown);
 
@@ -2453,9 +2458,13 @@ export class Reader {
 			hl().handleTextSelection(sel);
 			hide();
 		});
-		doc.body.appendChild(btn);
+ const menu = doc.createElement('div'); menu.className = 'learning-selection-menu'; menu.style.display = 'none';
+ const diary = doc.createElement('button'); diary.type = 'button'; diary.textContent = '记笔记'; diary.className = 'obsidian-selection-action learning-selection-action';
+		diary.addEventListener('mousedown', event => event.preventDefault());
+ diary.addEventListener('click', () => { const quote = learningSelection(doc); if (quote) void learningNotes(doc)?.open({quote}); hide(); });
+ menu.append(btn, diary); doc.body.append(menu);
 
-		const hide = () => { btn.style.display = 'none'; };
+ const hide = () => { menu.style.display = 'none'; };
 
 		const update = () => {
 			if (!this.isActive) return hide();
@@ -2468,13 +2477,14 @@ export class Reader {
 			const rects = range.getClientRects();
 			if (rects.length === 0) return hide();
 			const last = rects[rects.length - 1];
-			btn.style.display = 'flex';
+ btn.style.display = 'flex';
+ menu.style.display = 'flex';
 			// Ensure the button stays within the viewport.
-			const btnWidth = btn.offsetWidth || 90;
+ const btnWidth = menu.offsetWidth || 240;
 			const idealLeft = last.right + 2;
 			const clampedLeft = Math.min(idealLeft, window.innerWidth - btnWidth - 4);
-			btn.style.left = `${Math.max(4, clampedLeft) + window.scrollX}px`;
-			btn.style.top = `${last.bottom + window.scrollY - 6}px`;
+ menu.style.left = `${Math.max(4, clampedLeft) + window.scrollX}px`;
+ menu.style.top = `${last.bottom + window.scrollY + 4}px`;
 		};
 
 		// mouseup / keyup catch the end of a drag-select or shift-arrow select;
@@ -2509,6 +2519,7 @@ export class Reader {
 			if (!this.isActive) return;
 			if (e.ctrlKey || e.metaKey || e.altKey) return;
 			if (e.key.toLowerCase() !== lowerKey) return;
+			if ((e.target as HTMLElement)?.closest('.learning-composer')) return;
 			const tag = (document.activeElement as HTMLElement)?.tagName;
 			if (tag === 'INPUT' || tag === 'TEXTAREA') return;
 			handler();
