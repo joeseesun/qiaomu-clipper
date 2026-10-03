@@ -10,7 +10,10 @@ import { incrementStat, loadSettings } from './utils/storage-utils';
 import { enabledChatModels, streamChat } from './utils/chat-llm';
 import { youtubeStudyPath, youtubeVideoId } from './utils/youtube-url';
 import { hasStoredHighlights } from './utils/url-utils';
+import { handleLearningNativeMessage } from './utils/local-save';
 import { enableYouTubeEmbedRule, disableYouTubeEmbedRule } from './utils/youtube-embed-rules';
+
+browser.runtime.onMessage.addListener(handleLearningNativeMessage);
 
 // Accept RSS writes only from our own extension pages, never a website content script.
 const qiaomuInFlight = new Map<string, Promise<unknown>>();

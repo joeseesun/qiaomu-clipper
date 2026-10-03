@@ -54,6 +54,88 @@ def choose_vault(initial=None, prompt='请选择 Obsidian 笔记库文件夹（�
         try: return filedialog.askdirectory(title=prompt,initialdir=initial or str(Path.home()),mustexist=True) or None
         finally: window.destroy()
     except Exception as e: raise ValueError('此系统无法打开文件夹选择器，请手动填写库地址') from e
+
+def learning_daily_target(root, vault=''):
+    if vault and vault not in {root.name,str(root)}: raise ValueError('所选库与本地助手配置不一致，请先切换库')
+    date=datetime.datetime.now().strftime('%Y-%m-%d')
+    config=root/'.obsidian/daily-notes.json'
+    if not config.is_file(): return {'status':'unsupported','vault':root.name,'date':date,'error':'当前库尚未配置日记，无法确认今日日记位置'}
+    try:
+        target=daily_target(root)
+    except (ValueError,json.JSONDecodeError) as error:
+        return {'status':'unsupported','vault':root.name,'date':date,'error':str(error)}
+    token=hashlib.sha256((str(root)+'\n'+str(target)+'\n'+date).encode()).hexdigest()
+    return {'status':'ready','vault':root.name,'date':date,'relativePath':target.relative_to(root).as_posix(),'targetToken':token}
+
+def learning_marker(capture_id, digest, end=False):
+    return f'<!-- qiaomu-learning-record:{capture_id}:{digest}:{"end" if end else "begin"} -->'
+
+def save_learning(message, root, base):
+    capture_id=message.get('captureId','')
+    if not isinstance(capture_id,str) or not re.fullmatch(r'[a-zA-Z0-9-]{8,80}',capture_id): return {'status':'failed','error':'学习记录标识无效'}
+    content=message.get('content')
+    if not isinstance(content,str) or not content.strip() or len(content.encode('utf8'))>MAX_BYTES: return {'status':'failed','error':'学习记录为空或超过 4 MB'}
+    vault=message.get('vault') or ''
+    if vault and vault not in {root.name,str(root)}: return {'status':'failed','error':'所选库与本地助手配置不一致'}
+    digest=hashlib.sha256(content.encode('utf8')).hexdigest()
+    begin,end=learning_marker(capture_id,digest),learning_marker(capture_id,digest,True)
+    block=begin+'\n'+content.rstrip()+'\n'+end
+    receipt_file=base/'learning-receipts.json'
+    base.mkdir(parents=True,exist_ok=True)
+    with (base/'save.lock').open('a') as lock:
+        fcntl.flock(lock,fcntl.LOCK_EX)
+        receipts=json.loads(receipt_file.read_text()) if receipt_file.exists() else {}
+        if capture_id in receipts:
+            previous=receipts[capture_id]
+            if previous['digest']!=digest or previous['vault']!=str(root): return {'status':'unconfirmed','error':'此学习记录标识可能已写入其他内容，请先核对，再新建记录'}
+            path=Path(previous['path'])
+            if not path.resolve().is_relative_to(root) or path.is_symlink() or (not path.is_file() and (previous.get('state')!='pending' or previous.get('originalExists'))): return {'status':'unconfirmed','error':'先前记录目标已移除或更改，请在 Obsidian 核对'}
+            current=path.read_text(encoding='utf8') if path.exists() else ''
+            if block in current:
+                previous['state']='saved'
+                try: atomic_json(receipt_file,receipts)
+                except OSError: return {'status':'unconfirmed','error':'记录已找到但回执未完成，请同记录重试'}
+                return {**previous['result'],'duplicate':True}
+            if previous.get('state')!='pending' or hashlib.sha256(current.encode('utf8')).hexdigest()!=previous.get('originalHash'):
+                return {'status':'unconfirmed','error':'先前目标已被外部修改，请在 Obsidian 核对，未重复追加'}
+        target_info=learning_daily_target(root,vault)
+        if target_info['status']!='ready': return {'status':'failed','error':target_info.get('error','日记位置未知'),'target':target_info}
+        if message.get('expectedTargetToken')!=target_info['targetToken']: return {'status':'target-changed','error':'今日日期或日记配置已变化，请核对目标后再保存','target':target_info}
+        target=destination(root,'',target_info['relativePath'])
+        target.parent.mkdir(parents=True,exist_ok=True)
+        if target.is_symlink() or not target.parent.resolve().is_relative_to(root): return {'status':'failed','error':'日记目标路径无效'}
+        result={'status':'saved','captureId':capture_id,'vault':root.name,'date':target_info['date'],'relativePath':target_info['relativePath']}
+        if target.exists():
+            current=target.read_text(encoding='utf8')
+            if block in current:
+                receipts[capture_id]={'digest':digest,'vault':str(root),'path':str(target),'result':result,'state':'saved'}
+                atomic_json(receipt_file,receipts)
+                return {**result,'duplicate':True}
+            if f'<!-- qiaomu-learning-record:{capture_id}:' in current: return {'status':'unconfirmed','error':'发现未完成或内容不同的记录，请在 Obsidian 核对，未重复追加'}
+        original=target.read_text(encoding='utf8') if target.exists() else ''
+        receipts[capture_id]={'digest':digest,'vault':str(root),'path':str(target),'result':result,'state':'pending','originalHash':hashlib.sha256(original.encode('utf8')).hexdigest(),'originalExists':target.exists()}
+        # Persist the target BEFORE writing, so recovery after midnight still checks the original diary.
+        atomic_json(receipt_file,receipts)
+        # One O_APPEND write preserves existing/frontmatter and concurrent external appends.
+        # Never replace an existing diary; detect external atomic file replacement as unconfirmed.
+        flags=os.O_WRONLY|os.O_CREAT|os.O_APPEND|getattr(os,'O_NOFOLLOW',0)
+        fd=os.open(target,flags,0o600)
+        try:
+            before=os.fstat(fd)
+            live=target.stat()
+            if (before.st_dev,before.st_ino)!=(live.st_dev,live.st_ino): return {'status':'unconfirmed','error':'日记被外部修改，请核对后重试'}
+            data=('\n\n'+block+'\n').encode('utf8')
+            count=os.write(fd,data)
+            os.fsync(fd)
+            live=target.stat()
+            if count!=len(data) or (before.st_dev,before.st_ino)!=(live.st_dev,live.st_ino): return {'status':'unconfirmed','error':'写入期间日记发生变化，请在 Obsidian 核对'}
+        finally: os.close(fd)
+        if block not in target.read_text(encoding='utf8'): return {'status':'unconfirmed','error':'无法确认记录仍在日记中，请核对后重试'}
+        receipts[capture_id]={'digest':digest,'vault':str(root),'path':str(target),'result':result,'state':'saved'}
+        try: atomic_json(receipt_file,receipts)
+        except OSError: return {'status':'unconfirmed','error':'记录可能已写入但回执未完成，请用同一记录重试'}
+        return result
+
 def handle(message, config, base):
     if message.get('action')=='chooseVault':
         value=choose_vault(config.get('vault'))
@@ -69,6 +151,8 @@ def handle(message, config, base):
     root=Path(config['vault']).resolve()
     if not root.is_dir() or not (root/'.obsidian').is_dir(): raise ValueError('配置的 Obsidian 笔记库不存在')
     if message.get('action')=='status': return {'ok':True,'vault':root.name,'vaultPath':str(root)}
+    if message.get('action')=='learningDailyTarget': return learning_daily_target(root,message.get('vault') or '')
+    if message.get('action')=='saveLearning': return save_learning(message,root,base)
     if message.get('action')=='chooseNoteFolder':
         vault=message.get('vault') or ''
         if vault and vault not in {root.name,str(root)}: raise ValueError(f'请先在常规设置将静默保存的笔记库切换到 {vault}')
