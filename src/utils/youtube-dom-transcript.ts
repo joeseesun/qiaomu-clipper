@@ -4,7 +4,12 @@ import { readPanelSegments, type PanelSegment } from './youtube-panel-actions';
 // player token): read the lines YouTube itself rendered in its transcript panel. That request is made by
 // the page with the viewer's own session, so it keeps working. Runs inside the YouTube tab.
 const PANEL = 'ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-searchable-transcript"]';
-const OPENERS = ['ytd-video-description-transcript-section-renderer button', 'button[aria-label*="transcript" i]', 'button[aria-label*="转写"]', 'button[aria-label*="轉寫"]', 'button[aria-label*="文字起こし"]'];
+// Where the "show transcript" control lives: a button in the video description, which YouTube only builds once the
+// description is expanded, and whose label depends on the interface language ("内容转文字" in Chinese). So the section
+// is matched by structure, not by words; labelled buttons elsewhere are only a fallback.
+const SECTION = 'ytd-video-description-transcript-section-renderer';
+const OPENER_WORDS = /transcript|转写|轉寫|转文字|轉文字|文字起こし|스크립트|transcripci|transkript|транскрип/i;
+const CLOSE_WORDS = /关闭|關閉|close|hide|隠す|닫기|收起/i;
 
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -14,21 +19,39 @@ function readOpenPanel(doc: Document): PanelSegment[] {
 }
 
 const isExpanded = (doc: Document) => doc.querySelector(PANEL)?.getAttribute('visibility') === 'ENGAGEMENT_PANEL_VISIBILITY_EXPANDED';
+const inClosedPanel = (button: Element) => Boolean(button.closest('ytd-engagement-panel-section-list-renderer:not([visibility="ENGAGEMENT_PANEL_VISIBILITY_EXPANDED"])'));
 const findOpener = (doc: Document): HTMLButtonElement | undefined => {
-	for (const selector of OPENERS) {
-		const button = Array.from(doc.querySelectorAll<HTMLButtonElement>(selector)).find(candidate => !/关闭|close|hide|隠す|收起/i.test(candidate.getAttribute('aria-label') || ''));
-		if (button) return button;
-	}
-	return undefined;
+	const usable = (button: HTMLButtonElement) => !CLOSE_WORDS.test(button.getAttribute('aria-label') || '') && !inClosedPanel(button) && !button.closest('.qiaomu-yt-bar');
+	const inSection = Array.from(doc.querySelectorAll<HTMLButtonElement>(`${SECTION} button`)).find(usable);
+	if (inSection) return inSection;
+	return Array.from(doc.querySelectorAll<HTMLButtonElement>('button')).find(button => OPENER_WORDS.test(button.getAttribute('aria-label') || '') && usable(button));
 };
+
+// The description has to be open for its transcript button to exist. Open it for a moment, and close it again once
+// the transcript has been requested so the page layout returns to what the viewer had.
+const expander = (doc: Document) => doc.querySelector<HTMLElement>('ytd-watch-metadata ytd-text-inline-expander, #description ytd-text-inline-expander, ytd-text-inline-expander');
+let expandAttempts = 0, expandedByUs = false;
+export const resetOpenAttempts = () => { expandAttempts = 0; expandedByUs = false; };
+function expandDescription(doc: Document): void {
+	const box = expander(doc); if (!box || box.hasAttribute('is-expanded') || expandAttempts >= 2) return;
+	const more = box.querySelector<HTMLElement>('#expand'); if (!more) return;
+	expandAttempts++; expandedByUs = true; more.click();
+}
+function restoreDescription(doc: Document): void {
+	if (!expandedByUs) return; expandedByUs = false;
+	setTimeout(() => { const box = expander(doc); if (box?.hasAttribute('is-expanded')) box.querySelector<HTMLElement>('#collapse')?.click(); }, 500);
+}
 
 // Expand the transcript panel once, the way a click on "Show transcript" does. False when it is already open or
 // the page has no opener yet (it is built lazily, so the caller simply tries again later).
 export function openTranscriptPanel(doc: Document): boolean {
 	if (isExpanded(doc)) return false;
-	const opener = findOpener(doc); if (!opener) return false;
-	opener.click(); return true;
+	const opener = findOpener(doc);
+	if (!opener) { expandDescription(doc); return false; }
+	opener.click(); restoreDescription(doc); return true;
 }
+
+export const transcriptPanelOpen = (doc: Document): boolean => isExpanded(doc);
 
 // YouTube's own panel is redundant next to our bar, but its rendered lines are still our fallback source, so it is
 // hidden rather than closed. Only a panel that we opened is marked, never one the viewer opened themselves.
@@ -42,8 +65,6 @@ export function releaseAutoPanel(doc: Document): void {
 	const panel = doc.querySelector(PANEL);
 	if (panel?.hasAttribute(AUTO_PANEL_ATTRIBUTE) && !isExpanded(doc)) panel.removeAttribute(AUTO_PANEL_ATTRIBUTE);
 }
-
-export const transcriptPanelOpen = (doc: Document): boolean => isExpanded(doc);
 
 // The panel can be open on the "Chapters" tab; then the transcript chip next to it has to be selected.
 const TRANSCRIPT_WORDS = /transcript|转写|轉寫|文字起こし|스크립트|transcripción|transcription|транскрип/i;
@@ -62,10 +83,7 @@ export async function readYouTubeTranscriptFromDom(doc: Document, open = true, w
 	if (segments.length || !open) return segments;
 	let clicked = false, tabPicked = false;
 	for (let waited = 0; waited <= waitMs; waited += step) {
-		if (!clicked && !isExpanded(doc)) {
-			const opener = findOpener(doc);
-			if (opener) { opener.click(); clicked = true; }
-		}
+		if (!clicked && !isExpanded(doc) && openTranscriptPanel(doc)) clicked = true;
 		await wait(step); segments = readOpenPanel(doc);
 		if (segments.length) return segments;
 		if (isExpanded(doc) && waited >= 1500 && !tabPicked) tabPicked = selectTranscriptTab(doc);

@@ -5,13 +5,14 @@ import { groupSegments } from './youtube-dom-transcript';
 // extensions), with five tools (subtitles, copy, download, study, settings) and a chevron that opens a
 // dropdown with the transcript itself. It does not depend on YouTube's lazily built transcript panel.
 export type BarState = 'loading' | 'ready' | 'none';
-export interface BarStrings { heading: string; subtitles: string; copy: string; download: string; study: string; settings: string; expand: string; collapse: string; copied: string; empty: string; reload: string; loading: string; ready: string; none: string; more: string; search: string; clear: string; noMatch: string; follow: string; followOff: string; here: string }
+export interface BarStrings { heading: string; subtitles: string; copy: string; download: string; study: string; settings: string; expand: string; collapse: string; copied: string; empty: string; reload: string; loading: string; ready: string; none: string; more: string; search: string; clear: string; noMatch: string; follow: string; followOff: string; here: string; retry: string }
 export interface BarHooks {
 	strings: BarStrings;
 	title: () => string;
 	getSegments: () => Promise<PanelSegment[]>;
 	openStudy: () => boolean | void;
 	openSettings: () => void;
+	retry?: () => void;
 	seek: (seconds: number) => void;
 	// Current playback time of the page's video, if there is one.
 	getTime?: () => number | undefined;
@@ -79,7 +80,9 @@ export function buildTranscriptBar(doc: Document, hooks: BarHooks): TranscriptBa
 	const list = doc.createElement('div'); list.className = 'qiaomu-yt-bar-lines'; list.setAttribute('role', 'list');
 	const here = doc.createElement('button'); here.type = 'button'; here.className = 'qiaomu-yt-bar-here'; here.textContent = strings.here; here.hidden = true;
 	listWrap.append(list, here);
-	body.append(status, finder, listWrap);
+	const retryButton = doc.createElement('button'); retryButton.type = 'button'; retryButton.className = 'qiaomu-yt-bar-retry'; retryButton.textContent = strings.retry; retryButton.hidden = true;
+	const notice = doc.createElement('div'); notice.className = 'qiaomu-yt-bar-notice'; notice.append(status, retryButton);
+	body.append(notice, finder, listWrap);
 	element.append(head, body);
 
 	const flash = (button: HTMLElement, text: string) => {
@@ -171,7 +174,7 @@ export function buildTranscriptBar(doc: Document, hooks: BarHooks): TranscriptBa
 	};
 	const toggle = tool('toggle', strings.expand, () => setOpen(!open));
 	const paint = () => {
-		element.dataset.state = state; element.dataset.open = String(open); body.hidden = !open;
+		element.dataset.state = state; element.dataset.open = String(open); body.hidden = !open; retryButton.hidden = state !== 'none' || !hooks.retry; finder.hidden = state === 'none' && !segments.length; listWrap.hidden = finder.hidden;
 		const message = strings[state]; status.textContent = message; dot.title = message; dot.setAttribute('aria-label', message);
 		toggle.setAttribute('aria-expanded', String(open)); toggle.title = open ? strings.collapse : strings.expand; toggle.setAttribute('aria-label', toggle.title);
 		followButton.setAttribute('aria-pressed', String(follow)); followButton.title = follow ? strings.follow : strings.followOff; followButton.setAttribute('aria-label', followButton.title);
@@ -179,6 +182,7 @@ export function buildTranscriptBar(doc: Document, hooks: BarHooks): TranscriptBa
 	};
 	function setOpen(next: boolean, persist = true) { if (next === open) { paint(); return; } open = next; if (persist) hooks.onToggle?.(open); rendered = -1; paint(); }
 
+	press(retryButton, () => { state = 'loading'; paint(); hooks.retry?.(); });
 	// Search: filter as you type with matches marked; Escape clears. Following pauses while a search is active.
 	search.addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => { query = search.value.trim().toLowerCase(); applyFilter(); updateHere(); if (!query) { const row = rows[activeIndex]; if (row && follow) reveal(row, true); } }, 100); });
 	search.addEventListener('keydown', event => { event.stopPropagation(); if (event.key === 'Escape') { search.value = ''; search.dispatchEvent(new Event('input')); } });
@@ -232,7 +236,10 @@ ytd-engagement-panel-section-list-renderer[data-qiaomu-auto="1"]{display:none!im
 .qiaomu-yt-bar[data-open=true] .qiaomu-yt-tool-toggle svg{transform:rotate(180deg)}
 .qiaomu-yt-bar-body{border-top:1px solid var(--yt-spec-10-percent-layer,rgba(0,0,0,.12))}
 .qiaomu-yt-bar-body[hidden]{display:none}
-.qiaomu-yt-bar-status{margin:0;padding:8px 14px;color:var(--yt-spec-text-secondary,#606060);font-size:12px}
+.qiaomu-yt-bar-notice{display:flex;align-items:center;gap:8px;padding:8px 14px}
+.qiaomu-yt-bar-status{flex:1 1 auto;margin:0;color:var(--yt-spec-text-secondary,#606060);font-size:12px}
+.qiaomu-yt-bar-retry{flex:0 0 auto;height:28px;padding:0 12px;border:0;border-radius:14px;background:var(--yt-spec-text-primary,#0f0f0f);color:var(--yt-spec-base-background,#fff);font:500 13px/28px Roboto,Arial,sans-serif;cursor:pointer}
+.qiaomu-yt-bar-retry[hidden],.qiaomu-yt-bar-finder[hidden],.qiaomu-yt-bar-listwrap[hidden]{display:none}
 .qiaomu-yt-bar-finder{display:flex;align-items:center;gap:6px;padding:0 10px 8px}
 .qiaomu-yt-bar-search{display:flex;align-items:center;gap:6px;flex:1 1 auto;min-width:0;height:34px;padding:0 10px;border-radius:17px;background:var(--yt-spec-badge-chip-background,rgba(0,0,0,.05));color:var(--yt-spec-text-secondary,#606060)}
 .qiaomu-yt-bar-search:focus-within{box-shadow:inset 0 0 0 2px var(--yt-spec-call-to-action,#065fd4)}

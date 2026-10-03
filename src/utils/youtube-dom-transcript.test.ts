@@ -65,3 +65,26 @@ it('marks only the panel we opened for hiding, and gives it back once the viewer
 	markAutoOpenedPanel(document, true); markAutoOpenedPanel(document, false); expect(panel().hasAttribute(AUTO_PANEL_ATTRIBUTE)).toBe(false);
 	document.body.innerHTML = ''; expect(() => markAutoOpenedPanel(document, true)).not.toThrow();
 });
+
+it('opens the transcript from the description in any interface language: expands the description first, matches the section by structure, and closes it again', async () => {
+	const { openTranscriptPanel, resetOpenAttempts } = await import('./youtube-dom-transcript');
+	vi.useFakeTimers(); resetOpenAttempts();
+	// Chinese interface: the button is labelled "内容转文字" and only exists once the description is expanded.
+	document.body.innerHTML = '<ytd-watch-metadata><ytd-text-inline-expander id="box"><button id="expand">more</button><button id="collapse">less</button></ytd-text-inline-expander></ytd-watch-metadata><ytd-video-description-transcript-section-renderer id="sec"></ytd-video-description-transcript-section-renderer>';
+	const box = document.getElementById('box')!, collapsed = vi.fn(), opened = vi.fn();
+	document.getElementById('expand')!.addEventListener('click', () => { box.setAttribute('is-expanded', ''); document.getElementById('sec')!.innerHTML = '<button aria-label="内容转文字" id="show">内容转文字</button>'; document.getElementById('show')!.addEventListener('click', opened); });
+	document.getElementById('collapse')!.addEventListener('click', () => { collapsed(); box.removeAttribute('is-expanded'); });
+	expect(openTranscriptPanel(document)).toBe(false); expect(box.hasAttribute('is-expanded')).toBe(true); // first the description opens
+	expect(openTranscriptPanel(document)).toBe(true); expect(opened).toHaveBeenCalledTimes(1);
+	vi.advanceTimersByTime(600); expect(collapsed).toHaveBeenCalledTimes(1); expect(box.hasAttribute('is-expanded')).toBe(false); // and goes back to how the viewer had it
+	vi.useRealTimers();
+});
+
+it('never clicks a transcript button inside a panel that is not open, and gives up expanding after two tries', async () => {
+	const { openTranscriptPanel, resetOpenAttempts } = await import('./youtube-dom-transcript');
+	resetOpenAttempts();
+	document.body.innerHTML = '<ytd-engagement-panel-section-list-renderer visibility="ENGAGEMENT_PANEL_VISIBILITY_HIDDEN"><ytd-engagement-panel-title-header-renderer><button aria-label="转写文稿" id="ghost">转写文稿</button></ytd-engagement-panel-title-header-renderer></ytd-engagement-panel-section-list-renderer><ytd-text-inline-expander id="box"><button id="expand">more</button></ytd-text-inline-expander>';
+	const ghost = vi.fn(), expand = vi.fn(); document.getElementById('ghost')!.addEventListener('click', ghost); document.getElementById('expand')!.addEventListener('click', expand);
+	for (let i = 0; i < 5; i++) expect(openTranscriptPanel(document)).toBe(false);
+	expect(ghost).not.toHaveBeenCalled(); expect(expand).toHaveBeenCalledTimes(2);
+});

@@ -2,7 +2,7 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import { activeIndexAt, buildTranscriptBar, syncTranscriptBar, type BarHooks } from './youtube-transcript-bar';
 
-const strings = { heading: 'Qiaomu', subtitles: 'Subtitles', copy: 'Copy', download: 'Download', study: 'Study', settings: 'Settings', expand: 'Show', collapse: 'Hide', copied: 'Copied', empty: 'Empty', reload: 'Reload page', loading: 'Loading', ready: 'Ready', none: 'None', more: 'More in study mode', search: 'Search', clear: 'Clear', noMatch: 'No results', follow: 'Following', followOff: 'Not following', here: 'Back to current' };
+const strings = { heading: 'Qiaomu', subtitles: 'Subtitles', copy: 'Copy', download: 'Download', study: 'Study', settings: 'Settings', expand: 'Show', collapse: 'Hide', copied: 'Copied', empty: 'Empty', reload: 'Reload page', loading: 'Loading', ready: 'Ready', none: 'None', more: 'More in study mode', search: 'Search', clear: 'Clear', noMatch: 'No results', follow: 'Following', followOff: 'Not following', here: 'Back to current', retry: 'Retry' };
 const lines = [['0:05', 'Hello there,'], ['0:09', 'welcome back.'], ['1:02:03', 'Much later']].map(([time, text]) => ({ time, text }));
 const tick = async () => { for (let i = 0; i < 10; i++) await Promise.resolve(); };
 const make = (overrides: Partial<BarHooks> = {}) => {
@@ -137,4 +137,12 @@ it('starts at the current line when opened late, using the page\'s playback time
 	const { hooks, bar } = make({ getTime: () => 125, initialOpen: false }); bar.setState('ready', longLines); bar.setOpen(true);
 	const rows = Array.from(bar.element.querySelectorAll<HTMLElement>('.qiaomu-yt-bar-line')); expect(rows.find(row => row.classList.contains('is-active'))!.querySelector('.qiaomu-yt-bar-time')!.textContent).toBe('2:00');
 	rows[10].click(); expect(hooks.seek).toHaveBeenCalledWith(400); expect(rows[10].classList.contains('is-active')).toBe(true);
+});
+
+it('says nothing cryptic when no transcript was found: a plain message and a retry that starts over', () => {
+	const retry = vi.fn(); const { bar } = make({ retry, initialOpen: true }); bar.setState('none');
+	const button = bar.element.querySelector<HTMLElement>('.qiaomu-yt-bar-retry')!;
+	expect(button.hidden).toBe(false); expect(bar.element.querySelector('.qiaomu-yt-bar-status')!.textContent).toBe('None'); expect(bar.element.querySelector<HTMLElement>('.qiaomu-yt-bar-finder')!.hidden).toBe(true);
+	button.click(); expect(retry).toHaveBeenCalledTimes(1); expect(bar.element.dataset.state).toBe('loading'); expect(button.hidden).toBe(true);
+	bar.setState('ready', lines); expect(bar.element.querySelector<HTMLElement>('.qiaomu-yt-bar-finder')!.hidden).toBe(false);
 });

@@ -1,7 +1,7 @@
 import type { PanelSegment } from './utils/youtube-panel-actions';
 import { BAR_STYLE, buildTranscriptBar, syncTranscriptBar, type BarState, type TranscriptBar } from './utils/youtube-transcript-bar';
 import { fetchTranscriptSegments } from './utils/youtube-innertube-transcript';
-import { markAutoOpenedPanel, openTranscriptPanel, readYouTubeTranscriptFromDom, releaseAutoPanel, transcriptHtml, transcriptPanelOpen } from './utils/youtube-dom-transcript';
+import { markAutoOpenedPanel, openTranscriptPanel, readYouTubeTranscriptFromDom, releaseAutoPanel, resetOpenAttempts, transcriptHtml, transcriptPanelOpen } from './utils/youtube-dom-transcript';
 import { readPanelSegments } from './utils/youtube-panel-actions';
 
 // Runs on YouTube pages only. Adds the transcript bar (subtitles, copy, download, study, settings, dropdown) to the
@@ -38,9 +38,10 @@ try {
 			copied: text('youtubePanelCopied', '已复制', 'Copied'),
 			empty: text('youtubePanelEmpty', '没有读到字幕，请先展开转写文稿', 'No transcript lines found. Open the transcript first.'),
 			reload: text('youtubePanelReload', '扩展刚更新过，请刷新此页面后再试', 'The extension was updated — reload this page and try again'),
-			loading: text('youtubePanelCardLoading', '正在准备字幕…', 'Preparing transcript…'),
+			loading: text('youtubePanelCardLoading', '正在读取字幕…', 'Reading the transcript…'),
 			ready: text('youtubePanelCardReady', '字幕已就绪，点击时间可跳转', 'Transcript ready — click a time to jump'),
-			none: text('youtubePanelCardNone', '点击后读取字幕', 'Click to read the transcript'),
+			none: text('youtubePanelCardNone', '没有读到字幕', 'No transcript found'),
+			retry: text('youtubeBarRetry', '重试', 'Retry'),
 			more: text('youtubeBarMore', '更多内容请在沉浸学习里查看', 'Open study mode to read the rest'),
 			search: text('youtubeBarSearch', '搜索字幕', 'Search transcript'),
 			clear: text('youtubeBarClear', '清除搜索', 'Clear search'),
@@ -64,6 +65,8 @@ try {
 			const entry: Entry = { state: 'loading', segments: [], done: Promise.resolve([]) };
 			const request = refusals >= 2 ? Promise.resolve([] as PanelSegment[]) : fetchTranscriptSegments(videoId, document).then(segments => { refusals = 0; return segments; }, () => { refusals++; return [] as PanelSegment[]; });
 			entry.done = request.then(segments => {
+				// The endpoint can be refused; then read the lines from YouTube's own panel without waiting to be asked.
+				if (!segments.length && enabled) void getSegments(true).catch(() => []);
 				entry.segments = segments; entry.state = segments.length ? 'ready' : 'none'; updateBar(); return segments;
 			});
 			store.set(videoId, entry); return entry;
@@ -86,6 +89,10 @@ try {
 		const style = document.createElement('style'); style.textContent = BAR_STYLE;
 		// A page opened before the extension was reloaded keeps a dead copy of this script; say so instead of doing nothing.
 		const openStudy = (): boolean => { try { api.runtime.sendMessage({ action: 'qiaomuTripleKey', command: 'read' })?.catch?.(() => {}); return true; } catch { return false; } };
+		const retry = () => {
+			const id = currentVideo(); if (!id) return;
+			store.delete(id); autoOpened.delete(id); resetOpenAttempts(); prefetch(id); updateBar();
+		};
 		const openSettings = () => { try { api.runtime.sendMessage({ action: 'openSettings', section: 'general' })?.catch?.(() => {}); } catch { /* extension reloaded */ } };
 		const seek = (seconds: number) => { const video = document.querySelector<HTMLVideoElement>('video.html5-main-video, video'); if (video) { video.currentTime = seconds; void video.play?.().catch(() => {}); } };
 		const OPEN_KEY = 'qiaomuTranscriptBarOpen', FOLLOW_KEY = 'qiaomuTranscriptBarFollow';
@@ -122,7 +129,7 @@ try {
 			if (!videoId) { document.querySelector('.qiaomu-yt-bar')?.remove(); bar = undefined; return; }
 			syncTranscriptBar(document, () => {
 				bar = buildTranscriptBar(document, {
-					strings, title: () => document.title, openStudy, openSettings, seek, getSegments: () => getSegments(true),
+					strings, title: () => document.title, openStudy, openSettings, retry, seek, getSegments: () => getSegments(true),
 					getTime: () => mainVideo()?.currentTime,
 					initialOpen: wasOpen, onToggle: open => remember(OPEN_KEY, open),
 					initialFollow: stored(FOLLOW_KEY, true), onFollow: follow => remember(FOLLOW_KEY, follow),

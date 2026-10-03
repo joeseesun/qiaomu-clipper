@@ -1380,17 +1380,20 @@
 	"youtubeBarHere": {
 		"message": "Back to current line"
 	},
+	"youtubeBarRetry": {
+		"message": "Retry"
+	},
 	"youtubePanelCardTitle": {
 		"message": "Qiaomu · Study"
 	},
 	"youtubePanelCardLoading": {
-		"message": "Preparing transcript…"
+		"message": "Reading the transcript…"
 	},
 	"youtubePanelCardReady": {
 		"message": "Transcript ready — click a time to jump"
 	},
 	"youtubePanelCardNone": {
-		"message": "Click to read the transcript"
+		"message": "No transcript found"
 	},
 	"youtubePanelActionsTitle": {
 		"message": "YouTube transcript buttons"
