@@ -1,4 +1,5 @@
 import { getMessage } from './i18n';
+import { sourceTextNodes } from './transcript-format';
 
 // CJK-aware text boundary helpers
 const SENT_END = /[.!?。！？]/;
@@ -310,10 +311,17 @@ export function wireTranscript(
 			if (playbackHighlight && highlightEnabled) {
 				playbackHighlight.clear();
 				const textEl = activeSegment.querySelector('.transcript-segment-text');
-				const textNode = textEl?.firstChild;
-				if (textNode && textNode.nodeType === Node.TEXT_NODE) {
+				const textNodes = textEl ? sourceTextNodes(textEl) : [];
+				let position = Math.max(0, Math.round(segProgress * textNodes.reduce((size, node) => size + node.length, 0)));
+				let textNode: Text | undefined;
+				for (let i = 0; i < textNodes.length; i++) {
+					textNode = textNodes[i];
+					if (position < textNode.length || i === textNodes.length - 1) break;
+					position -= textNode.length;
+				}
+				if (textNode && textNode.length > 0) {
 					const totalLen = (textNode.textContent || '').length;
-					const charPos = Math.min(totalLen - 1, Math.max(0, Math.round(segProgress * totalLen)));
+					const charPos = Math.min(totalLen - 1, Math.max(0, position));
 
 					// Find lines around the current position
 					const probe = doc.createRange();
@@ -594,7 +602,7 @@ export function wireTranscript(
 		if (!hoverHighlight) return;
 		hoverHighlight.clear();
 		const seg = (e.target as HTMLElement).closest('.transcript-segment-text');
-		if (!seg) return;
+		if (!seg || (e.target as HTMLElement).closest('.transcript-translation')) return;
 		const caret = getCaretNode(e.clientX, e.clientY);
 		if (!caret || caret.node.nodeType !== Node.TEXT_NODE || !seg.contains(caret.node)) return;
 		const range = getHoverRange(caret.node, caret.offset);
@@ -670,12 +678,17 @@ export function wireTranscript(
 		// Use caret position to estimate character-level progress
 		const textEl = seg.querySelector('.transcript-segment-text');
 		if (textEl) {
-			const totalLen = (textEl.textContent || '').length;
+			const textNodes = sourceTextNodes(textEl);
+			const totalLen = textNodes.reduce((size, node) => size + node.length, 0);
 			if (totalLen > 0) {
 				const caret = getCaretNode(e.clientX, e.clientY);
 				let charOffset = totalLen;
 				if (caret && caret.node.nodeType === Node.TEXT_NODE && textEl.contains(caret.node)) {
-					charOffset = caret.offset;
+					charOffset = 0;
+					for (const node of textNodes) {
+						if (node === caret.node) { charOffset += caret.offset; break; }
+						charOffset += node.length;
+					}
 				}
 				const progress = Math.min(1, Math.max(0, charOffset / totalLen));
 				seekTo(start + progress * (end - start));

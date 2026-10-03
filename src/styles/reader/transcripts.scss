@@ -237,3 +237,21 @@ article > .player-toggles {
 	iframe, .reader-video-wrapper { max-height: 48vh; box-shadow: none; }
 }
 .youtube-study-notes { border-top: 1px solid var(--background-modifier-border); margin-top: 24px; }
+
+// Keep each source passage adjacent to its translation; larger spacing separates
+// ideas, while existing segment timestamps continue to locate the original audio.
+.transcript-segment .transcript-bilingual { line-height: 1.65; }
+.transcript-bilingual-block {
+	+ .transcript-bilingual-block { margin-top: 1.25em; }
+	.transcript-source-part { white-space: pre-wrap; overflow-wrap: break-word; }
+	.transcript-translation {
+		padding: 0; margin-top: .45em; line-height: 1.8;
+		color: var(--text-muted); overflow-wrap: break-word;
+		p { margin: 0; + p { margin-top: .65em; } }
+	}
+}
+@media (max-width: 600px) {
+	.transcript-segment { gap: .5em; }
+	.transcript-segment:has(.transcript-translation) { column-gap: .5em; }
+	.transcript-bilingual-block + .transcript-bilingual-block { margin-top: 1em; }
+}
