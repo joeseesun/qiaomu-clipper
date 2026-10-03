@@ -125,3 +125,26 @@ YouTube 默认不展开右侧的转写文稿面板；以前要点一下插件图
 另外：未登录或被判定为机器人的会话里，YouTube 自己的 `get_transcript` 请求也会被拒绝（带上登录凭据也一样，面板一直转圈），这种情况下哪种方式都读不到，和我们的实现无关。
 
 转写条的行为：预取被拒绝后，**自动**去读 YouTube 自己的转写面板（不再等你点击）；仍然读不到才显示「没有读到字幕」和「重试」，重试会重新展开描述、重新读取。
+
+### 字幕读取方案：对齐成熟开源实现（取代 get_transcript 预取）
+
+调研 youtube-transcript-api（jdepoix）、yt-dlp、Defuddle 的做法，共同点是：**用 InnerTube 的 `/youtubei/v1/player` 以移动端客户端取字幕轨道列表，再下载轨道**。移动端客户端（ANDROID、ANDROID_VR、IOS）不受网页端播放器令牌（PO token）限制；网页端的 `get_transcript` 与 `timedtext` 才需要令牌。我们之前预取走的恰恰是被令牌卡住的 `get_transcript`，所以才在 `Precondition check failed` 上白白失败。
+
+现在的链（在 YouTube 标签页里执行，带你的 cookie 与来源，`youtube-captions.ts`）：
+
+1. 依次请求 `player`：ANDROID（20.10.38）→ ANDROID_VR → IOS，拿到 `captionTracks` 就停。
+2. 都被拒绝时，从 `/watch?v=` 页面 HTML 里取内嵌的 `ytInitialPlayerResponse`。
+3. 选轨道：口语语言优先——与自动字幕同语种的人工字幕 → 自动字幕 → 任一人工字幕；URL 带 `exp=xpe`（需要令牌）的轨道跳过（与 youtube-transcript-api 抛 `PoTokenRequired` 的条件相同）。
+4. 下载：先要 `fmt=json3`，不行再用默认 XML；三种格式（json3、经典 `<text>`、srv3 `<p>`）都能解析并解码实体。
+5. 以上都读不到，才进入「展开描述 → 点开 YouTube 自带转写面板 → 读取字幕行」的 DOM 兜底。
+
+本机测试环境被 YouTube 判定为机器人（所有移动端客户端都返回「请登录以确认你不是机器人」），所以这条链没能在真实页面上走通，只用单元测试验证了请求顺序、选轨与解析。
+
+参考：[youtube-transcript-api](https://github.com/jdepoix/youtube-transcript-api)、[YouTube.js](https://github.com/LuanRT/YouTube.js)。
+
+### 转写条滚动交互的修正
+
+- **点一行不再让列表跳**：被点的那行本来就在屏幕上，只标成当前行并让视频跳转，列表原地不动（之前会立刻把它拽到三分之一处，鼠标下的内容跟着跑）。
+- **忽略跳转后的旧时间**：跳转后视频会短暂继续上报旧位置，导致高亮闪回；点击后 0.9 秒内忽略，收到 `seeked`（真正跳完）立即恢复。
+- **不重复启动滚动**：目标行已在平滑滚动途中时不再发起新滚动（之前每次 timeupdate 都会重启，造成抖动）；很远的跳转直接落位而不是平滑扫过几百行。
+- **鼠标停在列表上不动**：指针在列表上时暂停跟随，离开后等 2.5 秒再恢复。

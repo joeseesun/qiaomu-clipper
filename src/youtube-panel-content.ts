@@ -1,6 +1,6 @@
 import type { PanelSegment } from './utils/youtube-panel-actions';
 import { BAR_STYLE, buildTranscriptBar, syncTranscriptBar, type BarState, type TranscriptBar } from './utils/youtube-transcript-bar';
-import { fetchTranscriptSegments } from './utils/youtube-innertube-transcript';
+import { fetchCaptionSegments } from './utils/youtube-captions';
 import { markAutoOpenedPanel, openTranscriptPanel, readYouTubeTranscriptFromDom, releaseAutoPanel, resetOpenAttempts, transcriptHtml, transcriptPanelOpen } from './utils/youtube-dom-transcript';
 import { readPanelSegments } from './utils/youtube-panel-actions';
 
@@ -63,7 +63,7 @@ try {
 		const prefetch = (videoId: string): Entry => {
 			const known = store.get(videoId); if (known) return known;
 			const entry: Entry = { state: 'loading', segments: [], done: Promise.resolve([]) };
-			const request = refusals >= 2 ? Promise.resolve([] as PanelSegment[]) : fetchTranscriptSegments(videoId, document).then(segments => { refusals = 0; return segments; }, () => { refusals++; return [] as PanelSegment[]; });
+			const request = refusals >= 2 ? Promise.resolve([] as PanelSegment[]) : fetchCaptionSegments(videoId, document).then(segments => { refusals = 0; return segments; }, () => { refusals++; return [] as PanelSegment[]; });
 			entry.done = request.then(segments => {
 				// The endpoint can be refused; then read the lines from YouTube's own panel without waiting to be asked.
 				if (!segments.length && enabled) void getSegments(true).catch(() => []);
@@ -143,7 +143,7 @@ try {
 		new MutationObserver(schedule).observe(document.documentElement, { childList: true, subtree: true });
 
 		// Media events do not bubble, but a capturing listener hears every video element, even a replaced one.
-		const onTime = (event: Event) => { const video = event.target; if (video instanceof HTMLVideoElement && bar && video === mainVideo()) bar.setTime(video.currentTime); };
+		const onTime = (event: Event) => { const video = event.target; if (video instanceof HTMLVideoElement && bar && video === mainVideo()) bar.setTime(video.currentTime, event.type === 'seeked'); };
 		for (const type of ['timeupdate', 'seeked', 'playing']) document.addEventListener(type, onTime, true);
 
 		// Prefetch once the page is idle, and again after each in-app navigation to another video.

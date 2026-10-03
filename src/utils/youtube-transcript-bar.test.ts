@@ -146,3 +146,32 @@ it('says nothing cryptic when no transcript was found: a plain message and a ret
 	button.click(); expect(retry).toHaveBeenCalledTimes(1); expect(bar.element.dataset.state).toBe('loading'); expect(button.hidden).toBe(true);
 	bar.setState('ready', lines); expect(bar.element.querySelector<HTMLElement>('.qiaomu-yt-bar-finder')!.hidden).toBe(false);
 });
+
+it('does not move the list when a line is pressed, and ignores the old position the video still reports right after the jump', () => {
+	vi.useFakeTimers(); vi.setSystemTime(500000);
+	const { hooks, bar } = make({ initialOpen: true }); bar.setState('ready', longLines); const list = withLayout(bar); const rows = Array.from(list.querySelectorAll<HTMLElement>('.qiaomu-yt-bar-line'));
+	bar.setTime(1); (list.scrollTo as any).mockClear();
+	rows[12].click(); expect(hooks.seek).toHaveBeenCalledWith(480); expect(rows[12].classList.contains('is-active')).toBe(true); expect(list.scrollTo).not.toHaveBeenCalled();
+	bar.setTime(2); expect(rows[12].classList.contains('is-active')).toBe(true); // the stale position is ignored
+	bar.setTime(481, true); expect(rows[12].classList.contains('is-active')).toBe(true); // "seeked" reports where the video really is
+	vi.setSystemTime(502000); bar.setTime(1); expect(rows[0].classList.contains('is-active')).toBe(true); // and time updates count again later
+	vi.useRealTimers();
+});
+
+it('does not restart a smooth scroll that is already heading to the same line, and lands far jumps at once', () => {
+	vi.useFakeTimers(); vi.setSystemTime(700000);
+	const { bar } = make({ initialOpen: true }); bar.setState('ready', longLines); const list = withLayout(bar);
+	(list.scrollTo as any).mockImplementation(() => {}); // pretend the glide has not arrived yet
+	bar.setTime(405); bar.setTime(406); bar.setTime(407); expect(list.scrollTo).toHaveBeenCalledTimes(1); expect((list.scrollTo as any).mock.calls[0][0].behavior).toBe('smooth');
+	vi.setSystemTime(701000); bar.setTime(1100); expect((list.scrollTo as any).mock.calls.at(-1)[0].behavior).toBe('auto'); // 25 lines away: lands at once
+	vi.useRealTimers();
+});
+
+it('keeps still while the pointer rests on the list and follows again shortly after it leaves', () => {
+	vi.useFakeTimers(); vi.setSystemTime(900000);
+	const { bar } = make({ initialOpen: true }); bar.setState('ready', longLines); const list = withLayout(bar);
+	list.dispatchEvent(new Event('mouseenter')); bar.setTime(405); expect(list.scrollTo).not.toHaveBeenCalled();
+	list.dispatchEvent(new Event('mouseleave')); bar.setTime(410); expect(list.scrollTo).not.toHaveBeenCalled(); // still inside the courtesy pause
+	vi.setSystemTime(903000); bar.setTime(411); expect(list.scrollTo).toHaveBeenCalled();
+	vi.useRealTimers();
+});

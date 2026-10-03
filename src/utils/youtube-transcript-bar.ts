@@ -21,7 +21,7 @@ export interface BarHooks {
 	initialFollow?: boolean;
 	onFollow?: (follow: boolean) => void;
 }
-export interface TranscriptBar { element: HTMLElement; setState: (state: BarState, segments?: PanelSegment[]) => void; setOpen: (open: boolean) => void; setTime: (seconds: number) => void }
+export interface TranscriptBar { element: HTMLElement; setState: (state: BarState, segments?: PanelSegment[]) => void; setOpen: (open: boolean) => void; setTime: (seconds: number, afterSeek?: boolean) => void }
 
 type Tool = 'subtitles' | 'copy' | 'download' | 'study' | 'settings';
 type Extra = 'chevron' | 'search' | 'follow' | 'clear';
@@ -108,6 +108,7 @@ export function buildTranscriptBar(doc: Document, hooks: BarHooks): TranscriptBa
 	interface Row { element: HTMLElement; words: HTMLElement; start: number; text: string; match: boolean }
 	let segments: PanelSegment[] = [], state: BarState = 'loading', open = false, rendered = -1;
 	let rows: Row[] = [], starts: number[] = [], activeIndex = -1, query = '', follow = hooks.initialFollow !== false, lastUserScroll = 0, searchTimer: ReturnType<typeof setTimeout> | undefined;
+	let hovering = false, ignoreTimeUntil = 0, lastScroll = { target: -1, at: 0 };
 	const reduced = () => doc.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 
 	// Plain text in a row, or the text with every match wrapped in <mark>.
@@ -134,9 +135,12 @@ export function buildTranscriptBar(doc: Document, hooks: BarHooks): TranscriptBa
 		if (!height || row.element.hidden) return;
 		const inBand = top >= list.scrollTop + height * 0.15 && top + row.element.offsetHeight <= list.scrollTop + height * 0.7;
 		if (inBand && !force) return;
-		const target = Math.max(0, top - height * 0.33);
+		const target = Math.max(0, top - height * 0.33), now = Date.now();
 		if (Math.abs(target - list.scrollTop) < 2) return; // already there
-		list.scrollTo({ top: target, behavior: reduced() ? 'auto' : 'smooth' });
+		if (Math.abs(target - lastScroll.target) < 2 && now - lastScroll.at < 700) return; // a scroll to this line is already under way
+		lastScroll = { target, at: now };
+		// Small steps glide; a far jump (after a seek) just lands, so the list never sweeps past hundreds of lines.
+		list.scrollTo({ top: target, behavior: reduced() || Math.abs(target - list.scrollTop) > height * 2 ? 'auto' : 'smooth' });
 	};
 	const updateHere = () => {
 		const row = rows[activeIndex];
@@ -147,10 +151,15 @@ export function buildTranscriptBar(doc: Document, hooks: BarHooks): TranscriptBa
 	const setActive = (index: number, scroll: boolean) => {
 		if (index !== activeIndex) { rows[activeIndex]?.element.classList.remove('is-active'); rows[activeIndex]?.element.removeAttribute('aria-current'); activeIndex = index; rows[index]?.element.classList.add('is-active'); rows[index]?.element.setAttribute('aria-current', 'true'); }
 		const row = rows[index];
-		if (scroll && row && follow && open && !query && Date.now() - lastUserScroll > FOLLOW_COOLDOWN) reveal(row);
+		if (scroll && row && follow && open && !query && !hovering && Date.now() - lastUserScroll > FOLLOW_COOLDOWN) reveal(row);
 		updateHere();
 	};
-	const setTime = (t: number) => { if (rows.length && Number.isFinite(t)) setActive(activeIndexAt(starts, t), true); };
+	// Right after a jump the video still reports its old position for a moment; ignore that until it has really moved.
+	const setTime = (t: number, afterSeek = false) => {
+		if (afterSeek) ignoreTimeUntil = 0;
+		if (!rows.length || !Number.isFinite(t) || Date.now() < ignoreTimeUntil) return;
+		setActive(activeIndexAt(starts, t), true);
+	};
 	const renderLines = () => {
 		if (!open || rendered === segments.length) return;
 		rendered = segments.length; list.replaceChildren(); rows = []; activeIndex = -1;
@@ -161,7 +170,8 @@ export function buildTranscriptBar(doc: Document, hooks: BarHooks): TranscriptBa
 			const words = doc.createElement('span'); words.className = 'qiaomu-yt-bar-text';
 			element.append(stamp, words);
 			const start = seconds(time);
-			press(element, () => { lastUserScroll = 0; hooks.seek(start); setActive(activeIndexAt(starts, start), true); });
+			// The pressed line is already on screen: mark it, jump the video, and leave the list where it is.
+			press(element, () => { ignoreTimeUntil = Date.now() + 900; hooks.seek(start); setActive(activeIndexAt(starts, start), false); });
 			rows.push({ element, words, start, text, match: true }); list.append(element);
 		}
 		starts = rows.map(row => row.start);
@@ -192,6 +202,9 @@ export function buildTranscriptBar(doc: Document, hooks: BarHooks): TranscriptBa
 	press(here, () => { lastUserScroll = 0; const row = rows[activeIndex]; if (row) reveal(row, true); });
 	// The viewer taking over the scroll pauses following for a moment; our own smooth scrolls do not count.
 	for (const type of ['wheel', 'touchstart', 'pointerdown', 'keydown']) list.addEventListener(type, () => { lastUserScroll = Date.now(); }, { passive: true });
+	// While the pointer rests on the list nothing moves under it; following resumes a moment after it leaves.
+	list.addEventListener('mouseenter', () => { hovering = true; });
+	list.addEventListener('mouseleave', () => { hovering = false; lastUserScroll = Date.now(); });
 	list.addEventListener('scroll', updateHere, { passive: true });
 
 	tools.append(
