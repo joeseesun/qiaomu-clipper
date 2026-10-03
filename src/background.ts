@@ -8,7 +8,7 @@ import { Settings } from './types/types';
 import { debugLog } from './utils/debug';
 import { incrementStat, loadSettings } from './utils/storage-utils';
 import { enabledChatModels, streamChat } from './utils/chat-llm';
-import { youtubeStudyPath, youtubeVideoId } from './utils/youtube-url';
+import { videoKey, videoStudyPath } from './utils/video-source';
 import { hasStoredHighlights } from './utils/url-utils';
 import { enableYouTubeEmbedRule, disableYouTubeEmbedRule } from './utils/youtube-embed-rules';
 
@@ -397,6 +397,8 @@ browser.runtime.onMessage.addListener((request: unknown) => {
 	if (options?.method) fetchOptions.method = options.method;
 	if (options?.headers) fetchOptions.headers = options.headers;
 	if (options?.body) fetchOptions.body = options.body;
+	// Bilibili only returns subtitle tracks to a signed-in viewer; send cookies to its own hosts only.
+	try { if (options?.credentials === 'include' && /(^|\.)(bilibili\.com|hdslb\.com)$/.test(new URL(url).hostname)) fetchOptions.credentials = 'include'; } catch { /* invalid URL: fetch reports it */ }
 	return fetch(url, fetchOptions)
 		.then(async (resp) => {
 			const text = await resp.text();
@@ -1174,7 +1176,7 @@ async function runTripleKeyAction(action: string, tabId: number): Promise<void> 
 	if (action !== 'read' && action !== 'edit' && action !== 'clip') return;
 	if (action === 'read') {
 		const tab = await browser.tabs.get(tabId);
-		const path = youtubeStudyPath(tab.url || '', tabId, tab.title || '');
+		const path = videoStudyPath(tab.url || '', tabId, tab.title || '');
 		if (path) {
 			// Open the player immediately; subtitle extraction belongs to the reader.
 			await browser.tabs.create({ url: browser.runtime.getURL(path), openerTabId: tabId });
@@ -1249,17 +1251,44 @@ browser.runtime.onConnect.addListener(port => {
 	});
 });
 
+// Bilibili only returns subtitle tracks to a signed-in viewer, and its cookies are not reliably sent from the
+// service worker. Run the request inside the viewer's own Bilibili tab, where the session and site context are real.
+browser.runtime.onMessage.addListener((raw: unknown, sender) => {
+	const request = raw as { action?: string; sourceTabId?: number; url?: string; sourceUrl?: string };
+	if (request?.action !== 'qiaomuBilibiliTabFetch') return;
+	if (sender.id !== browser.runtime.id || !sender.url?.startsWith(browser.runtime.getURL('reader.html'))
+		|| !Number.isInteger(request.sourceTabId) || !request.url || !request.sourceUrl) return Promise.resolve({ error: '无效的请求' });
+	let target: URL;
+	try { target = new URL(request.url); } catch { return Promise.resolve({ error: '无效的请求' }); }
+	if (target.protocol !== 'https:' || !/(^|\.)(bilibili\.com|hdslb\.com)$/.test(target.hostname)) return Promise.resolve({ error: '只允许访问 B 站域名' });
+	return (async () => {
+		try {
+			const tab = await browser.tabs.get(request.sourceTabId!);
+			if (!tab.url || videoKey(tab.url) !== videoKey(request.sourceUrl!)) return { error: '原视频页面已切换' };
+			const results = await browser.scripting.executeScript({
+				target: { tabId: request.sourceTabId! },
+				func: async (href: string) => {
+					const response = await fetch(href, { credentials: 'include', headers: { Accept: 'application/json' } });
+					return { ok: response.ok, status: response.status, text: await response.text() };
+				},
+				args: [target.href],
+			});
+			return results[0]?.result || { error: '原视频页面没有返回结果' };
+		} catch { return { error: '原视频页面不可用' }; }
+	})();
+});
+
 // Obtain a fresh source snapshot on every subtitle attempt. The original tab
 // remains available while YouTube is still loading its transcript UI.
 browser.runtime.onMessage.addListener((raw: unknown, sender) => {
 	const request = raw as { action?: string; sourceTabId?: number; url?: string };
 	if (request?.action !== 'qiaomuYouTubeStudySource') return;
 	if (sender.id !== browser.runtime.id || !sender.url?.startsWith(browser.runtime.getURL('reader.html'))
-		|| !Number.isInteger(request.sourceTabId) || !request.url || !youtubeVideoId(request.url)) return Promise.resolve({ error: '无效的视频来源' });
+		|| !Number.isInteger(request.sourceTabId) || !request.url || !videoKey(request.url)) return Promise.resolve({ error: '无效的视频来源' });
 	return (async () => {
 		try {
 			const tab = await browser.tabs.get(request.sourceTabId!);
-			if (!tab.url || youtubeVideoId(tab.url) !== youtubeVideoId(request.url!)) return { error: '原视频页面已切换，请重新打开学习模式' };
+			if (!tab.url || videoKey(tab.url) !== videoKey(request.url!)) return { error: '原视频页面已切换，请重新打开学习模式' };
 			const results = await browser.scripting.executeScript({ target: { tabId: request.sourceTabId! }, func: () => ({ html: document.documentElement.outerHTML, title: document.title }) });
 			return results[0]?.result || { error: '无法读取原视频页面' };
 		} catch { return { error: '原视频页面不可用，将从视频链接获取字幕' }; }

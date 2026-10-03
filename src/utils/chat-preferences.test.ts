@@ -7,13 +7,13 @@ vi.mock('./browser-polyfill', () => ({ default: { storage: { onChanged: { addLis
 vi.mock('./chat-llm', () => ({ enabledChatModels: () => [{ id: 'test', name: 'Test' }], streamChat: (...args: unknown[]) => state.stream(...args) }));
 vi.mock('./chat-history', () => ({ loadConversations: async () => [], saveConversation: vi.fn(), deleteConversation: vi.fn() }));
 vi.mock('./clip-bar', () => ({ showClipStatus: vi.fn() }));
-import { normalizeChatPreferences, chatSystemPrompt, chatFontFamily } from './chat-preferences';
+import { normalizeChatPreferences, chatSystemPrompt, chatFontFamily, defaultQuickPrompts, visibleQuickPrompts, normalizeQuickPrompts } from './chat-preferences';
 import { mountClipChat } from './clip-chat';
 const flush = async () => { for (let i = 0; i < 15; i++) await Promise.resolve(); };
 beforeEach(() => { document.body.innerHTML = ''; vi.clearAllMocks(); state.saved = undefined; state.set.mockResolvedValue(undefined); state.stream.mockResolvedValue(undefined); });
 
 it('normalizes invalid saved values and falls back safely for an unavailable custom font', () => {
-	expect(normalizeChatPreferences({font: 'broken', fontSize: NaN, prompt: 123})).toMatchObject({font: 'system', fontSize: 14, prompt: ''});
+	expect(normalizeChatPreferences({font: 'broken', fontSize: NaN, prompt: 123})).toMatchObject({font: 'reader', fontSize: 14, prompt: ''});
 	expect(normalizeChatPreferences({fontSize: 400, prompt: 'x'.repeat(5000)})).toMatchObject({fontSize: 28, prompt: 'x'.repeat(4000)});
 	expect(chatFontFamily(normalizeChatPreferences({font:'custom', customFont:'Foo";{}'}))).toContain('"Foo", system-ui');
 });
@@ -73,4 +73,45 @@ it('pauses personalization without deleting it and resets only the unsaved draft
 	document.querySelector<HTMLButtonElement>('[aria-label=qiaomuChatPreferences]')!.click(); await flush();
 	expect(form.querySelector('textarea')!.value).toBe('Saved instruction');
 	expect(state.set).toHaveBeenCalledTimes(1);
+});
+
+it('normalizes quick prompts and picks the chips for the current scope', () => {
+	expect(normalizeChatPreferences({}).quickPrompts).toBeNull();
+	expect(normalizeQuickPrompts([{title:' ', body:'x'}, {id:'a', title:'T', body:'B', scope:'selection'}, {id:'a', title:'T2', body:'B2', enabled:false}, 3]))
+		.toEqual([{id:'a', title:'T', body:'B', scope:'selection', enabled:true}, {id:'a_', title:'T2', body:'B2', scope:'article', enabled:false}]);
+	const t = (key: string) => key;
+	expect(visibleQuickPrompts(normalizeChatPreferences({}), false, t).map(p => p.title)).toEqual(defaultQuickPrompts(t).filter(p => p.scope === 'article').map(p => p.title));
+	const prefs = normalizeChatPreferences({quickPrompts: [{id:'1', title:'A', body:'a'}, {id:'2', title:'B', body:'b', enabled:false}, {id:'3', title:'C', body:'c', scope:'selection'}]});
+	expect(visibleQuickPrompts(prefs, false, t).map(p => p.id)).toEqual(['1']);
+	expect(visibleQuickPrompts(prefs, true, t).map(p => p.id)).toEqual(['3']);
+});
+
+it('creates, edits and deletes quick prompts, saves them, and shows them as chips', async () => {
+	const form = await openSettings();
+	const click = (node: Element | null) => (node as HTMLElement).click();
+	const buttons = () => Array.from(form.querySelectorAll<HTMLButtonElement>('.clip-chat-quick button'));
+	click(buttons().find(b => b.textContent === 'qiaomuQuickNew')!);
+	const editor = form.querySelector('.clip-chat-quick-editor')!;
+	click(Array.from(editor.querySelectorAll('button')).find(b => b.textContent === 'qiaomuQuickDone')!);
+	expect(editor.querySelector('[role=alert]')!.textContent).toBe('qiaomuQuickRequired');
+	editor.querySelector<HTMLInputElement>('input')!.value = 'Weekly';
+	editor.querySelector<HTMLTextAreaElement>('textarea')!.value = 'Write a weekly report';
+	click(Array.from(editor.querySelectorAll('button')).find(b => b.textContent === 'qiaomuQuickDone')!);
+	expect(form.querySelectorAll('.clip-chat-quick-row')).toHaveLength(9);
+	click(form.querySelector('[aria-label=qiaomuQuickDelete]') ?? form.querySelector('.clip-chat-quick-row .clip-chat-icon:last-of-type'));
+	expect(form.querySelectorAll('.clip-chat-quick-row')).toHaveLength(8);
+	form.requestSubmit(); await flush();
+	const saved = state.set.mock.calls[0][1];
+	expect(saved.quickPrompts.some((p: {title: string}) => p.title === 'Weekly')).toBe(true);
+	const chips = Array.from(document.querySelectorAll('.clip-chat-chip')).map(c => c.textContent);
+	expect(chips).toContain('Weekly');
+	click(Array.from(document.querySelectorAll('.clip-chat-chip')).find(c => c.textContent === 'Weekly') ?? null); await flush();
+	expect(state.stream.mock.calls[0][0].messages[0].content).toBe('Write a weekly report');
+});
+
+it('follows the reading font by default and reuses the reading presets', () => {
+	expect(chatFontFamily(normalizeChatPreferences({}))).toMatch(/^var\(--font-text, /);
+	expect(normalizeChatPreferences({font: '__kaiti__'}).font).toBe('__kaiti__');
+	expect(chatFontFamily(normalizeChatPreferences({font: '__songti__'}))).toContain('Songti SC');
+	expect(normalizeChatPreferences({font: 'system'}).font).toBe('system');
 });

@@ -466,6 +466,9 @@ function initializeDefaultTemplateDropdown(): void {
 		document.addEventListener('qiaomu-templates-updated', event => populateDefaultTemplateDropdown((event as CustomEvent<Template[]>).detail));
 		dropdown.addEventListener('change', () => saveSettings({ ...generalSettings, defaultTemplateId: dropdown.value }));
 	}
+	initializeSettingToggle('youtube-panel-actions-toggle', generalSettings.youtubePanelActions !== false, (checked) => {
+		saveSettings({ ...generalSettings, youtubePanelActions: checked });
+	});
 	initializeSettingToggle('selection-toolbar-toggle', generalSettings.selectionToolbar !== false, (checked) => {
 		saveSettings({ ...generalSettings, selectionToolbar: checked });
 	});

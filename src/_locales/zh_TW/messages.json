@@ -1317,6 +1317,27 @@
 	"qiaomuChatQuoteRewrite": {
 		"message": "改寫得更簡潔"
 	},
+	"youtubePanelActionsTitle": {
+		"message": "YouTube 轉寫文稿按鈕"
+	},
+	"youtubePanelActionsDescription": {
+		"message": "在 YouTube 的轉寫文稿面板裡，「章節 / 轉寫文稿」旁新增「複製」「下載」「沉浸學習」按鈕。"
+	},
+	"youtubePanelCopy": {
+		"message": "複製"
+	},
+	"youtubePanelDownload": {
+		"message": "下載"
+	},
+	"youtubePanelStudy": {
+		"message": "沉浸學習"
+	},
+	"youtubePanelCopied": {
+		"message": "已複製"
+	},
+	"youtubePanelEmpty": {
+		"message": "沒有讀到字幕，請先展開轉寫文稿"
+	},
 	"selectionToolbarTitle": {
 		"message": "選取文字工具列"
 	},
@@ -1387,10 +1408,10 @@
 		"message": "閱讀、提問、理解。Learn at your own pace."
 	},
 	"qiaomuChatPromptEnabled": {
-		"message": "啟用自訂指令"
+		"message": "啟用全域指令"
 	},
 	"qiaomuChatCustomPrompt": {
-		"message": "自訂指令 / Prompt"
+		"message": "指令內容"
 	},
 	"qiaomuChatPromptPlaceholder": {
 		"message": "例如：用中文回答，先概括，再解釋；引用字幕時附上時間戳。"
@@ -1442,5 +1463,83 @@
 	},
 	"qiaomuTranslationService": {
 		"message": "使用已配置的 AI 模型翻譯字幕；譯文僅暫存在目前頁面。"
+	},
+	"qiaomuChatSectionAppearance": {
+		"message": "外觀"
+	},
+	"qiaomuChatSectionInstructions": {
+		"message": "全域指令"
+	},
+	"qiaomuChatInstructionsNote": {
+		"message": "每次提問都會自動附帶，適合固定回答的語言、語氣和格式。"
+	},
+	"qiaomuChatExamples": {
+		"message": "試試："
+	},
+	"qiaomuChatExampleLang": {
+		"message": "用中文回答"
+	},
+	"qiaomuChatExampleConclusion": {
+		"message": "先給結論，再展開"
+	},
+	"qiaomuChatExampleTimestamp": {
+		"message": "引用字幕時帶時間戳"
+	},
+	"qiaomuChatExampleConcise": {
+		"message": "簡潔，不說套話"
+	},
+	"qiaomuQuickTitle": {
+		"message": "快捷提示詞"
+	},
+	"qiaomuQuickNote": {
+		"message": "顯示在輸入框上方，點一下就送出。可以新增、編輯、刪除或隱藏。"
+	},
+	"qiaomuQuickNew": {
+		"message": "新增"
+	},
+	"qiaomuQuickEdit": {
+		"message": "編輯「$1」"
+	},
+	"qiaomuQuickDelete": {
+		"message": "刪除「$1」"
+	},
+	"qiaomuQuickShow": {
+		"message": "顯示「$1」"
+	},
+	"qiaomuQuickName": {
+		"message": "名稱"
+	},
+	"qiaomuQuickBody": {
+		"message": "點擊後送出的內容"
+	},
+	"qiaomuQuickScope": {
+		"message": "出現時機"
+	},
+	"qiaomuQuickScopeArticle": {
+		"message": "提問整篇文章時"
+	},
+	"qiaomuQuickScopeSelection": {
+		"message": "選取文字後"
+	},
+	"qiaomuQuickDone": {
+		"message": "完成"
+	},
+	"qiaomuQuickRequired": {
+		"message": "請填寫名稱和內容。"
+	},
+	"qiaomuQuickEmpty": {
+		"message": "還沒有快捷提示詞。"
+	},
+	"qiaomuQuickLimit": {
+		"message": "最多保留 30 條快捷提示詞。"
+	},
+	"qiaomuQuickResetDefaults": {
+		"message": "還原內建提示詞"
+	},
+	"qiaomuQuickUnfinished": {
+		"message": "請先點「完成」或取消正在編輯的提示詞。"
+	},
+	"qiaomuChatFontreader": {
+		"message": "跟隨閱讀字型"
 	}
 }

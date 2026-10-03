@@ -199,8 +199,8 @@ export class Reader {
 		trigger.setAttribute('aria-label', getMessage('settings'));
 		trigger.appendChild(this.createSVG({
 			width: '18', height: '18', viewBox: '0 0 24 24', strokeWidth: '1.75',
-			circles: [{ cx: '18.5', cy: '12.5', r: '3.5' }],
-			paths: ['m2 16 4.039-9.69a.5.5 0 0 1 .923 0L11 16', 'M22 9v7', 'M3.304 13h6.392'],
+			// lucide "a-large-small": the reading-typography glyph, same line weight as the icons beside it.
+			paths: ['M21 14h-5', 'M16 16v-3.5a2.5 2.5 0 0 1 5 0V16', 'M4.5 13h6', 'm3 16 4.5-9 4.5 9'],
 		}));
 		trigger.addEventListener('click', (e) => {
 			e.stopPropagation();
@@ -837,11 +837,25 @@ export class Reader {
 
 	private static getStickyOffset(): number {
 		const player = document.querySelector('.pin-player') as HTMLElement | null;
+		// Beside the transcript, in theater and in a floating window the video never covers the text.
+		const layout = document.querySelector<HTMLElement>('article[data-yt-layout]')?.dataset.ytLayout;
+		if (layout === 'side' || layout === 'theater' || layout === 'float') return this.barHeight();
 		if (player) return player.getBoundingClientRect().height + 16;
 		// When pin-player is off, the toggles bar is sticky independently
 		const toggles = document.querySelector('article > .player-toggles') as HTMLElement | null;
 		if (toggles) return toggles.getBoundingClientRect().height + 32;
 		return 0;
+	}
+
+	private static barHeight(): number {
+		return document.querySelector('.clip-bar')?.getBoundingClientRect().height || 0;
+	}
+
+	// Where the line being read should rest: a third down the page beside the video, otherwise just below the pinned player.
+	private static getFocusOffset(): number {
+		const layout = document.querySelector<HTMLElement>('article[data-yt-layout]')?.dataset.ytLayout;
+		if (layout === 'side' || layout === 'float' || layout === 'theater') return Math.max(this.barHeight() + 24, window.innerHeight * 0.3);
+		return this.getStickyOffset() + 20;
 	}
 
 	private static scrollToElement(el: Element): void {
@@ -2019,6 +2033,7 @@ export class Reader {
 			let youtubeVideoElement: HTMLVideoElement | null = null;
 			const host = doc.URL ? new URL(doc.URL).hostname : '';
 			const isYouTube = host.includes('youtube.com') || host.includes('youtu.be');
+			const isBilibili = host === 'bilibili.com' || host.endsWith('.bilibili.com');
 			const browserType = await detectBrowser();
 			// Safari/Firefox block canvas font metrics, so the font-availability
 			// probe must fall back to the Font Loading API on those browsers.
@@ -2286,7 +2301,7 @@ export class Reader {
 			// document.title (which often includes the site name suffix).
 			if (title) hl().setPageTitle(title);
 
-			if (isYouTube) restoreYouTubePlayer(article, doc.URL);
+			if (isYouTube || isBilibili) restoreYouTubePlayer(article, doc.URL);
 
 			// On YouTube, replace the Defuddle-generated iframe with the
 			// preserved native video element, or fall back to embed
@@ -2365,6 +2380,7 @@ export class Reader {
 
 			wireTranscript(doc, article, this.settings, {
 				getStickyOffset: () => this.getStickyOffset(),
+			getFocusOffset: () => this.getFocusOffset(),
 				scrollTo: (y) => this.scrollTo(y),
 				programmaticScroll: () => this.programmaticScroll,
 			}, (key, value) => {
@@ -2372,7 +2388,7 @@ export class Reader {
 				this.saveSettings();
 			});
 
-			if (isYouTube && !Reader.onEdit) await mountYouTubeStudy(doc, article, title || doc.title, doc.URL);
+			if ((isYouTube || isBilibili) && !Reader.onEdit) await mountYouTubeStudy(doc, article, title || doc.title, doc.URL);
 
 			if (extractorType) {
 				doc.documentElement.setAttribute('data-reader-extractor', extractorType);
@@ -2665,7 +2681,7 @@ export class Reader {
 	// horizontally on mobile without blowing out the article width.
 	private static storeOriginalHtml(article: Element): void {
 		const clone = article.cloneNode(true) as Element;
-		clone.querySelectorAll('.youtube-size-control, .youtube-study-toolbar, .transcript-translation').forEach(node => node.remove());
+		clone.querySelectorAll('.youtube-size-control, .youtube-study-toolbar, .youtube-study-feedback, .youtube-player-resize, .transcript-translation').forEach(node => node.remove());
 		clone.querySelectorAll('span.timestamp').forEach(span => {
 			span.replaceWith(span.textContent || '');
 		});
@@ -2724,11 +2740,12 @@ export class Reader {
 	// Attach late-arriving subtitles without replacing or restarting the player.
 	static async attachYouTubeTranscript(doc: Document, transcript: HTMLElement, title: string, chat?: {toggle: () => boolean}): Promise<void> {
 		const article = doc.querySelector('article')!;
-		article.querySelector('.youtube-study-toolbar')?.remove();
+		article.querySelector('.youtube-study-feedback, .youtube-study-toolbar')?.remove();
 		article.appendChild(doc.adoptNode(transcript));
 		this.storeOriginalHtml(article);
 		wireTranscript(doc, article, this.settings, {
 			getStickyOffset: () => this.getStickyOffset(),
+			getFocusOffset: () => this.getFocusOffset(),
 			scrollTo: y => this.scrollTo(y),
 			programmaticScroll: () => this.programmaticScroll,
 		}, (key, value) => { (this.settings as any)[key] = value; void this.saveSettings(); });
@@ -2764,6 +2781,7 @@ export class Reader {
 
 		wireTranscript(doc, article, this.settings, {
 			getStickyOffset: () => this.getStickyOffset(),
+			getFocusOffset: () => this.getFocusOffset(),
 			scrollTo: (y) => this.scrollTo(y),
 			programmaticScroll: () => this.programmaticScroll,
 		}, (key, value) => {

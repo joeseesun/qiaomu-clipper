@@ -1,13 +1,14 @@
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
-import { createElement, WandSparkles, X, Plus, Copy, Send, Square, FilePlus2, History, Quote, Trash2, Highlighter, Settings2 } from 'lucide';
+import { createElement, WandSparkles, X, Plus, Copy, Send, Square, FilePlus2, History, Quote, Trash2, Highlighter, Settings2, Pencil } from 'lucide';
 import browser from './browser-polyfill';
 import { getMessage } from './i18n';
 import { getLocalStorage, setLocalStorage, generalSettings } from './storage-utils';
 import { streamChat, enabledChatModels, ChatTurn } from './chat-llm';
 import { Conversation, StoredTurn, loadConversations, saveConversation, deleteConversation } from './chat-history';
+import { FONT_PRESETS } from './font-utils';
 import { showClipStatus } from './clip-bar';
-import { CHAT_PREFERENCES_KEY, DEFAULT_CHAT_PREFERENCES, normalizeChatPreferences, chatFontFamily, chatSystemPrompt } from './chat-preferences';
+import { CHAT_PREFERENCES_KEY, DEFAULT_CHAT_PREFERENCES, MAX_QUICK_PROMPTS, QuickPrompt, normalizeChatPreferences, chatFontFamily, chatSystemPrompt, defaultQuickPrompts, visibleQuickPrompts } from './chat-preferences';
 
 export interface ClipChatOptions {
 	// Current article text; read fresh on every question so edits are included.
@@ -20,8 +21,6 @@ export interface ClipChatOptions {
 
 const MAX_CONTEXT_CHARS = 80000;
 const MAX_QUOTE_CHARS = 4000;
-const SUGGESTIONS = ['qiaomuChatSuggestSummary', 'qiaomuChatSuggestPoints', 'qiaomuChatSuggestTranslate', 'qiaomuChatSuggestCritic'];
-const QUOTE_SUGGESTIONS = ['qiaomuChatQuoteExplain', 'qiaomuChatQuoteTranslate', 'qiaomuChatQuoteSummary', 'qiaomuChatQuoteRewrite'];
 
 const icon = (node: Parameters<typeof createElement>[0]) => createElement(node);
 
@@ -108,7 +107,7 @@ export function mountClipChat(options: ClipChatOptions): { toggle: () => boolean
 	}).catch(() => { applyAppearance(); });
 	browser.storage.onChanged.addListener((changes, area) => {
 		if (area === 'local' && changes[CHAT_PREFERENCES_KEY]) {
-			preferences = normalizeChatPreferences(changes[CHAT_PREFERENCES_KEY].newValue); applyAppearance();
+			preferences = normalizeChatPreferences(changes[CHAT_PREFERENCES_KEY].newValue); applyAppearance(); refreshSuggestions();
 		}
 	});
 	const settingsForm = el('form', 'clip-chat-settings');
@@ -128,47 +127,140 @@ export function mountClipChat(options: ClipChatOptions): { toggle: () => boolean
 		if (!settingsForm.hidden) { closePreferences(); return; }
 		historyList.hidden = true;
 		settingsForm.replaceChildren();
-		settingsForm.append(el('h3', '', getMessage('qiaomuChatPreferences')), el('p', 'clip-chat-settings-note', getMessage('qiaomuChatPreferencesScope')));
-		const field = (key: string, control: HTMLElement) => {
-			const label = el('label', 'clip-chat-settings-field');
-			label.append(el('span', '', getMessage(key)), control); settingsForm.append(label);
+		const section = (titleKey: string, noteKey = '') => {
+			const node = el('section', 'clip-chat-section');
+			node.append(el('h4', '', getMessage(titleKey)));
+			if (noteKey) node.append(el('p', 'clip-chat-settings-note', getMessage(noteKey)));
+			settingsForm.append(node); return node;
 		};
+		const field = (parent: HTMLElement, key: string, control: HTMLElement) => {
+			const label = el('label', 'clip-chat-settings-field');
+			label.append(el('span', '', getMessage(key)), control); parent.append(label); return label;
+		};
+		// Same look as the toggles in settings, but self-contained: the reading page does not load the global toggle styles.
+		const makeSwitch = (checked: boolean, label: string) => {
+			const input = el('input'); input.type = 'checkbox'; input.checked = checked; input.setAttribute('aria-label', label);
+			const root = el('label', 'clip-chat-switch'); root.append(input, el('span', 'clip-chat-switch-track'));
+			return { root, input };
+		};
+		settingsForm.append(el('h3', '', getMessage('qiaomuChatPreferences')), el('p', 'clip-chat-settings-note', getMessage('qiaomuChatPreferencesScope')));
+
+		const looks = section('qiaomuChatSectionAppearance');
 		const font = el('select');
-		for (const value of ['system', 'serif', 'mono', 'custom']) {
-			const option = el('option', '', getMessage(`qiaomuChatFont${value}`)); option.value = value; font.append(option);
+		const fontLabels: Array<[string, string]> = [['reader', 'qiaomuChatFontreader'], ['system', 'readerFontSystemSans'], ['serif', 'readerFontSystemSerif'],
+			...FONT_PRESETS.map((preset): [string, string] => [preset.value, preset.labelKey]), ['mono', 'qiaomuChatFontmono'], ['custom', 'qiaomuChatFontcustom']];
+		for (const [value, key] of fontLabels) {
+			const option = el('option', '', getMessage(key)); option.value = value; font.append(option);
 		}
-		font.value = preferences.font; field('qiaomuChatFont', font);
+		font.value = preferences.font; field(looks, 'qiaomuChatFont', font);
 		const customFont = el('input'); customFont.type = 'text'; customFont.maxLength = 100;
-		customFont.value = preferences.customFont; customFont.placeholder = 'PingFang SC'; field('qiaomuChatCustomFont', customFont);
-		const customLabel = customFont.parentElement!;
+		customFont.value = preferences.customFont; customFont.placeholder = 'PingFang SC';
+		const customLabel = field(looks, 'qiaomuChatCustomFont', customFont);
 		const size = el('input'); size.type = 'range'; size.min = '12'; size.max = '28'; size.step = '1'; size.value = String(preferences.fontSize);
-		field('qiaomuChatFontSize', size);
-		const sizeValue = el('output'); size.parentElement!.append(sizeValue);
-		const preview = el('p', 'clip-chat-settings-preview', getMessage('qiaomuChatFontPreview')); settingsForm.append(preview);
-		const promptEnabled = el('input'); promptEnabled.type = 'checkbox'; promptEnabled.checked = preferences.promptEnabled;
-		field('qiaomuChatPromptEnabled', promptEnabled);
+		const sizeLabel = field(looks, 'qiaomuChatFontSize', size);
+		const sizeValue = el('output'); sizeLabel.append(sizeValue);
+		const preview = el('p', 'clip-chat-settings-preview', getMessage('qiaomuChatFontPreview')); looks.append(preview);
+
+		const rules = section('qiaomuChatSectionInstructions', 'qiaomuChatInstructionsNote');
+		const promptEnabled = makeSwitch(preferences.promptEnabled, getMessage('qiaomuChatPromptEnabled'));
+		const switchRow = el('div', 'clip-chat-settings-row'); switchRow.append(el('span', '', getMessage('qiaomuChatPromptEnabled')), promptEnabled.root); rules.append(switchRow);
 		const prompt = el('textarea'); prompt.rows = 5; prompt.maxLength = 4000; prompt.value = preferences.prompt;
-		prompt.placeholder = getMessage('qiaomuChatPromptPlaceholder'); field('qiaomuChatCustomPrompt', prompt);
-		settingsForm.append(el('p', 'clip-chat-settings-note', getMessage('qiaomuChatPromptScope')));
+		prompt.placeholder = getMessage('qiaomuChatPromptPlaceholder'); prompt.setAttribute('aria-label', getMessage('qiaomuChatCustomPrompt')); rules.append(prompt);
+		const examples = el('div', 'clip-chat-examples'); examples.append(el('span', '', getMessage('qiaomuChatExamples')));
+		for (const key of ['qiaomuChatExampleLang', 'qiaomuChatExampleConclusion', 'qiaomuChatExampleTimestamp', 'qiaomuChatExampleConcise']) {
+			const chip = el('button', 'clip-chat-chip', getMessage(key)); chip.type = 'button';
+			chip.onclick = () => { const line = getMessage(key); if (!prompt.value.includes(line)) prompt.value = `${prompt.value.trim() ? `${prompt.value.trimEnd()}\n` : ''}${line}`.slice(0, 4000); refresh(); };
+			examples.append(chip);
+		}
+		rules.append(examples, el('p', 'clip-chat-settings-note', getMessage('qiaomuChatPromptScope')));
+
+		// Quick prompts are edited in the draft and persisted together with everything else on save.
+		const quickBox = section('qiaomuQuickTitle', 'qiaomuQuickNote');
+		let quick: QuickPrompt[] = (preferences.quickPrompts ?? defaultQuickPrompts(getMessage)).map(item => ({ ...item }));
+		let customized = preferences.quickPrompts !== null;
+		let editing: { item: QuickPrompt; isNew: boolean } | null = null;
+		const quickHost = el('div', 'clip-chat-quick'); quickBox.append(quickHost);
+		const touch = () => { customized = true; renderQuick(); };
+		function renderQuick() {
+			quickHost.replaceChildren();
+			if (editing) { renderQuickEditor(editing.item, editing.isNew); return; }
+			const list = el('ul', 'clip-chat-quick-list');
+			for (const item of quick) {
+				const row = el('li', 'clip-chat-quick-row');
+				const show = makeSwitch(item.enabled, getMessage('qiaomuQuickShow', item.title));
+				show.input.onchange = () => { item.enabled = show.input.checked; customized = true; row.classList.toggle('is-off', !item.enabled); };
+				const text = el('button', 'clip-chat-quick-text'); text.type = 'button';
+				text.append(el('span', 'clip-chat-quick-name', item.title), el('span', 'clip-chat-quick-sub', `${getMessage(item.scope === 'selection' ? 'qiaomuQuickScopeSelection' : 'qiaomuQuickScopeArticle')} · ${item.body}`));
+				text.onclick = () => { editing = { item: { ...item }, isNew: false }; renderQuick(); };
+				const edit = iconButton('clip-chat-icon', Pencil, getMessage('qiaomuQuickEdit', item.title)); edit.onclick = text.onclick;
+				const remove = iconButton('clip-chat-icon', Trash2, getMessage('qiaomuQuickDelete', item.title));
+				remove.onclick = () => { quick = quick.filter(other => other.id !== item.id); touch(); };
+				row.classList.toggle('is-off', !item.enabled);
+				row.append(show.root, text, edit, remove); list.append(row);
+			}
+			if (!quick.length) list.append(el('li', 'clip-chat-settings-note', getMessage('qiaomuQuickEmpty')));
+			const bar = el('div', 'clip-chat-settings-actions');
+			const add = el('button', 'clip-chat-link', getMessage('qiaomuQuickNew')); add.type = 'button';
+			add.prepend(icon(Plus)); add.disabled = quick.length >= MAX_QUICK_PROMPTS; if (add.disabled) add.title = getMessage('qiaomuQuickLimit');
+			add.onclick = () => { editing = { item: { id: crypto.randomUUID(), title: '', body: '', scope: 'article', enabled: true }, isNew: true }; renderQuick(); };
+			const restore = el('button', 'clip-chat-link', getMessage('qiaomuQuickResetDefaults')); restore.type = 'button';
+			restore.hidden = !customized;
+			restore.onclick = () => { quick = defaultQuickPrompts(getMessage); customized = false; renderQuick(); };
+			bar.append(add, restore); quickHost.append(list, bar);
+		}
+		function renderQuickEditor(item: QuickPrompt, isNew: boolean) {
+			const box = el('div', 'clip-chat-quick-editor');
+			const name = el('input'); name.type = 'text'; name.maxLength = 40; name.value = item.title;
+			const body = el('textarea'); body.rows = 4; body.maxLength = 2000; body.value = item.body;
+			const scope = el('select');
+			for (const value of ['article', 'selection']) { const option = el('option', '', getMessage(value === 'selection' ? 'qiaomuQuickScopeSelection' : 'qiaomuQuickScopeArticle')); option.value = value; scope.append(option); }
+			scope.value = item.scope;
+			field(box, 'qiaomuQuickName', name); field(box, 'qiaomuQuickBody', body); field(box, 'qiaomuQuickScope', scope);
+			const note = el('p', 'clip-chat-settings-note'); note.setAttribute('role', 'alert');
+			const actions = el('div', 'clip-chat-settings-actions');
+			const done = el('button', 'clip-chat-link', getMessage('qiaomuQuickDone')); done.type = 'button';
+			const cancel = el('button', 'clip-chat-link', getMessage('cancel')); cancel.type = 'button';
+			cancel.onclick = () => { editing = null; renderQuick(); };
+			done.onclick = () => {
+				const title = name.value.trim(), text = body.value.trim();
+				if (!title || !text) { note.textContent = getMessage('qiaomuQuickRequired'); return; }
+				const next: QuickPrompt = { ...item, title, body: text, scope: scope.value === 'selection' ? 'selection' : 'article' };
+				quick = isNew ? [...quick, next] : quick.map(other => other.id === item.id ? next : other);
+				editing = null; touch();
+			};
+			// Enter in the name field must not submit the whole settings form; Escape closes only this editor.
+			box.onkeydown = event => {
+				if (event.key === 'Enter' && event.target === name) { event.preventDefault(); body.focus(); }
+				if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); cancel.click(); }
+			};
+			actions.append(done, cancel); box.append(note, actions); quickHost.append(box); name.focus();
+		}
+		renderQuick();
+
 		const status = el('p', 'clip-chat-settings-note'); status.setAttribute('role', 'status');
-		const draft = () => normalizeChatPreferences({font: font.value, customFont: customFont.value, fontSize: Number(size.value), prompt: prompt.value, promptEnabled: promptEnabled.checked});
+		const draft = () => normalizeChatPreferences({font: font.value, customFont: customFont.value, fontSize: Number(size.value), prompt: prompt.value, promptEnabled: promptEnabled.input.checked, quickPrompts: customized ? quick : null});
 		const refresh = () => {
 			customLabel.hidden = font.value !== 'custom';
 			sizeValue.value = `${size.value} px`; size.setAttribute('aria-valuetext', sizeValue.value);
 			preview.style.fontFamily = chatFontFamily(draft()); preview.style.fontSize = `${size.value}px`;
-			prompt.disabled = !promptEnabled.checked;
+			prompt.disabled = !promptEnabled.input.checked;
 		};
-		settingsForm.oninput = refresh;
-		const actions = el('div', 'clip-chat-settings-actions');
+		settingsForm.oninput = refresh; settingsForm.onchange = refresh;
+		const actions = el('div', 'clip-chat-settings-actions is-footer');
 		const reset = el('button', 'clip-chat-link', getMessage('qiaomuChatPreferencesReset')); reset.type = 'button';
-		reset.onclick = () => { font.value = DEFAULT_CHAT_PREFERENCES.font; customFont.value = ''; size.value = String(DEFAULT_CHAT_PREFERENCES.fontSize); prompt.value = ''; promptEnabled.checked = true; refresh(); };
+		reset.onclick = () => {
+			font.value = DEFAULT_CHAT_PREFERENCES.font; customFont.value = ''; size.value = String(DEFAULT_CHAT_PREFERENCES.fontSize); prompt.value = ''; promptEnabled.input.checked = true;
+			quick = defaultQuickPrompts(getMessage); customized = false; editing = null; renderQuick(); refresh();
+		};
 		const cancel = el('button', 'clip-chat-link', getMessage('cancel')); cancel.type = 'button'; cancel.onclick = closePreferences;
-		const save = el('button', 'clip-chat-link', getMessage('save')); save.type = 'submit';
-		actions.append(reset, cancel, save); settingsForm.append(status, actions);
+		const save = el('button', 'clip-chat-link is-primary', getMessage('save')); save.type = 'submit';
+		actions.append(save, cancel, reset); settingsForm.append(status, actions);
 		settingsForm.onsubmit = async event => {
-			event.preventDefault(); save.disabled = true;
+			event.preventDefault();
+			if (editing) { status.textContent = getMessage('qiaomuQuickUnfinished'); return; }
+			save.disabled = true;
 			try {
-				const next = draft(); await setLocalStorage(CHAT_PREFERENCES_KEY, next); preferences = next; closePreferences();
+				const next = draft(); await setLocalStorage(CHAT_PREFERENCES_KEY, next); preferences = next; closePreferences(); refreshSuggestions();
 			} catch { status.textContent = getMessage('qiaomuChatPreferencesSaveError'); }
 			finally { save.disabled = false; }
 		};
@@ -261,13 +353,16 @@ export function mountClipChat(options: ClipChatOptions): { toggle: () => boolean
 		if (!conversation.messages.length && !controller) renderSuggestions();
 	}
 
+	function refreshSuggestions() { if (!conversation.messages.length && !controller) renderSuggestions(); }
+
 	function renderSuggestions() {
 		suggestions.replaceChildren();
 		if (input.disabled) return;
-		for (const key of quote ? QUOTE_SUGGESTIONS : SUGGESTIONS) {
-			const chip = el('button', 'clip-chat-chip', getMessage(key));
+		for (const item of visibleQuickPrompts(preferences, !!quote, getMessage)) {
+			const chip = el('button', 'clip-chat-chip', item.title);
 			chip.type = 'button';
-			chip.addEventListener('click', () => { void ask(getMessage(key)); });
+			chip.title = item.body;
+			chip.addEventListener('click', () => { void ask(item.body); });
 			suggestions.appendChild(chip);
 		}
 	}

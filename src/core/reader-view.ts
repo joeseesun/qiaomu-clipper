@@ -1,6 +1,7 @@
 import { loadClipPreview } from '../utils/clip-preview';
 import { mountYouTubeStudy } from '../utils/youtube-study';
 import { startYouTubeStudy } from '../utils/youtube-study-loader';
+import { PLAYER_SELECTOR } from '../utils/video-source';
 import { mountReaderPreviewShell } from '../utils/reader-preview-shell';
 import { createReaderSourceDraft } from '../utils/reader-source-draft';
 import { marked } from 'marked';
@@ -37,7 +38,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 		return;
 	}
 
-	if (params.get('study') === 'youtube') {
+	if (params.get('study') === 'youtube' || params.get('study') === 'bilibili') {
 		const session = await createReaderSourceDraft(url, params.get('title') || '');
 		// Suppress the legacy reader controls before rendering, just as a normal preview does.
 		Reader.onEdit = () => {};
@@ -469,7 +470,7 @@ async function showClipPreview(id: string) {
     document.title = draft.clip.title;
     await loadSettings();
     const {chat} = mountReaderPreviewShell(draft);
-    if (document.querySelector('article iframe[src*="youtube.com/embed/"]')) {
+    if (document.querySelector(`article ${PLAYER_SELECTOR}`)) {
         await mountYouTubeStudy(document, document.querySelector('article')!, draft.clip.title, draft.clip.url, chat);
     }
 }

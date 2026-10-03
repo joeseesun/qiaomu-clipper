@@ -41,6 +41,7 @@ module.exports = (env, argv) => {
 		entry: {
 			'content-loader': './src/content-loader.ts',
 			'triple-key': './src/triple-key-content.ts',
+			'youtube-panel': './src/youtube-panel-content.ts',
 			popup: './src/core/popup.ts',
 			settings: './src/core/settings.ts',
 			highlights: './src/core/highlights.ts',

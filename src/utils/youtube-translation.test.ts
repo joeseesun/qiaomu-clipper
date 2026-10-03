@@ -4,7 +4,8 @@ const state = vi.hoisted(() => ({stream:vi.fn(), models:[{id:'model',name:'Model
 vi.mock('./chat-llm', () => ({enabledChatModels:()=>state.models, streamChat:(...args:unknown[])=>state.stream(...args)}));
 vi.mock('./storage-utils', () => ({loadSettings:async()=>{},getLocalStorage:async()=> 'model'}));
 vi.mock('./i18n', () => ({getMessage:(key:string)=>key}));
-import { translationBatches, parseTranslation, mountTranslation } from './youtube-translation';
+import { translationBatches, parseTranslation, mountTranslation, TRANSLATION_SYSTEM } from './youtube-translation';
+import { transcriptText } from './youtube-study';
 const flush=async()=>{for(let i=0;i<25;i++)await Promise.resolve();};
 function setup(texts=['English source','Another segment']) {
 	document.body.innerHTML='<article><div class="toolbar"><span role="status"></span></div><div class="youtube transcript"></div></article>';
@@ -30,8 +31,10 @@ it('preserves source and timestamps, renders plain text, and reuses translated p
 	const {article,input}=setup();input.click();await flush();
 	expect(article.querySelectorAll('.transcript-translation')).toHaveLength(2);
 	expect(article.querySelector('strong')!.textContent).toBe('0:12');
-	expect(article.querySelector('.transcript-segment')!.childNodes[1].textContent).toBe('English source');
-	input.click();expect(article.querySelector<HTMLElement>('.transcript-translation')!.hidden).toBe(true);
+	expect(article.querySelector('.transcript-source-part')!.textContent).toBe('English source');
+	expect(transcriptText(article)).toBe('[0:12] English source\n[0:12] Another segment');
+	input.click();expect(article.querySelector('.transcript-translation')).toBeNull();
+	expect(article.querySelector('.transcript-segment-text')!.textContent).toBe('English source');
 	input.click();await flush();expect(state.stream).toHaveBeenCalledTimes(1);
 	expect(article.querySelector<HTMLElement>('.transcript-translation')!.hidden).toBe(false);
 });
@@ -57,4 +60,39 @@ it('keeps Chinese source unchanged and explains missing model configuration',asy
 	state.stream.mockImplementation(async options=>JSON.stringify(JSON.parse(options.messages[0].content)));
 	let view=setup(['已经是中文']);view.input.click();await flush();expect(view.article.querySelector('.transcript-translation')).toBeNull();
 	state.models=[];view=setup();view.input.click();await flush();expect(view.article.querySelector('[role=status]')!.textContent).toContain('qiaomuTranslationNoModel');
+});
+
+
+it('cleans music cues, passes neighboring context and renders short bilingual passages without losing the raw transcript', async () => {
+	const original = 'There was a guy [music] I met in Thailand. He worked for Tony Robbins. He said, "Why not me? I will be that guy." And I thought that was a good frame.';
+	state.stream.mockImplementation(async options => JSON.stringify(JSON.parse(options.messages[0].content).map((part: {id:number}) => ({id: part.id, text:'我在泰国认识一个人[音乐]。他曾为托尼·罗宾斯工作。\n\n“为什么不能是我？”'}))));
+	const { article, input } = setup([original]);
+	const before = transcriptText(article); input.click(); await flush();
+	const options = state.stream.mock.calls[0][0];
+	const request = JSON.parse(options.messages[0].content);
+	expect(request.length).toBeGreaterThan(1);
+	expect(request.every((part:{text:string}) => !part.text.includes('[music]'))).toBe(true);
+	expect(request[0].contextAfter).toContain('Why not me');
+	expect(options.system).toBe(TRANSLATION_SYSTEM);
+	expect(article.querySelectorAll('.transcript-bilingual-block')).toHaveLength(request.length);
+	expect(article.querySelector('.transcript-translation')!.textContent).not.toContain('[音乐]');
+	expect(article.querySelectorAll('.transcript-translation p').length).toBe(request.length * 2);
+	expect(transcriptText(article)).toBe(before);
+	input.click(); expect(transcriptText(article)).toBe(before);
+});
+
+it('keeps provider markup inert and never renders it as HTML', async () => {
+	state.stream.mockImplementation(async options => JSON.stringify(JSON.parse(options.messages[0].content).map((part:{id:number}) => ({id:part.id,text:'<img src=x onerror=alert(1)>忠实译文。'}))));
+	const {article,input}=setup();input.click();await flush();
+	expect(article.querySelector('img')).toBeNull();
+	expect(article.querySelector('.transcript-translation')!.textContent).toContain('<img');
+});
+
+
+it('retains an original-text selection while switching bilingual paragraphs on and off',async()=>{
+ const {article,input}=setup(['Original passage. Second sentence.']);
+ const text=article.querySelector('.transcript-segment-text')!.firstChild!;
+ const selection=document.getSelection()!;selection.setBaseAndExtent(text,0,text,8);
+ input.click();await flush();expect(selection.toString()).toBe('Original');
+ input.click();expect(selection.toString()).toBe('Original');
 });

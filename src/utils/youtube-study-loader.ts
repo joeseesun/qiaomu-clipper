@@ -3,7 +3,8 @@ import DOMPurify from 'dompurify';
 import browser from './browser-polyfill';
 import { Reader } from './reader';
 import { transcriptText, mountYouTubeStudy } from './youtube-study';
-import { youtubeVideoId } from './youtube-url';
+import { bilibiliVideo, videoKey } from './video-source';
+import { TRANSCRIPT_SELECTOR } from './video-source';
 import { setPageTitle, setPageUrl } from './highlighter';
 
 export async function withTranscriptDeadline<T>(extract: (signal: AbortSignal) => Promise<T>, timeoutMs = 20000): Promise<T> {
@@ -18,11 +19,11 @@ export async function withTranscriptDeadline<T>(extract: (signal: AbortSignal) =
 
 // Render the learning page before doing any page fetch or subtitle extraction.
 export async function startYouTubeStudy(url: string, sourceTabId: number, initialTitle: string, onReady: (result: any) => Promise<void>, mountShell?: () => {chat: {toggle: () => boolean}; ready: () => void}): Promise<void> {
-	if (!youtubeVideoId(url)) throw new Error('无效的 YouTube 视频链接');
+	if (!videoKey(url)) throw new Error('无效的视频链接');
 	const title = initialTitle.replace(/\s*- YouTube$/, '') || 'YouTube 视频学习';
 	Object.defineProperty(document, 'URL', { value: url, configurable: true });
 	Reader.isReaderPage = true;
-	Reader.preExtractedContent = { content: '<p></p>', title, domain: 'youtube.com' };
+	Reader.preExtractedContent = { content: '<p></p>', title, domain: bilibiliVideo(url) ? 'bilibili.com' : 'youtube.com' };
 	setPageUrl(url); setPageTitle(title);
 	document.title = title;
 	await Reader.apply(document);
@@ -47,9 +48,16 @@ export async function startYouTubeStudy(url: string, sourceTabId: number, initia
 				const proxyFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
 					if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
 					const target = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+					// Subtitles need the viewer's Bilibili session: ask their own tab first, then the plain proxy.
+					if (bilibiliVideo(url) && /^https:\/\/[^/]*(bilibili\.com|hdslb\.com)\//.test(target)) {
+						const viaTab = await browser.runtime.sendMessage({ action: 'qiaomuBilibiliTabFetch', sourceTabId, sourceUrl: url, url: target }).catch(() => undefined) as { ok?: boolean; status?: number; text?: string; error?: string } | undefined;
+						if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
+						if (viaTab && !viaTab.error && typeof viaTab.text === 'string') return new Response(viaTab.text, { status: viaTab.status || 200 });
+					}
 					const headers: Record<string, string> = {};
+					const credentials = init?.credentials === 'include' ? 'include' : undefined;
 					new Headers(init?.headers).forEach((value, key) => { headers[key] = value; });
-					const response = await browser.runtime.sendMessage({ action: 'fetchProxy', url: target, options: { method: init?.method, body: init?.body, headers } }) as { status: number; text: string; error?: string };
+					const response = await browser.runtime.sendMessage({ action: 'fetchProxy', url: target, options: { method: init?.method, body: init?.body, headers, credentials } }) as { status: number; text: string; error?: string };
 					if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
 					if (response.error) throw new Error(response.error);
 					return new Response(response.text, { status: response.status });
@@ -64,7 +72,7 @@ export async function startYouTubeStudy(url: string, sourceTabId: number, initia
 			if (!article.isConnected) return;
 			const content = document.createElement('div');
 			content.innerHTML = DOMPurify.sanitize(result.content);
-			const transcript = content.querySelector<HTMLElement>('.youtube.transcript');
+			const transcript = content.querySelector<HTMLElement>(TRANSCRIPT_SELECTOR);
 			const nextTitle = result.title || title;
 			document.title = nextTitle; setPageTitle(nextTitle);
 			const heading = document.querySelector('main h1'); if (heading) heading.textContent = nextTitle;

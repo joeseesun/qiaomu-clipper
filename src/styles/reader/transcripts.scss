@@ -126,8 +126,14 @@ article > .player-toggles {
 		color: var(--text-normal);
 	}
 }
+// The phrase being spoken. ::highlight cannot change font-weight (that would also re-wrap the line),
+// so weight comes from a hairline stroke, which keeps glyph widths and line breaks untouched. The tint is
+// the playhead red rather than yellow, so it never reads as a user highlight or as a selection.
 ::highlight(transcript-playback) {
-	background-color: var(--text-selection);
+	background-color: color-mix(in srgb, var(--color-red) 16%, transparent);
+	color: var(--text-normal);
+	-webkit-text-stroke-width: 0.5px;
+	-webkit-text-stroke-color: var(--text-normal);
 }
 ::highlight(transcript-hover) {
 	text-decoration: underline;
@@ -197,38 +203,18 @@ article > .player-toggles {
 	opacity: 1;
 }
 
-@media (max-width: 768px) {
-	.player-toggles {
-		display: none !important;
-	}
-}
-.youtube-study-toolbar {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: 8px;
-	padding: 12px 0;
-	border-bottom: 1px solid var(--background-modifier-border);
-	font-family: var(--font-ui);
-	font-size: 14px;
-	> span:first-child { font-weight: 600; white-space: nowrap; }
-	.youtube-study-status { flex: 1; color: var(--text-muted); font-size: 12px; line-height: 1.5; }
-	button {
-		display: inline-flex; align-items: center; justify-content: center;
-		flex-shrink: 0; width: 32px; height: 32px; padding: 6px;
-		border: 0; border-radius: 6px; background: transparent; color: var(--text-muted); cursor: pointer;
+// Keep the same switches available on narrow screens; wrap without an extra toolbar.
+.player-toggle-group { align-items: center; }
+.player-toggles { line-height: 1.5; }
+.youtube-study-feedback {
+	font: 12px/1.5 var(--font-ui); color: var(--text-muted);
+	&:not(:has(.youtube-study-status:not(:empty))):not(:has(button:not([hidden]))):not(:has(.youtube-translate-toggle)) { display: none; }
+	.youtube-translation-retry, button[aria-label="重新加载字幕"] {
+		margin-inline-start: 8px; background: transparent; color: inherit; border: 0;
+		font: inherit; cursor: pointer; text-decoration: underline;
 		&[hidden] { display: none; }
-		&[aria-label="重新加载字幕"], &.youtube-translation-retry { width: auto; min-width: 44px; font-size: 12px; white-space: nowrap; }
-		svg { width: 18px; height: 18px; }
-		&:hover { background: var(--background-primary-alt); color: var(--text-normal); }
 		&:focus-visible { outline: 1px solid var(--text-muted); outline-offset: 2px; }
-		&:disabled { opacity: .4; cursor: default; }
 	}
-}
-.youtube-size-control { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 10px 0; font: 13px/1.5 var(--font-ui); color: var(--text-muted);
-	input { width: 130px; max-width: 40vw; }
-	input:focus-visible { outline: 1px solid var(--text-muted); outline-offset: 2px; }
-	output { min-width: 36px; font-variant: tabular-nums; }
 }
 .youtube-study .youtube-sized-player { width: var(--youtube-player-width, 100%) !important; height: auto !important; aspect-ratio: 16 / 9; max-height: none !important; display: block; margin-inline: auto; }
 .transcript-segment:has(.transcript-translation) { display: grid; grid-template-columns: var(--timestamp-width) minmax(0, 1fr); column-gap: 1em; row-gap: .4em; }
@@ -237,3 +223,21 @@ article > .player-toggles {
 	iframe, .reader-video-wrapper { max-height: 48vh; box-shadow: none; }
 }
 .youtube-study-notes { border-top: 1px solid var(--background-modifier-border); margin-top: 24px; }
+
+// Keep each source passage adjacent to its translation; larger spacing separates
+// ideas, while existing segment timestamps continue to locate the original audio.
+.transcript-segment .transcript-bilingual { line-height: 1.65; }
+.transcript-bilingual-block {
+	+ .transcript-bilingual-block { margin-top: 1.25em; }
+	.transcript-source-part { white-space: pre-wrap; overflow-wrap: break-word; }
+	.transcript-translation {
+		padding: 0; margin-top: .45em; line-height: 1.8;
+		color: var(--text-muted); overflow-wrap: break-word;
+		p { margin: 0; + p { margin-top: .65em; } }
+	}
+}
+@media (max-width: 600px) {
+	.transcript-segment { gap: .5em; }
+	.transcript-segment:has(.transcript-translation) { column-gap: .5em; }
+	.transcript-bilingual-block + .transcript-bilingual-block { margin-top: 1em; }
+}

@@ -1,4 +1,6 @@
 import { getMessage } from './i18n';
+import { bilibiliEmbedUrl, isBilibiliEmbed, PLAYER_SELECTOR, TRANSCRIPT_SELECTOR } from './video-source';
+import { sourceTextNodes } from './transcript-format';
 
 // CJK-aware text boundary helpers
 const SENT_END = /[.!?。！？]/;
@@ -37,6 +39,8 @@ interface TranscriptSettings {
 
 interface ScrollHelper {
 	getStickyOffset: () => number;
+	// Where the active line should rest after an automatic scroll; defaults to just below the sticky offset.
+	getFocusOffset?: () => number;
 	scrollTo: (targetY: number) => void;
 	programmaticScroll: () => boolean;
 }
@@ -48,83 +52,34 @@ export function wireTranscript(
 	scroll: ScrollHelper,
 	onSettingChange?: (key: keyof TranscriptSettings, value: boolean) => void
 ): void {
-	const transcript = article.querySelector('.youtube.transcript') as HTMLElement | null;
-	if (!transcript) return;
+	const transcript = article.querySelector(TRANSCRIPT_SELECTOR) as HTMLElement | null;
+	if (!transcript || transcript.dataset.readerWired === 'true') return;
 
-	const iframe = article.querySelector('iframe[src*="youtube.com/embed/"]') as HTMLIFrameElement | null;
+	const iframe = article.querySelector(PLAYER_SELECTOR) as HTMLIFrameElement | null;
+	const bilibili = !!iframe && isBilibiliEmbed(iframe.src);
 	const videoWrapper = article.querySelector('.reader-video-wrapper') as HTMLElement | null;
 	const videoEl = videoWrapper?.querySelector('video.reader-video-player') as HTMLVideoElement | null;
 	const thumbnailLink = article.querySelector('a[href*="youtube.com/watch"]') as HTMLAnchorElement | null;
 	const playerEl = (videoWrapper || iframe || thumbnailLink) as HTMLElement | null;
 	if (!playerEl) return;
 
-	// Wrap player in a container with toggle controls
-	const playerContainer = doc.createElement('div');
+	transcript.dataset.readerWired = 'true';
+	// Reuse a pre-existing container when subtitles arrive after the live player.
+	const playerContainer = playerEl.closest<HTMLElement>('.player-container') || doc.createElement('div');
 	const pinDefault = settings.pinPlayer;
 	const autoScrollDefault = settings.autoScroll;
 	const highlightDefault = settings.highlightActiveLine;
 	playerContainer.className = 'player-container' + (pinDefault ? ' pin-player' : '');
-	playerEl.parentNode!.insertBefore(playerContainer, playerEl);
-	playerContainer.appendChild(playerEl);
+	if (!playerContainer.contains(playerEl)) {
+		playerEl.parentNode!.insertBefore(playerContainer, playerEl);
+		playerContainer.appendChild(playerEl);
+	}
 
 	let autoScrollEnabled = autoScrollDefault;
 	let highlightEnabled = highlightDefault;
 
 	const toggleBar = doc.createElement('div');
 	toggleBar.className = 'player-toggles';
-
-	const createToggle = (label: string, defaultOn: boolean, onChange: (on: boolean) => void) => {
-		const wrapper = doc.createElement('label');
-		wrapper.className = 'player-toggle' + (defaultOn ? ' is-enabled' : '');
-
-		const toggle = doc.createElement('div');
-		toggle.className = 'player-toggle-switch';
-		const input = doc.createElement('input');
-		input.type = 'checkbox';
-		input.checked = defaultOn;
-		input.setAttribute('role', 'switch');
-		input.setAttribute('aria-label', label);
-		toggle.appendChild(input);
-
-		const text = doc.createElement('span');
-		text.textContent = label;
-
-		wrapper.appendChild(text);
-		wrapper.appendChild(toggle);
-
-		input.addEventListener('change', () => {
-			wrapper.classList.toggle('is-enabled', input.checked);
-			onChange(input.checked);
-		});
-
-		return wrapper;
-	};
-
-	const pinToggle = createToggle(getMessage('readerPinPlayer'), pinDefault, (on) => {
-		playerContainer.classList.toggle('pin-player', on);
-		if (on) {
-			playerContainer.appendChild(toggleBar);
-		} else {
-			playerContainer.after(toggleBar);
-		}
-		// Reset nav scroll tracking so hide-on-scroll-down works immediately
-		window.dispatchEvent(new CustomEvent('reader-show-nav'));
-		onSettingChange?.('pinPlayer', on);
-	});
-
-	const autoScrollToggle = createToggle(getMessage('readerAutoScroll'), autoScrollDefault, (on) => {
-		autoScrollEnabled = on;
-		onSettingChange?.('autoScroll', on);
-	});
-
-	const highlightToggle = createToggle(getMessage('readerHighlightActiveLine'), highlightDefault, (on) => {
-		highlightEnabled = on;
-		if (!on) {
-			const ph = (CSS as any).highlights?.get('transcript-playback');
-			if (ph) ph.clear();
-		}
-		onSettingChange?.('highlightActiveLine', on);
-	});
 
 	// Floating "current position" button — appended to body,
 	// shown only when the active segment is scrolled out of view
@@ -136,20 +91,19 @@ export function wireTranscript(
 
 	const toggleGroup = doc.createElement('div');
 	toggleGroup.className = 'player-toggle-group is-open';
-	toggleGroup.appendChild(pinToggle);
-	toggleGroup.appendChild(autoScrollToggle);
-	toggleGroup.appendChild(highlightToggle);
 
 	toggleBar.appendChild(toggleGroup);
 
 	playerContainer.appendChild(toggleBar);
 
-	if (iframe) {
+	if (iframe && !bilibili) {
 		// Enable JS API on the embed
 		const src = new URL(iframe.src);
-		src.searchParams.set('enablejsapi', '1');
-		src.searchParams.set('origin', window.location.origin);
-		iframe.src = src.toString();
+		if (src.searchParams.get('enablejsapi') !== '1') {
+			src.searchParams.set('enablejsapi', '1');
+			src.searchParams.set('origin', window.location.origin);
+			iframe.src = src.toString();
+		}
 
 		// Initialize postMessage connection once iframe loads
 		iframe.addEventListener('load', () => {
@@ -224,9 +178,8 @@ export function wireTranscript(
 	currentPosButton.addEventListener('click', () => {
 		if (activeSegment) {
 			const rect = activeSegment.getBoundingClientRect();
-			const stickyOffset = scroll.getStickyOffset();
 			const targetY = (window.pageYOffset || doc.documentElement.scrollTop)
-				+ rect.top - stickyOffset - 20;
+				+ rect.top - (scroll.getFocusOffset?.() ?? scroll.getStickyOffset() + 20);
 			scroll.scrollTo(targetY);
 		}
 	});
@@ -263,9 +216,8 @@ export function wireTranscript(
 				// Auto-scroll to keep active segment visible
 				if (autoScrollEnabled && !suppressScroll && Date.now() - lastUserScroll > AUTO_SCROLL_COOLDOWN) {
 					const rect = segments[newIndex].getBoundingClientRect();
-					const stickyOffset = scroll.getStickyOffset();
 					const targetY = (window.pageYOffset || doc.documentElement.scrollTop)
-						+ rect.top - stickyOffset - 20;
+						+ rect.top - (scroll.getFocusOffset?.() ?? scroll.getStickyOffset() + 20);
 					scroll.scrollTo(targetY);
 				}
 			}
@@ -310,10 +262,17 @@ export function wireTranscript(
 			if (playbackHighlight && highlightEnabled) {
 				playbackHighlight.clear();
 				const textEl = activeSegment.querySelector('.transcript-segment-text');
-				const textNode = textEl?.firstChild;
-				if (textNode && textNode.nodeType === Node.TEXT_NODE) {
+				const textNodes = textEl ? sourceTextNodes(textEl) : [];
+				let position = Math.max(0, Math.round(segProgress * textNodes.reduce((size, node) => size + node.length, 0)));
+				let textNode: Text | undefined;
+				for (let i = 0; i < textNodes.length; i++) {
+					textNode = textNodes[i];
+					if (position < textNode.length || i === textNodes.length - 1) break;
+					position -= textNode.length;
+				}
+				if (textNode && textNode.length > 0) {
 					const totalLen = (textNode.textContent || '').length;
-					const charPos = Math.min(totalLen - 1, Math.max(0, Math.round(segProgress * totalLen)));
+					const charPos = Math.min(totalLen - 1, Math.max(0, position));
 
 					// Find lines around the current position
 					const probe = doc.createRange();
@@ -398,6 +357,20 @@ export function wireTranscript(
 				e.preventDefault();
 			}
 		});
+	} else if (iframe && bilibili) {
+		// Bilibili's embed has no player API and reports no time: a jump reloads it at the requested
+		// second, the transcript marks the clicked line itself, and a scrub drag is coalesced into one reload.
+		let pending: ReturnType<typeof setTimeout> | undefined;
+		seekTo = (seconds: number) => {
+			const target = Math.max(0, Math.floor(seconds));
+			updateActiveSegment(target);
+			clearTimeout(pending);
+			pending = setTimeout(() => {
+				const url = new URL(iframe.src);
+				url.searchParams.set('t', String(target)); url.searchParams.set('autoplay', '1');
+				iframe.src = url.toString();
+			}, 250);
+		};
 	} else if (iframe) {
 		// Iframe embed: use postMessage API
 		seekTo = (seconds: number) => {
@@ -424,7 +397,7 @@ export function wireTranscript(
 		window.addEventListener('message', onMessage);
 
 		const poll = setInterval(() => {
-			if (!iframe.contentWindow || !doc.contains(iframe)) {
+			if (!iframe.contentWindow || !iframe.isConnected) {
 				clearInterval(poll);
 				window.removeEventListener('message', onMessage);
 				return;
@@ -443,7 +416,7 @@ export function wireTranscript(
 	const togglePlayPause = () => {
 		if (videoEl) {
 			videoEl.paused ? videoEl.play() : videoEl.pause();
-		} else if (iframe?.contentWindow) {
+		} else if (iframe?.contentWindow && !bilibili) {
 			iframe.contentWindow.postMessage(JSON.stringify({
 				event: 'command',
 				func: iframePlaying ? 'pauseVideo' : 'playVideo',
@@ -463,8 +436,9 @@ export function wireTranscript(
 	// Use capture phase so we intercept before YouTube's own keyboard
 	// handlers on the page — the original page scripts are still running
 	doc.addEventListener('keydown', (e: KeyboardEvent) => {
-		const tag = (e.target as HTMLElement).tagName;
-		if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+		if (e.ctrlKey || e.metaKey || e.altKey) return;
+		const target = e.target as HTMLElement;
+		if (target.closest('input, textarea, select, button, a, [contenteditable], [role=slider], [role=switch], .clip-chat')) return;
 
 		switch (e.code) {
 			case 'Space':
@@ -507,9 +481,10 @@ export function wireTranscript(
 
 	// YouTube handles Space on keyup — block that too
 	doc.addEventListener('keyup', (e: KeyboardEvent) => {
+		if (e.ctrlKey || e.metaKey || e.altKey) return;
 		if (e.code === 'Space' && !videoEl) {
-			const tag = (e.target as HTMLElement).tagName;
-			if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+			const target = e.target as HTMLElement;
+			if (target.closest('input, textarea, select, button, a, [contenteditable], [role=slider], [role=switch], .clip-chat')) return;
 			e.preventDefault();
 			e.stopImmediatePropagation();
 		}
@@ -594,7 +569,7 @@ export function wireTranscript(
 		if (!hoverHighlight) return;
 		hoverHighlight.clear();
 		const seg = (e.target as HTMLElement).closest('.transcript-segment-text');
-		if (!seg) return;
+		if (!seg || (e.target as HTMLElement).closest('.transcript-translation')) return;
 		const caret = getCaretNode(e.clientX, e.clientY);
 		if (!caret || caret.node.nodeType !== Node.TEXT_NODE || !seg.contains(caret.node)) return;
 		const range = getHoverRange(caret.node, caret.offset);
@@ -670,12 +645,17 @@ export function wireTranscript(
 		// Use caret position to estimate character-level progress
 		const textEl = seg.querySelector('.transcript-segment-text');
 		if (textEl) {
-			const totalLen = (textEl.textContent || '').length;
+			const textNodes = sourceTextNodes(textEl);
+			const totalLen = textNodes.reduce((size, node) => size + node.length, 0);
 			if (totalLen > 0) {
 				const caret = getCaretNode(e.clientX, e.clientY);
 				let charOffset = totalLen;
 				if (caret && caret.node.nodeType === Node.TEXT_NODE && textEl.contains(caret.node)) {
-					charOffset = caret.offset;
+					charOffset = 0;
+					for (const node of textNodes) {
+						if (node === caret.node) { charOffset += caret.offset; break; }
+						charOffset += node.length;
+					}
 				}
 				const progress = Math.min(1, Math.max(0, charOffset / totalLen));
 				seekTo(start + progress * (end - start));

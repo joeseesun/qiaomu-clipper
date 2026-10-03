@@ -1317,6 +1317,27 @@
 	"qiaomuChatQuoteRewrite": {
 		"message": "Rewrite more concisely"
 	},
+	"youtubePanelActionsTitle": {
+		"message": "YouTube transcript buttons"
+	},
+	"youtubePanelActionsDescription": {
+		"message": "On YouTube, add Copy, Download and Study buttons next to the Chapters / Transcript tabs of the transcript panel."
+	},
+	"youtubePanelCopy": {
+		"message": "Copy"
+	},
+	"youtubePanelDownload": {
+		"message": "Download"
+	},
+	"youtubePanelStudy": {
+		"message": "Study"
+	},
+	"youtubePanelCopied": {
+		"message": "Copied"
+	},
+	"youtubePanelEmpty": {
+		"message": "No transcript lines found. Open the transcript first."
+	},
 	"selectionToolbarTitle": {
 		"message": "Selection toolbar"
 	},
@@ -1360,7 +1381,7 @@
 		"message": "Chat settings"
 	},
 	"qiaomuChatPreferencesScope": {
-		"message": "Saved preferences apply to article and video chats. Appearance affects only the AI panel."
+		"message": "Saved settings apply to all article and video chats. Appearance only affects the AI panel."
 	},
 	"qiaomuChatFont": {
 		"message": "Chat font"
@@ -1387,10 +1408,10 @@
 		"message": "Learn at your own pace. 阅读、提问、理解。"
 	},
 	"qiaomuChatPromptEnabled": {
-		"message": "Enable custom instructions"
+		"message": "Use global instructions"
 	},
 	"qiaomuChatCustomPrompt": {
-		"message": "Custom instructions / Prompt"
+		"message": "Instruction text"
 	},
 	"qiaomuChatPromptPlaceholder": {
 		"message": "For example: summarize first, then explain. Include timestamps when quoting subtitles."
@@ -1442,5 +1463,83 @@
 	},
 	"qiaomuTranslationService": {
 		"message": "Translate subtitles with your configured AI model; translations are cached only on this page."
+	},
+	"qiaomuChatSectionAppearance": {
+		"message": "Appearance"
+	},
+	"qiaomuChatSectionInstructions": {
+		"message": "Global instructions"
+	},
+	"qiaomuChatInstructionsNote": {
+		"message": "Added to every question. Use it to fix the language, tone and format of answers."
+	},
+	"qiaomuChatExamples": {
+		"message": "Try:"
+	},
+	"qiaomuChatExampleLang": {
+		"message": "Answer in Chinese"
+	},
+	"qiaomuChatExampleConclusion": {
+		"message": "Conclusion first, then details"
+	},
+	"qiaomuChatExampleTimestamp": {
+		"message": "Include timestamps when quoting subtitles"
+	},
+	"qiaomuChatExampleConcise": {
+		"message": "Be concise, no filler"
+	},
+	"qiaomuQuickTitle": {
+		"message": "Quick prompts"
+	},
+	"qiaomuQuickNote": {
+		"message": "Shown above the input; one tap sends it. Add, edit, delete or hide them."
+	},
+	"qiaomuQuickNew": {
+		"message": "New"
+	},
+	"qiaomuQuickEdit": {
+		"message": "Edit \"$1\""
+	},
+	"qiaomuQuickDelete": {
+		"message": "Delete \"$1\""
+	},
+	"qiaomuQuickShow": {
+		"message": "Show \"$1\""
+	},
+	"qiaomuQuickName": {
+		"message": "Name"
+	},
+	"qiaomuQuickBody": {
+		"message": "Prompt sent when tapped"
+	},
+	"qiaomuQuickScope": {
+		"message": "Shown when"
+	},
+	"qiaomuQuickScopeArticle": {
+		"message": "Asking about the article"
+	},
+	"qiaomuQuickScopeSelection": {
+		"message": "After selecting text"
+	},
+	"qiaomuQuickDone": {
+		"message": "Done"
+	},
+	"qiaomuQuickRequired": {
+		"message": "Enter a name and a prompt."
+	},
+	"qiaomuQuickEmpty": {
+		"message": "No quick prompts yet."
+	},
+	"qiaomuQuickLimit": {
+		"message": "You can keep up to 30 quick prompts."
+	},
+	"qiaomuQuickResetDefaults": {
+		"message": "Restore built-in prompts"
+	},
+	"qiaomuQuickUnfinished": {
+		"message": "Finish or cancel the prompt you are editing first."
+	},
+	"qiaomuChatFontreader": {
+		"message": "Same as reading font"
 	}
 }
