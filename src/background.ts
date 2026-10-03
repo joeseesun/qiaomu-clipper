@@ -10,6 +10,7 @@ import { incrementStat, loadSettings } from './utils/storage-utils';
 import { enabledChatModels, streamChat } from './utils/chat-llm';
 import { youtubeStudyPath, youtubeVideoId } from './utils/youtube-url';
 import { hasStoredHighlights } from './utils/url-utils';
+import { enableYouTubeEmbedRule, disableYouTubeEmbedRule } from './utils/youtube-embed-rules';
 
 // Accept RSS writes only from our own extension pages, never a website content script.
 const qiaomuInFlight = new Map<string, Promise<unknown>>();
@@ -57,39 +58,7 @@ browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime
 	return job;
 });
 
-const YOUTUBE_EMBED_RULE_ID = 9001;
 const YOUTUBE_INNERTUBE_RULE_ID = 9002;
-
-// Chrome: declarativeNetRequest to rewrite Referer on YouTube embeds.
-// Safari/Firefox use the native video element instead (see reader.ts).
-async function enableYouTubeEmbedRule(tabId: number): Promise<void> {
-	await chrome.declarativeNetRequest.updateSessionRules({
-		removeRuleIds: [YOUTUBE_EMBED_RULE_ID],
-		addRules: [{
-			id: YOUTUBE_EMBED_RULE_ID,
-			priority: 1,
-			action: {
-				type: 'modifyHeaders' as any,
-				requestHeaders: [{
-					header: 'Referer',
-					operation: 'set' as any,
-					value: 'https://obsidian.md/'
-				}]
-			},
-			condition: {
-				urlFilter: '||youtube.com/embed/',
-				resourceTypes: ['sub_frame' as any],
-				tabIds: [tabId]
-			}
-		}]
-	});
-}
-
-async function disableYouTubeEmbedRule(): Promise<void> {
-	await chrome.declarativeNetRequest.updateSessionRules({
-		removeRuleIds: [YOUTUBE_EMBED_RULE_ID]
-	});
-}
 
 // Set Origin header on YouTube innertube API requests from the extension.
 // YouTube doesn't accept chrome-extension://...
@@ -350,12 +319,15 @@ async function initialize() {
 			highlighterModeQueues.delete(tabId);
 			delete readerModeState[tabId];
 			contentScriptLoads.delete(tabId);
+			void disableYouTubeEmbedRule(tabId).catch(() => {});
 		});
 		
 		// Initialize context menu
 		await debouncedUpdateContextMenu(-1);
 
-		// Enable Origin header for YouTube innertube API requests
+		// Identify extension-page players before their iframe requests, then enable
+		// Origin headers for YouTube innertube API requests.
+		await enableYouTubeEmbedRule();
 		await enableYouTubeInnertubeRule();
 
 		// Set up action popup based on openBehavior setting
@@ -511,25 +483,12 @@ browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime
 			}
 		}
 
-		if (typedRequest.action === "enableYouTubeEmbedRule") {
-			const tabId = sender.tab?.id;
-			if (tabId) {
-				enableYouTubeEmbedRule(tabId).then(() => {
-					sendResponse({ success: true });
-				}).catch(() => {
-					sendResponse({ success: true });
-				});
-			} else {
+		if (typedRequest.action === "enableYouTubeEmbedRule" || typedRequest.action === "disableYouTubeEmbedRule") {
+			const configure = typedRequest.action === "enableYouTubeEmbedRule" ? enableYouTubeEmbedRule : disableYouTubeEmbedRule;
+			configure(sender.tab?.id).then(() => {
 				sendResponse({ success: true });
-			}
-			return true;
-		}
-
-		if (typedRequest.action === "disableYouTubeEmbedRule") {
-			disableYouTubeEmbedRule().then(() => {
-				sendResponse({ success: true });
-			}).catch(() => {
-				sendResponse({ success: true });
+			}).catch(error => {
+				sendResponse({ success: false, error: error instanceof Error ? error.message : String(error) });
 			});
 			return true;
 		}
