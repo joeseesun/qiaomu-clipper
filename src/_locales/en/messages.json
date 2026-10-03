@@ -1323,6 +1323,12 @@
 	"youtubeAutoTranscriptDescription": {
 		"message": "On a video page, expand YouTube's transcript panel once so the transcript is ready for copying, downloading and study mode. Close it and it stays closed for that video."
 	},
+	"youtubeHideNativeTitle": {
+		"message": "Hide YouTube's own transcript panel"
+	},
+	"youtubeHideNativeDescription": {
+		"message": "When the transcript opens automatically, hide YouTube's panel in the right column. The transcript bar shows the same lines. A panel you open yourself is never hidden."
+	},
 	"learningNotesTitle": {
 		"message": "Learning notes"
 	},

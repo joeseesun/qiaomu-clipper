@@ -1323,6 +1323,12 @@
 	"youtubeAutoTranscriptDescription": {
 		"message": "在视频页自动展开一次 YouTube 的转写文稿面板，让字幕随时可复制、下载和进入学习模式。你关掉后，这个视频不再自动展开。"
 	},
+	"youtubeHideNativeTitle": {
+		"message": "隐藏 YouTube 自带的转写面板"
+	},
+	"youtubeHideNativeDescription": {
+		"message": "字幕自动展开后，把 YouTube 右栏里的原生面板藏起来，转写条里能看到同样的内容。你自己手动打开的面板不会被隐藏。"
+	},
 	"learningNotesTitle": {
 		"message": "学习笔记"
 	},

@@ -466,6 +466,9 @@ function initializeDefaultTemplateDropdown(): void {
 		document.addEventListener('qiaomu-templates-updated', event => populateDefaultTemplateDropdown((event as CustomEvent<Template[]>).detail));
 		dropdown.addEventListener('change', () => saveSettings({ ...generalSettings, defaultTemplateId: dropdown.value }));
 	}
+	initializeSettingToggle('youtube-hide-native-toggle', generalSettings.youtubeHideNativeTranscript !== false, (checked) => {
+		saveSettings({ ...generalSettings, youtubeHideNativeTranscript: checked });
+	});
 	initializeSettingToggle('youtube-auto-transcript-toggle', generalSettings.youtubeAutoTranscript !== false, (checked) => {
 		saveSettings({ ...generalSettings, youtubeAutoTranscript: checked });
 	});

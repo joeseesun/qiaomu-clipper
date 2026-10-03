@@ -1,7 +1,7 @@
 import type { PanelSegment } from './utils/youtube-panel-actions';
 import { BAR_STYLE, buildTranscriptBar, syncTranscriptBar, type BarState, type TranscriptBar } from './utils/youtube-transcript-bar';
 import { fetchTranscriptSegments } from './utils/youtube-innertube-transcript';
-import { openTranscriptPanel, readYouTubeTranscriptFromDom, transcriptHtml, transcriptPanelOpen } from './utils/youtube-dom-transcript';
+import { markAutoOpenedPanel, openTranscriptPanel, readYouTubeTranscriptFromDom, releaseAutoPanel, transcriptHtml, transcriptPanelOpen } from './utils/youtube-dom-transcript';
 import { readPanelSegments } from './utils/youtube-panel-actions';
 
 // Runs on YouTube pages only. Adds the transcript bar (subtitles, copy, download, study, settings, dropdown) to the
@@ -43,7 +43,7 @@ try {
 			none: text('youtubePanelCardNone', '点击后读取字幕', 'Click to read the transcript'),
 			more: text('youtubeBarMore', '更多内容请在沉浸学习里查看', 'Open study mode to read the rest'),
 		};
-		let enabled = true, autoOpen = true;
+		let enabled = true, autoOpen = true, hideNative = true, weOpenedPanel = false, openedAt = 0;
 		const autoOpened = new Set<string>(); // one automatic opening per video: if the viewer closes the panel, it stays closed
 
 		// --- transcript prefetch -------------------------------------------------------------------------------
@@ -97,8 +97,14 @@ try {
 			const videoId = currentVideo();
 			if (videoId && autoOpen && !autoOpened.has(videoId)) {
 				if (transcriptPanelOpen(document)) autoOpened.add(videoId);
-				else if (openTranscriptPanel(document)) autoOpened.add(videoId);
+				else if (openTranscriptPanel(document)) { autoOpened.add(videoId); weOpenedPanel = true; openedAt = Date.now(); }
 			}
+			// Hide the panel we opened (our bar shows the same lines); give it back if the viewer closes or reopens it.
+			// Hide it only after its lines have rendered (or after a few seconds), so hiding can never starve the fallback.
+			const lineCount = readPanelSegments(document.querySelector('ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-searchable-transcript"]') || document.createElement('div')).length;
+			if (weOpenedPanel && transcriptPanelOpen(document) && (lineCount > 0 || Date.now() - openedAt > 6000)) { markAutoOpenedPanel(document, hideNative); weOpenedPanel = false; }
+			else if (!hideNative) markAutoOpenedPanel(document, false);
+			else releaseAutoPanel(document);
 			// Whatever YouTube rendered in its own panel is also a ready transcript for the bar and for study mode.
 			const entry = videoId ? store.get(videoId) : undefined;
 			const panelEl = document.querySelector('ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-searchable-transcript"]');
@@ -136,7 +142,7 @@ try {
 			return true;
 		});
 
-		const apply = (settings?: { youtubePanelActions?: boolean; youtubeAutoTranscript?: boolean }) => { enabled = settings?.youtubePanelActions !== false; autoOpen = settings?.youtubeAutoTranscript !== false; startPrefetch(); schedule(); };
+		const apply = (settings?: { youtubePanelActions?: boolean; youtubeAutoTranscript?: boolean; youtubeHideNativeTranscript?: boolean }) => { enabled = settings?.youtubePanelActions !== false; autoOpen = settings?.youtubeAutoTranscript !== false; hideNative = settings?.youtubeHideNativeTranscript !== false; startPrefetch(); schedule(); };
 		api.storage.sync?.get('general_settings').then(data => apply(data?.general_settings)).catch(() => {});
 		api.storage.onChanged.addListener((changes, area) => { if (area === 'sync' && changes.general_settings) apply(changes.general_settings.newValue); });
 		startPrefetch(); schedule();

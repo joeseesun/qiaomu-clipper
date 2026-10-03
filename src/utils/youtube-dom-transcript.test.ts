@@ -52,3 +52,16 @@ it('opens the panel once on request, never while it is open, and reports a missi
 	const again = vi.fn(); document.getElementById('o')!.addEventListener('click', again);
 	expect(transcriptPanelOpen(document)).toBe(true); expect(openTranscriptPanel(document)).toBe(false); expect(again).not.toHaveBeenCalled();
 });
+
+it('marks only the panel we opened for hiding, and gives it back once the viewer closes it', async () => {
+	const { markAutoOpenedPanel, releaseAutoPanel, AUTO_PANEL_ATTRIBUTE } = await import('./youtube-dom-transcript');
+	const make = (visibility: string) => `<ytd-engagement-panel-section-list-renderer target-id="engagement-panel-searchable-transcript" visibility="${visibility}"></ytd-engagement-panel-section-list-renderer>`;
+	const panel = () => document.querySelector('ytd-engagement-panel-section-list-renderer')!;
+	document.body.innerHTML = make('ENGAGEMENT_PANEL_VISIBILITY_EXPANDED');
+	releaseAutoPanel(document); expect(panel().hasAttribute(AUTO_PANEL_ATTRIBUTE)).toBe(false); // never marked: left alone
+	markAutoOpenedPanel(document, true); expect(panel().getAttribute(AUTO_PANEL_ATTRIBUTE)).toBe('1');
+	releaseAutoPanel(document); expect(panel().hasAttribute(AUTO_PANEL_ATTRIBUTE)).toBe(true); // still open: stays hidden
+	panel().setAttribute('visibility', 'ENGAGEMENT_PANEL_VISIBILITY_HIDDEN'); releaseAutoPanel(document); expect(panel().hasAttribute(AUTO_PANEL_ATTRIBUTE)).toBe(false);
+	markAutoOpenedPanel(document, true); markAutoOpenedPanel(document, false); expect(panel().hasAttribute(AUTO_PANEL_ATTRIBUTE)).toBe(false);
+	document.body.innerHTML = ''; expect(() => markAutoOpenedPanel(document, true)).not.toThrow();
+});

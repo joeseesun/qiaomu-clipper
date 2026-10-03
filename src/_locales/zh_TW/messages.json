@@ -1323,6 +1323,12 @@
 	"youtubeAutoTranscriptDescription": {
 		"message": "在影片頁自動展開一次 YouTube 的轉寫文稿面板，讓字幕隨時可複製、下載並進入學習模式。你關掉後，這個影片不再自動展開。"
 	},
+	"youtubeHideNativeTitle": {
+		"message": "隱藏 YouTube 內建的轉寫面板"
+	},
+	"youtubeHideNativeDescription": {
+		"message": "字幕自動展開後，把 YouTube 右欄裡的原生面板藏起來，轉寫條裡能看到同樣的內容。你自己手動開啟的面板不會被隱藏。"
+	},
 	"learningNotesTitle": {
 		"message": "學習筆記"
 	},

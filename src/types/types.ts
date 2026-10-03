@@ -83,6 +83,7 @@ export interface Settings {
 	youtubePanelActions?: boolean;
 	learningNotes?: boolean;
 	youtubeAutoTranscript?: boolean;
+	youtubeHideNativeTranscript?: boolean;
 	highlighterEnabled: boolean;
 	alwaysShowHighlights: boolean;
 	highlightBehavior: string;

@@ -30,6 +30,19 @@ export function openTranscriptPanel(doc: Document): boolean {
 	opener.click(); return true;
 }
 
+// YouTube's own panel is redundant next to our bar, but its rendered lines are still our fallback source, so it is
+// hidden rather than closed. Only a panel that we opened is marked, never one the viewer opened themselves.
+export const AUTO_PANEL_ATTRIBUTE = 'data-qiaomu-auto';
+export function markAutoOpenedPanel(doc: Document, hide: boolean): void {
+	const panel = doc.querySelector(PANEL); if (!panel) return;
+	if (hide) panel.setAttribute(AUTO_PANEL_ATTRIBUTE, '1'); else panel.removeAttribute(AUTO_PANEL_ATTRIBUTE);
+}
+// The viewer closed it (or reopened it themselves): stop hiding it.
+export function releaseAutoPanel(doc: Document): void {
+	const panel = doc.querySelector(PANEL);
+	if (panel?.hasAttribute(AUTO_PANEL_ATTRIBUTE) && !isExpanded(doc)) panel.removeAttribute(AUTO_PANEL_ATTRIBUTE);
+}
+
 export const transcriptPanelOpen = (doc: Document): boolean => isExpanded(doc);
 
 // The panel can be open on the "Chapters" tab; then the transcript chip next to it has to be selected.
