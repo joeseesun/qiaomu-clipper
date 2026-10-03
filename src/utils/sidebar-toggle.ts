@@ -1,4 +1,4 @@
-import { createElement, PanelLeftClose, PanelLeftOpen } from 'lucide';
+import { createElement, PanelLeft } from 'lucide';
 import { getLocalStorage, setLocalStorage } from './storage-utils';
 import { getMessage } from './i18n';
 
@@ -14,7 +14,8 @@ export function mountSidebarToggle(sidebar: HTMLElement, key: string): void {
 		content.hidden = collapsed; sidebar.classList.toggle('is-collapsed', collapsed);
 		const label = getMessage(collapsed ? 'qiaomuExpandSidebar' : 'qiaomuCollapseSidebar');
 		button.title = label; button.setAttribute('aria-label', label); button.setAttribute('aria-expanded', String(!collapsed));
-		button.replaceChildren(createElement(collapsed ? PanelLeftOpen : PanelLeftClose));
+		// One glyph for both states (as in Notion/VS Code); the pressed background shows that the outline is open.
+		button.replaceChildren(createElement(PanelLeft));
 	};
 	let touched = false;
 	button.onclick = () => { touched = true; apply(!content.hidden); void setLocalStorage(key, content.hidden).catch(() => {}); };

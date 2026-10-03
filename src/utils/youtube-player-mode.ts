@@ -1,4 +1,4 @@
-import { createElement, PanelLeft, RectangleHorizontal, PictureInPicture2, ExternalLink } from 'lucide';
+import { createElement, Columns2, PanelLeft, RectangleHorizontal, PictureInPicture2, ExternalLink } from 'lucide';
 import { getLocalStorage, setLocalStorage } from './storage-utils';
 import { documentPipSupported, openDocumentPip, trackPlayback } from './youtube-pip';
 
@@ -60,7 +60,7 @@ export function mountPlayerMode(article: HTMLElement): void {
 	};
 	const bar = doc.createElement('div'); bar.className = 'youtube-mode-bar'; bar.setAttribute('role', 'group'); bar.setAttribute('aria-label', '视频位置');
 	const buttons: Record<PlayerMode, HTMLButtonElement> = {
-		dock: button('dock', PanelLeft, '停靠：视频固定在文稿旁（窄屏在文稿上方）'),
+		dock: button('dock', Columns2, '停靠：视频固定在文稿旁（窄屏在文稿上方）'),
 		theater: button('theater', RectangleHorizontal, '剧场：视频占满宽度，文稿在下方'),
 		float: button('float', PictureInPicture2, '小窗：视频悬浮在页面角落，文稿占满宽度'),
 	};
