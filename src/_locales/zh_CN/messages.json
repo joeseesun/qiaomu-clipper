@@ -1408,10 +1408,10 @@
 		"message": "阅读、提问、理解。Learn at your own pace."
 	},
 	"qiaomuChatPromptEnabled": {
-		"message": "启用自定义指令"
+		"message": "启用全局指令"
 	},
 	"qiaomuChatCustomPrompt": {
-		"message": "自定义指令 / Prompt"
+		"message": "指令内容"
 	},
 	"qiaomuChatPromptPlaceholder": {
 		"message": "例如：用中文回答，先概括，再解释；引用字幕时带时间戳。"
@@ -1463,5 +1463,83 @@
 	},
 	"qiaomuTranslationService": {
 		"message": "使用已配置的 AI 模型翻译字幕；译文仅缓存在当前页。"
+	},
+	"qiaomuChatSectionAppearance": {
+		"message": "外观"
+	},
+	"qiaomuChatSectionInstructions": {
+		"message": "全局指令"
+	},
+	"qiaomuChatInstructionsNote": {
+		"message": "每次提问都会自动附带，适合固定回答的语言、语气和格式。"
+	},
+	"qiaomuChatExamples": {
+		"message": "试试："
+	},
+	"qiaomuChatExampleLang": {
+		"message": "用中文回答"
+	},
+	"qiaomuChatExampleConclusion": {
+		"message": "先给结论，再展开"
+	},
+	"qiaomuChatExampleTimestamp": {
+		"message": "引用字幕时带时间戳"
+	},
+	"qiaomuChatExampleConcise": {
+		"message": "简洁，不说套话"
+	},
+	"qiaomuQuickTitle": {
+		"message": "快捷提示词"
+	},
+	"qiaomuQuickNote": {
+		"message": "显示在输入框上方，点一下就发送。可以新增、编辑、删除或隐藏。"
+	},
+	"qiaomuQuickNew": {
+		"message": "新建"
+	},
+	"qiaomuQuickEdit": {
+		"message": "编辑「$1」"
+	},
+	"qiaomuQuickDelete": {
+		"message": "删除「$1」"
+	},
+	"qiaomuQuickShow": {
+		"message": "显示「$1」"
+	},
+	"qiaomuQuickName": {
+		"message": "名称"
+	},
+	"qiaomuQuickBody": {
+		"message": "点击后发送的内容"
+	},
+	"qiaomuQuickScope": {
+		"message": "出现时机"
+	},
+	"qiaomuQuickScopeArticle": {
+		"message": "提问整篇文章时"
+	},
+	"qiaomuQuickScopeSelection": {
+		"message": "选中文字后"
+	},
+	"qiaomuQuickDone": {
+		"message": "完成"
+	},
+	"qiaomuQuickRequired": {
+		"message": "请填写名称和内容。"
+	},
+	"qiaomuQuickEmpty": {
+		"message": "还没有快捷提示词。"
+	},
+	"qiaomuQuickLimit": {
+		"message": "最多保留 30 条快捷提示词。"
+	},
+	"qiaomuQuickResetDefaults": {
+		"message": "恢复内置提示词"
+	},
+	"qiaomuQuickUnfinished": {
+		"message": "请先点「完成」或取消正在编辑的提示词。"
+	},
+	"qiaomuChatFontreader": {
+		"message": "跟随阅读字体"
 	}
 }

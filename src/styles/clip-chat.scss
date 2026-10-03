@@ -2,7 +2,7 @@
 :root { --clip-chat-width: 400px; }
 .clip-chat {
 	position: fixed; top: var(--clip-bar-offset); right: 0; bottom: 0; z-index: 800; width: var(--clip-chat-width); max-width: 100vw; display: flex; flex-direction: column;
-	background: var(--background-primary); border-inline-start: 1px solid var(--divider-color, var(--background-modifier-border));
+	background: var(--background-primary); border-inline-start: 1px solid var(--divider-color, var(--background-modifier-border, rgb(128 128 128 / 35%)));
 	font-family: var(--font-ui, var(--font-default)); font-size: 14px; color: var(--text-normal); transition: top .2s ease;
 	&[hidden] { display: none; }
 	* { box-sizing: border-box; }
@@ -10,43 +10,74 @@
 	.clip-chat-resize { position: absolute; top: 0; bottom: 0; inset-inline-start: -4px; width: 8px; cursor: col-resize; z-index: 2; touch-action: none;
 		&::after { content: ''; position: absolute; top: 0; bottom: 0; inset-inline-start: 3px; width: 2px; background: var(--text-accent, var(--text-muted)); opacity: 0; transition: opacity .15s; }
 		&:hover::after, &.is-dragging::after { opacity: .5; } }
-	.clip-chat-header { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 10px 12px; border-bottom: 1px solid var(--divider-color, var(--background-modifier-border)); }
-	.clip-chat-settings { position: absolute; inset: 49px 0 0; z-index: 4; overflow-y: auto; padding: 16px; background: var(--background-primary);
+	.clip-chat-header { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 10px 12px; border-bottom: 1px solid var(--divider-color, var(--background-modifier-border, rgb(128 128 128 / 35%))); }
+	// The reading page loads neither inputs.scss, dropdowns.scss nor toggles.scss, so the settings page carries its own controls.
+	.clip-chat-settings { position: absolute; inset: 49px 0 0; z-index: 4; overflow-y: auto; padding: 16px 16px 28px; background: var(--background-primary);
 		&[hidden] { display: none; }
-		h3 { margin: 0 0 8px; font-size: 16px; }
-		.clip-chat-settings-note { font-size: 12px; line-height: 1.6; color: var(--text-muted); }
-		.clip-chat-settings-field { display: flex; flex-direction: column; gap: 6px; margin-block: 14px; &[hidden] { display: none; }
-			input, select, textarea { width: 100%; min-width: 0; font: inherit; }
-			input[type=checkbox] { width: auto; align-self: flex-start; }
-			textarea { min-height: 100px; resize: vertical; }
+		h3 { margin: 0 0 4px; font-size: 16px; }
+		h4 { margin: 0 0 4px; font-size: 13px; font-weight: 600; }
+		.clip-chat-settings-note { margin: 4px 0 0; font-size: 12px; line-height: 1.6; color: var(--text-muted); }
+		.clip-chat-section { padding-block: 16px; border-top: 1px solid var(--divider-color, var(--background-modifier-border, rgb(128 128 128 / 35%))); &:first-of-type { margin-top: 12px; } }
+		.clip-chat-settings-field { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; font-size: 13px; color: var(--text-muted); &[hidden] { display: none; }
+			output { font-size: 12px; color: var(--text-muted); }
 		}
-		.clip-chat-settings-preview { border-block: 1px solid var(--divider-color); padding: 12px 0; line-height: 1.65; overflow-wrap: anywhere; }
-		.clip-chat-settings-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+		select, input[type=text], textarea { width: 100%; min-width: 0; padding: 0 10px; border: 1px solid var(--background-modifier-border, rgb(128 128 128 / 35%)); border-radius: 8px; background-color: var(--background-modifier-form-field, var(--background-primary)); color: var(--text-normal); box-shadow: none; font: inherit; font-size: 13px; outline: none; transition: border-color .15s; }
+		select, input[type=text] { height: 32px; }
+		textarea { min-height: 84px; padding: 8px 10px; line-height: 1.55; resize: vertical; &:disabled { opacity: .5; } }
+		input[type=text]::placeholder, textarea::placeholder { color: var(--text-faint, var(--text-muted)); }
+		select:hover, input[type=text]:hover, textarea:hover { border-color: var(--background-modifier-border-hover, var(--text-muted)); }
+		select:focus, input[type=text]:focus, textarea:focus { border-color: var(--text-muted); }
+		select { appearance: none; -webkit-appearance: none; padding-inline-end: 28px; cursor: pointer;
+			background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+			background-repeat: no-repeat; background-position: right 8px center; background-size: 16px; }
+		[dir=rtl] & select, &[dir=rtl] select { background-position: left 8px center; }
+		input[type=range] { width: 100%; accent-color: var(--text-normal); }
+		.clip-chat-settings-preview { margin: 12px 0 0; padding: 10px 12px; border-radius: 8px; background: var(--background-secondary, rgb(128 128 128 / 12%)); line-height: 1.65; overflow-wrap: anywhere; }
+		.clip-chat-settings-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 10px 0 8px; font-size: 13px; }
+		.clip-chat-examples { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; > span { font-size: 12px; color: var(--text-muted); }
+			.clip-chat-chip { height: 26px; padding: 0 10px; font-size: 12px; } }
+		.clip-chat-settings-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; &.is-footer { margin-top: 8px; padding-top: 16px; border-top: 1px solid var(--divider-color, var(--background-modifier-border, rgb(128 128 128 / 35%))); } }
+		.clip-chat-link { display: inline-flex; align-items: center; gap: 4px; svg { width: 14px; height: 14px; } &[hidden] { display: none; } &:disabled { opacity: .45; cursor: default; }
+			&:hover:not(:disabled) { background: var(--background-modifier-hover, rgb(128 128 128 / 14%)); }
+			&.is-primary { background: var(--background-secondary, rgb(128 128 128 / 12%)); font-weight: 600; } }
+		.clip-chat-quick-list { margin: 8px 0 0; padding: 0; list-style: none; }
+		.clip-chat-quick-row { display: flex; align-items: center; gap: 6px; padding: 6px 0; border-bottom: 1px solid var(--divider-color, var(--background-modifier-border, rgb(128 128 128 / 35%))); &.is-off .clip-chat-quick-text { opacity: .5; } }
+		.clip-chat-quick-text { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: auto; height: auto; padding: 2px 4px; border: none; background: transparent; box-shadow: none; text-align: start; color: var(--text-normal); cursor: pointer; }
+		.clip-chat-quick-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+		.clip-chat-quick-sub { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; color: var(--text-muted); }
+		.clip-chat-quick-editor { margin-top: 4px; padding: 4px 12px 12px; border-radius: 10px; background: var(--background-secondary, rgb(128 128 128 / 12%)); select, input[type=text], textarea { background-color: var(--background-primary); } }
 	}
-	button:focus-visible, select:focus-visible, .clip-chat-settings input:focus-visible, .clip-chat-settings textarea:focus-visible { outline: 2px solid var(--text-muted); outline-offset: 2px; box-shadow: none; }
+	.clip-chat-switch { position: relative; display: inline-block; flex: 0 0 auto; width: 34px; height: 20px; cursor: pointer;
+		input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+		.clip-chat-switch-track { position: absolute; inset: 0; border-radius: 10px; background: var(--background-modifier-border-hover, rgb(128 128 128 / 35%)); transition: background .15s; pointer-events: none;
+			&::after { content: ''; position: absolute; top: 2px; inset-inline-start: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgb(0 0 0 / 30%); transition: transform .15s; } }
+		input:checked + .clip-chat-switch-track { background: var(--interactive-accent, #3b82f6); &::after { transform: translateX(14px); } }
+		[dir=rtl] & input:checked + .clip-chat-switch-track::after { transform: translateX(-14px); }
+		input:focus-visible + .clip-chat-switch-track { outline: 2px solid var(--text-muted); outline-offset: 2px; } }
+	button:focus-visible, select:focus-visible,  .clip-chat-settings input[type=range]:focus-visible { outline: 2px solid var(--text-muted); outline-offset: 2px; box-shadow: none; }
 	.clip-chat-title { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; font-weight: 600; svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--text-muted); } span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } }
 	.clip-chat-model { width: auto; max-width: 120px; height: 28px; text-overflow: ellipsis; padding: 0 22px 0 8px; border: none; background-color: transparent; box-shadow: none; font-size: 13px; color: var(--text-muted); &[hidden] { display: none; } }
 	.clip-chat-icon { display: flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 28px; height: 28px; padding: 0; border: none; border-radius: 6px; background: transparent; box-shadow: none; color: var(--text-muted); cursor: pointer;
 		svg { width: 16px; height: 16px; } &:hover { background: var(--background-modifier-hover, rgb(128 128 128 / 14%)); color: var(--text-normal); } }
-	.clip-chat-history { position: absolute; top: 49px; inset-inline: 0; z-index: 3; max-height: 50%; overflow-y: auto; padding: 6px; background: var(--background-primary); border-bottom: 1px solid var(--divider-color, var(--background-modifier-border)); box-shadow: 0 8px 20px rgb(0 0 0 / 12%);
+	.clip-chat-history { position: absolute; top: 49px; inset-inline: 0; z-index: 3; max-height: 50%; overflow-y: auto; padding: 6px; background: var(--background-primary); border-bottom: 1px solid var(--divider-color, var(--background-modifier-border, rgb(128 128 128 / 35%))); box-shadow: 0 8px 20px rgb(0 0 0 / 12%);
 		&[hidden] { display: none; }
 		.clip-chat-history-empty { padding: 12px; text-align: center; color: var(--text-muted); font-size: 13px; }
-		.clip-chat-history-item { display: flex; align-items: center; gap: 4px; border-radius: 8px; &:hover, &.is-current { background: var(--background-secondary); } }
+		.clip-chat-history-item { display: flex; align-items: center; gap: 4px; border-radius: 8px; &:hover, &.is-current { background: var(--background-secondary, rgb(128 128 128 / 12%)); } }
 		.clip-chat-history-open { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: auto; height: auto; padding: 8px 10px; border: none; background: transparent; box-shadow: none; text-align: start; cursor: pointer; color: var(--text-normal); }
 		.clip-chat-history-title { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
 		.clip-chat-history-time { font-size: 11px; color: var(--text-faint, var(--text-muted)); }
 	}
-	.clip-chat-quote { display: flex; align-items: flex-start; gap: 8px; margin: 0 12px 8px; padding: 8px 6px 8px 10px; border-inline-start: 3px solid var(--text-accent, var(--text-muted)); border-radius: 0 6px 6px 0; background: var(--background-secondary); color: var(--text-muted); font-size: 12.5px; line-height: 1.5;
+	.clip-chat-quote { display: flex; align-items: flex-start; gap: 8px; margin: 0 12px 8px; padding: 8px 6px 8px 10px; border-inline-start: 3px solid var(--text-accent, var(--text-muted)); border-radius: 0 6px 6px 0; background: var(--background-secondary, rgb(128 128 128 / 12%)); color: var(--text-muted); font-size: 12.5px; line-height: 1.5;
 		&[hidden] { display: none; }
 		> svg { width: 14px; height: 14px; margin-top: 2px; flex-shrink: 0; }
 		.clip-chat-quote-text { flex: 1; min-width: 0; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 		.clip-chat-icon { width: 22px; height: 22px; margin-top: -2px; }
 	}
-	.clip-chat-quoted { margin: 0; padding: 6px 10px; border-inline-start: 3px solid var(--divider-color); border-radius: 0 6px 6px 0; background: var(--background-secondary); color: var(--text-muted); font-size: 12.5px; line-height: 1.5; overflow-wrap: anywhere; }
+	.clip-chat-quoted { margin: 0; padding: 6px 10px; border-inline-start: 3px solid var(--divider-color); border-radius: 0 6px 6px 0; background: var(--background-secondary, rgb(128 128 128 / 12%)); color: var(--text-muted); font-size: 12.5px; line-height: 1.5; overflow-wrap: anywhere; }
 	.clip-chat-context { padding: 8px 14px; font-size: 12px; color: var(--text-faint, var(--text-muted)); }
 	.clip-chat-messages { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 14px 14px; display: flex; flex-direction: column; gap: 14px; font-family: var(--clip-chat-font); font-size: var(--clip-chat-size, 14px); }
 	.clip-chat-message { display: flex; flex-direction: column; gap: 6px; max-width: 100%;
-		&.is-user { align-self: flex-end; max-width: 88%; .clip-chat-body { background: var(--background-secondary); padding: 8px 12px; border-radius: 12px; white-space: pre-wrap; } }
+		&.is-user { align-self: flex-end; max-width: 88%; .clip-chat-body { background: var(--background-secondary, rgb(128 128 128 / 12%)); padding: 8px 12px; border-radius: 12px; white-space: pre-wrap; } }
 		&.is-error .clip-chat-body { color: var(--text-error, #c0392b); white-space: pre-wrap; }
 	}
 	.clip-chat-body { line-height: 1.65; overflow-wrap: anywhere;
@@ -54,8 +85,8 @@
 		p, ul, ol, pre, blockquote, table { margin: 0 0 10px; }
 		ul, ol { padding-inline-start: 1.5em; }
 		a { color: var(--text-accent); }
-		code { padding: .1em .35em; border-radius: 4px; background: var(--background-secondary); font-size: 90%; }
-		pre { padding: 10px 12px; overflow: auto; border-radius: 8px; background: var(--background-secondary); code { padding: 0; background: transparent; } }
+		code { padding: .1em .35em; border-radius: 4px; background: var(--background-secondary, rgb(128 128 128 / 12%)); font-size: 90%; }
+		pre { padding: 10px 12px; overflow: auto; border-radius: 8px; background: var(--background-secondary, rgb(128 128 128 / 12%)); code { padding: 0; background: transparent; } }
 		blockquote { margin-inline: 0; padding-inline-start: 12px; border-inline-start: 3px solid var(--divider-color); color: var(--text-muted); }
 		table { border-collapse: collapse; th, td { padding: 4px 10px; border: 1px solid var(--divider-color); } }
 		&.is-thinking::after { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--text-muted); animation: clip-chat-pulse 1s ease-in-out infinite; }
@@ -64,10 +95,10 @@
 	.clip-chat-action { display: inline-flex; align-items: center; gap: 4px; width: auto; height: 26px; padding: 0 8px; border: none; border-radius: 6px; background: transparent; box-shadow: none; font-size: 12px; color: var(--text-muted); cursor: pointer;
 		svg { width: 14px; height: 14px; } &:hover { background: var(--background-modifier-hover, rgb(128 128 128 / 14%)); color: var(--text-normal); } }
 	.clip-chat-empty { margin: auto 0; padding: 20px; text-align: center; color: var(--text-muted); line-height: 1.6; }
-	.clip-chat-link { width: auto; height: 30px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--background-modifier-border); background: transparent; box-shadow: none; color: var(--text-normal); cursor: pointer; }
+	.clip-chat-link { width: auto; height: 30px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--background-modifier-border, rgb(128 128 128 / 35%)); background: transparent; box-shadow: none; color: var(--text-normal); cursor: pointer; }
 	.clip-chat-suggestions { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 14px 10px; &:empty { display: none; } }
-	.clip-chat-chip { width: auto; height: 30px; padding: 0 12px; border: 1px solid var(--background-modifier-border); border-radius: 15px; background: transparent; box-shadow: none; font-size: 13px; color: var(--text-normal); cursor: pointer; &:hover { background: var(--background-modifier-hover, rgb(128 128 128 / 14%)); } }
-	.clip-chat-composer { display: flex; align-items: flex-end; gap: 8px; margin: 0 12px 12px; padding: 8px 8px 8px 12px; border: 1px solid var(--background-modifier-border); border-radius: 14px; background: var(--background-primary);
+	.clip-chat-chip { width: auto; height: 30px; padding: 0 12px; border: 1px solid var(--background-modifier-border, rgb(128 128 128 / 35%)); border-radius: 15px; background: transparent; box-shadow: none; font-size: 13px; color: var(--text-normal); cursor: pointer; &:hover { background: var(--background-modifier-hover, rgb(128 128 128 / 14%)); } }
+	.clip-chat-composer { display: flex; align-items: flex-end; gap: 8px; margin: 0 12px 12px; padding: 8px 8px 8px 12px; border: 1px solid var(--background-modifier-border, rgb(128 128 128 / 35%)); border-radius: 14px; background: var(--background-primary);
 		&:focus-within { border-color: var(--background-modifier-border-focus, var(--text-muted)); }
 		textarea { flex: 1; min-width: 0; min-height: 40px; max-height: 160px; padding: 6px 0; border: none; border-radius: 0; background: transparent; box-shadow: none; resize: none; font-family: var(--clip-chat-font); font-size: var(--clip-chat-size, 14px); outline: none; }
 	}
