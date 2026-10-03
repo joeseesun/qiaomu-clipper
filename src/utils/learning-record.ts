@@ -32,32 +32,40 @@ export async function getDailyTarget(vault?: string): Promise<DailyTargetResult>
 const uriKey = (captureId: string) => `qiaomuLearningUriAttempt:${captureId}`;
 const pendingKey = (captureId: string) => `qiaomuLearningPending:${captureId}`;
 const inFlight = new Map<string, Promise<LearningSaveResult>>();
-const text = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/([\\`*_{}\[\]()#!|])/g, '\\$1');
-const quoteText = (value: string) => text(value).split(/\r?\n/).map(line => `> ${line}`).join('\n');
+// Page text and AI answers are untrusted: keep them readable, but neutralise HTML and Obsidian wikilink/embed syntax.
+const quoteSafe = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/!?\[\[/g, match => match.replace(/\[/g, '\\['));
+const callout = (kind: string, label: string, value: string) => [`> [!${kind}] ${label}`, ...quoteSafe(value.trim()).split(/\r?\n/).map(line => `> ${line}`)].join('\n');
+const linkLabel = (value: string) => value.replace(/\s+/g, ' ').trim().replace(/[<>]/g, '').replace(/([\[\]\\])/g, '\\$1');
+export const clockLabel = (seconds: number) => { const total = Math.floor(seconds), h = Math.floor(total / 3600), m = Math.floor(total % 3600 / 60), s = total % 60; return (h ? `${h}:${String(m).padStart(2, '0')}` : String(m)) + ':' + String(s).padStart(2, '0'); };
+const TIMED_HOST = /(^|\.)(youtube\.com|youtu\.be|bilibili\.com)$/i;
 
+// One compact, searchable entry for the daily note. The reflection is the user's own Markdown and stays untouched
+// (wikilinks and #tags keep working); only content that came from a page or an AI answer is neutralised.
 export function serializeLearningRecord(draft: LearningRecordDraft): string {
     if (!/^[a-zA-Z0-9-]{8,80}$/.test(draft.captureId)) throw new Error('学习记录标识无效');
     if (![draft.reflection, draft.quote, draft.aiSupplement || ''].some(value => typeof value === 'string' && value.trim())) throw new Error('请写下理解或加入摘录，不能保存空记录');
     if (typeof draft.reflection !== 'string' || typeof draft.quote !== 'string' || (draft.aiSupplement !== undefined && typeof draft.aiSupplement !== 'string')) throw new Error('学习记录格式无效');
     const created = new Date(draft.createdAt); if (!Number.isFinite(created.getTime())) throw new Error('记录时间无效');
-    const stamp = `${created.getFullYear()}-${String(created.getMonth()+1).padStart(2,'0')}-${String(created.getDate()).padStart(2,'0')} ${String(created.getHours()).padStart(2,'0')}:${String(created.getMinutes()).padStart(2,'0')}`;
-    const lines = ['### 视频与阅读笔记', '', `- 记录时间：${stamp}`];
+    const clock = `${String(created.getHours()).padStart(2,'0')}:${String(created.getMinutes()).padStart(2,'0')}`;
     const source = draft.source;
     if (source.timestampSeconds !== undefined && (!Number.isFinite(source.timestampSeconds) || source.timestampSeconds < 0)) throw new Error('视频时间无效');
+    const head = [clock];
     if (source.url) {
         const url = new URL(source.url); if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password) throw new Error('来源链接只支持不含凭证的 http(s) 地址');
-        if (source.timestampSeconds !== undefined) {
-            if (!Number.isFinite(source.timestampSeconds) || source.timestampSeconds < 0) throw new Error('视频时间无效');
-            if (/(^|\.)youtube\.com$|(^|\.)youtu\.be$/i.test(url.hostname)) url.searchParams.set('t', String(Math.floor(source.timestampSeconds)));
-        }
+        const timed = source.timestampSeconds !== undefined && TIMED_HOST.test(url.hostname);
+        if (timed) url.searchParams.set('t', String(Math.floor(source.timestampSeconds!)));
         const href = url.href.replace(/\(/g, '%28').replace(/\)/g, '%29');
-        lines.push(`- 来源：[${text((source.title || url.hostname).replace(/\s+/g, ' '))}](${href})`);
-    } else if (source.title.trim()) lines.push(`- 来源：${text(source.title.replace(/\s+/g, ' '))}`);
-    if (source.timestampSeconds !== undefined && source.timestampSeconds >= 0) lines.push(`- 视频时间：${Math.floor(source.timestampSeconds)} 秒`);
-    if (draft.reflection.trim()) lines.push('', '**我的理解**', '', text(draft.reflection.trim()));
-    if (draft.quote.trim()) lines.push('', '**原文摘录**', '', quoteText(draft.quote.trim()));
-    if (draft.aiSupplement?.trim()) lines.push('', '**AI 补充（用户选择加入）**', '', quoteText(draft.aiSupplement.trim()));
-    const content = lines.join('\n');
+        head.push(`[${linkLabel(source.title || url.hostname)}](${href})`);
+        if (timed) head.push(`[${clockLabel(source.timestampSeconds!)}](${href})`);
+    } else {
+        head.push(linkLabel(source.title || '') || '随手记');
+        if (source.timestampSeconds !== undefined) head.push(clockLabel(source.timestampSeconds));
+    }
+    const blocks = [`#### ${head.join(' · ')}`];
+    if (draft.reflection.trim()) blocks.push(draft.reflection.trim());
+    if (draft.quote.trim()) blocks.push(callout('quote', '原文摘录', draft.quote));
+    if (draft.aiSupplement?.trim()) blocks.push(callout('info', 'AI 补充（我选择加入）', draft.aiSupplement));
+    const content = blocks.join('\n\n');
     if (new TextEncoder().encode(content).length > 4 * 1024 * 1024) throw new Error('记录超过 4 MB，请缩短摘录');
     return content;
 }

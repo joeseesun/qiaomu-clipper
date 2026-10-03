@@ -6,9 +6,19 @@ const source={title:'学习中文🙂',url:'https://example.com/article',kind:'w
 const target={status:'ready' as const,vault:'test-vault',date:'2026-10-03',relativePath:'Daily/2026-10-03.md',targetToken:'a'.repeat(64)};
 beforeEach(()=>{env.data={};env.send.mockReset();env.send.mockImplementation(async message=>message.action==='qiaomuLearningDailyTarget'?target:message.action==='qiaomuLearningDispatch'?{status:'dispatched'}:{status:'saved',captureId:message.payload?.captureId,vault:'test-vault',date:target.date,relativePath:target.relativePath});});
 
-it('serializes understanding, quote and explicitly supplied AI independently with safe links',()=>{
- const draft=createLearningDraft({...source,title:'x](javascript:alert(1))<img>',url:'https://www.youtube.com/watch?v=abc12345678',kind:'youtube',timestampSeconds:91},{reflection:'我的 **原话**',quote:'[音乐]\n<script>attack</script>',aiSupplement:'AI 的补充'});const body=serializeLearningRecord(draft);
- expect(body).toContain('t=91');expect(body).toContain('**我的理解**');expect(body).toContain('我的 \\*\\*原话\\*\\*');expect(body).toContain('> &lt;script&gt;attack&lt;/script&gt;');expect(body).toContain('**AI 补充（用户选择加入）**');expect(body).not.toContain('<img>');
+it('writes one compact entry: time + source + clickable video time, the user\'s own Markdown intact, untrusted text neutralised',()=>{
+ const draft=createLearningDraft({...source,title:'x](javascript:alert(1))<img>',url:'https://www.youtube.com/watch?v=abc12345678',kind:'youtube',timestampSeconds:3725.9},{reflection:'我的 **原话** [[链接]] #标签',quote:'[音乐]\n<script>attack</script> ![[secret]]',aiSupplement:'AI 的补充'});const body=serializeLearningRecord(draft);
+ const [head,...rest]=body.split('\n\n');
+ expect(head).toMatch(/^#### \d\d:\d\d · \[x\\\]\(javascript:alert\(1\)\)img\]\(https:\/\/www\.youtube\.com\/watch\?v=abc12345678&t=3725\) · \[1:02:05\]\(https:\/\/www\.youtube\.com\/watch\?v=abc12345678&t=3725\)$/);
+ expect(rest[0]).toBe('我的 **原话** [[链接]] #标签');
+ expect(rest[1]).toBe('> [!quote] 原文摘录\n> [音乐]\n> &lt;script>attack&lt;/script> !\\[\\[secret]]');
+ expect(rest[2]).toBe('> [!info] AI 补充（我选择加入）\n> AI 的补充');expect(body).not.toContain('<img>');expect(body).not.toContain('<script>');
+});
+it('links Bilibili times, labels a plain thought and formats short clocks',()=>{
+ const video=serializeLearningRecord(createLearningDraft({title:'B 站',url:'https://www.bilibili.com/video/BV1cSec6tEux/?p=2',timestampSeconds:75},{reflection:'x'}));
+ expect(video).toContain('[1:15](https://www.bilibili.com/video/BV1cSec6tEux/?p=2&t=75)');
+ expect(serializeLearningRecord(createLearningDraft({title:''},{reflection:'想法'}))).toMatch(/^#### \d\d:\d\d · 随手记\n\n想法$/);
+ expect(serializeLearningRecord(createLearningDraft({title:'网页',url:'https://example.com/a',timestampSeconds:9},{reflection:'x'}))).not.toContain('t=9');
 });
 it('accepts thought-only or quote-only and rejects empty, unsafe URLs, invalid time or huge text',()=>{
  expect(serializeLearningRecord(createLearningDraft({title:'随手记'},{reflection:'想法'}))).toContain('想法');expect(serializeLearningRecord(createLearningDraft(source,{quote:'摘录'}))).toContain('摘录');
