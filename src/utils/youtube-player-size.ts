@@ -1,4 +1,5 @@
 import { getLocalStorage, setLocalStorage } from './storage-utils';
+import { LAYOUT_EVENT, maxPlayerWidth, type PlayerLayout } from './youtube-player-mode';
 
 export const normalizePlayerSize = (value: unknown): number => typeof value === 'number' && Number.isFinite(value) ? Math.max(35, Math.min(100, Math.round(value))) : 100;
 
@@ -25,6 +26,7 @@ export function mountPlayerSize(article: HTMLElement): void {
 	handle.setAttribute('aria-controls', player.id);
 	handle.title = '向上拖动缩小，向下拖动放大；方向键微调，Home 最小，End 最大';
 	player.after(handle);
+	const layoutOf = (): PlayerLayout => (article.dataset.ytLayout as PlayerLayout | undefined) || 'theater';
 	let preferredSize = 100, minimum = 35;
 	let displayedSize = 100;
 	const update = () => {
@@ -63,8 +65,9 @@ export function mountPlayerSize(article: HTMLElement): void {
 	const move = (event: PointerEvent) => {
 		if (!drag || event.pointerId !== drag.pointerId) return;
 		const dx = event.clientX - drag.x, dy = (event.clientY - drag.y) * 16 / 9;
-		// A horizontal drag changes the centered width; a vertical drag changes height.
-		const change = Math.abs(dx * 2) > Math.abs(dy) ? dx * 2 : dy;
+		// Beside the transcript the handle is a divider on the video's right edge: dragging it is a plain
+		// horizontal resize. Otherwise a horizontal drag changes the centered width, a vertical one the height.
+		const change = layoutOf() === 'side' ? dx : Math.abs(dx * 2) > Math.abs(dy) ? dx * 2 : dy;
 		const next = Math.max(minimum, normalizePlayerSize(drag.size + change / drag.maxWidth * 100));
 		if (next === displayedSize) return;
 		touched = true; drag.changed = true; preferredSize = next; update();
@@ -73,7 +76,7 @@ export function mountPlayerSize(article: HTMLElement): void {
 	doc.addEventListener('pointermove', move); doc.addEventListener('pointerup', finish); doc.addEventListener('pointercancel', finish);
 	handle.onlostpointercapture = finish;
 	const cleanup = () => {
-		observer?.disconnect(); doc.defaultView?.removeEventListener('resize', adapt);
+		observer?.disconnect(); doc.defaultView?.removeEventListener('resize', adapt); article.removeEventListener(LAYOUT_EVENT, adapt);
 		doc.removeEventListener('pointermove', move); doc.removeEventListener('pointerup', finish); doc.removeEventListener('pointercancel', finish);
 		drag = undefined; doc.documentElement.classList.remove('youtube-player-resizing');
 	};
@@ -88,14 +91,16 @@ export function mountPlayerSize(article: HTMLElement): void {
 		doc.documentElement.style.setProperty('--youtube-bar-height', `${barHeight}px`);
 		const width = article.getBoundingClientRect().width;
 		if (!width) return;
-		const maxWidth = Math.min(width, Math.max(356, ((doc.defaultView?.innerHeight || 900) - barHeight - 124) * 16 / 9));
+		const maxWidth = maxPlayerWidth(layoutOf(), width, doc.defaultView?.innerHeight || 900, barHeight);
+		// CSS multiplies this by the chosen scale, so the video and its layout column share one number.
+		article.style.setProperty('--youtube-player-max', `${Math.round(maxWidth)}px`);
 		const next = Math.min(100, Math.max(35, Math.ceil(356 / maxWidth * 100)));
 		if (next !== minimum) { minimum = next; update(); }
 	};
 	const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(adapt) : undefined;
 	observer?.observe(article);
 	const bar = doc.querySelector('.clip-bar'); if (bar) observer?.observe(bar);
-	doc.defaultView?.addEventListener('resize', adapt);
+	doc.defaultView?.addEventListener('resize', adapt); article.addEventListener(LAYOUT_EVENT, adapt);
 	doc.defaultView?.addEventListener('pagehide', cleanup, { once: true });
 	update(); adapt();
 	void getLocalStorage('qiaomuYouTubePlayerSize').then(saved => { if (!touched) { preferredSize = normalizePlayerSize(saved); update(); } }).catch(() => {});

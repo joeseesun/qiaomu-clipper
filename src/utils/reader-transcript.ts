@@ -38,6 +38,8 @@ interface TranscriptSettings {
 
 interface ScrollHelper {
 	getStickyOffset: () => number;
+	// Where the active line should rest after an automatic scroll; defaults to just below the sticky offset.
+	getFocusOffset?: () => number;
 	scrollTo: (targetY: number) => void;
 	programmaticScroll: () => boolean;
 }
@@ -174,9 +176,8 @@ export function wireTranscript(
 	currentPosButton.addEventListener('click', () => {
 		if (activeSegment) {
 			const rect = activeSegment.getBoundingClientRect();
-			const stickyOffset = scroll.getStickyOffset();
 			const targetY = (window.pageYOffset || doc.documentElement.scrollTop)
-				+ rect.top - stickyOffset - 20;
+				+ rect.top - (scroll.getFocusOffset?.() ?? scroll.getStickyOffset() + 20);
 			scroll.scrollTo(targetY);
 		}
 	});
@@ -213,9 +214,8 @@ export function wireTranscript(
 				// Auto-scroll to keep active segment visible
 				if (autoScrollEnabled && !suppressScroll && Date.now() - lastUserScroll > AUTO_SCROLL_COOLDOWN) {
 					const rect = segments[newIndex].getBoundingClientRect();
-					const stickyOffset = scroll.getStickyOffset();
 					const targetY = (window.pageYOffset || doc.documentElement.scrollTop)
-						+ rect.top - stickyOffset - 20;
+						+ rect.top - (scroll.getFocusOffset?.() ?? scroll.getStickyOffset() + 20);
 					scroll.scrollTo(targetY);
 				}
 			}
@@ -381,7 +381,7 @@ export function wireTranscript(
 		window.addEventListener('message', onMessage);
 
 		const poll = setInterval(() => {
-			if (!iframe.contentWindow || !doc.contains(iframe)) {
+			if (!iframe.contentWindow || !iframe.isConnected) {
 				clearInterval(poll);
 				window.removeEventListener('message', onMessage);
 				return;

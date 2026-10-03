@@ -13,19 +13,77 @@ html.youtube-study.obsidian-reader-active:has(.youtube-sized-player) body {
 		padding-top: max(calc(var(--youtube-bar-height, 56px) + 16px), 4rem, 4vh) !important;
 		width: 100% !important; max-width: 100%; min-width: 0; box-sizing: border-box; overflow: visible;
 		main, article { width: 100%; min-width: 0; }
+		article {
+			// One number drives every layout: the widest the video may be, times the chosen scale.
+			--yt-w: calc(var(--youtube-player-max, 100%) * var(--youtube-player-scale, 1));
+		}
 		article > :not(.player-container):not(.youtube-sized-player):not(.youtube-player-resize) {
 			max-width: var(--line-width, 720px); margin-inline: auto;
 		}
-		.youtube-sized-player, .youtube-player-resize {
-			// Fit both workspace width and viewport height, with room for the shared bar and controls.
-			width: calc(min(100%, max(356px, (100svh - var(--youtube-bar-height, 56px) - 124px) * 16 / 9)) * var(--youtube-player-scale, 1)) !important;
-			max-width: 100%; margin-inline: auto;
+		// Before subtitles arrive the player is a bare iframe; afterwards it lives in .player-container.
+		article > .youtube-sized-player, .player-container {
+			width: var(--yt-w) !important; max-width: 100%; min-width: min(100%, 356px); margin-inline: auto;
+		}
+		.player-container {
+			display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; box-sizing: border-box;
+			border-top: 8px solid var(--background-primary); background: var(--background-primary);
+			> .youtube-sized-player, > .youtube-player-resize { grid-column: 1 / -1; width: 100% !important; margin: 0; }
+			> .youtube-sized-player { grid-row: 1; }
+			> .youtube-player-resize { grid-row: 2; }
+			> .player-toggles { grid-column: 1; grid-row: 3; min-width: 0; }
+			> .youtube-mode-bar { grid-column: 2; grid-row: 3; }
+			// The stacked fallback pins the video under the bar; solid background, no glow over the text.
+			&.pin-player { top: var(--youtube-bar-height, var(--clip-bar-offset, 0px)); }
+			.reader-video-wrapper, iframe { box-shadow: none; }
 		}
 		.youtube-sized-player {
-			min-width: min(100%, 356px); height: auto !important; max-height: none !important; aspect-ratio: 16 / 9; display: block; box-shadow: none;
+			min-width: 0; height: auto !important; max-height: none !important; aspect-ratio: 16 / 9; display: block; box-shadow: none;
 			&:fullscreen { width: 100vw !important; height: 100vh !important; aspect-ratio: auto; margin: 0; }
 		}
-		.player-container.pin-player { top: var(--youtube-bar-height, var(--clip-bar-offset, 0px)); }
+		article > .youtube-sized-player { min-width: min(100%, 356px); }
+
+		// Theater: the video is a plain block above the text, not pinned.
+		article[data-yt-layout="theater"] .player-container { position: static; }
+
+		// Dock beside the transcript: video column pinned on the left, text scrolls on the right.
+		article[data-yt-layout="side"] {
+			display: grid; grid-template-columns: var(--yt-w) minmax(0, 1fr); column-gap: 32px; align-items: start;
+			> * { grid-column: 2; }
+			> .player-container {
+				grid-column: 1; grid-row: 1 / span 99; align-self: start; width: auto !important; max-width: none; min-width: 0; margin: 0;
+				position: sticky; top: calc(var(--youtube-bar-height, 56px) + 8px); z-index: 20;
+				border-top: 0;
+			}
+			// The handle becomes a vertical divider in the gutter between video and transcript.
+			.player-container > .youtube-player-resize {
+				position: absolute; top: 0; bottom: 0; right: -24px; left: auto; width: 16px !important; height: auto;
+				cursor: ew-resize; grid-row: auto;
+				&::after { width: 4px; height: 48px; }
+			}
+			// The pin option is moot here (the column is always pinned); keep the controls row compact.
+			.player-container > .player-toggles { padding-inline: 0; }
+		}
+
+		// Floating window: only the iframe leaves the flow; the controls row stays with the text.
+		article[data-yt-layout="float"] {
+			--yt-corner-gap: 16px;
+			.player-container { position: static; width: min(100%, var(--line-width, 720px)) !important; border-top: 0; }
+			.player-container > .youtube-player-resize { display: none; }
+			.player-container > .youtube-sized-player, .youtube-float-chrome {
+				position: fixed; z-index: 700; width: var(--yt-float-width, 360px) !important; aspect-ratio: 16 / 9;
+				margin: 0; box-sizing: border-box;
+			}
+			.player-container > .youtube-sized-player { height: auto !important; border-radius: 8px; box-shadow: 0 8px 28px rgba(0, 0, 0, .28), 0 0 0 1px rgba(0, 0, 0, .12); }
+			.youtube-float-chrome { display: block; height: auto; pointer-events: none; }
+			.youtube-float-chrome > * { pointer-events: auto; }
+			.player-container > .youtube-sized-player, .youtube-float-chrome { // corner anchoring, below the bar
+				bottom: var(--yt-corner-gap); right: var(--yt-corner-gap); top: auto; left: auto;
+			}
+			&[data-yt-corner="bl"] :is(.player-container > .youtube-sized-player, .youtube-float-chrome) { left: var(--yt-corner-gap); right: auto; }
+			&[data-yt-corner="tr"] :is(.player-container > .youtube-sized-player, .youtube-float-chrome) { top: calc(var(--youtube-bar-height, 56px) + var(--yt-corner-gap)); bottom: auto; }
+			&[data-yt-corner="tl"] :is(.player-container > .youtube-sized-player, .youtube-float-chrome) { top: calc(var(--youtube-bar-height, 56px) + var(--yt-corner-gap)); bottom: auto; left: var(--yt-corner-gap); right: auto; }
+			&[data-yt-dragging] :is(.player-container > .youtube-sized-player, .youtube-float-chrome) { left: var(--yt-float-left); top: var(--yt-float-top); right: auto; bottom: auto; }
+		}
 	}
 	.youtube-player-resize {
 		height: 20px; border: 0 !important; padding: 0; background: transparent; position: relative; z-index: 1; flex-shrink: 0; display: flex; justify-content: center; align-items: center;
@@ -48,3 +106,39 @@ html.youtube-player-resizing {
 }
 
 html.youtube-study.clip-bar-hidden .player-container.pin-player { top: 0; }
+
+// Mode switcher under the video and the floating window's overlay. Buttons are scoped because
+// buttons.scss styles every `button:not(.clickable-icon)`; svg must not be multiplied by the reader theme.
+html.youtube-study {
+	.youtube-mode-bar { display: inline-flex; align-items: center; gap: 2px; padding: 8px 0 4px 8px; line-height: 0; }
+	.youtube-mode-bar button.youtube-mode-btn:not(.clickable-icon), .youtube-float-chrome button.youtube-mode-btn:not(.clickable-icon) {
+		display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; flex: 0 0 auto; padding: 0;
+		border: 0; border-radius: 6px; background: transparent; box-shadow: none; color: var(--text-faint); cursor: pointer;
+		svg { width: 16px; height: 16px; mix-blend-mode: normal !important; }
+		&:hover { background: var(--background-modifier-hover, rgb(128 128 128 / 16%)); color: var(--text-normal); box-shadow: none; }
+		&[aria-pressed="true"] { color: var(--text-normal); background: var(--background-modifier-hover, rgb(128 128 128 / 16%)); }
+		&:focus-visible { outline: 1px solid var(--text-muted); outline-offset: -1px; }
+	}
+	.youtube-float-chrome { display: none; }
+	article:not([data-yt-layout="float"]) .youtube-float-chrome { display: none !important; }
+	article[data-yt-layout="float"] .youtube-mode-bar .youtube-mode-btn:not([aria-pressed="true"]) { opacity: .9; }
+	article:not([data-yt-layout="stack"]) .player-toggles::after { display: none; }
+	// Floating overlay: invisible until the window is hovered or focused, so it never hides the picture.
+	article[data-yt-layout="float"] .youtube-float-chrome {
+		.youtube-float-drag { position: absolute; inset: 0 0 auto 0; height: 36px; cursor: grab; border-radius: 8px 8px 0 0; background: linear-gradient(rgb(0 0 0 / 55%), transparent); opacity: 0; transition: opacity .15s; touch-action: none; &:active { cursor: grabbing; } }
+		.youtube-float-back { position: absolute; top: 4px; right: 4px; color: #fff; opacity: 0; transition: opacity .15s; }
+		.youtube-float-resize { position: absolute; width: 22px; height: 22px; opacity: 0; transition: opacity .15s; touch-action: none; cursor: nwse-resize; border-radius: 4px;
+			&::after { content: ''; position: absolute; inset: 5px; border: 2px solid #fff; border-width: 2px 0 0 2px; opacity: .9; }
+		}
+		&:hover :is(.youtube-float-drag, .youtube-float-back, .youtube-float-resize), :focus-within :is(.youtube-float-drag, .youtube-float-back, .youtube-float-resize) { opacity: 1; }
+	}
+	// Grip sits on the corner facing the page; the back button on the outer top corner.
+	article[data-yt-layout="float"][data-yt-corner="br"] .youtube-float-resize { top: 0; left: 0; }
+	article[data-yt-layout="float"][data-yt-corner="bl"] .youtube-float-resize { top: 0; right: 0; cursor: nesw-resize; &::after { border-width: 2px 2px 0 0; } }
+	article[data-yt-layout="float"][data-yt-corner="bl"] .youtube-float-back, article[data-yt-layout="float"][data-yt-corner="tl"] .youtube-float-back { right: auto; left: 4px; }
+	article[data-yt-layout="float"][data-yt-corner="tr"] .youtube-float-resize { bottom: 0; left: 0; cursor: nesw-resize; &::after { border-width: 0 0 2px 2px; } }
+	article[data-yt-layout="float"][data-yt-corner="tl"] .youtube-float-resize { bottom: 0; right: 0; &::after { border-width: 0 2px 2px 0; } }
+	.youtube-pip-placeholder:not(.clickable-icon) { display: flex; align-items: center; justify-content: center; width: 100%; aspect-ratio: 16 / 9; border: 1px dashed var(--background-modifier-border); border-radius: 8px; background: transparent; box-shadow: none; color: var(--text-muted); font-size: 13px; line-height: 1.4; cursor: pointer; }
+}
+// The AI panel is fixed to the right edge; keep a right-anchored window clear of it.
+html.youtube-study.clip-chat-open article[data-yt-layout="float"]:is([data-yt-corner="br"], [data-yt-corner="tr"]):not([data-yt-dragging]) :is(.player-container > .youtube-sized-player, .youtube-float-chrome) { right: calc(var(--clip-chat-width, 0px) + 16px); }

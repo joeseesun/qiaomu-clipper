@@ -3,6 +3,7 @@ import { mountClipChat } from './clip-chat';
 import { loadSettings } from './storage-utils';
 import { youtubeVideoId } from './youtube-url';
 import { mountPlayerSize } from './youtube-player-size';
+import { mountPlayerMode } from './youtube-player-mode';
 import { mountTranslation } from './youtube-translation';
 
 // Read only transcript segments, excluding chapter headings and reader controls.
@@ -19,6 +20,7 @@ export function transcriptText(article: HTMLElement): string {
 
 export async function mountYouTubeStudy(doc: Document, article: HTMLElement, title: string, url: string, existingChat?: { toggle: () => boolean }): Promise<void> {
 	mountPlayerSize(article);
+	mountPlayerMode(article);
 	if (article.querySelector('.youtube-study-feedback')) return;
 	doc.documentElement.classList.add('youtube-study');
 	// No duplicate transcript action row: copy/download/AI live in the shared bar.
