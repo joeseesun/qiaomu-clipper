@@ -9,11 +9,13 @@ export function withoutMusicCues(text: string): string {
 // Aim for two sentences / about 60 words while respecting request size limits.
 export function sourceParagraphs(text: string): string[] {
 	const result: string[] = [];
-	const boundaries = /[.!?。！？]["'”’）)]*(?:\s+|$)/g;
+	const boundaries = /(?:[。！？]["'”’）)]*\s*|[.!?]["'”’）)]*(?:\s+|$))/g;
 	let start = 0; let sentences = 0;
 	for (const match of text.matchAll(boundaries)) {
 		const end = match.index! + match[0].length;
 		const prefix = text.slice(start, end).trimEnd();
+		const preceding = text.slice(0, end);
+		if ((preceding.match(/"/g)?.length || 0) % 2 || (preceding.match(/“/g)?.length || 0) > (preceding.match(/”/g)?.length || 0)) continue;
 		if (/(?:\b(?:Mr|Mrs|Ms|Dr|Prof|Sr|Jr|vs|etc)|\b[A-Z])\.$/.test(prefix)) continue;
 		sentences++;
 		if (sentences >= 2 || end - start >= 360) { result.push(text.slice(start, end)); start = end; sentences = 0; }

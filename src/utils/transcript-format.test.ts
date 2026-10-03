@@ -21,3 +21,12 @@ it('counts only source characters for seeking and playback highlighting across b
 	expect(sourceTextNodes(source).map(node => node.data).join('')).toBe('First sentence. Next sentence.');
 	expect(source.querySelectorAll('.transcript-translation p')).toHaveLength(3);
 });
+
+
+it('keeps quoted speech together and recognizes Chinese sentence endings without spaces', () => {
+	const quote = 'He said, "Why not me? I will take on that burden. I will be that guy." Then I replied. A final thought.';
+	const paragraphs = sourceParagraphs(quote);
+	expect(paragraphs[0]).toContain('I will be that guy."');
+	expect(paragraphs.join('')).toBe(quote);
+	expect(sourceParagraphs('第一句。第二句。第三句。')).toEqual(['第一句。第二句。', '第三句。']);
+});
