@@ -1355,5 +1355,53 @@
 	},
 	"tripleKeySiteEnabled": {
 		"message": "已在 $1 上重新开启三连击快捷键"
+	},
+	"qiaomuChatPreferences": {
+		"message": "对话设置"
+	},
+	"qiaomuChatPreferencesScope": {
+		"message": "保存后用于所有文章和视频对话。外观只影响 AI 对话面板。"
+	},
+	"qiaomuChatFont": {
+		"message": "对话字体"
+	},
+	"qiaomuChatFontsystem": {
+		"message": "系统默认"
+	},
+	"qiaomuChatFontserif": {
+		"message": "宋体 / 衬线"
+	},
+	"qiaomuChatFontmono": {
+		"message": "等宽字体"
+	},
+	"qiaomuChatFontcustom": {
+		"message": "自定义字体"
+	},
+	"qiaomuChatCustomFont": {
+		"message": "本机字体名称（不可用时使用系统字体）"
+	},
+	"qiaomuChatFontSize": {
+		"message": "对话字号"
+	},
+	"qiaomuChatFontPreview": {
+		"message": "阅读、提问、理解。Learn at your own pace."
+	},
+	"qiaomuChatPromptEnabled": {
+		"message": "启用自定义指令"
+	},
+	"qiaomuChatCustomPrompt": {
+		"message": "自定义指令 / Prompt"
+	},
+	"qiaomuChatPromptPlaceholder": {
+		"message": "例如：用中文回答，先概括，再解释；引用字幕时带时间戳。"
+	},
+	"qiaomuChatPromptScope": {
+		"message": "保存后从下一次提问生效，已有回复保持原样。指令会随文章或字幕发给所选 AI 模型，内置阅读规则仍会保留。"
+	},
+	"qiaomuChatPreferencesReset": {
+		"message": "恢复默认"
+	},
+	"qiaomuChatPreferencesSaveError": {
+		"message": "保存失败，请重试；设置尚未更改。"
 	}
 }

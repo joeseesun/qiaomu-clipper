@@ -1355,5 +1355,53 @@
 	},
 	"tripleKeySiteEnabled": {
 		"message": "Triple-press keys are on again for $1"
+	},
+	"qiaomuChatPreferences": {
+		"message": "Chat settings"
+	},
+	"qiaomuChatPreferencesScope": {
+		"message": "Saved preferences apply to article and video chats. Appearance affects only the AI panel."
+	},
+	"qiaomuChatFont": {
+		"message": "Chat font"
+	},
+	"qiaomuChatFontsystem": {
+		"message": "System default"
+	},
+	"qiaomuChatFontserif": {
+		"message": "Serif"
+	},
+	"qiaomuChatFontmono": {
+		"message": "Monospace"
+	},
+	"qiaomuChatFontcustom": {
+		"message": "Custom font"
+	},
+	"qiaomuChatCustomFont": {
+		"message": "Installed font name (falls back to system font)"
+	},
+	"qiaomuChatFontSize": {
+		"message": "Chat font size"
+	},
+	"qiaomuChatFontPreview": {
+		"message": "Learn at your own pace. 阅读、提问、理解。"
+	},
+	"qiaomuChatPromptEnabled": {
+		"message": "Enable custom instructions"
+	},
+	"qiaomuChatCustomPrompt": {
+		"message": "Custom instructions / Prompt"
+	},
+	"qiaomuChatPromptPlaceholder": {
+		"message": "For example: summarize first, then explain. Include timestamps when quoting subtitles."
+	},
+	"qiaomuChatPromptScope": {
+		"message": "Applies to your next question after saving; existing answers stay unchanged. Instructions are sent to your selected AI model with the source. Built-in reading instructions are retained."
+	},
+	"qiaomuChatPreferencesReset": {
+		"message": "Reset defaults"
+	},
+	"qiaomuChatPreferencesSaveError": {
+		"message": "Could not save. Please retry; preferences have not changed."
 	}
 }
