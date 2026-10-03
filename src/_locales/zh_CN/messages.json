@@ -1403,5 +1403,44 @@
 	},
 	"qiaomuChatPreferencesSaveError": {
 		"message": "保存失败，请重试；设置尚未更改。"
+	},
+	"qiaomuExpandSidebar": {
+		"message": "展开目录与侧栏"
+	},
+	"qiaomuCollapseSidebar": {
+		"message": "收起目录与侧栏"
+	},
+	"qiaomuToc": {
+		"message": "目录"
+	},
+	"qiaomuVideoSize": {
+		"message": "视频尺寸"
+	},
+	"qiaomuTranslateChinese": {
+		"message": "中文翻译"
+	},
+	"qiaomuTranslationRetry": {
+		"message": "重试翻译"
+	},
+	"qiaomuTranslationInvalid": {
+		"message": "模型返回的分段格式不完整，请重试。"
+	},
+	"qiaomuTranslationProgress": {
+		"message": "正在翻译"
+	},
+	"qiaomuTranslationNoModel": {
+		"message": "请先在扩展设置中配置并启用 AI 模型。"
+	},
+	"qiaomuTranslationDone": {
+		"message": "翻译完成；中文原文保持不变。"
+	},
+	"qiaomuTranslationTimeout": {
+		"message": "翻译超时，可重试继续。"
+	},
+	"qiaomuTranslationError": {
+		"message": "翻译失败，可重试继续。"
+	},
+	"qiaomuTranslationService": {
+		"message": "使用已配置的 AI 模型翻译字幕；译文仅缓存在当前页。"
 	}
 }

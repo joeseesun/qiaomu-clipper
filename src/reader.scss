@@ -6,6 +6,7 @@
 @import 'styles/reader/outline';
 @import 'styles/clip-bar';
 @import 'styles/clip-chat';
+@import 'styles/sidebar-toggle';
 
 ::view-transition-old(root),
 ::view-transition-new(root) {
@@ -597,6 +598,15 @@
 	width: 100%;
 	margin: 0 auto;
 }
+.obsidian-reader-left-sidebar:not(.is-empty) { position: sticky; top: var(--clip-bar-offset, 0px); height: 100vh; padding-top: max(4rem, 4vh); }
+.obsidian-reader-left-sidebar > .qiaomu-sidebar-toggle { margin-inline-start: 20px; }
+.obsidian-reader-left-sidebar .obsidian-reader-outline { padding-top: 0; height: calc(100vh - 110px); }
+.obsidian-reader-left-sidebar.is-empty > .qiaomu-sidebar-toggle { display: none; }
+.obsidian-reader-container:has(> .obsidian-reader-left-sidebar.is-collapsed:not(.is-empty)) {
+	grid-template-columns: 44px minmax(0, 1fr) var(--clipper-sidebar-width, 0px);
+	.obsidian-reader-content { --sidebar-width: 44px; width: calc(var(--line-width) + 200px); max-width: 100%; min-width: 0; box-sizing: border-box; margin-inline: auto; }
+	.obsidian-reader-left-sidebar > .qiaomu-sidebar-toggle { margin-inline-start: 8px; }
+}
 
 // Mobile outline overlay
 .nav-btn-outline {
@@ -614,6 +624,7 @@
 	.obsidian-reader-container {
 		grid-template-columns: 1fr;
 	}
+	.obsidian-reader-container:has(> .obsidian-reader-left-sidebar.is-collapsed) { grid-template-columns: 1fr; }
 	.obsidian-reader-active body .obsidian-reader-content {
 		max-width: 90vw;
 		width: 100%;

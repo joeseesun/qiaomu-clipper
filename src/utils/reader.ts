@@ -41,6 +41,7 @@ const VIEWPORT = 'width=device-width, initial-scale=1, maximum-scale=1';
 import { ReaderSettings } from '../types/types';
 import { wireTranscript } from './reader-transcript';
 import { mountYouTubeStudy, restoreYouTubePlayer } from './youtube-study';
+import { mountSidebarToggle } from './sidebar-toggle';
 
 interface ReaderContent {
 	content: string;
@@ -2664,6 +2665,7 @@ export class Reader {
 	// horizontally on mobile without blowing out the article width.
 	private static storeOriginalHtml(article: Element): void {
 		const clone = article.cloneNode(true) as Element;
+		clone.querySelectorAll('.youtube-size-control, .youtube-study-toolbar, .transcript-translation').forEach(node => node.remove());
 		clone.querySelectorAll('span.timestamp').forEach(span => {
 			span.replaceWith(span.textContent || '');
 		});
@@ -2688,6 +2690,7 @@ export class Reader {
 		const leftSidebar = doc.querySelector('.obsidian-reader-left-sidebar') as HTMLElement;
 		if (leftSidebar) {
 			leftSidebar.classList.toggle('is-empty', !this.observer);
+			if (this.observer) mountSidebarToggle(leftSidebar, 'qiaomuReaderTocCollapsed');
 		}
 		this.initializeFootnotes(doc);
 		this.initializeCodeHighlighting(doc);

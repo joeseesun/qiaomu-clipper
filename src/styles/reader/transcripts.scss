@@ -15,8 +15,8 @@
 }
 .player-toggles {
 	line-height: 0;
-	white-space: nowrap;
 	display: flex;
+	flex-wrap: wrap;
 	gap: 4px;
 	padding: 12px 0 8px;
 	user-select: none;
@@ -68,7 +68,7 @@ article > .player-toggles {
 	position: relative;
 	flex-shrink: 0;
 	transition: background 0.15s;
-	input { display: none; }
+	input { display: block; position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; z-index: 1; }
 	&::after {
 		content: '';
 		position: absolute;
@@ -93,8 +93,10 @@ article > .player-toggles {
 }
 .player-toggle-group {
 	display: flex;
+	flex-wrap: wrap;
 	gap: 12px;
 }
+.player-toggle:has(input:focus-visible) .player-toggle-switch { outline: 1px solid var(--text-muted); outline-offset: 3px; }
 .player-current-pos {
 	user-select: none;
 	position: sticky;
@@ -202,6 +204,7 @@ article > .player-toggles {
 }
 .youtube-study-toolbar {
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
 	gap: 8px;
 	padding: 12px 0;
@@ -215,13 +218,21 @@ article > .player-toggles {
 		flex-shrink: 0; width: 32px; height: 32px; padding: 6px;
 		border: 0; border-radius: 6px; background: transparent; color: var(--text-muted); cursor: pointer;
 		&[hidden] { display: none; }
-		&[aria-label="重新加载字幕"] { width: auto; min-width: 44px; font-size: 12px; white-space: nowrap; }
+		&[aria-label="重新加载字幕"], &.youtube-translation-retry { width: auto; min-width: 44px; font-size: 12px; white-space: nowrap; }
 		svg { width: 18px; height: 18px; }
 		&:hover { background: var(--background-primary-alt); color: var(--text-normal); }
 		&:focus-visible { outline: 1px solid var(--text-muted); outline-offset: 2px; }
 		&:disabled { opacity: .4; cursor: default; }
 	}
 }
+.youtube-size-control { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 10px 0; font: 13px/1.5 var(--font-ui); color: var(--text-muted);
+	input { width: 130px; max-width: 40vw; }
+	input:focus-visible { outline: 1px solid var(--text-muted); outline-offset: 2px; }
+	output { min-width: 36px; font-variant: tabular-nums; }
+}
+.youtube-study .youtube-sized-player { width: var(--youtube-player-width, 100%) !important; height: auto !important; aspect-ratio: 16 / 9; max-height: none !important; display: block; margin-inline: auto; }
+.transcript-segment:has(.transcript-translation) { display: grid; grid-template-columns: var(--timestamp-width) minmax(0, 1fr); column-gap: 1em; row-gap: .4em; }
+.transcript-translation { grid-column: 2; padding-inline: .5em; color: var(--text-muted); overflow-wrap: anywhere; &[hidden] { display: none; } }
 .youtube-study .player-container {
 	iframe, .reader-video-wrapper { max-height: 48vh; box-shadow: none; }
 }

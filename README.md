@@ -10,7 +10,7 @@
 
 [快速开始](#快速开始) · [功能巡游](#功能巡游) · [快捷键](#三连击快捷键) · [AI](#ai-解读与对话) · [隐私与边界](#隐私与边界) · [反馈](https://github.com/joeseesun/qiaomu-clipper/issues)
 
-![version](https://img.shields.io/badge/version-1.9.0-blue) ![license](https://img.shields.io/badge/license-MIT-green) ![platform](https://img.shields.io/badge/Chrome-Manifest%20V3-orange)
+![version](https://img.shields.io/badge/version-1.10.0-blue) ![license](https://img.shields.io/badge/license-MIT-green) ![platform](https://img.shields.io/badge/Chrome-Manifest%20V3-orange)
 
 </div>
 
@@ -58,6 +58,8 @@
 - 字体、字号、行距、配色在顶栏的「Aa」里调整；内置**朱雀仿宋**、宋体、楷体、苹方等中文字体，也可以选用电脑里已安装的字体。
 - 笔记里的 `==文字==` 在阅读页渲染为高亮。
 - 阅读与编辑一键互相切换，编辑过的内容会同步过去。
+- 阅读目录可收起／展开；编辑侧栏也提供正文目录，收起后让正文使用更多空间。
+- YouTube 视频尺寸可用滑杆调整；字幕区域的「中文翻译」开关使用已配置的 AI 模型逐段翻译，保留原文和时间戳。
 
 ### AI 对话：围绕这篇文章提问
 
@@ -66,6 +68,7 @@
 - 文章全文作为上下文；**选中一段文字**后出现「划线 | 问 AI」小胶囊，只围绕这段提问。
 - 流式输出，Markdown 渲染；每条回答可**复制**或**加入笔记**。
 - **历史对话按文章保存**，下次打开同一篇文章接着聊，也可以从历史列表切换。
+- 对话标题栏的设置按钮可调整字体、字号和自定义指令；保存后用于下一次提问，文章与字幕上下文仍保留。
 - 使用你在设置里配置的模型：OpenAI 兼容接口（含 DeepSeek、Azure、Hugging Face 等）、Anthropic、Google Gemini、Ollama。
 
 ## 快速开始

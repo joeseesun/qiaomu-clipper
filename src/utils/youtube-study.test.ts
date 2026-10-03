@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('./clip-chat', () => ({ mountClipChat: vi.fn(() => ({ toggle: vi.fn() })) }));
 vi.mock('./clipboard-utils', () => ({ copyToClipboard: vi.fn().mockResolvedValue(true) }));
 vi.mock('./file-utils', () => ({ saveFile: vi.fn() }));
-vi.mock('./storage-utils', () => ({ loadSettings: vi.fn() }));
+vi.mock('./storage-utils', () => ({ loadSettings: vi.fn(), getLocalStorage: vi.fn().mockResolvedValue(undefined), setLocalStorage: vi.fn().mockResolvedValue(undefined) }));
 import { mountYouTubeStudy, transcriptText } from './youtube-study';
 import { mountClipChat } from './clip-chat';
 import { copyToClipboard } from './clipboard-utils';
@@ -18,6 +18,16 @@ const subtitles = '<div class="youtube transcript"><h2>Chapter</h2><p class="tra
 describe('YouTube study transcript', () => {
 	it('exports raw and wired subtitles without chapters, controls or HTML', () => {
 		expect(transcriptText(article(subtitles))).toBe('[0:12] Hello & welcome.\n[1:03] 第二段内容。');
+	});
+	it('keeps translated paragraphs out of the original transcript exported and passed to AI', () => {
+		const node = article(subtitles); const translated = document.createElement('div'); translated.className = 'transcript-translation'; translated.textContent = '你好，欢迎。'; node.querySelector('.transcript-segment')!.append(translated);
+		expect(transcriptText(node)).toBe('[0:12] Hello & welcome.\n[1:03] 第二段内容。');
+	});
+	it('offers size adjustment before subtitles arrive without replacing the iframe', async () => {
+		const node = article('<iframe src="https://www.youtube.com/embed/dbqweBCynuI"></iframe>'); const player = node.querySelector('iframe');
+		await mountYouTubeStudy(document,node,'Video','https://www.youtube.com/watch?v=dbqweBCynuI');
+		expect(node.querySelector('.youtube-size-control input')).not.toBeNull(); expect(node.querySelector('iframe')).toBe(player);
+		expect(node.querySelector('.youtube-translate-toggle')).toBeNull();
 	});
 	it('disables transcript actions when subtitles are unavailable', async () => {
 		const node = article('<iframe></iframe>');
