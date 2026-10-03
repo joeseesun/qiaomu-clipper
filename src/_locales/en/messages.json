@@ -1353,6 +1353,15 @@
 	"youtubeBarMore": {
 		"message": "Open study mode to read the rest"
 	},
+	"transcriptSearch": {
+		"message": "Search transcript"
+	},
+	"transcriptSearchClear": {
+		"message": "Clear search"
+	},
+	"transcriptSearchNone": {
+		"message": "No results"
+	},
 	"youtubeBarSearch": {
 		"message": "Search transcript"
 	},

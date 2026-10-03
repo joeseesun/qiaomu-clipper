@@ -1353,6 +1353,15 @@
 	"youtubeBarMore": {
 		"message": "更多内容请在沉浸学习里查看"
 	},
+	"transcriptSearch": {
+		"message": "搜索字幕"
+	},
+	"transcriptSearchClear": {
+		"message": "清除搜索"
+	},
+	"transcriptSearchNone": {
+		"message": "无结果"
+	},
 	"youtubeBarSearch": {
 		"message": "搜索字幕"
 	},

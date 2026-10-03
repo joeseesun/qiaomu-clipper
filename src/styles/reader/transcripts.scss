@@ -251,3 +251,16 @@ article > .player-toggles {
 	}
 	&:hover::before { background: var(--text-normal); }
 }
+
+// Search above the study transcript: flat and quiet, matches marked with the highlight API (no DOM changes).
+.transcript-search {
+	display: flex; align-items: center; gap: 8px; margin: 0 0 12px; padding: 4px 0; border-bottom: 1px solid var(--background-modifier-border);
+	font-family: var(--font-ui); font-size: var(--font-ui-small);
+	&:focus-within { border-bottom-color: var(--text-muted); }
+	.transcript-search-input { flex: 1 1 auto; min-width: 0; width: auto; height: 28px; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; outline: none; color: var(--text-normal); font: inherit; appearance: none;
+		&::placeholder { color: var(--text-faint); } &::-webkit-search-cancel-button { display: none; } }
+	.transcript-search-count { flex: 0 0 auto; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+	button.transcript-search-clear:not(.clickable-icon) { width: auto; height: auto; flex: 0 0 auto; padding: 0 4px; border: 0; background: transparent; box-shadow: none; color: var(--text-muted); font-size: 16px; line-height: 1; cursor: pointer; &:hover { color: var(--text-normal); background: transparent; } &[hidden] { display: none; } }
+}
+.transcript-segment[hidden], .transcript h3[hidden], .transcript h4[hidden] { display: none; }
+::highlight(transcript-search) { background-color: rgb(255 208 0 / 45%); color: inherit; }

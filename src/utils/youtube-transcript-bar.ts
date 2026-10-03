@@ -251,10 +251,12 @@ ytd-engagement-panel-section-list-renderer[data-qiaomu-auto="1"]{display:none!im
 .qiaomu-yt-bar-here{position:absolute;inset-inline:0;bottom:10px;margin:0 auto;width:max-content;max-width:90%;padding:0 14px;height:30px;border:0;border-radius:15px;background:var(--yt-spec-text-primary,#0f0f0f);color:var(--yt-spec-base-background,#fff);font:500 13px/30px Roboto,Arial,sans-serif;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25)}
 .qiaomu-yt-bar-here[hidden]{display:none}
 .qiaomu-yt-bar-mark{padding:0;border-radius:2px;background:rgba(255,208,0,.45);color:inherit}
-.qiaomu-yt-bar-line.is-active{background:var(--yt-spec-badge-chip-background,rgba(0,0,0,.06));box-shadow:inset 3px 0 0 var(--yt-spec-call-to-action,#065fd4)}
+/* The current line is marked by type alone: full contrast and weight while the others step back. */
+.qiaomu-yt-bar-lines[data-searching=false]:has(.is-active) .qiaomu-yt-bar-line:not(.is-active) .qiaomu-yt-bar-text{color:var(--yt-spec-text-secondary,#606060)}
 .qiaomu-yt-bar-line.is-active .qiaomu-yt-bar-text{font-weight:500}
+.qiaomu-yt-bar-line.is-active .qiaomu-yt-bar-time{font-weight:700}
 .qiaomu-yt-bar-line[hidden]{display:none}
-.qiaomu-yt-bar-line{display:flex;gap:10px;width:100%;padding:6px 8px;border:0;border-radius:8px;background:transparent;color:inherit;font:inherit;text-align:start;cursor:pointer}
+.qiaomu-yt-bar-line{display:flex;gap:10px;width:100%;padding:6px 8px;border:0;border-radius:0;background:transparent;color:inherit;font:inherit;text-align:start;cursor:pointer}
 .qiaomu-yt-bar-line:hover{background:var(--yt-spec-badge-chip-background,rgba(0,0,0,.05))}
 .qiaomu-yt-bar-line:focus{outline:none}.qiaomu-yt-bar-line:focus-visible{outline:2px solid var(--yt-spec-call-to-action,#065fd4);outline-offset:-2px}
 .qiaomu-yt-bar-time{flex:0 0 auto;min-width:42px;color:var(--yt-spec-call-to-action,#065fd4);font-variant-numeric:tabular-nums}
