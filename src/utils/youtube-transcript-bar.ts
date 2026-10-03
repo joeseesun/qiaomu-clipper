@@ -5,7 +5,7 @@ import { groupSegments } from './youtube-dom-transcript';
 // extensions), with five tools (subtitles, copy, download, study, settings) and a chevron that opens a
 // dropdown with the transcript itself. It does not depend on YouTube's lazily built transcript panel.
 export type BarState = 'loading' | 'ready' | 'none';
-export interface BarStrings { heading: string; subtitles: string; copy: string; download: string; study: string; settings: string; expand: string; collapse: string; copied: string; empty: string; reload: string; loading: string; ready: string; none: string; more: string }
+export interface BarStrings { heading: string; subtitles: string; copy: string; download: string; study: string; settings: string; expand: string; collapse: string; copied: string; empty: string; reload: string; loading: string; ready: string; none: string; more: string; search: string; clear: string; noMatch: string; follow: string; followOff: string; here: string }
 export interface BarHooks {
 	strings: BarStrings;
 	title: () => string;
@@ -13,14 +13,22 @@ export interface BarHooks {
 	openStudy: () => boolean | void;
 	openSettings: () => void;
 	seek: (seconds: number) => void;
+	// Current playback time of the page's video, if there is one.
+	getTime?: () => number | undefined;
 	initialOpen?: boolean;
 	onToggle?: (open: boolean) => void;
+	initialFollow?: boolean;
+	onFollow?: (follow: boolean) => void;
 }
-export interface TranscriptBar { element: HTMLElement; setState: (state: BarState, segments?: PanelSegment[]) => void; setOpen: (open: boolean) => void }
+export interface TranscriptBar { element: HTMLElement; setState: (state: BarState, segments?: PanelSegment[]) => void; setOpen: (open: boolean) => void; setTime: (seconds: number) => void }
 
 type Tool = 'subtitles' | 'copy' | 'download' | 'study' | 'settings';
+type Extra = 'chevron' | 'search' | 'follow' | 'clear';
 const NS = 'http://www.w3.org/2000/svg';
-const SHAPES: Record<Tool | 'chevron', Array<[string, Record<string, string>]>> = {
+const SHAPES: Record<Tool | Extra, Array<[string, Record<string, string>]>> = {
+	search: [['circle', { cx: '11', cy: '11', r: '8' }], ['path', { d: 'm21 21-4.3-4.3' }]],
+	follow: [['line', { x1: '2', x2: '5', y1: '12', y2: '12' }], ['line', { x1: '19', x2: '22', y1: '12', y2: '12' }], ['line', { x1: '12', x2: '12', y1: '2', y2: '5' }], ['line', { x1: '12', x2: '12', y1: '19', y2: '22' }], ['circle', { cx: '12', cy: '12', r: '7' }], ['circle', { cx: '12', cy: '12', r: '3' }]],
+	clear: [['path', { d: 'M18 6 6 18' }], ['path', { d: 'm6 6 12 12' }]],
 	subtitles: [['rect', { width: '18', height: '14', x: '3', y: '5', rx: '2', ry: '2' }], ['path', { d: 'M7 15h4M15 15h2M7 11h2M13 11h4' }]],
 	copy: [['rect', { width: '14', height: '14', x: '8', y: '8', rx: '2', ry: '2' }], ['path', { d: 'M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2' }]],
 	download: [['path', { d: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4' }], ['polyline', { points: '7 10 12 15 17 10' }], ['line', { x1: '12', x2: '12', y1: '15', y2: '3' }]],
@@ -28,7 +36,15 @@ const SHAPES: Record<Tool | 'chevron', Array<[string, Record<string, string>]>> 
 	settings: [['path', { d: 'M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z' }], ['circle', { cx: '12', cy: '12', r: '3' }]],
 	chevron: [['path', { d: 'm6 9 6 6 6-6' }]],
 };
-const MAX_ROWS = 400;
+const MAX_ROWS = 1500;
+const FOLLOW_COOLDOWN = 2500; // after the viewer scrolls the list themselves, stay put for a moment (as the reading mode does)
+
+// Index of the last line that has started at time t (-1 before the first one).
+export function activeIndexAt(starts: number[], t: number): number {
+	let low = 0, high = starts.length - 1, found = -1;
+	while (low <= high) { const mid = (low + high) >> 1; if (starts[mid] <= t) { found = mid; low = mid + 1; } else high = mid - 1; }
+	return found;
+}
 
 function icon(doc: Document, name: keyof typeof SHAPES, size = 20): SVGElement {
 	const svg = doc.createElementNS(NS, 'svg');
@@ -50,8 +66,20 @@ export function buildTranscriptBar(doc: Document, hooks: BarHooks): TranscriptBa
 	head.append(logo, title, dot, tools);
 	const body = doc.createElement('div'); body.className = 'qiaomu-yt-bar-body'; body.hidden = true;
 	const status = doc.createElement('p'); status.className = 'qiaomu-yt-bar-status'; status.setAttribute('role', 'status');
+	// Search and follow controls above the lines.
+	const finder = doc.createElement('div'); finder.className = 'qiaomu-yt-bar-finder';
+	const searchBox = doc.createElement('label'); searchBox.className = 'qiaomu-yt-bar-search'; searchBox.append(icon(doc, 'search', 16));
+	const search = doc.createElement('input'); search.type = 'search'; search.className = 'qiaomu-yt-bar-input'; search.placeholder = strings.search; search.setAttribute('aria-label', strings.search); search.autocomplete = 'off'; search.spellcheck = false;
+	const clear = doc.createElement('button'); clear.type = 'button'; clear.className = 'qiaomu-yt-bar-clear'; clear.title = strings.clear; clear.setAttribute('aria-label', strings.clear); clear.hidden = true; clear.append(icon(doc, 'clear', 14));
+	const count = doc.createElement('span'); count.className = 'qiaomu-yt-bar-count'; count.setAttribute('aria-live', 'polite');
+	searchBox.append(search, count, clear);
+	const followButton = doc.createElement('button'); followButton.type = 'button'; followButton.className = 'qiaomu-yt-bar-follow'; followButton.append(icon(doc, 'follow', 16));
+	finder.append(searchBox, followButton);
+	const listWrap = doc.createElement('div'); listWrap.className = 'qiaomu-yt-bar-listwrap';
 	const list = doc.createElement('div'); list.className = 'qiaomu-yt-bar-lines'; list.setAttribute('role', 'list');
-	body.append(status, list);
+	const here = doc.createElement('button'); here.type = 'button'; here.className = 'qiaomu-yt-bar-here'; here.textContent = strings.here; here.hidden = true;
+	listWrap.append(list, here);
+	body.append(status, finder, listWrap);
 	element.append(head, body);
 
 	const flash = (button: HTMLElement, text: string) => {
@@ -74,27 +102,93 @@ export function buildTranscriptBar(doc: Document, hooks: BarHooks): TranscriptBa
 		return button;
 	};
 
+	interface Row { element: HTMLElement; words: HTMLElement; start: number; text: string; match: boolean }
 	let segments: PanelSegment[] = [], state: BarState = 'loading', open = false, rendered = -1;
+	let rows: Row[] = [], starts: number[] = [], activeIndex = -1, query = '', follow = hooks.initialFollow !== false, lastUserScroll = 0, searchTimer: ReturnType<typeof setTimeout> | undefined;
+	const reduced = () => doc.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+
+	// Plain text in a row, or the text with every match wrapped in <mark>.
+	const paintText = (row: Row) => {
+		row.words.replaceChildren();
+		if (!query) { row.words.textContent = row.text; return; }
+		const lower = row.text.toLowerCase(); let from = 0, at = lower.indexOf(query);
+		while (at >= 0) {
+			if (at > from) row.words.append(doc.createTextNode(row.text.slice(from, at)));
+			const mark = doc.createElement('mark'); mark.className = 'qiaomu-yt-bar-mark'; mark.textContent = row.text.slice(at, at + query.length); row.words.append(mark);
+			from = at + query.length; at = lower.indexOf(query, from);
+		}
+		if (from < row.text.length) row.words.append(doc.createTextNode(row.text.slice(from)));
+	};
+	const applyFilter = () => {
+		let matches = 0;
+		for (const row of rows) { row.match = !query || row.text.toLowerCase().includes(query); row.element.hidden = !row.match; if (row.match) { matches++; paintText(row); } }
+		count.textContent = query ? (matches ? String(matches) : strings.noMatch) : ''; clear.hidden = !query;
+		list.dataset.searching = String(Boolean(query));
+	};
+	// Keep the current line comfortably in view: only move when it left the middle band, then rest it a third from the top.
+	const reveal = (row: Row, force = false) => {
+		const top = row.element.offsetTop - list.offsetTop, height = list.clientHeight;
+		if (!height || row.element.hidden) return;
+		const inBand = top >= list.scrollTop + height * 0.15 && top + row.element.offsetHeight <= list.scrollTop + height * 0.7;
+		if (inBand && !force) return;
+		const target = Math.max(0, top - height * 0.33);
+		if (Math.abs(target - list.scrollTop) < 2) return; // already there
+		list.scrollTo({ top: target, behavior: reduced() ? 'auto' : 'smooth' });
+	};
+	const updateHere = () => {
+		const row = rows[activeIndex];
+		if (!row || !open || row.element.hidden || !list.clientHeight) { here.hidden = true; return; }
+		const top = row.element.offsetTop - list.offsetTop;
+		here.hidden = top >= list.scrollTop && top + row.element.offsetHeight <= list.scrollTop + list.clientHeight;
+	};
+	const setActive = (index: number, scroll: boolean) => {
+		if (index !== activeIndex) { rows[activeIndex]?.element.classList.remove('is-active'); rows[activeIndex]?.element.removeAttribute('aria-current'); activeIndex = index; rows[index]?.element.classList.add('is-active'); rows[index]?.element.setAttribute('aria-current', 'true'); }
+		const row = rows[index];
+		if (scroll && row && follow && open && !query && Date.now() - lastUserScroll > FOLLOW_COOLDOWN) reveal(row);
+		updateHere();
+	};
+	const setTime = (t: number) => { if (rows.length && Number.isFinite(t)) setActive(activeIndexAt(starts, t), true); };
 	const renderLines = () => {
 		if (!open || rendered === segments.length) return;
-		rendered = segments.length; list.replaceChildren();
+		rendered = segments.length; list.replaceChildren(); rows = []; activeIndex = -1;
 		const groups = groupSegments(segments);
 		for (const { time, text } of groups.slice(0, MAX_ROWS)) {
-			const row = doc.createElement('button'); row.type = 'button'; row.className = 'qiaomu-yt-bar-line'; row.setAttribute('role', 'listitem');
+			const element = doc.createElement('button'); element.type = 'button'; element.className = 'qiaomu-yt-bar-line'; element.setAttribute('role', 'listitem');
 			const stamp = doc.createElement('span'); stamp.className = 'qiaomu-yt-bar-time'; stamp.textContent = time;
-			const words = doc.createElement('span'); words.className = 'qiaomu-yt-bar-text'; words.textContent = text;
-			row.append(stamp, words); press(row, () => hooks.seek(seconds(time))); list.append(row);
+			const words = doc.createElement('span'); words.className = 'qiaomu-yt-bar-text';
+			element.append(stamp, words);
+			const start = seconds(time);
+			press(element, () => { lastUserScroll = 0; hooks.seek(start); setActive(activeIndexAt(starts, start), true); });
+			rows.push({ element, words, start, text, match: true }); list.append(element);
 		}
+		starts = rows.map(row => row.start);
 		if (groups.length > MAX_ROWS) { const more = doc.createElement('p'); more.className = 'qiaomu-yt-bar-more'; more.textContent = strings.more; list.append(more); }
+		applyFilter();
+		const now = hooks.getTime?.(); if (now !== undefined) setActive(activeIndexAt(starts, now), false);
+		// A first look at the list starts at the current line, not at the top.
+		const row = rows[activeIndex]; if (row && follow && !query) list.scrollTop = Math.max(0, row.element.offsetTop - list.offsetTop - list.clientHeight * 0.33);
+		updateHere();
 	};
 	const toggle = tool('toggle', strings.expand, () => setOpen(!open));
 	const paint = () => {
 		element.dataset.state = state; element.dataset.open = String(open); body.hidden = !open;
 		const message = strings[state]; status.textContent = message; dot.title = message; dot.setAttribute('aria-label', message);
 		toggle.setAttribute('aria-expanded', String(open)); toggle.title = open ? strings.collapse : strings.expand; toggle.setAttribute('aria-label', toggle.title);
+		followButton.setAttribute('aria-pressed', String(follow)); followButton.title = follow ? strings.follow : strings.followOff; followButton.setAttribute('aria-label', followButton.title);
 		renderLines();
 	};
 	function setOpen(next: boolean, persist = true) { if (next === open) { paint(); return; } open = next; if (persist) hooks.onToggle?.(open); rendered = -1; paint(); }
+
+	// Search: filter as you type with matches marked; Escape clears. Following pauses while a search is active.
+	search.addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => { query = search.value.trim().toLowerCase(); applyFilter(); updateHere(); if (!query) { const row = rows[activeIndex]; if (row && follow) reveal(row, true); } }, 100); });
+	search.addEventListener('keydown', event => { event.stopPropagation(); if (event.key === 'Escape') { search.value = ''; search.dispatchEvent(new Event('input')); } });
+	for (const type of ['keyup', 'keypress']) search.addEventListener(type, event => event.stopPropagation()); // YouTube listens for single-key shortcuts
+	press(clear, () => { search.value = ''; search.dispatchEvent(new Event('input')); search.focus(); });
+	press(followButton, () => { follow = !follow; hooks.onFollow?.(follow); paint(); if (follow) { lastUserScroll = 0; const row = rows[activeIndex]; if (row && !query) reveal(row, true); } updateHere(); });
+	press(here, () => { lastUserScroll = 0; const row = rows[activeIndex]; if (row) reveal(row, true); });
+	// The viewer taking over the scroll pauses following for a moment; our own smooth scrolls do not count.
+	for (const type of ['wheel', 'touchstart', 'pointerdown', 'keydown']) list.addEventListener(type, () => { lastUserScroll = Date.now(); }, { passive: true });
+	list.addEventListener('scroll', updateHere, { passive: true });
 
 	tools.append(
 		tool('subtitles', strings.subtitles, () => { setOpen(true); void hooks.getSegments().then(found => { if (found.length) { segments = found; state = 'ready'; rendered = -1; paint(); } }); }),
@@ -115,7 +209,7 @@ export function buildTranscriptBar(doc: Document, hooks: BarHooks): TranscriptBa
 	// Clicking the empty part of the strip also opens and closes it; the tools handle their own presses.
 	press(head, () => setOpen(!open));
 	if (hooks.initialOpen) setOpen(true, false); else paint();
-	return { element, setOpen: next => setOpen(next, false), setState: (next, found) => { state = next; if (found) segments = found; rendered = -1; paint(); } };
+	return { element, setTime, setOpen: next => setOpen(next, false), setState: (next, found) => { state = next; if (found) segments = found; rendered = -1; paint(); } };
 }
 
 export const BAR_STYLE = `
@@ -139,7 +233,27 @@ ytd-engagement-panel-section-list-renderer[data-qiaomu-auto="1"]{display:none!im
 .qiaomu-yt-bar-body{border-top:1px solid var(--yt-spec-10-percent-layer,rgba(0,0,0,.12))}
 .qiaomu-yt-bar-body[hidden]{display:none}
 .qiaomu-yt-bar-status{margin:0;padding:8px 14px;color:var(--yt-spec-text-secondary,#606060);font-size:12px}
-.qiaomu-yt-bar-lines{max-height:340px;overflow-y:auto;padding:0 6px 8px}
+.qiaomu-yt-bar-finder{display:flex;align-items:center;gap:6px;padding:0 10px 8px}
+.qiaomu-yt-bar-search{display:flex;align-items:center;gap:6px;flex:1 1 auto;min-width:0;height:34px;padding:0 10px;border-radius:17px;background:var(--yt-spec-badge-chip-background,rgba(0,0,0,.05));color:var(--yt-spec-text-secondary,#606060)}
+.qiaomu-yt-bar-search:focus-within{box-shadow:inset 0 0 0 2px var(--yt-spec-call-to-action,#065fd4)}
+.qiaomu-yt-bar-input{flex:1 1 auto;min-width:0;height:100%;padding:0;border:0;outline:0;background:transparent;color:var(--yt-spec-text-primary,#0f0f0f);font:400 14px/20px Roboto,Arial,sans-serif}
+.qiaomu-yt-bar-input::-webkit-search-cancel-button{display:none}
+.qiaomu-yt-bar-count{flex:0 0 auto;font-size:12px;font-variant-numeric:tabular-nums}
+.qiaomu-yt-bar-clear,.qiaomu-yt-bar-follow{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;padding:0;border:0;background:transparent;color:var(--yt-spec-text-secondary,#606060);cursor:pointer}
+.qiaomu-yt-bar-clear{width:20px;height:20px;border-radius:10px}.qiaomu-yt-bar-clear[hidden]{display:none}
+.qiaomu-yt-bar-follow{width:34px;height:34px;border-radius:17px}
+.qiaomu-yt-bar-follow[aria-pressed=true]{background:var(--yt-spec-text-primary,#0f0f0f);color:var(--yt-spec-base-background,#fff)}
+.qiaomu-yt-bar-clear:hover,.qiaomu-yt-bar-follow[aria-pressed=false]:hover{background:var(--yt-spec-badge-chip-background,rgba(0,0,0,.08));color:var(--yt-spec-text-primary,#0f0f0f)}
+.qiaomu-yt-bar-clear:focus,.qiaomu-yt-bar-follow:focus{outline:none}.qiaomu-yt-bar-clear:focus-visible,.qiaomu-yt-bar-follow:focus-visible{outline:2px solid var(--yt-spec-call-to-action,#065fd4);outline-offset:-2px}
+.qiaomu-yt-bar-clear svg,.qiaomu-yt-bar-follow svg{display:block;pointer-events:none}
+.qiaomu-yt-bar-listwrap{position:relative}
+.qiaomu-yt-bar-lines{position:relative;max-height:340px;overflow-y:auto;padding:0 6px 8px;overscroll-behavior:contain}
+.qiaomu-yt-bar-here{position:absolute;inset-inline:0;bottom:10px;margin:0 auto;width:max-content;max-width:90%;padding:0 14px;height:30px;border:0;border-radius:15px;background:var(--yt-spec-text-primary,#0f0f0f);color:var(--yt-spec-base-background,#fff);font:500 13px/30px Roboto,Arial,sans-serif;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.qiaomu-yt-bar-here[hidden]{display:none}
+.qiaomu-yt-bar-mark{padding:0;border-radius:2px;background:rgba(255,208,0,.45);color:inherit}
+.qiaomu-yt-bar-line.is-active{background:var(--yt-spec-badge-chip-background,rgba(0,0,0,.06));box-shadow:inset 3px 0 0 var(--yt-spec-call-to-action,#065fd4)}
+.qiaomu-yt-bar-line.is-active .qiaomu-yt-bar-text{font-weight:500}
+.qiaomu-yt-bar-line[hidden]{display:none}
 .qiaomu-yt-bar-line{display:flex;gap:10px;width:100%;padding:6px 8px;border:0;border-radius:8px;background:transparent;color:inherit;font:inherit;text-align:start;cursor:pointer}
 .qiaomu-yt-bar-line:hover{background:var(--yt-spec-badge-chip-background,rgba(0,0,0,.05))}
 .qiaomu-yt-bar-line:focus{outline:none}.qiaomu-yt-bar-line:focus-visible{outline:2px solid var(--yt-spec-call-to-action,#065fd4);outline-offset:-2px}

@@ -1353,6 +1353,24 @@
 	"youtubeBarMore": {
 		"message": "更多內容請在沉浸學習裡查看"
 	},
+	"youtubeBarSearch": {
+		"message": "搜尋字幕"
+	},
+	"youtubeBarClear": {
+		"message": "清除搜尋"
+	},
+	"youtubeBarNoMatch": {
+		"message": "無結果"
+	},
+	"youtubeBarFollow": {
+		"message": "字幕跟隨播放：開（點擊關閉）"
+	},
+	"youtubeBarFollowOff": {
+		"message": "字幕跟隨播放：關（點擊開啟）"
+	},
+	"youtubeBarHere": {
+		"message": "回到目前位置"
+	},
 	"youtubePanelCardTitle": {
 		"message": "喬木 · 沉浸學習"
 	},

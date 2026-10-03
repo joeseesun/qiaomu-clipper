@@ -1353,6 +1353,24 @@
 	"youtubeBarMore": {
 		"message": "Open study mode to read the rest"
 	},
+	"youtubeBarSearch": {
+		"message": "Search transcript"
+	},
+	"youtubeBarClear": {
+		"message": "Clear search"
+	},
+	"youtubeBarNoMatch": {
+		"message": "No results"
+	},
+	"youtubeBarFollow": {
+		"message": "Following playback — click to turn off"
+	},
+	"youtubeBarFollowOff": {
+		"message": "Not following — click to follow playback"
+	},
+	"youtubeBarHere": {
+		"message": "Back to current line"
+	},
 	"youtubePanelCardTitle": {
 		"message": "Qiaomu · Study"
 	},

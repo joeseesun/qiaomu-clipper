@@ -42,6 +42,12 @@ try {
 			ready: text('youtubePanelCardReady', '字幕已就绪，点击时间可跳转', 'Transcript ready — click a time to jump'),
 			none: text('youtubePanelCardNone', '点击后读取字幕', 'Click to read the transcript'),
 			more: text('youtubeBarMore', '更多内容请在沉浸学习里查看', 'Open study mode to read the rest'),
+			search: text('youtubeBarSearch', '搜索字幕', 'Search transcript'),
+			clear: text('youtubeBarClear', '清除搜索', 'Clear search'),
+			noMatch: text('youtubeBarNoMatch', '无结果', 'No results'),
+			follow: text('youtubeBarFollow', '字幕跟随播放：开（点击关闭）', 'Following playback — click to turn off'),
+			followOff: text('youtubeBarFollowOff', '字幕跟随播放：关（点击开启）', 'Not following — click to follow playback'),
+			here: text('youtubeBarHere', '回到当前位置', 'Back to current line'),
 		};
 		let enabled = true, autoOpen = true, hideNative = true, weOpenedPanel = false, openedAt = 0;
 		const autoOpened = new Set<string>(); // one automatic opening per video: if the viewer closes the panel, it stays closed
@@ -82,8 +88,12 @@ try {
 		const openStudy = (): boolean => { try { api.runtime.sendMessage({ action: 'qiaomuTripleKey', command: 'read' })?.catch?.(() => {}); return true; } catch { return false; } };
 		const openSettings = () => { try { api.runtime.sendMessage({ action: 'openSettings', section: 'general' })?.catch?.(() => {}); } catch { /* extension reloaded */ } };
 		const seek = (seconds: number) => { const video = document.querySelector<HTMLVideoElement>('video.html5-main-video, video'); if (video) { video.currentTime = seconds; void video.play?.().catch(() => {}); } };
-		const OPEN_KEY = 'qiaomuTranscriptBarOpen';
-		const wasOpen = (() => { try { return localStorage.getItem(OPEN_KEY) === '1'; } catch { return false; } })();
+		const OPEN_KEY = 'qiaomuTranscriptBarOpen', FOLLOW_KEY = 'qiaomuTranscriptBarFollow';
+		const stored = (key: string, fallback: boolean) => { try { const value = localStorage.getItem(key); return value === null ? fallback : value === '1'; } catch { return fallback; } };
+		const remember = (key: string, value: boolean) => { try { localStorage.setItem(key, value ? '1' : '0'); } catch { /* storage unavailable */ } };
+		// The page's own video drives the highlight. An ad plays on the same element, so it is ignored.
+		const mainVideo = () => document.querySelector('.html5-video-player.ad-showing') ? undefined : document.querySelector<HTMLVideoElement>('video.html5-main-video, video') ?? undefined;
+		const wasOpen = stored(OPEN_KEY, false);
 		let bar: TranscriptBar | undefined;
 		const updateBar = () => {
 			const videoId = currentVideo(); const entry = videoId ? store.get(videoId) : undefined;
@@ -113,7 +123,9 @@ try {
 			syncTranscriptBar(document, () => {
 				bar = buildTranscriptBar(document, {
 					strings, title: () => document.title, openStudy, openSettings, seek, getSegments: () => getSegments(true),
-					initialOpen: wasOpen, onToggle: open => { try { localStorage.setItem(OPEN_KEY, open ? '1' : '0'); } catch { /* storage unavailable */ } },
+					getTime: () => mainVideo()?.currentTime,
+					initialOpen: wasOpen, onToggle: open => remember(OPEN_KEY, open),
+					initialFollow: stored(FOLLOW_KEY, true), onFollow: follow => remember(FOLLOW_KEY, follow),
 				});
 				return bar.element;
 			});
@@ -122,6 +134,10 @@ try {
 		// YouTube is a single-page app and re-renders often; coalesce mutations per frame.
 		const schedule = () => { if (!frame) frame = requestAnimationFrame(refresh); };
 		new MutationObserver(schedule).observe(document.documentElement, { childList: true, subtree: true });
+
+		// Media events do not bubble, but a capturing listener hears every video element, even a replaced one.
+		const onTime = (event: Event) => { const video = event.target; if (video instanceof HTMLVideoElement && bar && video === mainVideo()) bar.setTime(video.currentTime); };
+		for (const type of ['timeupdate', 'seeked', 'playing']) document.addEventListener(type, onTime, true);
 
 		// Prefetch once the page is idle, and again after each in-app navigation to another video.
 		let lastPrefetched = '';
