@@ -6,6 +6,7 @@ import { sanitizeFileName } from '../utils/string-utils';
 import { translatePage } from '../utils/i18n';
 import { loadSettings } from '../utils/storage-utils';
 import type { Property } from '../types/types';
+import { mountEditorOutline } from '../utils/editor-outline';
 
 const byId = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -69,9 +70,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 	title.value = draft.clip.title;
 	byId<HTMLTextAreaElement>('ce-markdown').value = draft.clip.markdown;
 	if (draft.properties?.length) renderProperties(draft.properties);
-	else document.querySelector('.ce-props')?.setAttribute('hidden', '');
+	else document.querySelector('.ce-props h2')?.setAttribute('hidden', '');
 
 	const textarea = byId<HTMLTextAreaElement>('ce-markdown');
+	mountEditorOutline(document.querySelector<HTMLElement>('.ce-props')!, textarea, !!draft.properties?.length);
 	const chat = mountClipChat({
 		getContext: () => ({ title: title.value || draft.clip.title, markdown: textarea.value, url: draft.clip.url }),
 		onInsert: text => { textarea.value = `${textarea.value.trimEnd()}\n\n${text}\n`; textarea.dispatchEvent(new Event('input')); },

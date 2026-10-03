@@ -1,0 +1,7 @@
+.qiaomu-sidebar-content[hidden] { display: none !important; }
+.qiaomu-sidebar-toggle {
+	display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; margin: 0 0 8px; border: 0; border-radius: 6px; box-shadow: none; background: transparent; color: var(--text-muted); cursor: pointer;
+	svg { width: 18px; height: 18px; mix-blend-mode: normal !important; }
+	&:hover { background: var(--background-modifier-hover, rgb(128 128 128 / 12%)); }
+	&:focus-visible { outline: 1px solid var(--text-muted); outline-offset: 2px; }
+}

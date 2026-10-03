@@ -1403,5 +1403,44 @@
 	},
 	"qiaomuChatPreferencesSaveError": {
 		"message": "Could not save. Please retry; preferences have not changed."
+	},
+	"qiaomuExpandSidebar": {
+		"message": "Expand outline and sidebar"
+	},
+	"qiaomuCollapseSidebar": {
+		"message": "Collapse outline and sidebar"
+	},
+	"qiaomuToc": {
+		"message": "Outline"
+	},
+	"qiaomuVideoSize": {
+		"message": "Video size"
+	},
+	"qiaomuTranslateChinese": {
+		"message": "Chinese translation"
+	},
+	"qiaomuTranslationRetry": {
+		"message": "Retry translation"
+	},
+	"qiaomuTranslationInvalid": {
+		"message": "The model returned incomplete segment data. Please retry."
+	},
+	"qiaomuTranslationProgress": {
+		"message": "Translating"
+	},
+	"qiaomuTranslationNoModel": {
+		"message": "Configure and enable an AI model in extension settings first."
+	},
+	"qiaomuTranslationDone": {
+		"message": "Translation complete; Chinese source text is unchanged."
+	},
+	"qiaomuTranslationTimeout": {
+		"message": "Translation timed out. Retry to continue."
+	},
+	"qiaomuTranslationError": {
+		"message": "Translation failed. Retry to continue."
+	},
+	"qiaomuTranslationService": {
+		"message": "Translate subtitles with your configured AI model; translations are cached only on this page."
 	}
 }

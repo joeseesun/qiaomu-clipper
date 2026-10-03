@@ -82,6 +82,8 @@ export function wireTranscript(
 		const input = doc.createElement('input');
 		input.type = 'checkbox';
 		input.checked = defaultOn;
+		input.setAttribute('role', 'switch');
+		input.setAttribute('aria-label', label);
 		toggle.appendChild(input);
 
 		const text = doc.createElement('span');
@@ -90,9 +92,7 @@ export function wireTranscript(
 		wrapper.appendChild(text);
 		wrapper.appendChild(toggle);
 
-		wrapper.addEventListener('click', (e) => {
-			e.preventDefault();
-			input.checked = !input.checked;
+		input.addEventListener('change', () => {
 			wrapper.classList.toggle('is-enabled', input.checked);
 			onChange(input.checked);
 		});
@@ -665,6 +665,7 @@ export function wireTranscript(
 
 		const start = segmentTimes[idx];
 		const end = getSegmentEnd(idx);
+		if ((e.target as HTMLElement).closest('.transcript-translation')) { seekTo(start); return; }
 
 		// Use caret position to estimate character-level progress
 		const textEl = seg.querySelector('.transcript-segment-text');

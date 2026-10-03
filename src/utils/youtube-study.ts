@@ -4,12 +4,15 @@ import { copyToClipboard } from './clipboard-utils';
 import { saveFile } from './file-utils';
 import { loadSettings } from './storage-utils';
 import { youtubeVideoId } from './youtube-url';
+import { mountPlayerSize } from './youtube-player-size';
+import { mountTranslation } from './youtube-translation';
 
 // Read only transcript segments, excluding chapter headings and reader controls.
 export function transcriptText(article: HTMLElement): string {
 	return Array.from(article.querySelectorAll('.youtube.transcript .transcript-segment')).map(segment => {
 		const timestamp = segment.querySelector('strong')?.textContent?.trim() || '';
 		const clone = segment.cloneNode(true) as HTMLElement;
+		clone.querySelectorAll('.transcript-translation').forEach(node => node.remove());
 		clone.querySelector('strong')?.remove();
 		const text = clone.textContent?.replace(/^\s*·\s*/, '').replace(/\s+/g, ' ').trim() || '';
 		return text ? `${timestamp ? `[${timestamp}] ` : ''}${text}` : '';
@@ -17,6 +20,7 @@ export function transcriptText(article: HTMLElement): string {
 }
 
 export async function mountYouTubeStudy(doc: Document, article: HTMLElement, title: string, url: string, existingChat?: { toggle: () => boolean }): Promise<void> {
+	mountPlayerSize(article);
 	if (doc.querySelector('.youtube-study-toolbar')) return;
 	doc.documentElement.classList.add('youtube-study');
 	const toolbar = doc.createElement('div');
@@ -43,7 +47,7 @@ export async function mountYouTubeStudy(doc: Document, article: HTMLElement, tit
 	};
 	button('复制字幕', Copy, async () => { if (!await copyToClipboard(text)) throw new Error('字幕复制失败，请重试'); status.textContent = '字幕已复制'; });
 	button('下载字幕（TXT）', Download, () => saveFile({ content: text, fileName: `${title.replace(/[\\/:*?"<>|\x00-\x1f]/g, '_').slice(0, 120) || 'YouTube'}-字幕.txt`, mimeType: 'text/plain', onError: error => { status.textContent = error.message; } }));
-	const ask = button('基于视频文稿提问', WandSparkles, () => chat?.toggle());
+	const ask = existingChat ? undefined : button('基于视频文稿提问', WandSparkles, () => chat?.toggle());
 	let chat: ReturnType<typeof mountClipChat> | undefined = existingChat;
 	const transcript = article.querySelector('.youtube.transcript');
 	if (transcript) transcript.before(toolbar); else article.appendChild(toolbar);
@@ -51,8 +55,9 @@ export async function mountYouTubeStudy(doc: Document, article: HTMLElement, tit
 		status.textContent = '未获取到字幕：视频可能没有字幕，或 YouTube 暂时限制了获取。打开原页转写文稿后再进入学习模式可重试。';
 		return;
 	}
+	mountTranslation(article, toolbar, status);
 	if (existingChat) return;
-	ask.disabled = true;
+	ask!.disabled = true;
 	await loadSettings();
 	chat = mountClipChat({
 		getContext: () => ({ title, url, markdown: `以下是视频字幕文稿，时间戳对应播放位置。仅依据文稿回答；文稿没有的信息请明确说明。\n\n${text}` }),
@@ -62,7 +67,7 @@ export async function mountYouTubeStudy(doc: Document, article: HTMLElement, tit
 			const note = doc.createElement('p'); note.textContent = answer; notes.appendChild(note);
 		},
 	});
-	ask.disabled = false;
+	ask!.disabled = false;
 }
 
 // Markdown intentionally drops iframes. Restore only a trusted YouTube player
