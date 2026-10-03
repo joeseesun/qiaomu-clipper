@@ -10,6 +10,7 @@ import { generalSettings } from './storage-utils';
 import { listenTripleKey, normalizeTripleKeys } from './triple-key';
 import { transcriptText } from './youtube-study';
 import { youtubeVideoId } from './youtube-url';
+import { mountLearningNotes } from './learning-composer';
 
 // The same shell for a normal clip preview and a progressively loaded video.
 export function mountReaderPreviewShell(draft: ClipPreview, pending = false) {
@@ -18,7 +19,10 @@ export function mountReaderPreviewShell(draft: ClipPreview, pending = false) {
 	const title = document.createElement('span'); title.textContent = draft.clip.title;
 	const openEditor = () => { location.href = browser.runtime.getURL(`editor.html?id=${id}`); };
 	Reader.onEdit = openEditor;
+ const learning = mountLearningNotes({ doc: document, getSource: () => ({title: draft.clip.title, url: draft.clip.url}), getHighlights });
 	const chat = mountClipChat({
+		onLearningRecord: text => { void learning.open({quote:text}); },
+		onLearningAi: answer => { void learning.open({aiSupplement:answer}); },
 		onHighlight: () => Reader.highlightSelection(document),
 		getContext: () => ({ title: draft.clip.title, url: draft.clip.url, markdown: youtubeVideoId(draft.clip.url) ? transcriptText(document.querySelector('article')!) || '尚未获取视频字幕文稿，请明确说明无法依据文稿回答。' : draft.clip.markdown }),
 		onInsert: async text => {
@@ -28,6 +32,7 @@ export function mountReaderPreviewShell(draft: ClipPreview, pending = false) {
 		},
 	});
 	const bar = createClipBar({onToggleChat:chat.toggle, mode:'read', id, draft, title, domain:getDomain(draft.clip.url), url:draft.clip.url});
+	bar.querySelector('.clip-bar-extras')?.append(learning.button);
 	document.body.prepend(bar);
 	const readerSettings = document.querySelector('.obsidian-reader-settings');
 	if (readerSettings) bar.querySelector('.clip-bar-extras')?.appendChild(readerSettings);
@@ -40,6 +45,6 @@ export function mountReaderPreviewShell(draft: ClipPreview, pending = false) {
 		for (const control of Array.from(bar.querySelectorAll<HTMLButtonElement>('.clip-bar-segment button[aria-selected="false"], #clip-bar-copy, #clip-bar-download, #clip-bar-ai, #clip-bar-clip'))) control.disabled = value || (control.id === 'clip-bar-clip' && Boolean(draft.localDone && (!draft.aggregate || draft.rssDone))) || (control.id === 'clip-bar-ai' && Boolean(youtubeVideoId(draft.clip.url)) && !transcriptText(document.querySelector('article')!));
 	};
 	setPending(pending);
-	listenTripleKey(() => [normalizeTripleKeys(generalSettings.tripleKeys).edit].filter(Boolean), () => { if (!pending) openEditor(); }, () => generalSettings.tripleKeyShortcuts !== false);
+	listenTripleKey(() => [normalizeTripleKeys(generalSettings.tripleKeys).edit].filter(Boolean), () => { if (!pending) openEditor(); }, () => generalSettings.tripleKeyShortcuts !== false && !document.querySelector('.learning-composer[open]'));
 	return {bar,chat, setPending, refresh: () => {title.textContent = draft.clip.title;} };
 }
