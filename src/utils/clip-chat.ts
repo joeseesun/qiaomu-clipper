@@ -1,6 +1,6 @@
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
-import { createElement, WandSparkles, X, Plus, Copy, Send, Square, FilePlus2, History, Quote, Trash2, Highlighter, Settings2 } from 'lucide';
+import { createElement, WandSparkles, X, Plus, Copy, Send, Square, FilePlus2, History, Quote, Trash2, Highlighter, Settings2, NotebookPen } from 'lucide';
 import browser from './browser-polyfill';
 import { getMessage } from './i18n';
 import { getLocalStorage, setLocalStorage, generalSettings } from './storage-utils';
@@ -8,6 +8,7 @@ import { streamChat, enabledChatModels, ChatTurn } from './chat-llm';
 import { Conversation, StoredTurn, loadConversations, saveConversation, deleteConversation } from './chat-history';
 import { showClipStatus } from './clip-bar';
 import { CHAT_PREFERENCES_KEY, DEFAULT_CHAT_PREFERENCES, normalizeChatPreferences, chatFontFamily, chatSystemPrompt } from './chat-preferences';
+import { learningSelection } from './learning-composer';
 
 export interface ClipChatOptions {
 	// Current article text; read fresh on every question so edits are included.
@@ -16,6 +17,8 @@ export interface ClipChatOptions {
 	onInsert: (text: string) => void | Promise<void>;
 	// Reading page only: turn the selection into a highlight.
 	onHighlight?: () => void;
+	onLearningRecord?: (text: string) => void;
+	onLearningAi?: (answer: string) => void;
 }
 
 const MAX_CONTEXT_CHARS = 80000;
@@ -247,6 +250,12 @@ export function mountClipChat(options: ClipChatOptions): { toggle: () => boolean
 		insert.append(el('span', '', getMessage('qiaomuChatInsert')));
 		insert.addEventListener('click', async () => { await options.onInsert(answer); showClipStatus(getMessage('qiaomuChatInserted')); });
 		actions.append(copy, insert);
+		if (options.onLearningAi) {
+			const diary = iconButton('clip-chat-action', NotebookPen, '加入今日日记的 AI 补充');
+			diary.append(el('span', '', '加入日记'));
+			diary.addEventListener('click', () => options.onLearningAi!(answer));
+			actions.append(diary);
+		}
 		wrap.appendChild(actions);
 	}
 
@@ -440,13 +449,13 @@ export function mountClipChat(options: ClipChatOptions): { toggle: () => boolean
 		refreshQuote();
 		input.focus();
 	}
-	mountSelectionPill(askAbout, options.onHighlight);
+	mountSelectionPill(askAbout, options.onHighlight, options.onLearningRecord);
 
 	return { toggle: () => toggle() };
 }
 
 // One small capsule next to the selection: Highlight (reading page) and Ask AI. Can be turned off in the settings.
-function mountSelectionPill(onAsk: (text: string) => void, onHighlight?: () => void) {
+function mountSelectionPill(onAsk: (text: string) => void, onHighlight?: () => void, onLearningRecord?: (text: string) => void) {
 	const pill = el('div', 'clip-ask-pill');
 	pill.hidden = true;
 	pill.setAttribute('role', 'toolbar');
@@ -468,6 +477,11 @@ function mountSelectionPill(onAsk: (text: string) => void, onHighlight?: () => v
 	const ask = segment(WandSparkles, getMessage('qiaomuChatAskSelection'));
 	ask.addEventListener('click', () => { hide(); onAsk(text); });
 	pill.appendChild(ask);
+	if (onLearningRecord) {
+		const diary = segment(NotebookPen, '记到今天日记');
+ diary.addEventListener('click', () => { const quote = learningSelection(document); hide(); if (quote) onLearningRecord(quote); });
+		pill.appendChild(diary);
+	}
 	document.body.appendChild(pill);
 
 	let enabled = generalSettings.selectionToolbar !== false;

@@ -63,3 +63,19 @@ it('normalizes pasted sites and matches subdomains', () => {
 	expect(isSiteBlocked('notexample.com', ['example.com'])).toBe(false);
 	expect(isSiteBlocked('www.a.com', undefined)).toBe(false);
 });
+
+
+it('ignores buttons in an open dialog and resets the partial sequence without blocking ordinary shortcuts', () => {
+ const seen = vi.fn(); listenTripleKey(['a'], seen);
+ const dialog = document.body.appendChild(document.createElement('dialog'));
+ const button = dialog.appendChild(document.createElement('button'));
+ const icon = button.appendChild(document.createElement('span'));
+ const press = (target: EventTarget) => target.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', bubbles: true, composed: true }));
+ press(document.body); press(document.body);
+ dialog.setAttribute('open', ''); press(icon); press(button); press(button);
+ expect(seen).not.toHaveBeenCalled();
+ dialog.removeAttribute('open'); press(document.body); expect(seen).not.toHaveBeenCalled();
+ press(document.body); press(document.body); expect(seen).toHaveBeenCalledTimes(1);
+ seen.mockClear(); press(button); press(button); press(button); expect(seen).toHaveBeenCalledTimes(1);
+ dialog.remove();
+});
