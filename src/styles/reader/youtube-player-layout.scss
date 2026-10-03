@@ -1,4 +1,6 @@
 // The video uses the available workspace, while text keeps the existing Aa line width.
+// Include the panel border in its reported width to avoid resize-induced drift.
+html.youtube-study .clip-chat { box-sizing: border-box; }
 html.youtube-study.obsidian-reader-active:has(.youtube-sized-player) body {
 	.obsidian-reader-container {
 		grid-template-columns: 240px minmax(0, 1fr) var(--youtube-grid-sidebar-width, var(--clipper-sidebar-width, 0px));
