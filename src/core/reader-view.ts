@@ -3,6 +3,7 @@ import { loadClipPreview } from '../utils/clip-preview';
 import { createClipBar, autoHideBar, setClipBarHighlights } from '../utils/clip-bar';
 import { mountClipChat } from '../utils/clip-chat';
 import { mountYouTubeStudy, transcriptText } from '../utils/youtube-study';
+import { startYouTubeStudy } from '../utils/youtube-study-loader';
 import { updateClipPreview } from '../utils/clip-preview';
 import { generateFrontmatter } from '../utils/obsidian-note-creator';
 import { marked } from 'marked';
@@ -36,6 +37,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 	if (!url) {
 		showUrlInput();
+		return;
+	}
+
+	if (params.get('study') === 'youtube') {
+		await startYouTubeStudy(url, Number(params.get('sourceTab')), params.get('title') || '', result => setupReaderPageMessageHandler(url!, result));
 		return;
 	}
 

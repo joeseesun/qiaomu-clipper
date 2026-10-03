@@ -8,6 +8,7 @@ import { Settings } from './types/types';
 import { debugLog } from './utils/debug';
 import { incrementStat, loadSettings } from './utils/storage-utils';
 import { enabledChatModels, streamChat } from './utils/chat-llm';
+import { youtubeStudyPath, youtubeVideoId } from './utils/youtube-url';
 import { hasStoredHighlights } from './utils/url-utils';
 
 // Accept RSS writes only from our own extension pages, never a website content script.
@@ -1212,6 +1213,15 @@ let currentOpenBehavior: Settings['openBehavior'] = 'popup';
 // The triple-press commands open the clipper, which runs read / edit / clip once the clip is ready.
 async function runTripleKeyAction(action: string, tabId: number): Promise<void> {
 	if (action !== 'read' && action !== 'edit' && action !== 'clip') return;
+	if (action === 'read') {
+		const tab = await browser.tabs.get(tabId);
+		const path = youtubeStudyPath(tab.url || '', tabId, tab.title || '');
+		if (path) {
+			// Open the player immediately; subtitle extraction belongs to the reader.
+			await browser.tabs.create({ url: browser.runtime.getURL(path), openerTabId: tabId });
+			return;
+		}
+	}
 	await browser.storage.local.set({ qiaomuPendingAction: { action, at: Date.now() } });
 	try {
 		await openPopup();
@@ -1278,4 +1288,21 @@ browser.runtime.onConnect.addListener(port => {
 			send({ done: true });
 		} catch (error) { send({ error: error instanceof Error ? error.message : 'AI 请求失败' }); }
 	});
+});
+
+// Obtain a fresh source snapshot on every subtitle attempt. The original tab
+// remains available while YouTube is still loading its transcript UI.
+browser.runtime.onMessage.addListener((raw: unknown, sender) => {
+	const request = raw as { action?: string; sourceTabId?: number; url?: string };
+	if (request?.action !== 'qiaomuYouTubeStudySource') return;
+	if (sender.id !== browser.runtime.id || !sender.url?.startsWith(browser.runtime.getURL('reader.html'))
+		|| !Number.isInteger(request.sourceTabId) || !request.url || !youtubeVideoId(request.url)) return Promise.resolve({ error: '无效的视频来源' });
+	return (async () => {
+		try {
+			const tab = await browser.tabs.get(request.sourceTabId!);
+			if (!tab.url || youtubeVideoId(tab.url) !== youtubeVideoId(request.url!)) return { error: '原视频页面已切换，请重新打开学习模式' };
+			const results = await browser.scripting.executeScript({ target: { tabId: request.sourceTabId! }, func: () => ({ html: document.documentElement.outerHTML, title: document.title }) });
+			return results[0]?.result || { error: '无法读取原视频页面' };
+		} catch { return { error: '原视频页面不可用，将从视频链接获取字幕' }; }
+	})();
 });

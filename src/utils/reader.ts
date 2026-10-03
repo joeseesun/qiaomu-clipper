@@ -2718,6 +2718,21 @@ export class Reader {
 		return count;
 	}
 
+	// Attach late-arriving subtitles without replacing or restarting the player.
+	static async attachYouTubeTranscript(doc: Document, transcript: HTMLElement, title: string): Promise<void> {
+		const article = doc.querySelector('article')!;
+		article.querySelector('.youtube-study-toolbar')?.remove();
+		article.appendChild(doc.adoptNode(transcript));
+		this.storeOriginalHtml(article);
+		wireTranscript(doc, article, this.settings, {
+			getStickyOffset: () => this.getStickyOffset(),
+			scrollTo: y => this.scrollTo(y),
+			programmaticScroll: () => this.programmaticScroll,
+		}, (key, value) => { (this.settings as any)[key] = value; void this.saveSettings(); });
+		await mountYouTubeStudy(doc, article, title, doc.URL);
+		await this.initializeContentFeatures(doc, title);
+	}
+
 	// Replace article content in-place for SPA navigation on the reader page.
 	static async updateReaderContent(doc: Document, content: ReaderContent): Promise<void> {
 		const main = doc.querySelector('.obsidian-reader-content main') as HTMLElement | null;

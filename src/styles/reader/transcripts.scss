@@ -214,6 +214,8 @@ article > .player-toggles {
 		display: inline-flex; align-items: center; justify-content: center;
 		flex-shrink: 0; width: 32px; height: 32px; padding: 6px;
 		border: 0; border-radius: 6px; background: transparent; color: var(--text-muted); cursor: pointer;
+		&[hidden] { display: none; }
+		&[aria-label="重新加载字幕"] { width: auto; min-width: 44px; font-size: 12px; white-space: nowrap; }
 		svg { width: 18px; height: 18px; }
 		&:hover { background: var(--background-primary-alt); color: var(--text-normal); }
 		&:focus-visible { outline: 1px solid var(--text-muted); outline-offset: 2px; }
