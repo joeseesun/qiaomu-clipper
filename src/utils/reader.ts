@@ -2665,7 +2665,7 @@ export class Reader {
 	// horizontally on mobile without blowing out the article width.
 	private static storeOriginalHtml(article: Element): void {
 		const clone = article.cloneNode(true) as Element;
-		clone.querySelectorAll('.youtube-size-control, .youtube-study-toolbar, .transcript-translation').forEach(node => node.remove());
+		clone.querySelectorAll('.youtube-size-control, .youtube-study-toolbar, .youtube-study-feedback, .youtube-player-resize, .transcript-translation').forEach(node => node.remove());
 		clone.querySelectorAll('span.timestamp').forEach(span => {
 			span.replaceWith(span.textContent || '');
 		});
@@ -2724,7 +2724,7 @@ export class Reader {
 	// Attach late-arriving subtitles without replacing or restarting the player.
 	static async attachYouTubeTranscript(doc: Document, transcript: HTMLElement, title: string, chat?: {toggle: () => boolean}): Promise<void> {
 		const article = doc.querySelector('article')!;
-		article.querySelector('.youtube-study-toolbar')?.remove();
+		article.querySelector('.youtube-study-feedback, .youtube-study-toolbar')?.remove();
 		article.appendChild(doc.adoptNode(transcript));
 		this.storeOriginalHtml(article);
 		wireTranscript(doc, article, this.settings, {

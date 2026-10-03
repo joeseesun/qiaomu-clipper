@@ -1,0 +1,28 @@
+// @vitest-environment jsdom
+import {expect,it,vi} from 'vitest';
+vi.mock('./storage-utils',()=>({getLocalStorage:async()=>undefined,setLocalStorage:async()=>{},loadSettings:async()=>{}}));
+vi.mock('./i18n',()=>({getMessage:(key:string)=>key}));
+vi.mock('./clip-chat',()=>({mountClipChat:()=>({toggle:()=>true})}));
+import {mountPlayerSize} from './youtube-player-size';
+import {wireTranscript} from './reader-transcript';
+import {mountYouTubeStudy} from './youtube-study';
+it('connects late subtitles to the original handle and iframe without nesting containers or rewriting its URL',async()=>{
+ vi.stubGlobal('CSS',{});
+ document.body.innerHTML='<article><div class="player-container"><iframe src="https://www.youtube.com/embed/dbqweBCynuI?enablejsapi=1"></iframe></div></article>';
+ const article=document.querySelector('article')!,frame=article.querySelector('iframe')!,src=frame.src;
+ mountPlayerSize(article);const handle=article.querySelector('.youtube-player-resize');
+ article.insertAdjacentHTML('beforeend','<div class="youtube transcript"><p class="transcript-segment"><strong><span class="timestamp" data-timestamp="12">0:12</span></strong>Original passage.</p></div>');
+ const settings={pinPlayer:true,autoScroll:false,highlightActiveLine:true}; const scroll={getStickyOffset:()=>56,scrollTo:()=>{},programmaticScroll:()=>false};
+ wireTranscript(document,article,settings,scroll); await mountYouTubeStudy(document,article,'Video','https://www.youtube.com/watch?v=dbqweBCynuI',{toggle:()=>true});
+ wireTranscript(document,article,settings,scroll);
+ expect(article.querySelectorAll('.player-container')).toHaveLength(1); expect(article.querySelectorAll('.player-toggle-group')).toHaveLength(1);
+ expect(article.querySelector('.youtube-player-resize')).toBe(handle);expect(handle?.previousElementSibling).toBe(frame);
+ expect(article.querySelector('iframe')).toBe(frame);expect(frame.src).toBe(src);
+ expect(article.querySelector('.player-toggle-group')!.lastElementChild?.className).toContain('youtube-translate-toggle');
+ expect(article.querySelector('.youtube-size-control,.youtube-study-toolbar')).toBeNull();
+ const post=vi.spyOn(frame.contentWindow!,'postMessage'); const grip=handle as HTMLElement;
+ grip.dispatchEvent(new KeyboardEvent('keydown',{key:'Home',code:'Home',bubbles:true}));const size=Number(grip.getAttribute('aria-valuenow'));
+ grip.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',code:'ArrowRight',bubbles:true}));
+ expect(Number(grip.getAttribute('aria-valuenow'))).toBe(size+1);expect(post).not.toHaveBeenCalled();
+ article.remove();vi.unstubAllGlobals();
+});

@@ -26,7 +26,7 @@ describe('YouTube study transcript', () => {
 	it('offers size adjustment before subtitles arrive without replacing the iframe', async () => {
 		const node = article('<iframe src="https://www.youtube.com/embed/dbqweBCynuI"></iframe>'); const player = node.querySelector('iframe');
 		await mountYouTubeStudy(document,node,'Video','https://www.youtube.com/watch?v=dbqweBCynuI');
-		expect(node.querySelector('.youtube-size-control input')).not.toBeNull(); expect(node.querySelector('iframe')).toBe(player);
+		expect(node.querySelector('.youtube-player-resize')).not.toBeNull(); expect(node.querySelector('iframe')).toBe(player);
 		expect(node.querySelector('.youtube-translate-toggle')).toBeNull();
 	});
 	it('disables transcript actions when subtitles are unavailable', async () => {
@@ -41,20 +41,16 @@ describe('YouTube study transcript', () => {
 		expect(node.querySelector('[aria-label="基于视频文稿提问"]')).toBeNull();
 		expect(vi.mocked(mountClipChat).mock.calls).toHaveLength(count);
 	});
-	it('copies and downloads the same timestamped transcript used for AI, with a safe filename', async () => {
-		const node = article(subtitles);
-		await mountYouTubeStudy(document, node, 'Video / title', 'https://www.youtube.com/watch?v=example');
-		node.querySelector<HTMLButtonElement>('[aria-label="复制字幕"]')!.click();
-		node.querySelector<HTMLButtonElement>('[aria-label="下载字幕（TXT）"]')!.click();
-		const text = transcriptText(node);
-		expect(copyToClipboard).toHaveBeenCalledWith(text);
-		expect(saveFile).toHaveBeenCalledWith(expect.objectContaining({ content: text, fileName: 'Video _ title-字幕.txt', mimeType: 'text/plain' }));
-		const options = vi.mocked(mountClipChat).mock.calls.slice(-1)[0][0];
-		expect(options.getContext().markdown).toContain(text);
-		expect(options.getContext().markdown).not.toContain('Current position');
-		await mountYouTubeStudy(document, node, 'Video', 'https://www.youtube.com/watch?v=example');
-		expect(document.querySelectorAll('.youtube-study-toolbar')).toHaveLength(1);
+	it('omits duplicate size/transcript action rows and places translation beside sentence highlighting', async () => {
+		const node = article('<div class="player-toggle-group"><label>标出当前句子</label></div>'+subtitles);
+		await mountYouTubeStudy(document, node, 'Video', 'https://www.youtube.com/watch?v=dbqweBCynuI', {toggle: () => true});
+		expect(node.querySelector('.youtube-study-toolbar, .youtube-size-control')).toBeNull();
+		expect(node.querySelector('[aria-label="复制字幕"], [aria-label="下载字幕（TXT）"]')).toBeNull();
+		expect(node.querySelector('.player-toggle-group')!.lastElementChild?.classList.contains('youtube-translate-toggle')).toBe(true);
+		await mountYouTubeStudy(document,node,'Video','https://www.youtube.com/watch?v=dbqweBCynuI');
+		expect(node.querySelectorAll('.youtube-translate-toggle')).toHaveLength(1);
 	});
+
 });
 
 it('restores a player and timestamp metadata after Markdown strips embeds and classes', async () => {

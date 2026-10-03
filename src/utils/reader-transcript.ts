@@ -50,7 +50,7 @@ export function wireTranscript(
 	onSettingChange?: (key: keyof TranscriptSettings, value: boolean) => void
 ): void {
 	const transcript = article.querySelector('.youtube.transcript') as HTMLElement | null;
-	if (!transcript) return;
+	if (!transcript || transcript.dataset.readerWired === 'true') return;
 
 	const iframe = article.querySelector('iframe[src*="youtube.com/embed/"]') as HTMLIFrameElement | null;
 	const videoWrapper = article.querySelector('.reader-video-wrapper') as HTMLElement | null;
@@ -59,14 +59,17 @@ export function wireTranscript(
 	const playerEl = (videoWrapper || iframe || thumbnailLink) as HTMLElement | null;
 	if (!playerEl) return;
 
-	// Wrap player in a container with toggle controls
-	const playerContainer = doc.createElement('div');
+	transcript.dataset.readerWired = 'true';
+	// Reuse a pre-existing container when subtitles arrive after the live player.
+	const playerContainer = playerEl.closest<HTMLElement>('.player-container') || doc.createElement('div');
 	const pinDefault = settings.pinPlayer;
 	const autoScrollDefault = settings.autoScroll;
 	const highlightDefault = settings.highlightActiveLine;
 	playerContainer.className = 'player-container' + (pinDefault ? ' pin-player' : '');
-	playerEl.parentNode!.insertBefore(playerContainer, playerEl);
-	playerContainer.appendChild(playerEl);
+	if (!playerContainer.contains(playerEl)) {
+		playerEl.parentNode!.insertBefore(playerContainer, playerEl);
+		playerContainer.appendChild(playerEl);
+	}
 
 	let autoScrollEnabled = autoScrollDefault;
 	let highlightEnabled = highlightDefault;
@@ -148,9 +151,11 @@ export function wireTranscript(
 	if (iframe) {
 		// Enable JS API on the embed
 		const src = new URL(iframe.src);
-		src.searchParams.set('enablejsapi', '1');
-		src.searchParams.set('origin', window.location.origin);
-		iframe.src = src.toString();
+		if (src.searchParams.get('enablejsapi') !== '1') {
+			src.searchParams.set('enablejsapi', '1');
+			src.searchParams.set('origin', window.location.origin);
+			iframe.src = src.toString();
+		}
 
 		// Initialize postMessage connection once iframe loads
 		iframe.addEventListener('load', () => {
@@ -471,8 +476,9 @@ export function wireTranscript(
 	// Use capture phase so we intercept before YouTube's own keyboard
 	// handlers on the page — the original page scripts are still running
 	doc.addEventListener('keydown', (e: KeyboardEvent) => {
-		const tag = (e.target as HTMLElement).tagName;
-		if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+		if (e.ctrlKey || e.metaKey || e.altKey) return;
+		const target = e.target as HTMLElement;
+		if (target.closest('input, textarea, select, button, a, [contenteditable], [role=slider], [role=switch], .clip-chat')) return;
 
 		switch (e.code) {
 			case 'Space':
@@ -516,8 +522,8 @@ export function wireTranscript(
 	// YouTube handles Space on keyup — block that too
 	doc.addEventListener('keyup', (e: KeyboardEvent) => {
 		if (e.code === 'Space' && !videoEl) {
-			const tag = (e.target as HTMLElement).tagName;
-			if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+			const target = e.target as HTMLElement;
+			if (target.closest('input, textarea, select, button, a, [contenteditable], [role=slider], [role=switch], .clip-chat')) return;
 			e.preventDefault();
 			e.stopImmediatePropagation();
 		}

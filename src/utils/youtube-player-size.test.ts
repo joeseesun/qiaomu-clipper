@@ -6,8 +6,8 @@ vi.mock('./i18n', () => ({ getMessage: () => '视频尺寸' }));
 import { mountPlayerSize } from './youtube-player-size';
 const flush = async () => { for (let i = 0; i < 10; i++) await Promise.resolve(); };
 beforeEach(() => { document.body.innerHTML = '<article><div class="player-container"><iframe src="https://www.youtube.com/embed/dbqweBCynuI"></iframe></div></article>'; document.documentElement.className = ''; vi.clearAllMocks(); storage.get.mockResolvedValue(undefined); storage.set.mockResolvedValue(undefined); });
-const setup = () => { const article = document.querySelector('article')!; mountPlayerSize(article); return { article, frame: article.querySelector('iframe')!, handle: article.querySelector<HTMLElement>('.youtube-player-resize')!, slider: article.querySelector<HTMLInputElement>('input')! }; };
-function pointer(node: HTMLElement, type: string, x: number, y = 0) { const event = new Event(type); Object.assign(event, { pointerId: 1, button: 0, clientX: x, clientY: y }); node.dispatchEvent(event); }
+const setup = () => { const article = document.querySelector('article')!; mountPlayerSize(article); return { article, frame: article.querySelector('iframe')!, handle: article.querySelector<HTMLElement>('.youtube-player-resize')!, slider: { get value() { return article.querySelector('.youtube-player-resize')!.getAttribute('aria-valuenow')!; } } }; };
+function pointer(node: HTMLElement, type: string, x: number, y = 0) { const event = new Event(type, { bubbles: true }); Object.assign(event, { pointerId: 1, button: 0, clientX: x, clientY: y }); node.dispatchEvent(event); }
 
 it('supports keyboard resizing with matching accessible values and persisted preference without moving the player', async () => {
 	const { article, frame, handle, slider } = setup(); await flush(); const parent = frame.parentElement, src = frame.src;
@@ -60,4 +60,26 @@ it('cleans up study layout after the article is removed for ordinary reader navi
 	const { article } = setup(); article.remove(); resized();
 	expect(document.documentElement.classList.contains('youtube-study')).toBe(false); expect(disconnect).toHaveBeenCalled();
 	vi.unstubAllGlobals();
+});
+
+
+it('keeps dragging when pointer capture is unavailable and the pointer crosses the frame', async () => {
+	const {frame,handle}=setup(); await flush();
+	vi.spyOn(frame,'getBoundingClientRect').mockReturnValue({width:1000} as DOMRect);
+	handle.setPointerCapture=vi.fn(()=>{throw new Error('capture unavailable');});
+	pointer(handle,'pointerdown',500,600);
+	pointer(document.body,'pointermove',500,500);
+	expect(Number(handle.getAttribute('aria-valuenow'))).toBeLessThan(100);
+	pointer(document.body,'pointerup',500,500);
+	expect(document.documentElement.classList.contains('youtube-player-resizing')).toBe(false);
+	expect(storage.set).toHaveBeenCalledTimes(1);
+});
+
+it('sizes the actual iframe rather than a preceding ordinary video link', async () => {
+	const article=document.querySelector('article')!;
+	const link=document.createElement('a');link.href='https://www.youtube.com/watch?v=dbqweBCynuI';article.prepend(link);
+	const {frame,handle}=setup(); await flush();
+	handle.dispatchEvent(new KeyboardEvent('keydown',{key:'Home'}));
+	expect(frame.classList.contains('youtube-sized-player')).toBe(true);
+	expect(link.classList.contains('youtube-sized-player')).toBe(false);
 });

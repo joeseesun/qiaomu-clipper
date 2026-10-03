@@ -87,3 +87,12 @@ it('keeps provider markup inert and never renders it as HTML', async () => {
 	expect(article.querySelector('img')).toBeNull();
 	expect(article.querySelector('.transcript-translation')!.textContent).toContain('<img');
 });
+
+
+it('retains an original-text selection while switching bilingual paragraphs on and off',async()=>{
+ const {article,input}=setup(['Original passage. Second sentence.']);
+ const text=article.querySelector('.transcript-segment-text')!.firstChild!;
+ const selection=document.getSelection()!;selection.setBaseAndExtent(text,0,text,8);
+ input.click();await flush();expect(selection.toString()).toBe('Original');
+ input.click();expect(selection.toString()).toBe('Original');
+});

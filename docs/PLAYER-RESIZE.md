@@ -1,15 +1,15 @@
-# 视频尺寸本地验收
+# 播放器与翻译控件本地验收
 
-整合基线为已提交的字幕排版 a128796，包含共享顶部 bar（#11）和播放器来源修复（#9）。本次本地分支不修改翻译或字幕渲染模块、不更新版本、不合并 PR、不发布。
+基线8e527a（共享bar、字幕排版、153来源规则、播放器工作区布局）。此纠正分支仅本地提交，不更新版本、不推送、不合并PR、不发布。根目录dist及并行日记核心保持不变。
 
-原先 100% 指 Aa 正文列宽；新布局让视频使用扣除目录及桌面 AI 面板后的工作区，字幕保持原有阅读行宽。100% 同时考虑视窗高度及顶部 bar 的实际高度，为控制区留出空间；窄屏 bar 换行后正文不会被遮盖。按 16:9 保持比例，最小宽度约 356px（高度至少 200px）；可用宽度不足时优先适应窗口。窄屏只夹紧显示，不覆盖已存储的宽屏偏好。
+控件精简：删除可见视频尺寸slider/百分比/说明整行，删除视频文稿标题及重复复制/下载工具栏；复用顶部操作。视频下边缘保留20px拖动区域与48px短杠，无鼠标点击边框，键盘focus有克制轮廓。播放选项中中文翻译Switch紧跟“标出当前句子”；窄屏可换行且仍可操作。字幕加载与翻译错误、重试反馈仍保留。
 
-视频下方的手柄支持拖动（pointer capture）、方向键（1%，Shift 为 5%）、PageUp/PageDown（10%）、Home/End。ARIA label、controls、min/max/now/value text 同步有效几何。滑杆按 1% 调节；提交才保存，旧数值继续读取并夹紧。调整只改样式，不修改 src、不移动或替换 iframe；取消或丢失捕获会清理拖动状态。新布局仅在实际视频存在时生效，普通文章导航会清理监听和样式状态。
+拖柄：向上缩小、向下放大，水平拖动亦可调整；方向键1%、Shift方向键5%、Page10%、Home/End。ARIA label/controls/min/max/now/value text同步。最小尺寸随可用宽度/高度适配，极窄窗口到最小后不能继续缩小。宽屏偏好不会被窄屏覆盖。指针捕获及document事件接收兼容移出边缘，取消/丢失捕获清理。只改几何，不替换iframe或src。
 
-本地预览：http://127.0.0.1:8770/ 。使用生产尺寸模块、createClipBar 和 reader.scss；浏览器 storage 与保存连接器替换为本地测试接口，Aa 与 AI 内容是布局示例。它不是已安装扩展的完整验收。预览素材与截图保存在 ignored dev/player-resize-preview，不包含私有字幕或提供商凭证。
+确定的集成缺陷：原wireTranscript在capture phase截走左右方向键，使角色为slider的拖柄无法使用这些键；现让交互控件、contenteditable及modifier快捷键先处理。原字幕后加载会给已启用JS API的iframe改写origin/src；现避免改写，并复用播放器容器、幂等连接字幕。先选择真实视频，再退回普通YouTube链接，避免普通链接抢中尺寸目标。用户实机鼠标拖不动的唯一原因仍未直接证实，不将这些修正冒称用户页根因。
 
-组件浏览器实测（1440×1000）：同为 100%，旧阅读样式视频为 820.8×461.7，新样式为 1136×639。1440/1280/1024/768/390 宽度下无横向溢出且保持 16:9；390px 下视频为 358×201.4，最小值也适应到 100%。桌面打开 AI 时预留其宽度；收起目录会释放视频空间。拖动 100% 至 75% 保持同 iframe/src、0 次新增 load，刷新恢复 75%。独立验收的最终报告另行补充。
+安全只读核对：Chrome Default unpacked扩展配置指向根目录dist，磁盘manifest1.10.1，reader.css/reader-page.js哈希与8e527a冻结包一致。用户新截图实际查看，包含新版handle/title/100%hint，因此不能仅归因旧缓存。磁盘文件不证明已打开页面内存版本；未刷新用户页或绕过此前扩展内部访问拒绝。
 
-真实 YouTube 播放被“请登录，以便我们确认你不是聊天机器人”拦住。播放/暂停后的时间、倍速、实际字幕定位及原生全屏恢复未验证；不进行登录或绕过。曾被会话审批拒绝的扩展内部页访问亦未绕过。用户原始附件物化失败，没有可读本地文件，本次依据代码和自产组件截图验证。
+集成预览http://127.0.0.1:8771/使用生产wireTranscript、mountPlayerSize、mountYouTubeStudy、translation renderer、bar与reader CSS。模拟字幕后加载顺序；storage/连接器及翻译提供商为示例。1440宽真实鼠标命中边缘，从1136px/100%缩至920px/81%，同iframe/src、无额外load；原文选择“This”开/关翻译都保留。390宽视频358px，无水平溢出，四个Switch仍显示。证据在ignored dev/controls-preview。不是实际已安装扩展或真实AI提供商验收。
 
-检查：npm test、npx tsc --noEmit、python3 -m unittest discover -s native -p 'test_*.py'、npm run build:chrome。没有独立 lint 命令；Firefox/Safari 不属于本轮本地 Chrome 验收。
+本地检查：310 Vitest测试、tsc、12 native测试、Chrome构建。最终冻结提交/哈希由dev/controls-preview/REPORT.md记录。真实YouTube播放/速度/字幕定位/原生全屏仍需用户页确认；先前预览auth不能代表用户Chrome登录会话，亦不能用原YouTube页可播放证明embed可播。实际200%浏览器缩放未验收。

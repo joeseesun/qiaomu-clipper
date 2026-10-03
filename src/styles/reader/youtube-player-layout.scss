@@ -26,16 +26,15 @@ html.youtube-study.obsidian-reader-active:has(.youtube-sized-player) body {
 		.player-container.pin-player { top: var(--youtube-bar-height, var(--clip-bar-offset, 0px)); }
 	}
 	.youtube-player-resize {
-		height: 24px; display: flex; justify-content: center; align-items: center;
-		cursor: nwse-resize; touch-action: none; user-select: none; box-sizing: border-box;
-		&::after { content: ''; width: 44px; height: 4px; border-radius: 4px; background: var(--text-muted); opacity: .45; }
+		height: 20px; border: 0 !important; padding: 0; background: transparent; position: relative; z-index: 1; flex-shrink: 0; display: flex; justify-content: center; align-items: center;
+		cursor: ns-resize; touch-action: none; user-select: none; box-sizing: border-box;
+		&::after { content: ''; width: 48px; height: 4px; border-radius: 4px; background: var(--text-muted); opacity: .45; }
 		&:hover::after, &:focus-visible::after { opacity: 1; }
 		&:focus-visible { outline: 1px solid var(--text-muted); outline-offset: -1px; border-radius: 4px; }
 	}
-	.youtube-size-hint { font-size: 12px; }
 }
 html.youtube-player-resizing {
-	cursor: nwse-resize; user-select: none;
+	cursor: ns-resize; user-select: none;
 	iframe, video { pointer-events: none; }
 }
 @media (min-width: 1100px) {
