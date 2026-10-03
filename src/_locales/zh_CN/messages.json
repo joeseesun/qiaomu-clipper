@@ -1323,6 +1323,18 @@
 	"learningNotesDescription": {
 		"message": "在阅读页和视频学习页提供“记笔记”按钮和 N 快捷键，笔记通过本地助手追加到库里今天的日记。"
 	},
+	"youtubePanelCardTitle": {
+		"message": "乔木 · 沉浸学习"
+	},
+	"youtubePanelCardLoading": {
+		"message": "正在准备字幕…"
+	},
+	"youtubePanelCardReady": {
+		"message": "字幕已就绪"
+	},
+	"youtubePanelCardNone": {
+		"message": "点击后读取字幕"
+	},
 	"youtubePanelActionsTitle": {
 		"message": "YouTube 转写文稿按钮"
 	},

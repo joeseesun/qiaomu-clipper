@@ -53,8 +53,22 @@ export async function readYouTubeTranscriptFromDom(doc: Document, open = true, w
 const seconds = (stamp: string) => stamp.split(':').reduce((total, part) => total * 60 + Number(part), 0);
 const escapeHtml = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
+// Caption lines are only a couple of seconds long. Merge them into paragraphs the way Defuddle does, so the study
+// page reads as text rather than as hundreds of one-line rows.
+export function groupSegments(segments: PanelSegment[], maxSeconds = 30, sentenceSeconds = 12): PanelSegment[] {
+	const groups: PanelSegment[] = []; let start = -1;
+	for (const { time, text } of segments) {
+		const at = seconds(time), last = groups[groups.length - 1];
+		if (last && start >= 0 && at - start < maxSeconds && !(/[.!?。！？]["”)]?$/.test(last.text) && at - start >= sentenceSeconds)) last.text = joinText(last.text, text);
+		else { groups.push({ time, text }); start = at; }
+	}
+	return groups;
+}
+const CJK = /[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]/;
+const joinText = (a: string, b: string) => CJK.test(a.slice(-1)) && CJK.test(b[0] || '') ? a + b : `${a} ${b}`;
+
 // The same markup Defuddle produces, so the study page treats both sources identically.
 export function transcriptHtml(segments: PanelSegment[]): string {
-	const lines = segments.map(({ time, text }) => `<p class="transcript-segment"><strong><span class="timestamp" data-timestamp="${seconds(time)}">${escapeHtml(time)}</span></strong> · ${escapeHtml(text)}</p>`);
+	const lines = groupSegments(segments).map(({ time, text }) => `<p class="transcript-segment"><strong><span class="timestamp" data-timestamp="${seconds(time)}">${escapeHtml(time)}</span></strong> · ${escapeHtml(text)}</p>`);
 	return `<div class="youtube transcript">\n<h2>Transcript</h2>\n${lines.join('\n')}\n</div>`;
 }

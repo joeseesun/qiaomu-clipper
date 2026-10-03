@@ -1323,6 +1323,18 @@
 	"learningNotesDescription": {
 		"message": "在閱讀頁與影片學習頁提供「記筆記」按鈕與 N 快捷鍵，筆記透過本地助手追加到庫裡今天的日記。"
 	},
+	"youtubePanelCardTitle": {
+		"message": "喬木 · 沉浸學習"
+	},
+	"youtubePanelCardLoading": {
+		"message": "正在準備字幕…"
+	},
+	"youtubePanelCardReady": {
+		"message": "字幕已就緒"
+	},
+	"youtubePanelCardNone": {
+		"message": "點擊後讀取字幕"
+	},
 	"youtubePanelActionsTitle": {
 		"message": "YouTube 轉寫文稿按鈕"
 	},

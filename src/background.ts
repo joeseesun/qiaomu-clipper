@@ -1281,6 +1281,23 @@ browser.runtime.onMessage.addListener((raw: unknown, sender) => {
 	})();
 });
 
+// Fast route for study mode: the YouTube tab already prefetched the transcript (or reads it from the panel).
+browser.runtime.onMessage.addListener((raw: unknown, sender) => {
+	const request = raw as { action?: string; sourceTabId?: number; url?: string };
+	if (request?.action !== 'qiaomuStudyTranscript') return;
+	if (sender.id !== browser.runtime.id || !sender.url?.startsWith(browser.runtime.getURL('reader.html'))
+		|| !Number.isInteger(request.sourceTabId) || !request.url || !videoKey(request.url)?.startsWith('youtube:')) return Promise.resolve({ error: '无效的视频来源' });
+	return (async () => {
+		try {
+			const tab = await browser.tabs.get(request.sourceTabId!);
+			if (!tab.url || videoKey(tab.url) !== videoKey(request.url!)) return { error: '原视频页面已切换，请重新打开学习模式' };
+			const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('原页面读取字幕超时')), 26000));
+			const answer = await Promise.race([browser.tabs.sendMessage(request.sourceTabId!, { action: 'qiaomuTranscript' }), timeout]) as { html?: string; count?: number } | undefined;
+			return { html: answer?.html || '', count: answer?.count || 0 };
+		} catch (error) { return { error: error instanceof Error ? error.message : '原页面不可用' }; }
+	})();
+});
+
 // Extract inside the viewer's own video tab, as the regular clipper does. YouTube answers a page with its cookies
 // and origin, and Defuddle can read or open the transcript panel in the live DOM; a copy of the HTML in the
 // extension page can do neither, which is why subtitles were often missing there.

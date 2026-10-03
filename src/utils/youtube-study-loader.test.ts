@@ -16,7 +16,7 @@ import { youtubeStudyPath } from './youtube-url';
 const url = 'https://www.youtube.com/watch?v=dbqweBCynuI';
 const result = { content: '<div class="youtube transcript"><p class="transcript-segment">Actual subtitle</p></div>', title: 'Video' };
 const flush = async () => { for (let i = 0; i < 15; i++) await Promise.resolve(); };
-beforeEach(() => { vi.clearAllMocks(); document.body.innerHTML = ''; state.fetch.mockResolvedValue({ html: '<html><body>source</body></html>' }); });
+beforeEach(() => { vi.clearAllMocks(); document.body.innerHTML = ''; state.fetch.mockImplementation(async (message: { action: string }) => message.action === 'qiaomuStudyTranscript' ? {} : { html: '<html><body>source</body></html>' }); });
 afterEach(() => vi.useRealTimers());
 
 it('opens a source-linked study route without needing extracted content', () => {
@@ -121,4 +121,24 @@ it('takes the first route that has subtitles, keeps a description-only answer as
 	expect(await firstWithTranscript([Promise.resolve(without), new Promise<typeof withText>(r => setTimeout(() => r(withText), 5))])).toBe(withText);
 	expect(await firstWithTranscript([Promise.reject(new Error('x')), Promise.resolve(without)])).toBe(without);
 	await expect(firstWithTranscript([Promise.reject(new Error('first')), Promise.reject(new Error('last'))])).rejects.toThrow();
+});
+
+it('uses the transcript the video tab already prefetched, reading only the metadata from the copy and never the network', async () => {
+	const prefetched = '<div class="youtube transcript"><p class="transcript-segment">Prefetched line</p></div>';
+	let offline: (() => Promise<unknown>) | undefined;
+	state.fetch.mockImplementation(async (message: { action: string }) => message.action === 'qiaomuStudyTranscript' ? { html: prefetched, count: 1 } : { html: '<html><body>source</body></html>' });
+	state.parse.mockResolvedValue({ content: '<p>Description</p>', title: 'Video' });
+	await startYouTubeStudy(url, 42, 'Video', state.ready); await flush();
+	expect(Reader.attachYouTubeTranscript).toHaveBeenCalledOnce();
+	expect(state.ready).toHaveBeenCalledWith(expect.objectContaining({ content: '<p>Description</p>' + prefetched }));
+	expect(state.fetch.mock.calls.some(([message]) => message?.action === 'qiaomuStudyLiveExtract')).toBe(false);
+	expect(offline).toBeUndefined();
+});
+
+it('falls back to the full extraction when the tab has no prefetched transcript', async () => {
+	state.fetch.mockImplementation(async (message: { action: string }) => message.action === 'qiaomuStudyTranscript' ? { html: '', count: 0 } : message.action === 'qiaomuStudyLiveExtract' ? { ...result } : { html: '<html><body>source</body></html>' });
+	state.parse.mockResolvedValue({ content: '<p>Description only</p>' });
+	await startYouTubeStudy(url, 42, 'Video', state.ready); await flush();
+	expect(state.fetch.mock.calls.some(([message]) => message?.action === 'qiaomuStudyLiveExtract')).toBe(true);
+	expect(Reader.attachYouTubeTranscript).toHaveBeenCalledOnce();
 });

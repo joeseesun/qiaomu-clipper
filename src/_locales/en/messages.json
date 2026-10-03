@@ -1323,6 +1323,18 @@
 	"learningNotesDescription": {
 		"message": "Add a note button and the N key to the reading and video pages. Notes are appended to today's daily note in your vault through the local helper."
 	},
+	"youtubePanelCardTitle": {
+		"message": "Qiaomu · Study"
+	},
+	"youtubePanelCardLoading": {
+		"message": "Preparing transcript…"
+	},
+	"youtubePanelCardReady": {
+		"message": "Transcript ready"
+	},
+	"youtubePanelCardNone": {
+		"message": "Click to read the transcript"
+	},
 	"youtubePanelActionsTitle": {
 		"message": "YouTube transcript buttons"
 	},
