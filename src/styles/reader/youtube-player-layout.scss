@@ -8,6 +8,7 @@ html.youtube-study.obsidian-reader-active:has(.youtube-sized-player) body {
 		&:has(> .obsidian-reader-left-sidebar.is-collapsed:not(.is-empty)) { grid-template-columns: 44px minmax(0, 1fr) var(--clipper-sidebar-width, 0px); }
 	}
 	.obsidian-reader-content {
+		padding-top: max(calc(var(--youtube-bar-height, 56px) + 16px), 4rem, 4vh) !important;
 		width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box; overflow: visible;
 		main, article { width: 100%; min-width: 0; }
 		article > :not(.player-container):not(.youtube-sized-player):not(.youtube-player-resize) {
@@ -15,14 +16,14 @@ html.youtube-study.obsidian-reader-active:has(.youtube-sized-player) body {
 		}
 		.youtube-sized-player, .youtube-player-resize {
 			// Fit both workspace width and viewport height, with room for the shared bar and controls.
-			width: calc(min(100%, max(356px, (100svh - 180px) * 16 / 9)) * var(--youtube-player-scale, 1)) !important;
+			width: calc(min(100%, max(356px, (100svh - var(--youtube-bar-height, 56px) - 124px) * 16 / 9)) * var(--youtube-player-scale, 1)) !important;
 			max-width: 100%; margin-inline: auto;
 		}
 		.youtube-sized-player {
 			min-width: min(100%, 356px); height: auto !important; max-height: none !important; aspect-ratio: 16 / 9; display: block; box-shadow: none;
 			&:fullscreen { width: 100vw !important; height: 100vh !important; aspect-ratio: auto; margin: 0; }
 		}
-		.player-container.pin-player { top: var(--clip-bar-offset, 0px); }
+		.player-container.pin-player { top: var(--youtube-bar-height, var(--clip-bar-offset, 0px)); }
 	}
 	.youtube-player-resize {
 		height: 24px; display: flex; justify-content: center; align-items: center;
@@ -44,3 +45,5 @@ html.youtube-player-resizing {
 	html.youtube-study.obsidian-reader-active:has(.youtube-sized-player) body .obsidian-reader-container { grid-template-columns: minmax(0, 1fr) !important; gap: 0; }
 	html.youtube-study.obsidian-reader-active:has(.youtube-sized-player) body .obsidian-reader-content { padding-inline: 16px !important; }
 }
+
+html.youtube-study.clip-bar-hidden .player-container.pin-player { top: 0; }

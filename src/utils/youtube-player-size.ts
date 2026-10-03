@@ -89,17 +89,21 @@ export function mountPlayerSize(article: HTMLElement): void {
 		if (!article.isConnected) {
 			observer?.disconnect(); doc.defaultView?.removeEventListener('resize', adapt);
 			doc.documentElement.classList.remove('youtube-player-resizing');
-			if (!doc.querySelector('.youtube-sized-player')) doc.documentElement.classList.remove('youtube-study');
+			if (!doc.querySelector('.youtube-sized-player')) { doc.documentElement.classList.remove('youtube-study'); doc.documentElement.style.removeProperty('--youtube-bar-height'); }
 			return;
 		}
+		const barHeight = Math.max(56, doc.querySelector('.clip-bar')?.getBoundingClientRect().height || 0);
+		doc.documentElement.style.setProperty('--youtube-bar-height', `${barHeight}px`);
 		const width = article.getBoundingClientRect().width;
 		if (!width) return;
-		const maxWidth = Math.min(width, Math.max(356, ((doc.defaultView?.innerHeight || 900) - 180) * 16 / 9));
+		const maxWidth = Math.min(width, Math.max(356, ((doc.defaultView?.innerHeight || 900) - barHeight - 124) * 16 / 9));
 		const next = Math.min(100, Math.max(35, Math.ceil(356 / maxWidth * 100)));
 		if (next !== minimum) { minimum = next; update(); }
 	};
 	const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(adapt) : undefined;
-	observer?.observe(article); doc.defaultView?.addEventListener('resize', adapt);
+	observer?.observe(article);
+	const bar = doc.querySelector('.clip-bar'); if (bar) observer?.observe(bar);
+	doc.defaultView?.addEventListener('resize', adapt);
 	doc.defaultView?.addEventListener('pagehide', () => { observer?.disconnect(); doc.defaultView?.removeEventListener('resize', adapt); }, { once: true });
 	update(); adapt();
 	void getLocalStorage('qiaomuYouTubePlayerSize').then(saved => { if (!touched) { preferredSize = normalizePlayerSize(saved); update(); } }).catch(() => {});
