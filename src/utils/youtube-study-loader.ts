@@ -17,6 +17,22 @@ export async function withTranscriptDeadline<T>(extract: (signal: AbortSignal) =
 	finally { clearTimeout(timer!); controller.abort(); }
 }
 
+const hasTranscript = (result: { content?: string } | undefined): boolean => {
+	if (!result?.content) return false;
+	const holder = document.createElement('div'); holder.innerHTML = DOMPurify.sanitize(result.content);
+	return Boolean(holder.querySelector(TRANSCRIPT_SELECTOR)?.querySelector('.transcript-segment'));
+};
+
+// Resolve with the first route that actually has subtitles; if none does, keep the best answer so the page
+// can still show the title and description, or reject with the last error when every route failed.
+export function firstWithTranscript<T extends { content?: string }>(jobs: Promise<T>[]): Promise<T> {
+	return new Promise((resolve, reject) => {
+		let pending = jobs.length, fallback: T | undefined, lastError: unknown;
+		const settle = () => { if (--pending === 0) fallback ? resolve(fallback) : reject(lastError); };
+		for (const job of jobs) job.then(result => { if (hasTranscript(result)) resolve(result); else { fallback ??= result; settle(); } }, error => { lastError = error; settle(); });
+	});
+}
+
 // Render the learning page before doing any page fetch or subtitle extraction.
 export async function startYouTubeStudy(url: string, sourceTabId: number, initialTitle: string, onReady: (result: any) => Promise<void>, mountShell?: () => {chat: {toggle: () => boolean}; ready: () => void}): Promise<void> {
 	if (!videoKey(url)) throw new Error('无效的视频链接');
@@ -45,6 +61,15 @@ export async function startYouTubeStudy(url: string, sourceTabId: number, initia
 		loading = true; retry.hidden = true; status.textContent = '正在加载字幕… 视频可以先播放';
 		try {
 			const result = await withTranscriptDeadline(async signal => {
+				// Two routes, first one that returns subtitles wins. The page itself is the reliable one: it
+				// has YouTube's cookies and origin, and Defuddle can read or open the transcript panel there.
+				// The copy route (static HTML + background proxy) keeps working when the tab is gone.
+				const fromTab = async (): Promise<any> => {
+					const live = await browser.runtime.sendMessage({ action: 'qiaomuStudyLiveExtract', sourceTabId, url }).catch(() => undefined) as Record<string, any> | undefined;
+					if (signal.aborted || !live || live.error || typeof live.content !== 'string') throw new Error(live?.error || '原页面没有返回内容');
+					return { ...live, variables: live.extractedContent || {} };
+				};
+				const fromCopy = async (): Promise<any> => {
 				const proxyFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
 					if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
 					const target = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
@@ -68,6 +93,8 @@ export async function startYouTubeStudy(url: string, sourceTabId: number, initia
 				const doc = new DOMParser().parseFromString(html, 'text/html');
 				Object.defineProperty(doc, 'URL', { value: url, configurable: true });
 				return await new Defuddle(doc, { url, fetch: proxyFetch }).parseAsync();
+				};
+				return await firstWithTranscript([fromTab(), fromCopy()]);
 			});
 			if (!article.isConnected) return;
 			const content = document.createElement('div');
