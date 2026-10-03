@@ -126,8 +126,14 @@ article > .player-toggles {
 		color: var(--text-normal);
 	}
 }
+// The phrase being spoken. ::highlight cannot change font-weight (that would also re-wrap the line),
+// so weight comes from a hairline stroke, which keeps glyph widths and line breaks untouched. The tint is
+// the playhead red rather than yellow, so it never reads as a user highlight or as a selection.
 ::highlight(transcript-playback) {
-	background-color: var(--text-selection);
+	background-color: color-mix(in srgb, var(--color-red) 16%, transparent);
+	color: var(--text-normal);
+	-webkit-text-stroke-width: 0.5px;
+	-webkit-text-stroke-color: var(--text-normal);
 }
 ::highlight(transcript-hover) {
 	text-decoration: underline;
