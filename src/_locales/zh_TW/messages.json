@@ -1317,11 +1317,80 @@
 	"qiaomuChatQuoteRewrite": {
 		"message": "改寫得更簡潔"
 	},
+	"youtubeAutoTranscriptTitle": {
+		"message": "自動展開 YouTube 轉寫文稿"
+	},
+	"youtubeAutoTranscriptDescription": {
+		"message": "在影片頁自動展開一次 YouTube 的轉寫文稿面板，讓字幕隨時可複製、下載並進入學習模式。你關掉後，這個影片不再自動展開。"
+	},
+	"youtubeHideNativeTitle": {
+		"message": "隱藏 YouTube 內建的轉寫面板"
+	},
+	"youtubeHideNativeDescription": {
+		"message": "字幕自動展開後，把 YouTube 右欄裡的原生面板藏起來，轉寫條裡能看到同樣的內容。你自己手動開啟的面板不會被隱藏。"
+	},
 	"learningNotesTitle": {
 		"message": "學習筆記"
 	},
 	"learningNotesDescription": {
 		"message": "在閱讀頁與影片學習頁提供「記筆記」按鈕與 N 快捷鍵，筆記透過本地助手追加到庫裡今天的日記。"
+	},
+	"youtubePanelReload": {
+		"message": "擴充功能剛更新過，請重新整理此頁面後再試"
+	},
+	"youtubeBarSubtitles": {
+		"message": "字幕"
+	},
+	"youtubeBarSettings": {
+		"message": "設定"
+	},
+	"youtubeBarExpand": {
+		"message": "展開字幕"
+	},
+	"youtubeBarCollapse": {
+		"message": "收起"
+	},
+	"youtubeBarMore": {
+		"message": "更多內容請在沉浸學習裡查看"
+	},
+	"transcriptSearch": {
+		"message": "搜尋字幕"
+	},
+	"transcriptSearchClear": {
+		"message": "清除搜尋"
+	},
+	"transcriptSearchNone": {
+		"message": "無結果"
+	},
+	"youtubeBarSearch": {
+		"message": "搜尋字幕"
+	},
+	"youtubeBarClear": {
+		"message": "清除搜尋"
+	},
+	"youtubeBarNoMatch": {
+		"message": "無結果"
+	},
+	"youtubeBarFollow": {
+		"message": "字幕跟隨播放：開（點擊關閉）"
+	},
+	"youtubeBarFollowOff": {
+		"message": "字幕跟隨播放：關（點擊開啟）"
+	},
+	"youtubeBarHere": {
+		"message": "回到目前位置"
+	},
+	"youtubePanelCardTitle": {
+		"message": "喬木 · 沉浸學習"
+	},
+	"youtubePanelCardLoading": {
+		"message": "正在準備字幕…"
+	},
+	"youtubePanelCardReady": {
+		"message": "字幕已就緒，點擊時間可跳轉"
+	},
+	"youtubePanelCardNone": {
+		"message": "點擊後讀取字幕"
 	},
 	"youtubePanelActionsTitle": {
 		"message": "YouTube 轉寫文稿按鈕"

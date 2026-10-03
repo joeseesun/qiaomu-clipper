@@ -16,7 +16,7 @@ import { youtubeStudyPath } from './youtube-url';
 const url = 'https://www.youtube.com/watch?v=dbqweBCynuI';
 const result = { content: '<div class="youtube transcript"><p class="transcript-segment">Actual subtitle</p></div>', title: 'Video' };
 const flush = async () => { for (let i = 0; i < 15; i++) await Promise.resolve(); };
-beforeEach(() => { vi.clearAllMocks(); document.body.innerHTML = ''; state.fetch.mockResolvedValue({ html: '<html><body>source</body></html>' }); });
+beforeEach(() => { vi.clearAllMocks(); document.body.innerHTML = ''; state.fetch.mockImplementation(async (message: { action: string }) => message.action === 'qiaomuStudyTranscript' ? {} : { html: '<html><body>source</body></html>' }); });
 afterEach(() => vi.useRealTimers());
 
 it('opens a source-linked study route without needing extracted content', () => {
@@ -42,14 +42,27 @@ it('renders the player immediately and attaches late subtitles without replacing
 	expect((document.getElementById('qiaomu-reader-clip') as HTMLButtonElement).disabled).toBe(false);
 });
 
-it('shows a retry after missing subtitles and fetches a fresh source on retry', async () => {
+it('quietly tries a second time before asking for a manual retry, then fetches a fresh source on retry', async () => {
+	vi.useFakeTimers();
 	state.parse.mockResolvedValueOnce({ content: '<p>Description only</p>' }).mockResolvedValueOnce(result);
 	await startYouTubeStudy(url, 42, 'Video', state.ready); await flush();
-	const retry = document.querySelector<HTMLButtonElement>('[aria-label="重新加载字幕"]')!;
-	expect(retry.hidden).toBe(false);
+	expect(document.querySelector('.youtube-study-status')?.textContent).toContain('重试');
+	expect(Reader.attachYouTubeTranscript).not.toHaveBeenCalled();
+	await vi.advanceTimersByTimeAsync(1600); await flush();
+	expect(Reader.attachYouTubeTranscript).toHaveBeenCalledOnce();
+	expect(document.querySelector<HTMLButtonElement>('[aria-label="重新加载字幕"]')!.hidden).toBe(true);
 	expect(document.querySelector('iframe')).not.toBeNull();
+});
+
+it('shows the retry button after both automatic attempts fail, and retry reads a fresh source', async () => {
+	vi.useFakeTimers();
+	state.parse.mockResolvedValueOnce({ content: '<p>Description only</p>' }).mockResolvedValueOnce({ content: '<p>Still none</p>' }).mockResolvedValueOnce(result);
+	await startYouTubeStudy(url, 42, 'Video', state.ready); await flush();
+	await vi.advanceTimersByTimeAsync(1600); await flush();
+	const retry = document.querySelector<HTMLButtonElement>('[aria-label="重新加载字幕"]')!;
+	expect(retry.hidden).toBe(false); expect(Reader.attachYouTubeTranscript).not.toHaveBeenCalled();
 	retry.click(); await flush();
-	expect(state.fetch.mock.calls.filter(([message]) => message?.action === 'qiaomuYouTubeStudySource')).toHaveLength(2);
+	expect(state.fetch.mock.calls.filter(([message]) => message?.action === 'qiaomuYouTubeStudySource')).toHaveLength(3);
 	expect(Reader.attachYouTubeTranscript).toHaveBeenCalledOnce();
 });
 
@@ -66,11 +79,12 @@ it('mounts the normal reading shell before extraction and keeps its chat and bar
 });
 
 it('makes the ordinary source actions ready even when captions are unavailable, while keeping caption retry', async () => {
+	vi.useFakeTimers();
 	state.parse.mockResolvedValue({title:'Video',content:'<p>Video description</p>'});
 	const ready=vi.fn();const chat={toggle:vi.fn(() => true)};
-	await startYouTubeStudy(url,42,'Video',state.ready,()=>({chat,ready}));await flush();
+	await startYouTubeStudy(url,42,'Video',state.ready,()=>({chat,ready}));await flush();await vi.advanceTimersByTimeAsync(1600);await flush();
 	expect(state.ready).toHaveBeenCalledWith(expect.objectContaining({content:'<p>Video description</p>'}));
-	expect(ready).toHaveBeenCalledOnce();
+	expect(ready).toHaveBeenCalled();
 	expect(document.querySelector<HTMLButtonElement>('[aria-label="重新加载字幕"]')!.hidden).toBe(false);
 	expect(Reader.attachYouTubeTranscript).not.toHaveBeenCalled();
 });
@@ -107,4 +121,24 @@ it('takes the first route that has subtitles, keeps a description-only answer as
 	expect(await firstWithTranscript([Promise.resolve(without), new Promise<typeof withText>(r => setTimeout(() => r(withText), 5))])).toBe(withText);
 	expect(await firstWithTranscript([Promise.reject(new Error('x')), Promise.resolve(without)])).toBe(without);
 	await expect(firstWithTranscript([Promise.reject(new Error('first')), Promise.reject(new Error('last'))])).rejects.toThrow();
+});
+
+it('uses the transcript the video tab already prefetched, reading only the metadata from the copy and never the network', async () => {
+	const prefetched = '<div class="youtube transcript"><p class="transcript-segment">Prefetched line</p></div>';
+	let offline: (() => Promise<unknown>) | undefined;
+	state.fetch.mockImplementation(async (message: { action: string }) => message.action === 'qiaomuStudyTranscript' ? { html: prefetched, count: 1 } : { html: '<html><body>source</body></html>' });
+	state.parse.mockResolvedValue({ content: '<p>Description</p>', title: 'Video' });
+	await startYouTubeStudy(url, 42, 'Video', state.ready); await flush();
+	expect(Reader.attachYouTubeTranscript).toHaveBeenCalledOnce();
+	expect(state.ready).toHaveBeenCalledWith(expect.objectContaining({ content: '<p>Description</p>' + prefetched }));
+	expect(state.fetch.mock.calls.some(([message]) => message?.action === 'qiaomuStudyLiveExtract')).toBe(false);
+	expect(offline).toBeUndefined();
+});
+
+it('falls back to the full extraction when the tab has no prefetched transcript', async () => {
+	state.fetch.mockImplementation(async (message: { action: string }) => message.action === 'qiaomuStudyTranscript' ? { html: '', count: 0 } : message.action === 'qiaomuStudyLiveExtract' ? { ...result } : { html: '<html><body>source</body></html>' });
+	state.parse.mockResolvedValue({ content: '<p>Description only</p>' });
+	await startYouTubeStudy(url, 42, 'Video', state.ready); await flush();
+	expect(state.fetch.mock.calls.some(([message]) => message?.action === 'qiaomuStudyLiveExtract')).toBe(true);
+	expect(Reader.attachYouTubeTranscript).toHaveBeenCalledOnce();
 });

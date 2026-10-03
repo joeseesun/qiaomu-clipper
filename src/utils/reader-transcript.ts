@@ -1,6 +1,7 @@
 import { getMessage } from './i18n';
 import { bilibiliEmbedUrl, isBilibiliEmbed, PLAYER_SELECTOR, TRANSCRIPT_SELECTOR } from './video-source';
 import { sourceTextNodes } from './transcript-format';
+import { mountTranscriptSearch } from './transcript-search';
 
 // CJK-aware text boundary helpers
 const SENT_END = /[.!?。！？]/;
@@ -214,7 +215,7 @@ export function wireTranscript(
 			if (newIndex >= 0) {
 				segments[newIndex].classList.add('is-active');
 				// Auto-scroll to keep active segment visible
-				if (autoScrollEnabled && !suppressScroll && Date.now() - lastUserScroll > AUTO_SCROLL_COOLDOWN) {
+				if (autoScrollEnabled && !suppressScroll && !search.active() && Date.now() - lastUserScroll > AUTO_SCROLL_COOLDOWN) {
 					const rect = segments[newIndex].getBoundingClientRect();
 					const targetY = (window.pageYOffset || doc.documentElement.scrollTop)
 						+ rect.top - (scroll.getFocusOffset?.() ?? scroll.getStickyOffset() + 20);
@@ -498,6 +499,9 @@ export function wireTranscript(
 	scrubTrack.appendChild(scrubHover);
 	transcript.style.position = 'relative';
 	transcript.appendChild(scrubTrack);
+
+	// Search box above the lines. While a search is active the list is filtered, so following playback pauses.
+	const search = mountTranscriptSearch(doc, transcript, segments, { placeholder: getMessage('transcriptSearch'), clear: getMessage('transcriptSearchClear'), noMatch: getMessage('transcriptSearchNone') });
 
 	// Word highlights using CSS Custom Highlight API
 	const hasHighlights = !!(CSS as any).highlights;

@@ -1317,11 +1317,80 @@
 	"qiaomuChatQuoteRewrite": {
 		"message": "Rewrite more concisely"
 	},
+	"youtubeAutoTranscriptTitle": {
+		"message": "Open the YouTube transcript automatically"
+	},
+	"youtubeAutoTranscriptDescription": {
+		"message": "On a video page, expand YouTube's transcript panel once so the transcript is ready for copying, downloading and study mode. Close it and it stays closed for that video."
+	},
+	"youtubeHideNativeTitle": {
+		"message": "Hide YouTube's own transcript panel"
+	},
+	"youtubeHideNativeDescription": {
+		"message": "When the transcript opens automatically, hide YouTube's panel in the right column. The transcript bar shows the same lines. A panel you open yourself is never hidden."
+	},
 	"learningNotesTitle": {
 		"message": "Learning notes"
 	},
 	"learningNotesDescription": {
 		"message": "Add a note button and the N key to the reading and video pages. Notes are appended to today's daily note in your vault through the local helper."
+	},
+	"youtubePanelReload": {
+		"message": "The extension was updated — reload this page and try again"
+	},
+	"youtubeBarSubtitles": {
+		"message": "Subtitles"
+	},
+	"youtubeBarSettings": {
+		"message": "Settings"
+	},
+	"youtubeBarExpand": {
+		"message": "Show transcript"
+	},
+	"youtubeBarCollapse": {
+		"message": "Collapse"
+	},
+	"youtubeBarMore": {
+		"message": "Open study mode to read the rest"
+	},
+	"transcriptSearch": {
+		"message": "Search transcript"
+	},
+	"transcriptSearchClear": {
+		"message": "Clear search"
+	},
+	"transcriptSearchNone": {
+		"message": "No results"
+	},
+	"youtubeBarSearch": {
+		"message": "Search transcript"
+	},
+	"youtubeBarClear": {
+		"message": "Clear search"
+	},
+	"youtubeBarNoMatch": {
+		"message": "No results"
+	},
+	"youtubeBarFollow": {
+		"message": "Following playback — click to turn off"
+	},
+	"youtubeBarFollowOff": {
+		"message": "Not following — click to follow playback"
+	},
+	"youtubeBarHere": {
+		"message": "Back to current line"
+	},
+	"youtubePanelCardTitle": {
+		"message": "Qiaomu · Study"
+	},
+	"youtubePanelCardLoading": {
+		"message": "Preparing transcript…"
+	},
+	"youtubePanelCardReady": {
+		"message": "Transcript ready — click a time to jump"
+	},
+	"youtubePanelCardNone": {
+		"message": "Click to read the transcript"
 	},
 	"youtubePanelActionsTitle": {
 		"message": "YouTube transcript buttons"

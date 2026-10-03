@@ -26,3 +26,42 @@ it('builds the same markup Defuddle produces, with escaped text and second offse
 	const html = transcriptHtml([{ time: '1:02:03', text: '<script>x</script> & "q"' }]);
 	expect(html).toContain('<div class="youtube transcript">'); expect(html).toContain('data-timestamp="3723"'); expect(html).toContain('&lt;script&gt;x&lt;/script&gt; &amp; &quot;q&quot;'); expect(html).not.toContain('<script>');
 });
+
+it('waits for a late opener, never closes an already open panel, and switches from the Chapters tab', async () => {
+	// The page is still building: the opener shows up after a moment and is clicked exactly once.
+	document.body.innerHTML = '';
+	const opened = vi.fn(); setTimeout(() => { document.body.innerHTML = '<button id="late" aria-label="Show transcript">x</button>'; document.getElementById('late')!.addEventListener('click', () => { opened(); document.body.insertAdjacentHTML('beforeend', panel(rows)); }); }, 400);
+	expect((await readYouTubeTranscriptFromDom(document, true, 3000, 50)).length).toBe(2); expect(opened).toHaveBeenCalledTimes(1);
+	// Expanded but empty: only wait, do not click the opener again (that would close it).
+	const again = vi.fn();
+	document.body.innerHTML = '<ytd-engagement-panel-section-list-renderer target-id="engagement-panel-searchable-transcript" visibility="ENGAGEMENT_PANEL_VISIBILITY_EXPANDED"><div id="segments-container"></div></ytd-engagement-panel-section-list-renderer><button id="opener" aria-label="Show transcript">x</button>';
+	document.getElementById('opener')!.addEventListener('click', again);
+	expect(await readYouTubeTranscriptFromDom(document, true, 400, 50)).toEqual([]); expect(again).not.toHaveBeenCalled();
+	// Open on the Chapters tab: the Transcript chip is selected after a moment and the lines appear.
+	document.body.innerHTML = '<ytd-engagement-panel-section-list-renderer target-id="engagement-panel-searchable-transcript" visibility="ENGAGEMENT_PANEL_VISIBILITY_EXPANDED"><chip-view-model><button><div class="ytChipShapeActive">Chapters</div></button></chip-view-model><chip-view-model><button id="tab"><div>Transcript</div></button></chip-view-model><div id="segments-container"></div></ytd-engagement-panel-section-list-renderer>';
+	document.getElementById('tab')!.addEventListener('click', () => { document.getElementById('segments-container')!.innerHTML = rows; });
+	expect((await readYouTubeTranscriptFromDom(document, true, 4000, 50)).length).toBe(2);
+});
+
+it('opens the panel once on request, never while it is open, and reports a missing opener without failing', async () => {
+	const { openTranscriptPanel, transcriptPanelOpen } = await import('./youtube-dom-transcript');
+	document.body.innerHTML = '<p>nothing yet</p>'; expect(openTranscriptPanel(document)).toBe(false);
+	document.body.innerHTML = '<button id="o" aria-label="Show transcript">x</button>'; const click = vi.fn(); document.getElementById('o')!.addEventListener('click', click);
+	expect(openTranscriptPanel(document)).toBe(true); expect(click).toHaveBeenCalledTimes(1);
+	document.body.innerHTML = '<ytd-engagement-panel-section-list-renderer target-id="engagement-panel-searchable-transcript" visibility="ENGAGEMENT_PANEL_VISIBILITY_EXPANDED"></ytd-engagement-panel-section-list-renderer><button id="o" aria-label="Show transcript">x</button>';
+	const again = vi.fn(); document.getElementById('o')!.addEventListener('click', again);
+	expect(transcriptPanelOpen(document)).toBe(true); expect(openTranscriptPanel(document)).toBe(false); expect(again).not.toHaveBeenCalled();
+});
+
+it('marks only the panel we opened for hiding, and gives it back once the viewer closes it', async () => {
+	const { markAutoOpenedPanel, releaseAutoPanel, AUTO_PANEL_ATTRIBUTE } = await import('./youtube-dom-transcript');
+	const make = (visibility: string) => `<ytd-engagement-panel-section-list-renderer target-id="engagement-panel-searchable-transcript" visibility="${visibility}"></ytd-engagement-panel-section-list-renderer>`;
+	const panel = () => document.querySelector('ytd-engagement-panel-section-list-renderer')!;
+	document.body.innerHTML = make('ENGAGEMENT_PANEL_VISIBILITY_EXPANDED');
+	releaseAutoPanel(document); expect(panel().hasAttribute(AUTO_PANEL_ATTRIBUTE)).toBe(false); // never marked: left alone
+	markAutoOpenedPanel(document, true); expect(panel().getAttribute(AUTO_PANEL_ATTRIBUTE)).toBe('1');
+	releaseAutoPanel(document); expect(panel().hasAttribute(AUTO_PANEL_ATTRIBUTE)).toBe(true); // still open: stays hidden
+	panel().setAttribute('visibility', 'ENGAGEMENT_PANEL_VISIBILITY_HIDDEN'); releaseAutoPanel(document); expect(panel().hasAttribute(AUTO_PANEL_ATTRIBUTE)).toBe(false);
+	markAutoOpenedPanel(document, true); markAutoOpenedPanel(document, false); expect(panel().hasAttribute(AUTO_PANEL_ATTRIBUTE)).toBe(false);
+	document.body.innerHTML = ''; expect(() => markAutoOpenedPanel(document, true)).not.toThrow();
+});

@@ -4,10 +4,11 @@ import browser from './browser-polyfill';
 import { Reader } from './reader';
 import { transcriptText, mountYouTubeStudy } from './youtube-study';
 import { bilibiliVideo, videoKey } from './video-source';
+import { youtubeVideoId } from './youtube-url';
 import { TRANSCRIPT_SELECTOR } from './video-source';
 import { setPageTitle, setPageUrl } from './highlighter';
 
-export async function withTranscriptDeadline<T>(extract: (signal: AbortSignal) => Promise<T>, timeoutMs = 20000): Promise<T> {
+export async function withTranscriptDeadline<T>(extract: (signal: AbortSignal) => Promise<T>, timeoutMs = 35000): Promise<T> {
 	const controller = new AbortController();
 	let timer: ReturnType<typeof setTimeout>;
 	const timeout = new Promise<never>((_, reject) => {
@@ -59,11 +60,28 @@ export async function startYouTubeStudy(url: string, sourceTabId: number, initia
 	async function load() {
 		if (loading || loaded) return;
 		loading = true; retry.hidden = true; status.textContent = '正在加载字幕… 视频可以先播放';
-		try {
+		// The first attempt often only warms the page up (YouTube builds its transcript lazily), so one quiet
+		// second attempt happens before the user is asked to press retry.
+		const once = async () => {
 			const result = await withTranscriptDeadline(async signal => {
 				// Two routes, first one that returns subtitles wins. The page itself is the reliable one: it
 				// has YouTube's cookies and origin, and Defuddle can read or open the transcript panel there.
 				// The copy route (static HTML + background proxy) keeps working when the tab is gone.
+				// Fastest: the video tab prefetched the transcript when the page went idle. Only the title, description and
+				// the like are still read from the page copy, without any network, so nothing here waits on a timeout.
+				const fromPrefetch = async (): Promise<any> => {
+					const answer = await browser.runtime.sendMessage({ action: 'qiaomuStudyTranscript', sourceTabId, url }).catch(() => undefined) as { html?: string; error?: string } | undefined;
+					if (signal.aborted || !answer?.html) throw new Error(answer?.error || '原页面还没有字幕');
+					const source = await browser.runtime.sendMessage({ action: 'qiaomuYouTubeStudySource', sourceTabId, url }) as { html?: string };
+					let meta: any = { content: '', title };
+					if (source?.html) {
+						const doc = new DOMParser().parseFromString(source.html, 'text/html');
+						Object.defineProperty(doc, 'URL', { value: url, configurable: true });
+						meta = await new Defuddle(doc, { url, fetch: async () => { throw new Error('offline'); } }).parseAsync().catch(() => meta);
+					}
+					// Defuddle may already have read the same lines from an open panel, with chapters; keep those if so.
+					return { ...meta, content: hasTranscript(meta) ? meta.content : (meta.content || '') + answer.html };
+				};
 				const fromTab = async (): Promise<any> => {
 					const live = await browser.runtime.sendMessage({ action: 'qiaomuStudyLiveExtract', sourceTabId, url }).catch(() => undefined) as Record<string, any> | undefined;
 					if (signal.aborted || !live || live.error || typeof live.content !== 'string') throw new Error(live?.error || '原页面没有返回内容');
@@ -94,6 +112,10 @@ export async function startYouTubeStudy(url: string, sourceTabId: number, initia
 				Object.defineProperty(doc, 'URL', { value: url, configurable: true });
 				return await new Defuddle(doc, { url, fetch: proxyFetch }).parseAsync();
 				};
+				if (youtubeVideoId(url)) {
+					const fast = await fromPrefetch().catch(() => undefined);
+					if (fast && hasTranscript(fast)) return fast;
+				}
 				return await firstWithTranscript([fromTab(), fromCopy()]);
 			});
 			if (!article.isConnected) return;
@@ -113,6 +135,15 @@ export async function startYouTubeStudy(url: string, sourceTabId: number, initia
 			loaded = true;
 			shell?.ready();
 			if (clip) clip.disabled = false;
+		};
+		try {
+			try { await once(); }
+			catch (first) {
+				if (!article.isConnected) return;
+				status.textContent = '正在重试字幕…'; await new Promise(done => setTimeout(done, 1500));
+				if (!article.isConnected) return;
+				try { await once(); } catch (second) { throw second ?? first; }
+			}
 		} catch (error) {
 			if (article.isConnected) { status.textContent = error instanceof Error ? error.message : '字幕加载失败，请重试'; retry.hidden = false; }
 		} finally { loading = false; }

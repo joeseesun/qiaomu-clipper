@@ -23,7 +23,7 @@
 
 ## YouTube 原页转写面板按钮
 
-在 YouTube 视频页右侧「在此视频中」面板的「章节 / 转写文稿」标签后增加三枚同款 chip：复制（带时间戳）、下载（UTF-8 TXT）、沉浸学习（等同 `aaa`，发送 `qiaomuTripleKey: read`）。
+YouTube 视频页右栏顶部的「转写条」（见 docs/YOUTUBE-STUDY.md「转写条」一节）：字幕、复制（带时间戳）、下载（UTF-8 TXT）、沉浸学习（等同 `aaa`，发送 `qiaomuTripleKey: read`）、设置。
 
 - 新内容脚本 `youtube-panel.js` 只匹配 `https://www.youtube.com/*`（其他页面不加载）；读取面板里已渲染的字幕行（新版 `transcript-segment-view-model` 与旧版 `ytd-transcript-segment-renderer`），面板没有字幕行时按钮隐藏。
 - 只用 DOM API，不写 innerHTML（YouTube 开启 Trusted Types）。YouTube 是单页应用，用按帧合并的 MutationObserver 保持按钮存在。
