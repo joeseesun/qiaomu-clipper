@@ -35,6 +35,12 @@ describe('YouTube study transcript', () => {
 		expect(Array.from(node.querySelectorAll('button')).every(button => button.disabled)).toBe(true);
 		expect(node.textContent).toContain('未获取到字幕');
 	});
+	it('uses the shared top-bar chat without adding a duplicate AI entry or panel', async () => {
+		const node=article(subtitles);const chat={toggle:vi.fn(() => true)};const count=vi.mocked(mountClipChat).mock.calls.length;
+		await mountYouTubeStudy(document,node,'Video','https://www.youtube.com/watch?v=dbqweBCynuI',chat);
+		expect(node.querySelector('[aria-label="基于视频文稿提问"]')).toBeNull();
+		expect(vi.mocked(mountClipChat).mock.calls).toHaveLength(count);
+	});
 	it('copies and downloads the same timestamped transcript used for AI, with a safe filename', async () => {
 		const node = article(subtitles);
 		await mountYouTubeStudy(document, node, 'Video / title', 'https://www.youtube.com/watch?v=example');
