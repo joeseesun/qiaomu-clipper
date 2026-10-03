@@ -1,7 +1,8 @@
 import { buildPanelActions, buildStudyCard, PANEL_STYLE, syncPanelActions, syncStudyCard, type CardState, type StudyCard } from './utils/youtube-panel-actions';
 import type { PanelSegment } from './utils/youtube-panel-actions';
 import { fetchTranscriptSegments } from './utils/youtube-innertube-transcript';
-import { readYouTubeTranscriptFromDom, transcriptHtml } from './utils/youtube-dom-transcript';
+import { openTranscriptPanel, readYouTubeTranscriptFromDom, transcriptHtml, transcriptPanelOpen } from './utils/youtube-dom-transcript';
+import { readPanelSegments } from './utils/youtube-panel-actions';
 
 // Runs on YouTube pages only. Adds an always-visible study card and copy / download / study chips to the transcript
 // panel, and fetches the transcript in the background as soon as a video page is idle, so opening study mode,
@@ -38,7 +39,8 @@ try {
 			ready: text('youtubePanelCardReady', '字幕已就绪', 'Transcript ready'),
 			none: text('youtubePanelCardNone', '点击后读取字幕', 'Click to read the transcript'),
 		};
-		let enabled = true;
+		let enabled = true, autoOpen = true;
+		const autoOpened = new Set<string>(); // one automatic opening per video: if the viewer closes the panel, it stays closed
 
 		// --- transcript prefetch -------------------------------------------------------------------------------
 		interface Entry { state: CardState; segments: PanelSegment[]; done: Promise<PanelSegment[]> }
@@ -84,6 +86,14 @@ try {
 			if (!enabled) { document.querySelectorAll('.qiaomu-yt-actions, .qiaomu-yt-card').forEach(node => node.remove()); card = undefined; return; }
 			if (!style.isConnected) (document.head || document.documentElement).append(style);
 			const videoId = currentVideo();
+			if (videoId && autoOpen && !autoOpened.has(videoId)) {
+				if (transcriptPanelOpen(document)) autoOpened.add(videoId);
+				else if (openTranscriptPanel(document)) autoOpened.add(videoId);
+			}
+			// Whatever YouTube rendered in the panel is also a ready transcript for copy, download and study mode.
+			const entry = videoId ? store.get(videoId) : undefined;
+			const panelEl = document.querySelector('ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-searchable-transcript"]');
+			if (entry && entry.state !== 'ready' && panelEl) { const rendered = readPanelSegments(panelEl); if (rendered.length) { entry.segments = rendered; entry.state = 'ready'; } }
 			syncPanelActions(document, panel => buildPanelActions(document, panel, { strings, title: () => document.title, openStudy, getSegments: () => getSegments(false) }));
 			if (!videoId) { document.querySelector('.qiaomu-yt-card')?.remove(); card = undefined; return; }
 			syncStudyCard(document, () => {
@@ -115,7 +125,7 @@ try {
 			return true;
 		});
 
-		const apply = (settings?: { youtubePanelActions?: boolean }) => { enabled = settings?.youtubePanelActions !== false; startPrefetch(); schedule(); };
+		const apply = (settings?: { youtubePanelActions?: boolean; youtubeAutoTranscript?: boolean }) => { enabled = settings?.youtubePanelActions !== false; autoOpen = settings?.youtubeAutoTranscript !== false; startPrefetch(); schedule(); };
 		api.storage.sync?.get('general_settings').then(data => apply(data?.general_settings)).catch(() => {});
 		api.storage.onChanged.addListener((changes, area) => { if (area === 'sync' && changes.general_settings) apply(changes.general_settings.newValue); });
 		startPrefetch(); schedule();

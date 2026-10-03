@@ -22,6 +22,16 @@ const findOpener = (doc: Document): HTMLButtonElement | undefined => {
 	return undefined;
 };
 
+// Expand the transcript panel once, the way a click on "Show transcript" does. False when it is already open or
+// the page has no opener yet (it is built lazily, so the caller simply tries again later).
+export function openTranscriptPanel(doc: Document): boolean {
+	if (isExpanded(doc)) return false;
+	const opener = findOpener(doc); if (!opener) return false;
+	opener.click(); return true;
+}
+
+export const transcriptPanelOpen = (doc: Document): boolean => isExpanded(doc);
+
 // The panel can be open on the "Chapters" tab; then the transcript chip next to it has to be selected.
 const TRANSCRIPT_WORDS = /transcript|转写|轉寫|文字起こし|스크립트|transcripción|transcription|транскрип/i;
 function selectTranscriptTab(doc: Document): boolean {

@@ -42,3 +42,13 @@ it('waits for a late opener, never closes an already open panel, and switches fr
 	document.getElementById('tab')!.addEventListener('click', () => { document.getElementById('segments-container')!.innerHTML = rows; });
 	expect((await readYouTubeTranscriptFromDom(document, true, 4000, 50)).length).toBe(2);
 });
+
+it('opens the panel once on request, never while it is open, and reports a missing opener without failing', async () => {
+	const { openTranscriptPanel, transcriptPanelOpen } = await import('./youtube-dom-transcript');
+	document.body.innerHTML = '<p>nothing yet</p>'; expect(openTranscriptPanel(document)).toBe(false);
+	document.body.innerHTML = '<button id="o" aria-label="Show transcript">x</button>'; const click = vi.fn(); document.getElementById('o')!.addEventListener('click', click);
+	expect(openTranscriptPanel(document)).toBe(true); expect(click).toHaveBeenCalledTimes(1);
+	document.body.innerHTML = '<ytd-engagement-panel-section-list-renderer target-id="engagement-panel-searchable-transcript" visibility="ENGAGEMENT_PANEL_VISIBILITY_EXPANDED"></ytd-engagement-panel-section-list-renderer><button id="o" aria-label="Show transcript">x</button>';
+	const again = vi.fn(); document.getElementById('o')!.addEventListener('click', again);
+	expect(transcriptPanelOpen(document)).toBe(true); expect(openTranscriptPanel(document)).toBe(false); expect(again).not.toHaveBeenCalled();
+});

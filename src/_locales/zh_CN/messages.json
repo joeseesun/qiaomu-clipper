@@ -1317,6 +1317,12 @@
 	"qiaomuChatQuoteRewrite": {
 		"message": "改写得更简洁"
 	},
+	"youtubeAutoTranscriptTitle": {
+		"message": "自动展开 YouTube 转写文稿"
+	},
+	"youtubeAutoTranscriptDescription": {
+		"message": "在视频页自动展开一次 YouTube 的转写文稿面板，让字幕随时可复制、下载和进入学习模式。你关掉后，这个视频不再自动展开。"
+	},
 	"learningNotesTitle": {
 		"message": "学习笔记"
 	},
