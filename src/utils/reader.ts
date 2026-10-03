@@ -2459,7 +2459,7 @@ export class Reader {
 			hide();
 		});
  const menu = doc.createElement('div'); menu.className = 'learning-selection-menu'; menu.style.display = 'none';
- const diary = doc.createElement('button'); diary.type = 'button'; diary.textContent = '记到今天日记'; diary.className = 'obsidian-selection-action learning-selection-action';
+ const diary = doc.createElement('button'); diary.type = 'button'; diary.textContent = '记笔记'; diary.className = 'obsidian-selection-action learning-selection-action';
 		diary.addEventListener('mousedown', event => event.preventDefault());
  diary.addEventListener('click', () => { const quote = learningSelection(doc); if (quote) void learningNotes(doc)?.open({quote}); hide(); });
  menu.append(btn, diary); doc.body.append(menu);

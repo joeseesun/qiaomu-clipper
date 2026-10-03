@@ -85,7 +85,7 @@ article > .player-toggles {
 .player-toggle.is-enabled {
 	color: var(--text-muted);
 	.player-toggle-switch {
-		background: var(--text-faint);
+		background: var(--text-muted);
 		&::after {
 			transform: translateX(calc(var(--toggle-width) - var(--toggle-thumb-size) - var(--toggle-border) * 2));
 		}
@@ -240,4 +240,14 @@ article > .player-toggles {
 	.transcript-segment { gap: .5em; }
 	.transcript-segment:has(.transcript-translation) { column-gap: .5em; }
 	.transcript-bilingual-block + .transcript-bilingual-block { margin-top: 1em; }
+}
+
+// A pencil after the time of every transcript line you took a note on (hover the time for the note).
+.transcript-segment.has-note > strong {
+	&::before {
+		content: ''; position: absolute; left: calc(100% + 1px); top: .12em; width: 12px; height: 12px; background: var(--text-muted);
+		-webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 20h9'/%3E%3Cpath d='M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z'/%3E%3C/svg%3E") center / contain no-repeat;
+		mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 20h9'/%3E%3Cpath d='M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z'/%3E%3C/svg%3E") center / contain no-repeat;
+	}
+	&:hover::before { background: var(--text-normal); }
 }

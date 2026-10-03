@@ -1317,6 +1317,12 @@
 	"qiaomuChatQuoteRewrite": {
 		"message": "Rewrite more concisely"
 	},
+	"learningNotesTitle": {
+		"message": "Learning notes"
+	},
+	"learningNotesDescription": {
+		"message": "Add a note button and the N key to the reading and video pages. Notes are appended to today's daily note in your vault through the local helper."
+	},
 	"youtubePanelActionsTitle": {
 		"message": "YouTube transcript buttons"
 	},

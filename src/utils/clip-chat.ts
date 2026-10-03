@@ -477,8 +477,8 @@ function mountSelectionPill(onAsk: (text: string) => void, onHighlight?: () => v
 	const ask = segment(WandSparkles, getMessage('qiaomuChatAskSelection'));
 	ask.addEventListener('click', () => { hide(); onAsk(text); });
 	pill.appendChild(ask);
-	if (onLearningRecord) {
-		const diary = segment(NotebookPen, '记到今天日记');
+	if (onLearningRecord && generalSettings.learningNotes !== false) {
+		const diary = segment(NotebookPen, '记笔记');
  diary.addEventListener('click', () => { const quote = learningSelection(document); hide(); if (quote) onLearningRecord(quote); });
 		pill.appendChild(diary);
 	}

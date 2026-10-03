@@ -59,3 +59,32 @@ it('guards Ctrl+Enter while resolving a new target and recovers when resolution 
 it('clears a subtitle timestamp when explicitly selecting a highlight without time metadata',async()=>{
  source={title:'Video',url:'https://www.youtube.com/watch?v=abcdefghijk'};select('#subtitle');await notes.open({quote:'Subtitle'});expect(input('视频时间（秒）').value).toBe('95');const details=Array.from(document.querySelectorAll('details')).find(d=>d.firstElementChild!.textContent==='从已有高亮选择摘录')!;details.open=true;details.dispatchEvent(new Event('toggle'));click('.learning-highlight-choice');expect(input('视频时间（秒）').value).toBe('');
 });
+it('is a non-modal card with a clickable time chip, an excerpt that can be removed and added back',async()=>{
+ source={title:'Video',url:'https://www.youtube.com/watch?v=abcdefghijk'};select('#subtitle');await notes.open({quote:'New subtitle'});
+ const dialog=document.querySelector<HTMLDialogElement>('dialog')!;expect(dialog.open).toBe(true);expect(dialog.matches(':modal')).toBe(false);
+ const chip=document.querySelector<HTMLButtonElement>('.learning-time-chip')!;expect(chip.hidden).toBe(false);expect(chip.textContent).toBe('1:35');
+ expect(document.querySelector<HTMLElement>('.learning-quote')!.hidden).toBe(false);
+ change('视频时间（秒）','125');expect(chip.textContent).toBe('2:05');chip.click();expect(document.querySelector<HTMLDetailsElement>('.learning-more:not([hidden])')!.parentElement).not.toBeNull();
+ click('.learning-quote .learning-secondary');expect(document.querySelector<HTMLElement>('.learning-quote')!.hidden).toBe(true);expect(input('原文摘录').value).toBe('');
+ click('.learning-add-quote');expect(document.querySelector<HTMLElement>('.learning-quote')!.hidden).toBe(false);
+});
+it('keeps the card open for a new selection: fills an empty excerpt, otherwise offers it without overwriting',async()=>{
+ await notes.open();expect(document.querySelector<HTMLElement>('.learning-quote')!.hidden).toBe(true);
+ select('#selected');await notes.open({quote:'Selected only'});expect(input('原文摘录').value).toBe('Selected only');expect(document.querySelector<HTMLElement>('.learning-quote')!.hidden).toBe(false);
+ await notes.open({quote:'Another passage'});expect(input('原文摘录').value).toBe('Selected only');
+ const replace=Array.from(document.querySelectorAll<HTMLButtonElement>('button')).find(b=>b.textContent==='改用本次选中的摘录')!;expect(replace.hidden).toBe(false);replace.click();expect(input('原文摘录').value).toBe('Another passage');
+});
+it('opens on a bare N key outside text fields only, with the highlighted transcript line as the time on Bilibili',async()=>{
+ source={title:'B 站',url:'https://www.bilibili.com/video/BV1cSec6tEux/'};document.querySelector('.transcript-segment')!.classList.add('is-active');
+ const dialog=()=>document.querySelector<HTMLDialogElement>('dialog')!;
+ const press=(init:KeyboardEventInit,target:EventTarget=document.body)=>target.dispatchEvent(new KeyboardEvent('keydown',{key:'n',bubbles:true,cancelable:true,...init}));
+ press({ctrlKey:true});press({metaKey:true});press({shiftKey:true});await tick();expect(dialog().open).toBe(false);
+ const field=document.createElement('input');document.body.append(field);press({},field);await tick();expect(dialog().open).toBe(false);
+ press({});await tick();expect(dialog().open).toBe(true);expect(input('视频时间（秒）').value).toBe('95');expect(document.querySelector('.learning-time-chip')!.textContent).toBe('1:35');
+ press({},input('我的理解'));await tick();expect(input('我的理解').value).toBe('');
+});
+it('remembers where a timed note was taken so the transcript can show it',async()=>{
+ const marks=await import('./learning-marks');const add=vi.spyOn(marks,'addMark').mockResolvedValue();
+ source={title:'Video',url:'https://www.youtube.com/watch?v=abcdefghijk'};select('#subtitle');await notes.open({quote:'New subtitle'});change('我的理解','Because');click('.learning-primary');await tick();
+ expect(add).toHaveBeenCalledOnce();expect(add.mock.calls[0][0]).toBe(source.url);expect(add.mock.calls[0][1]).toMatchObject({t:95,text:'Because'});
+});

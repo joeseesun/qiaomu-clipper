@@ -81,6 +81,7 @@ export interface Settings {
 	tripleKeyBlockedSites?: string[];
 	selectionToolbar?: boolean;
 	youtubePanelActions?: boolean;
+	learningNotes?: boolean;
 	highlighterEnabled: boolean;
 	alwaysShowHighlights: boolean;
 	highlightBehavior: string;

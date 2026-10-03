@@ -1,6 +1,6 @@
 import browser from './browser-polyfill';
 
-export interface LearningSource { title: string; url?: string; timestampSeconds?: number; kind?: 'web' | 'youtube' | 'thought' }
+export interface LearningSource { title: string; url?: string; timestampSeconds?: number; kind?: 'web' | 'youtube' | 'bilibili' | 'thought' }
 export interface LearningRecordDraft { captureId: string; createdAt: string; source: LearningSource; originSource?: LearningSource; reflection: string; quote: string; aiSupplement?: string }
 export interface DailyTargetResult { status: 'ready' | 'unavailable' | 'unsupported' | 'invalid'; vault?: string; date?: string; relativePath?: string; targetToken?: string; error?: string }
 export interface LearningSaveResult { status: 'saved' | 'dispatched' | 'unconfirmed' | 'failed' | 'cancelled' | 'target-changed'; captureId: string; vault?: string; date?: string; relativePath?: string; error?: string; duplicate?: boolean; target?: DailyTargetResult }
