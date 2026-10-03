@@ -88,3 +88,36 @@ it('never clicks a transcript button inside a panel that is not open, and gives 
 	for (let i = 0; i < 5; i++) expect(openTranscriptPanel(document)).toBe(false);
 	expect(ghost).not.toHaveBeenCalled(); expect(expand).toHaveBeenCalledTimes(2);
 });
+
+const modernLayout = `<ytd-engagement-panel-section-list-renderer target-id="PAmodern_transcript_view" visibility="ENGAGEMENT_PANEL_VISIBILITY_EXPANDED">
+<chip-bar-view-model><chip-view-model><button><div>时间轴</div></button></chip-view-model><chip-view-model><button><div>章节</div></button></chip-view-model><chip-view-model><button id="tab"><div class="ytChipShapeActive">转写文稿</div></button></chip-view-model></chip-bar-view-model>
+<input aria-label="搜索转写内容">
+<div id="rows"><transcript-segment-view-model><div class="ytwTranscriptSegmentViewModelTimestamp">7:56</div><span class="yt-core-attributed-string">good people should not work this hard</span></transcript-segment-view-model>
+<timeline-chapter-view-model><h3>第 7 章：SpaceX early failures</h3></timeline-chapter-view-model>
+<transcript-segment-view-model><div class="ytwTranscriptSegmentViewModelTimestamp">8:04</div><span class="yt-core-attributed-string">hurts my brain and my heart</span></transcript-segment-view-model></div></ytd-engagement-panel-section-list-renderer>`;
+
+it('reads the lines of the newer layout, whatever the panel is called, and ignores chapter titles', async () => {
+	const { readOpenPanel, transcriptPanel, readYouTubeTranscriptFromDom } = await import('./youtube-dom-transcript');
+	document.body.innerHTML = modernLayout;
+	expect(readOpenPanel(document)).toEqual([{ time: '7:56', text: 'good people should not work this hard' }, { time: '8:04', text: 'hurts my brain and my heart' }]);
+	expect(transcriptPanel(document)!.getAttribute('target-id')).toBe('PAmodern_transcript_view');
+	expect((await readYouTubeTranscriptFromDom(document, false)).length).toBe(2);
+	document.body.innerHTML = '<ytd-engagement-panel-section-list-renderer target-id="some-future-id"><div id="x"></div></ytd-engagement-panel-section-list-renderer>' + modernLayout.replace('PAmodern_transcript_view', 'another-new-id');
+	expect(readOpenPanel(document)).toHaveLength(2); expect(transcriptPanel(document)!.getAttribute('target-id')).toBe('another-new-id'); // found by what it holds
+});
+
+it('still finds rows if YouTube renames the row element, by their timestamp cell', async () => {
+	const { readOpenPanel } = await import('./youtube-dom-transcript');
+	document.body.innerHTML = '<div><div class="ytwTranscriptSegmentViewModelRow"><div class="ytwTranscriptSegmentViewModelTimestamp">1:05</div><span>Renamed row</span></div><div class="ytwTranscriptSegmentViewModelRow"><div class="ytwTranscriptSegmentViewModelTimestamp">1:09</div><span>Another</span></div></div>';
+	expect(readOpenPanel(document)).toEqual([{ time: '1:05', text: 'Renamed row' }, { time: '1:09', text: 'Another' }]);
+});
+
+it('hides and releases the panel that holds the lines, and picks the Transcript tab among three', async () => {
+	const { markAutoOpenedPanel, releaseAutoPanel, AUTO_PANEL_ATTRIBUTE, readYouTubeTranscriptFromDom } = await import('./youtube-dom-transcript');
+	document.body.innerHTML = modernLayout; const panel = document.querySelector('ytd-engagement-panel-section-list-renderer')!;
+	markAutoOpenedPanel(document, true); expect(panel.hasAttribute(AUTO_PANEL_ATTRIBUTE)).toBe(true);
+	panel.setAttribute('visibility', 'ENGAGEMENT_PANEL_VISIBILITY_HIDDEN'); releaseAutoPanel(document); expect(panel.hasAttribute(AUTO_PANEL_ATTRIBUTE)).toBe(false);
+	document.body.innerHTML = modernLayout.replace(/<transcript-segment-view-model>[\s\S]*?<\/transcript-segment-view-model>/g, '').replace('class="ytChipShapeActive"', '');
+	document.getElementById('tab')!.addEventListener('click', () => { document.getElementById('rows')!.insertAdjacentHTML('beforeend', '<transcript-segment-view-model><div class="ytwTranscriptSegmentViewModelTimestamp">0:03</div><span>after tab</span></transcript-segment-view-model>'); });
+	expect((await readYouTubeTranscriptFromDom(document, true, 5000, 50)).map(line => line.text)).toEqual(['after tab']);
+});

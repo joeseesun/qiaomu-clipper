@@ -1,9 +1,18 @@
-import { readPanelSegments, type PanelSegment } from './youtube-panel-actions';
+import { readPanelSegments, SEGMENT, type PanelSegment } from './youtube-panel-actions';
 
 // Last resort when the caption files cannot be fetched (YouTube increasingly refuses them without a
 // player token): read the lines YouTube itself rendered in its transcript panel. That request is made by
 // the page with the viewer's own session, so it keeps working. Runs inside the YouTube tab.
-const PANEL = 'ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-searchable-transcript"]';
+// The transcript lives in different panels depending on the YouTube layout ("searchable-transcript", or the newer
+// "PAmodern_transcript_view" with its Timeline / Chapters / Transcript tabs). Find it by what it holds, not by id.
+const PANEL = 'ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-searchable-transcript"], ytd-engagement-panel-section-list-renderer[target-id="PAmodern_transcript_view"]';
+const EXPANDED = 'ENGAGEMENT_PANEL_VISIBILITY_EXPANDED';
+export function transcriptPanel(doc: Document): Element | null {
+	const holder = doc.querySelector(SEGMENT)?.closest('ytd-engagement-panel-section-list-renderer');
+	if (holder) return holder;
+	const known = Array.from(doc.querySelectorAll(PANEL));
+	return known.find(panel => panel.getAttribute('visibility') === EXPANDED) || known[0] || null;
+}
 // Where the "show transcript" control lives: a button in the video description, which YouTube only builds once the
 // description is expanded, and whose label depends on the interface language ("内容转文字" in Chinese). So the section
 // is matched by structure, not by words; labelled buttons elsewhere are only a fallback.
@@ -13,12 +22,12 @@ const CLOSE_WORDS = /关闭|關閉|close|hide|隠す|닫기|收起/i;
 
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-function readOpenPanel(doc: Document): PanelSegment[] {
-	const panel = doc.querySelector(PANEL);
-	return panel ? readPanelSegments(panel) : [];
+// Every transcript row on the page, wherever YouTube put them.
+export function readOpenPanel(doc: Document): PanelSegment[] {
+	return readPanelSegments(doc);
 }
 
-const isExpanded = (doc: Document) => doc.querySelector(PANEL)?.getAttribute('visibility') === 'ENGAGEMENT_PANEL_VISIBILITY_EXPANDED';
+const isExpanded = (doc: Document) => Array.from(doc.querySelectorAll(PANEL)).some(panel => panel.getAttribute('visibility') === EXPANDED) || Boolean(doc.querySelector(SEGMENT));
 const inClosedPanel = (button: Element) => Boolean(button.closest('ytd-engagement-panel-section-list-renderer:not([visibility="ENGAGEMENT_PANEL_VISIBILITY_EXPANDED"])'));
 const findOpener = (doc: Document): HTMLButtonElement | undefined => {
 	const usable = (button: HTMLButtonElement) => !CLOSE_WORDS.test(button.getAttribute('aria-label') || '') && !inClosedPanel(button) && !button.closest('.qiaomu-yt-bar');
@@ -57,19 +66,20 @@ export const transcriptPanelOpen = (doc: Document): boolean => isExpanded(doc);
 // hidden rather than closed. Only a panel that we opened is marked, never one the viewer opened themselves.
 export const AUTO_PANEL_ATTRIBUTE = 'data-qiaomu-auto';
 export function markAutoOpenedPanel(doc: Document, hide: boolean): void {
-	const panel = doc.querySelector(PANEL); if (!panel) return;
+	const panel = transcriptPanel(doc); if (!panel) return;
 	if (hide) panel.setAttribute(AUTO_PANEL_ATTRIBUTE, '1'); else panel.removeAttribute(AUTO_PANEL_ATTRIBUTE);
 }
 // The viewer closed it (or reopened it themselves): stop hiding it.
 export function releaseAutoPanel(doc: Document): void {
-	const panel = doc.querySelector(PANEL);
-	if (panel?.hasAttribute(AUTO_PANEL_ATTRIBUTE) && !isExpanded(doc)) panel.removeAttribute(AUTO_PANEL_ATTRIBUTE);
+	const panel = doc.querySelector('[' + AUTO_PANEL_ATTRIBUTE + ']');
+	if (panel && panel.getAttribute('visibility') !== EXPANDED) panel.removeAttribute(AUTO_PANEL_ATTRIBUTE);
 }
 
 // The panel can be open on the "Chapters" tab; then the transcript chip next to it has to be selected.
 const TRANSCRIPT_WORDS = /transcript|转写|轉寫|文字起こし|스크립트|transcripción|transcription|транскрип/i;
 function selectTranscriptTab(doc: Document): boolean {
-	const chips = Array.from(doc.querySelectorAll<HTMLElement>(`${PANEL} chip-view-model button`));
+	const scope = transcriptPanel(doc);
+	const chips = Array.from(scope?.querySelectorAll<HTMLElement>('chip-view-model button') || []);
 	const chip = chips.find(button => TRANSCRIPT_WORDS.test((button.textContent || '') + (button.getAttribute('aria-label') || ''))) || (chips.length > 1 ? chips[chips.length - 1] : undefined);
 	if (!chip || chip.querySelector('[class*="ChipShapeActive"]') || chip.parentElement?.querySelector('[class*="ChipShapeActive"]')) return false;
 	chip.click(); return true;

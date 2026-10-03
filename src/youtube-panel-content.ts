@@ -40,7 +40,7 @@ try {
 			reload: text('youtubePanelReload', '扩展刚更新过，请刷新此页面后再试', 'The extension was updated — reload this page and try again'),
 			loading: text('youtubePanelCardLoading', '正在读取字幕…', 'Reading the transcript…'),
 			ready: text('youtubePanelCardReady', '字幕已就绪，点击时间可跳转', 'Transcript ready — click a time to jump'),
-			none: text('youtubePanelCardNone', '没有读到字幕', 'No transcript found'),
+			none: text('youtubePanelCardNone', '没有读到字幕。可以试试在 YouTube 里展开“转写文稿”。', 'No transcript found. Try opening “Transcript” on YouTube.'),
 			retry: text('youtubeBarRetry', '重试', 'Retry'),
 			more: text('youtubeBarMore', '更多内容请在沉浸学习里查看', 'Open study mode to read the rest'),
 			search: text('youtubeBarSearch', '搜索字幕', 'Search transcript'),
@@ -118,14 +118,13 @@ try {
 			}
 			// Hide the panel we opened (our bar shows the same lines); give it back if the viewer closes or reopens it.
 			// Hide it only after its lines have rendered (or after a few seconds), so hiding can never starve the fallback.
-			const lineCount = readPanelSegments(document.querySelector('ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-searchable-transcript"]') || document.createElement('div')).length;
+			const lineCount = readPanelSegments(document).length;
 			if (weOpenedPanel && transcriptPanelOpen(document) && (lineCount > 0 || Date.now() - openedAt > 6000)) { markAutoOpenedPanel(document, hideNative); weOpenedPanel = false; }
 			else if (!hideNative) markAutoOpenedPanel(document, false);
 			else releaseAutoPanel(document);
 			// Whatever YouTube rendered in its own panel is also a ready transcript for the bar and for study mode.
 			const entry = videoId ? store.get(videoId) : undefined;
-			const panelEl = document.querySelector('ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-searchable-transcript"]');
-			if (entry && entry.state !== 'ready' && panelEl) { const rendered = readPanelSegments(panelEl); if (rendered.length) { entry.segments = rendered; entry.state = 'ready'; } }
+			if (entry && entry.state !== 'ready') { const rendered = readPanelSegments(document); if (rendered.length) { entry.segments = rendered; entry.state = 'ready'; } }
 			if (!videoId) { document.querySelector('.qiaomu-yt-bar')?.remove(); bar = undefined; return; }
 			syncTranscriptBar(document, () => {
 				bar = buildTranscriptBar(document, {

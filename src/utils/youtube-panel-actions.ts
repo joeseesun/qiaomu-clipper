@@ -2,7 +2,15 @@
 // DOM only; the study page itself is opened by the background worker.
 
 const TIME = /^(?:\d+:)?\d{1,2}:\d{2}$/;
-const SEGMENT = 'transcript-segment-view-model, ytd-transcript-segment-renderer';
+export const SEGMENT = 'transcript-segment-view-model, ytd-transcript-segment-renderer';
+// If YouTube renames the row element, its timestamp cell is still recognisable by class.
+const STAMP = '[class*="TranscriptSegmentViewModelTimestamp"], .segment-timestamp';
+const rowsIn = (root: ParentNode): HTMLElement[] => {
+	const rows = Array.from(root.querySelectorAll<HTMLElement>(SEGMENT)); if (rows.length) return rows;
+	const found = new Set<HTMLElement>();
+	for (const stamp of Array.from(root.querySelectorAll<HTMLElement>(STAMP))) { const row = stamp.closest<HTMLElement>('[class*="TranscriptSegment"]:not([class*="Timestamp"])') || stamp.parentElement?.parentElement; if (row) found.add(row); }
+	return Array.from(found);
+};
 
 export interface PanelSegment { time: string; text: string }
 
@@ -10,7 +18,7 @@ export interface PanelSegment { time: string; text: string }
 // line that looks like a timestamp, the remaining visible lines are the caption text.
 export function readPanelSegments(root: ParentNode): PanelSegment[] {
 	const result: PanelSegment[] = [];
-	for (const node of Array.from(root.querySelectorAll<HTMLElement>(SEGMENT))) {
+	for (const node of rowsIn(root)) {
 		// One line per leaf element: independent of innerText, which differs between browsers and jsdom.
 		const leaves = Array.from(node.querySelectorAll<HTMLElement>('*')).filter(el => el.childElementCount === 0 && !el.hidden);
 		const lines = (leaves.length ? leaves : [node]).map(el => (el.textContent ?? '').replace(/\s+/g, ' ').trim()).filter(Boolean);

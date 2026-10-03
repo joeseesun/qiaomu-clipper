@@ -1393,7 +1393,7 @@
 		"message": "Transcript ready — click a time to jump"
 	},
 	"youtubePanelCardNone": {
-		"message": "No transcript found"
+		"message": "No transcript found. Try opening “Transcript” on YouTube."
 	},
 	"youtubePanelActionsTitle": {
 		"message": "YouTube transcript buttons"

@@ -1393,7 +1393,7 @@
 		"message": "字幕已就绪，点击时间可跳转"
 	},
 	"youtubePanelCardNone": {
-		"message": "没有读到字幕"
+		"message": "没有读到字幕。可以试试在 YouTube 里展开“转写文稿”。"
 	},
 	"youtubePanelActionsTitle": {
 		"message": "YouTube 转写文稿按钮"
