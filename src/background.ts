@@ -1281,6 +1281,33 @@ browser.runtime.onMessage.addListener((raw: unknown, sender) => {
 	})();
 });
 
+// Extract inside the viewer's own video tab, as the regular clipper does. YouTube answers a page with its cookies
+// and origin, and Defuddle can read or open the transcript panel in the live DOM; a copy of the HTML in the
+// extension page can do neither, which is why subtitles were often missing there.
+browser.runtime.onMessage.addListener((raw: unknown, sender) => {
+	const request = raw as { action?: string; sourceTabId?: number; url?: string };
+	if (request?.action !== 'qiaomuStudyLiveExtract') return;
+	if (sender.id !== browser.runtime.id || !sender.url?.startsWith(browser.runtime.getURL('reader.html'))
+		|| !Number.isInteger(request.sourceTabId) || !request.url || !videoKey(request.url)) return Promise.resolve({ error: '无效的视频来源' });
+	return (async () => {
+		try {
+			const tab = await browser.tabs.get(request.sourceTabId!);
+			if (!tab.url || videoKey(tab.url) !== videoKey(request.url!)) return { error: '原视频页面已切换，请重新打开学习模式' };
+			const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('原页面提取超时')), 22000));
+			const page = await Promise.race([sendMessageToContentScript(request.sourceTabId!, { action: 'getPageContent' }), timeout]) as Record<string, any> | undefined;
+			if (!page || typeof page.content !== 'string') return { error: '原页面没有返回内容' };
+			if (!/class="[^"]*\btranscript\b/.test(page.content) && videoKey(request.url!)?.startsWith('youtube:')) {
+				// No caption file could be fetched: read the transcript panel YouTube renders itself.
+				const dom = await Promise.race([sendMessageToContentScript(request.sourceTabId!, { action: 'qiaomuReadTranscriptDom' }), timeout]).catch(() => undefined) as { html?: string } | undefined;
+				if (dom?.html) page.content += dom.html;
+			}
+			// Everything the study page needs, without the full page HTML.
+			const { content, title, author, description, favicon, image, published, site, wordCount, language, schemaOrgData, extractedContent, metaTags } = page;
+			return { content, title, author, description, favicon, image, published, site, wordCount, language, schemaOrgData, extractedContent, metaTags };
+		} catch (error) { return { error: error instanceof Error ? error.message : '原页面不可用' }; }
+	})();
+});
+
 // Obtain a fresh source snapshot on every subtitle attempt. The original tab
 // remains available while YouTube is still loading its transcript UI.
 browser.runtime.onMessage.addListener((raw: unknown, sender) => {

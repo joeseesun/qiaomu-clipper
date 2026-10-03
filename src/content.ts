@@ -12,6 +12,7 @@ import { saveFile } from './utils/file-utils';
 import { debugLog } from './utils/debug';
 import { updateSidebarWidth, addResizeHandle, cleanupResizeHandlers } from './utils/iframe-resize';
 import { parseForClip } from './utils/clip-utils';
+import { readYouTubeTranscriptFromDom, transcriptHtml } from './utils/youtube-dom-transcript';
 
 declare global {
 	interface Window {
@@ -204,6 +205,12 @@ declare global {
 					sendResponse({ success: false, error: (err as Error).message });
 				}
 			});
+			return true;
+		}
+
+		if (request.action === "qiaomuReadTranscriptDom") {
+			// Study mode, last resort: open YouTube's own transcript panel and read what it rendered.
+			readYouTubeTranscriptFromDom(document).then(segments => sendResponse({ html: segments.length ? transcriptHtml(segments) : '' })).catch(() => sendResponse({ html: '' }));
 			return true;
 		}
 

@@ -10,7 +10,7 @@ vi.mock('./reader', () => ({ Reader: {
 	attachYouTubeTranscript: vi.fn(async (_doc: Document, transcript: HTMLElement) => { document.querySelector('article')!.appendChild(transcript); }),
 } }));
 vi.mock('./youtube-study', () => ({ mountYouTubeStudy:vi.fn(), transcriptText: (node: HTMLElement) => node.querySelector('.transcript-segment')?.textContent || '' }));
-import { startYouTubeStudy, withTranscriptDeadline } from './youtube-study-loader';
+import { firstWithTranscript, startYouTubeStudy, withTranscriptDeadline } from './youtube-study-loader';
 import { Reader } from './reader';
 import { youtubeStudyPath } from './youtube-url';
 const url = 'https://www.youtube.com/watch?v=dbqweBCynuI';
@@ -49,7 +49,7 @@ it('shows a retry after missing subtitles and fetches a fresh source on retry', 
 	expect(retry.hidden).toBe(false);
 	expect(document.querySelector('iframe')).not.toBeNull();
 	retry.click(); await flush();
-	expect(state.fetch).toHaveBeenCalledTimes(2);
+	expect(state.fetch.mock.calls.filter(([message]) => message?.action === 'qiaomuYouTubeStudySource')).toHaveLength(2);
 	expect(Reader.attachYouTubeTranscript).toHaveBeenCalledOnce();
 });
 
@@ -84,4 +84,27 @@ it('bounds a stalled extraction, aborts it and ignores its eventual result', asy
 	await vi.advanceTimersByTimeAsync(100); await checked;
 	expect(signal.aborted).toBe(true);
 	resolve('late subtitles'); await flush();
+});
+
+it('prefers subtitles read inside the video tab when the copied page has none', async () => {
+	state.fetch.mockImplementation(async (message: { action: string }) => message.action === 'qiaomuStudyLiveExtract' ? { ...result, extractedContent: { transcript: 'x' } } : { html: '<html><body>source</body></html>' });
+	state.parse.mockResolvedValue({ content: '<p>Description only</p>' });
+	await startYouTubeStudy(url, 42, 'Video', state.ready); await flush();
+	expect(state.fetch.mock.calls.some(([message]) => message?.action === 'qiaomuStudyLiveExtract' && message.sourceTabId === 42)).toBe(true);
+	expect(Reader.attachYouTubeTranscript).toHaveBeenCalledOnce();
+	expect(state.ready).toHaveBeenCalledWith(expect.objectContaining({ variables: { transcript: 'x' } }));
+});
+
+it('still works from the copied page when the video tab cannot be read', async () => {
+	state.fetch.mockImplementation(async (message: { action: string }) => message.action === 'qiaomuStudyLiveExtract' ? { error: '原页面不可用' } : { html: '<html><body>source</body></html>' });
+	state.parse.mockResolvedValue(result);
+	await startYouTubeStudy(url, 42, 'Video', state.ready); await flush();
+	expect(Reader.attachYouTubeTranscript).toHaveBeenCalledOnce();
+});
+
+it('takes the first route that has subtitles, keeps a description-only answer as a fallback, rejects only when all fail', async () => {
+	const withText = { content: result.content, title: 'with' }, without = { content: '<p>none</p>', title: 'without' };
+	expect(await firstWithTranscript([Promise.resolve(without), new Promise<typeof withText>(r => setTimeout(() => r(withText), 5))])).toBe(withText);
+	expect(await firstWithTranscript([Promise.reject(new Error('x')), Promise.resolve(without)])).toBe(without);
+	await expect(firstWithTranscript([Promise.reject(new Error('first')), Promise.reject(new Error('last'))])).rejects.toThrow();
 });
