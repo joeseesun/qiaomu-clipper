@@ -1329,6 +1329,9 @@
 	"learningNotesDescription": {
 		"message": "Add a note button and the N key to the reading and video pages. Notes are appended to today's daily note in your vault through the local helper."
 	},
+	"youtubePanelReload": {
+		"message": "The extension was updated — reload this page and try again"
+	},
 	"youtubePanelCardTitle": {
 		"message": "Qiaomu · Study"
 	},

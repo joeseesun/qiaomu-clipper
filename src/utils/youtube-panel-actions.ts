@@ -28,7 +28,7 @@ export const formatSegments = (segments: PanelSegment[]): string => segments.map
 export const safeFileName = (title: string): string =>
 	(title.replace(/\s*-\s*YouTube$/, '').replace(/[\\/:*?"<>|\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 100)) || 'youtube-transcript';
 
-export interface PanelStrings { copy: string; download: string; study: string; copied: string; empty: string }
+export interface PanelStrings { copy: string; download: string; study: string; copied: string; empty: string; reload?: string }
 
 type Icon = [string, Record<string, string>][];
 // lucide: copy, download, book-open (same stroke style as the reader bar).
@@ -49,7 +49,7 @@ function icon(doc: Document, name: keyof typeof ICONS): SVGElement {
 	return svg;
 }
 
-export interface PanelHooks { strings: PanelStrings; openStudy: () => void; title: () => string; getSegments?: () => Promise<PanelSegment[]> }
+export interface PanelHooks { strings: PanelStrings; openStudy: () => void | boolean; title: () => string; getSegments?: () => Promise<PanelSegment[]> }
 
 // Copy / download / study chips. Lines come from the transcript panel unless a hook supplies them (the card does,
 // from the prefetched transcript, so it works while the panel is closed).
@@ -58,7 +58,13 @@ function makeActions(doc: Document, hooks: PanelHooks, readSegments: () => Promi
 	const chip = (name: keyof typeof ICONS, label: string, onClick: (button: HTMLButtonElement) => void) => {
 		const button = doc.createElement('button'); button.type = 'button'; button.className = `qiaomu-yt-chip qiaomu-yt-${name}`;
 		button.title = label; button.append(icon(doc, name), doc.createTextNode(label));
-		button.addEventListener('click', event => { event.stopPropagation(); onClick(button); });
+		// YouTube's chip bar scrolls by dragging and can capture the pointer, which would swallow the click. Keep
+		// the press away from it and also act on pointer-up; a real click right after is ignored.
+		let pressed = false, last = 0;
+		const fire = () => { const now = Date.now(); if (now - last < 400) return; last = now; onClick(button); };
+		for (const type of ['pointerdown', 'mousedown', 'touchstart']) button.addEventListener(type, event => { event.stopPropagation(); if (type === 'pointerdown') pressed = true; });
+		button.addEventListener('pointerup', event => { event.stopPropagation(); if (pressed) { pressed = false; fire(); } });
+		button.addEventListener('click', event => { event.stopPropagation(); fire(); });
 		return button;
 	};
 	const flash = (button: HTMLButtonElement, text: string) => {
@@ -77,7 +83,7 @@ function makeActions(doc: Document, hooks: PanelHooks, readSegments: () => Promi
 			const link = doc.createElement('a'); link.href = url; link.download = `${safeFileName(hooks.title())}.txt`;
 			doc.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
 		}),
-		study: () => chip('study', hooks.strings.study, () => hooks.openStudy()),
+		study: () => chip('study', hooks.strings.study, button => { if (hooks.openStudy() === false) flash(button, hooks.strings.reload || 'Reload this page'); }),
 	};
 	group.append(...order.map(name => makers[name]()));
 	return group;
@@ -106,10 +112,12 @@ export function buildStudyCard(doc: Document, hooks: PanelHooks & { statusText: 
 
 export const PANEL_STYLE = `
 .qiaomu-yt-actions{display:inline-flex;align-items:center;gap:8px;margin-inline-start:8px;flex:0 0 auto}
-.qiaomu-yt-actions[hidden]{display:none}
+.qiaomu-yt-panel-row{display:flex;flex-wrap:wrap;gap:8px;padding:0 16px 8px;box-sizing:border-box}
+.qiaomu-yt-panel-row .qiaomu-yt-actions{margin-inline-start:0}
+.qiaomu-yt-actions[hidden],.qiaomu-yt-panel-row[hidden]{display:none}
 .qiaomu-yt-chip{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border:0;border-radius:8px;background:var(--yt-spec-badge-chip-background,rgba(0,0,0,.05));color:var(--yt-spec-text-primary,#0f0f0f);font:500 14px/20px Roboto,Arial,sans-serif;white-space:nowrap;cursor:pointer}
 .qiaomu-yt-chip:hover{background:var(--yt-spec-button-chip-background-hover,rgba(0,0,0,.1))}
-.qiaomu-yt-chip:focus-visible{outline:2px solid var(--yt-spec-call-to-action,#065fd4);outline-offset:1px}
+.qiaomu-yt-chip:focus{outline:none}.qiaomu-yt-chip:focus-visible{outline:2px solid var(--yt-spec-call-to-action,#065fd4);outline-offset:-2px}.qiaomu-yt-chip:active{transform:scale(.98)}
 .qiaomu-yt-chip svg{flex:0 0 auto}
 .qiaomu-yt-chip.is-notice{outline:1px solid var(--yt-spec-text-secondary,#606060)}
 .qiaomu-yt-card{box-sizing:border-box;margin-bottom:12px;padding:10px 12px;border:1px solid var(--yt-spec-10-percent-layer,rgba(0,0,0,.1));border-radius:12px;background:var(--yt-spec-base-background,#fff);color:var(--yt-spec-text-primary,#0f0f0f);font:400 14px/20px Roboto,Arial,sans-serif}
@@ -122,15 +130,18 @@ export const PANEL_STYLE = `
 .qiaomu-yt-card .qiaomu-yt-study:hover{opacity:.88;background:var(--yt-spec-text-primary,#0f0f0f)}
 `;
 
-// Find the chip bar of the transcript panel and keep our group at its end.
+// Find the chip bar of the transcript panel and keep our buttons on a row of their own right under it. Inside the
+// bar's scroller they were clipped at narrow widths, their focus ring was cut off, and the bar's drag handling
+// could swallow clicks.
 export function syncPanelActions(doc: Document, make: (panel: HTMLElement) => HTMLElement): void {
 	const panel = doc.querySelector<HTMLElement>('ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-searchable-transcript"]');
-	const scroller = panel?.querySelector<HTMLElement>('chip-bar-view-model [class*="ChipBarScrollContainer"]');
-	if (!panel || !scroller) return;
-	let group = scroller.querySelector<HTMLElement>(':scope > .qiaomu-yt-actions');
-	if (!group) { group = make(panel); scroller.append(group); }
+	const bar = panel?.querySelector<HTMLElement>('chip-bar-view-model');
+	if (!panel || !bar) return;
+	let row = panel.querySelector<HTMLElement>('.qiaomu-yt-panel-row');
+	if (!row) { row = doc.createElement('div'); row.className = 'qiaomu-yt-panel-row'; row.append(make(panel)); bar.after(row); }
+	else if (bar.nextElementSibling !== row) bar.after(row);
 	// Only useful while the transcript tab is showing lines.
-	group.hidden = readPanelSegments(panel).length === 0;
+	row.hidden = readPanelSegments(panel).length === 0;
 }
 
 // Keep the card as the first thing in the right column of the watch page.

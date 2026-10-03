@@ -34,14 +34,28 @@ it('copies, downloads and opens the study page, and tells when there is nothing 
 	root.querySelector('#segments')!.innerHTML = ''; copy.click(); download.click(); for (let i = 0; i < 6; i++) await Promise.resolve(); expect(write).toHaveBeenCalledTimes(1); expect(clicked).toHaveLength(1);
 });
 
-it('injects one group into the chip bar and hides it while the transcript has no lines', () => {
+it('puts one row of buttons right under the chip bar, hides it while the transcript has no lines, and keeps it in place', () => {
 	document.body.innerHTML = panel('');
 	const make = (panelEl: HTMLElement) => buildPanelActions(document, panelEl, { strings, openStudy: () => {}, title: () => 't' });
 	syncPanelActions(document, make); syncPanelActions(document, make);
-	const groups = document.querySelectorAll('.qiaomu-yt-actions'); expect(groups).toHaveLength(1); expect((groups[0] as HTMLElement).hidden).toBe(true);
-	document.querySelector('#segments')!.innerHTML = modern; syncPanelActions(document, make); expect((groups[0] as HTMLElement).hidden).toBe(false);
-	expect(groups[0].parentElement!.className).toContain('ChipBarScrollContainer');
+	const rows = document.querySelectorAll('.qiaomu-yt-panel-row'); expect(rows).toHaveLength(1); expect((rows[0] as HTMLElement).hidden).toBe(true);
+	document.querySelector('#segments')!.innerHTML = modern; syncPanelActions(document, make); expect((rows[0] as HTMLElement).hidden).toBe(false);
+	expect(rows[0].previousElementSibling!.tagName.toLowerCase()).toBe('chip-bar-view-model'); expect(rows[0].querySelector('.qiaomu-yt-actions')).not.toBeNull();
+	rows[0].remove(); document.querySelector('chip-bar-view-model')!.after(document.createElement('hr')); syncPanelActions(document, make);
+	expect(document.querySelector('chip-bar-view-model')!.nextElementSibling).toBe(document.querySelectorAll('.qiaomu-yt-panel-row').item(0));
 	document.body.innerHTML = '<div>no panel</div>'; syncPanelActions(document, make); expect(document.querySelector('.qiaomu-yt-actions')).toBeNull();
+});
+
+it('acts on a press even when the page swallows the click, once, and keeps the press from reaching the chip bar', () => {
+	document.body.innerHTML = panel(modern);
+	const openStudy = vi.fn(); const group = buildPanelActions(document, document.querySelector('ytd-engagement-panel-section-list-renderer')!, { strings, openStudy, title: () => 't' });
+	document.body.append(group); const study = group.querySelector<HTMLElement>('.qiaomu-yt-study')!;
+	const reachedBar = vi.fn(); document.body.addEventListener('pointerdown', reachedBar); document.body.addEventListener('mousedown', reachedBar);
+	const fire = (type: string) => study.dispatchEvent(new Event(type, { bubbles: true }));
+	fire('pointerdown'); fire('mousedown'); expect(reachedBar).not.toHaveBeenCalled(); fire('pointerup'); expect(openStudy).toHaveBeenCalledTimes(1);
+	study.click(); expect(openStudy).toHaveBeenCalledTimes(1);
+	fire('pointerup'); expect(openStudy).toHaveBeenCalledTimes(1);
+	vi.useFakeTimers(); vi.advanceTimersByTime(500); study.click(); expect(openStudy).toHaveBeenCalledTimes(2); vi.useRealTimers();
 });
 
 it('builds an always-visible card whose actions read the prefetched lines, and keeps it first in the right column', async () => {

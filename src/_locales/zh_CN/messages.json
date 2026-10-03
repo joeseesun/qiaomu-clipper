@@ -1329,6 +1329,9 @@
 	"learningNotesDescription": {
 		"message": "在阅读页和视频学习页提供“记笔记”按钮和 N 快捷键，笔记通过本地助手追加到库里今天的日记。"
 	},
+	"youtubePanelReload": {
+		"message": "扩展刚更新过，请刷新此页面后再试"
+	},
 	"youtubePanelCardTitle": {
 		"message": "乔木 · 沉浸学习"
 	},

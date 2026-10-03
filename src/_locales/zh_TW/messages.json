@@ -1329,6 +1329,9 @@
 	"learningNotesDescription": {
 		"message": "在閱讀頁與影片學習頁提供「記筆記」按鈕與 N 快捷鍵，筆記透過本地助手追加到庫裡今天的日記。"
 	},
+	"youtubePanelReload": {
+		"message": "擴充功能剛更新過，請重新整理此頁面後再試"
+	},
 	"youtubePanelCardTitle": {
 		"message": "喬木 · 沉浸學習"
 	},

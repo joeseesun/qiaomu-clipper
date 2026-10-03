@@ -32,6 +32,7 @@ try {
 			study: text('youtubePanelStudy', '沉浸学习', 'Study'),
 			copied: text('youtubePanelCopied', '已复制', 'Copied'),
 			empty: text('youtubePanelEmpty', '没有读到字幕，请先展开转写文稿', 'No transcript lines found. Open the transcript first.'),
+			reload: text('youtubePanelReload', '扩展刚更新过，请刷新此页面后再试', 'The extension was updated — reload this page and try again'),
 		};
 		const cardText = {
 			heading: text('youtubePanelCardTitle', '乔木 · 沉浸学习', 'Qiaomu · Study'),
@@ -74,7 +75,8 @@ try {
 
 		// --- UI ------------------------------------------------------------------------------------------------
 		const style = document.createElement('style'); style.textContent = PANEL_STYLE;
-		const openStudy = () => { try { api.runtime.sendMessage({ action: 'qiaomuTripleKey', command: 'read' })?.catch?.(() => {}); } catch { /* extension reloaded; refresh the page */ } };
+		// A page opened before the extension was reloaded keeps a dead copy of this script; say so instead of doing nothing.
+		const openStudy = (): boolean => { try { api.runtime.sendMessage({ action: 'qiaomuTripleKey', command: 'read' })?.catch?.(() => {}); return true; } catch { return false; } };
 		let card: StudyCard | undefined;
 		const updateCard = () => {
 			const videoId = currentVideo(); const entry = videoId ? store.get(videoId) : undefined;
