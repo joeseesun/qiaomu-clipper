@@ -38,14 +38,15 @@ export function mountPlayerSize(article: HTMLElement): void {
 	handle.onkeydown = event => {
 		const delta: Record<string, number> = { ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1, PageUp: 10, PageDown: -10 };
 		if (!(event.key in delta) && event.key !== 'Home' && event.key !== 'End') return;
-		event.preventDefault(); touched = true; adapt();
-		preferredSize = event.key === 'Home' ? minimum : event.key === 'End' ? 100 : Math.max(minimum, normalizePlayerSize(displayedSize + delta[event.key] * (event.shiftKey && event.key.startsWith('Arrow') ? 5 : 1)));
-		update(); commit();
+		event.preventDefault(); adapt();
+		const next = event.key === 'Home' ? minimum : event.key === 'End' ? 100 : Math.max(minimum, normalizePlayerSize(displayedSize + delta[event.key] * (event.shiftKey && event.key.startsWith('Arrow') ? 5 : 1)));
+		if (next === displayedSize) return;
+		touched = true; preferredSize = next; update(); commit();
 	};
-	let drag: { pointerId: number; x: number; y: number; size: number; maxWidth: number } | undefined;
+	let drag: { pointerId: number; x: number; y: number; size: number; maxWidth: number; changed: boolean } | undefined;
 	const finish = (event: PointerEvent) => {
 		if (!drag || event.pointerId !== drag.pointerId) return;
-		drag = undefined; doc.documentElement.classList.remove('youtube-player-resizing'); commit();
+		const changed = drag.changed; drag = undefined; doc.documentElement.classList.remove('youtube-player-resizing'); if (changed) commit();
 		if (handle.hasPointerCapture?.(event.pointerId)) handle.releasePointerCapture(event.pointerId);
 	};
 	handle.onpointerdown = event => {
@@ -54,8 +55,8 @@ export function mountPlayerSize(article: HTMLElement): void {
 		const current = findPlayer();
 		const size = displayedSize; const width = current?.getBoundingClientRect().width || 0;
 		if (!width) return;
-		event.preventDefault(); touched = true;
-		drag = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, size, maxWidth: width / (size / 100) };
+		event.preventDefault();
+		drag = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, size, maxWidth: width / (size / 100), changed: false };
 		try { handle.setPointerCapture(event.pointerId); } catch { /* Document listeners also cover environments without pointer capture. */ }
 		doc.documentElement.classList.add('youtube-player-resizing');
 	};
@@ -64,7 +65,9 @@ export function mountPlayerSize(article: HTMLElement): void {
 		const dx = event.clientX - drag.x, dy = (event.clientY - drag.y) * 16 / 9;
 		// A horizontal drag changes the centered width; a vertical drag changes height.
 		const change = Math.abs(dx * 2) > Math.abs(dy) ? dx * 2 : dy;
-		preferredSize = Math.max(minimum, normalizePlayerSize(drag.size + change / drag.maxWidth * 100)); update();
+		const next = Math.max(minimum, normalizePlayerSize(drag.size + change / drag.maxWidth * 100));
+		if (next === displayedSize) return;
+		touched = true; drag.changed = true; preferredSize = next; update();
 	};
 	// Listen on the document as well: a rapid drag can cross the video or the moving edge.
 	doc.addEventListener('pointermove', move); doc.addEventListener('pointerup', finish); doc.addEventListener('pointercancel', finish);

@@ -83,3 +83,18 @@ it('sizes the actual iframe rather than a preceding ordinary video link', async 
 	expect(frame.classList.contains('youtube-sized-player')).toBe(true);
 	expect(link.classList.contains('youtube-sized-player')).toBe(false);
 });
+
+
+it('does not commit a narrow-screen clamp when dragging or pressing keys cannot change geometry', async () => {
+ let resized!:()=>void;
+ vi.stubGlobal('ResizeObserver',class { constructor(callback:()=>void){resized=callback;} observe(){} disconnect(){} });
+ storage.get.mockResolvedValue(60);let width=1000;
+ const article=document.querySelector('article')!;vi.spyOn(article,'getBoundingClientRect').mockImplementation(()=>({width} as DOMRect));
+ const {frame,handle}=setup();await flush();expect(handle.getAttribute('aria-valuenow')).toBe('60');
+ width=358;resized();expect(handle.getAttribute('aria-valuenow')).toBe('100');
+ vi.spyOn(frame,'getBoundingClientRect').mockReturnValue({width:358} as DOMRect);handle.setPointerCapture=vi.fn();
+ pointer(handle,'pointerdown',100,200);pointer(document.body,'pointermove',50,150);pointer(document.body,'pointerup',50,150);
+ for(const key of ['ArrowLeft','ArrowRight','ArrowDown','Home','End','PageDown'])handle.dispatchEvent(new KeyboardEvent('keydown',{key,bubbles:true}));
+ expect(storage.set).not.toHaveBeenCalled();width=1000;resized();expect(handle.getAttribute('aria-valuenow')).toBe('60');
+ vi.unstubAllGlobals();
+});

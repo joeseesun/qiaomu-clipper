@@ -521,6 +521,7 @@ export function wireTranscript(
 
 	// YouTube handles Space on keyup — block that too
 	doc.addEventListener('keyup', (e: KeyboardEvent) => {
+		if (e.ctrlKey || e.metaKey || e.altKey) return;
 		if (e.code === 'Space' && !videoEl) {
 			const target = e.target as HTMLElement;
 			if (target.closest('input, textarea, select, button, a, [contenteditable], [role=slider], [role=switch], .clip-chat')) return;

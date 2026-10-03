@@ -24,5 +24,6 @@ it('connects late subtitles to the original handle and iframe without nesting co
  grip.dispatchEvent(new KeyboardEvent('keydown',{key:'Home',code:'Home',bubbles:true}));const size=Number(grip.getAttribute('aria-valuenow'));
  grip.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',code:'ArrowRight',bubbles:true}));
  expect(Number(grip.getAttribute('aria-valuenow'))).toBe(size+1);expect(post).not.toHaveBeenCalled();
+ const shortcut=new KeyboardEvent('keyup',{key:' ',code:'Space',ctrlKey:true,bubbles:true,cancelable:true});document.body.dispatchEvent(shortcut);expect(shortcut.defaultPrevented).toBe(false);
  article.remove();vi.unstubAllGlobals();
 });
