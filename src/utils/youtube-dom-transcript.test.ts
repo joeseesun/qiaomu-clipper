@@ -96,10 +96,10 @@ const modernLayout = `<ytd-engagement-panel-section-list-renderer target-id="PAm
 <timeline-chapter-view-model><h3>第 7 章：SpaceX early failures</h3></timeline-chapter-view-model>
 <transcript-segment-view-model><div class="ytwTranscriptSegmentViewModelTimestamp">8:04</div><span class="yt-core-attributed-string">hurts my brain and my heart</span></transcript-segment-view-model></div></ytd-engagement-panel-section-list-renderer>`;
 
-it('reads the lines of the newer layout, whatever the panel is called, and ignores chapter titles', async () => {
+it('reads the lines of the newer layout, whatever the panel is called, and attaches chapter titles to the line they open', async () => {
 	const { readOpenPanel, transcriptPanel, readYouTubeTranscriptFromDom } = await import('./youtube-dom-transcript');
 	document.body.innerHTML = modernLayout;
-	expect(readOpenPanel(document)).toEqual([{ time: '7:56', text: 'good people should not work this hard' }, { time: '8:04', text: 'hurts my brain and my heart' }]);
+	expect(readOpenPanel(document)).toEqual([{ time: '7:56', text: 'good people should not work this hard' }, { time: '8:04', text: 'hurts my brain and my heart', chapter: '第 7 章：SpaceX early failures' }]);
 	expect(transcriptPanel(document)!.getAttribute('target-id')).toBe('PAmodern_transcript_view');
 	expect((await readYouTubeTranscriptFromDom(document, false)).length).toBe(2);
 	document.body.innerHTML = '<ytd-engagement-panel-section-list-renderer target-id="some-future-id"><div id="x"></div></ytd-engagement-panel-section-list-renderer>' + modernLayout.replace('PAmodern_transcript_view', 'another-new-id');
@@ -120,4 +120,13 @@ it('hides and releases the panel that holds the lines, and picks the Transcript 
 	document.body.innerHTML = modernLayout.replace(/<transcript-segment-view-model>[\s\S]*?<\/transcript-segment-view-model>/g, '').replace('class="ytChipShapeActive"', '');
 	document.getElementById('tab')!.addEventListener('click', () => { document.getElementById('rows')!.insertAdjacentHTML('beforeend', '<transcript-segment-view-model><div class="ytwTranscriptSegmentViewModelTimestamp">0:03</div><span>after tab</span></transcript-segment-view-model>'); });
 	expect((await readYouTubeTranscriptFromDom(document, true, 5000, 50)).map(line => line.text)).toEqual(['after tab']);
+});
+
+it('keeps chapters through grouping, the study-page markup and a copy', async () => {
+	const { groupSegments, transcriptHtml } = await import('./youtube-dom-transcript'); const { formatSegments } = await import('./youtube-panel-actions');
+	const lines = [{ time: '0:00', text: 'one,' }, { time: '0:03', text: 'two.' }, { time: '0:06', text: 'three', chapter: 'Part two' }, { time: '0:09', text: 'four' }];
+	expect(groupSegments(lines)).toEqual([{ time: '0:00', text: 'one, two.' }, { time: '0:06', text: 'three four', chapter: 'Part two' }]); // a chapter is never merged into the line before it
+	const html = transcriptHtml(lines); expect(html).toContain('<h3>Part two</h3>\n<p class="transcript-segment">'); expect(html.indexOf('<h3>')).toBeGreaterThan(html.indexOf('one, two.'));
+	expect(formatSegments(lines)).toBe('[0:00] one,\n[0:03] two.\n\n## Part two\n[0:06] three\n[0:09] four');
+	expect(transcriptHtml([{ time: '0:00', text: 'x', chapter: '<b>&' }])).toContain('<h3>&lt;b&gt;&amp;</h3>');
 });

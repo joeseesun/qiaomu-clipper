@@ -154,7 +154,7 @@ export function wireTranscript(
 	});
 
 	const FALLBACK_SEGMENT_DURATION = 30;
-	const AUTO_SCROLL_COOLDOWN = 2000;
+	const AUTO_SCROLL_COOLDOWN = 10000; // free scrolling: after ten quiet seconds the page returns to the playing line
 	const getSegmentEnd = (i: number) =>
 		i < segmentTimes.length - 1 ? segmentTimes[i + 1] : segmentTimes[i] + FALLBACK_SEGMENT_DURATION;
 
@@ -191,9 +191,18 @@ export function wireTranscript(
 	let scrubbing = false;
 	let lastScrub = 0;
 
+	let resumeTimer: ReturnType<typeof setTimeout> | undefined;
 	window.addEventListener('scroll', () => {
 		if (scroll.programmaticScroll() || scrubbing) return;
 		lastUserScroll = Date.now();
+		// Do not wait for the next line to start: when the reader has been idle long enough, go back to the one playing.
+		clearTimeout(resumeTimer);
+		resumeTimer = setTimeout(() => {
+			lastUserScroll = 0;
+			if (!autoScrollEnabled || suppressScroll || search.active() || !activeSegment) return;
+			const rect = activeSegment.getBoundingClientRect();
+			scroll.scrollTo((window.pageYOffset || doc.documentElement.scrollTop) + rect.top - (scroll.getFocusOffset?.() ?? scroll.getStickyOffset() + 20));
+		}, AUTO_SCROLL_COOLDOWN);
 	}, { passive: true });
 
 	const updateActiveSegment = (currentTime: number) => {

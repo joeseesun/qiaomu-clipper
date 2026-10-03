@@ -116,7 +116,8 @@ it('follows playback: highlights the current line, scrolls only when it leaves t
 	expect((list.scrollTo as any)).toHaveBeenCalledWith({ top: 10 * 50 - 300 * 0.33, behavior: 'smooth' } as any);
 	(list.scrollTo as any).mockClear(); bar.setTime(410); expect(list.scrollTo).not.toHaveBeenCalled(); // same line: nothing to do
 	list.dispatchEvent(new Event('wheel')); bar.setTime(1000); expect(list.scrollTo).not.toHaveBeenCalled(); // the viewer is in charge
-	vi.setSystemTime(100000 + 3000); bar.setTime(1100); expect(list.scrollTo).toHaveBeenCalled();
+	vi.setSystemTime(100000 + 5000); bar.setTime(1100); expect(list.scrollTo).not.toHaveBeenCalled(); // still in charge for the full ten seconds
+	vi.setSystemTime(100000 + 11000); bar.setTime(1100); expect(list.scrollTo).toHaveBeenCalled();
 	vi.useRealTimers();
 });
 
@@ -167,11 +168,21 @@ it('does not restart a smooth scroll that is already heading to the same line, a
 	vi.useRealTimers();
 });
 
-it('keeps still while the pointer rests on the list and follows again shortly after it leaves', () => {
+it('lets the viewer scroll freely, and after ten quiet seconds glides back to the playing line by itself', () => {
 	vi.useFakeTimers(); vi.setSystemTime(900000);
-	const { bar } = make({ initialOpen: true }); bar.setState('ready', longLines); const list = withLayout(bar);
-	list.dispatchEvent(new Event('mouseenter')); bar.setTime(405); expect(list.scrollTo).not.toHaveBeenCalled();
-	list.dispatchEvent(new Event('mouseleave')); bar.setTime(410); expect(list.scrollTo).not.toHaveBeenCalled(); // still inside the courtesy pause
-	vi.setSystemTime(903000); bar.setTime(411); expect(list.scrollTo).toHaveBeenCalled();
+	const { bar } = make({ initialOpen: true }); bar.setState('ready', longLines); const list = withLayout(bar); const rows = Array.from(list.querySelectorAll<HTMLElement>('.qiaomu-yt-bar-line'));
+	bar.setTime(405); (list.scrollTo as any).mockClear();
+	list.dispatchEvent(new Event('wheel')); list.scrollTop = 1200; // the viewer browses far away
+	vi.advanceTimersByTime(9000); list.dispatchEvent(new Event('wheel')); // another touch restarts the countdown
+	vi.advanceTimersByTime(9000); expect(list.scrollTo).not.toHaveBeenCalled(); bar.setTime(410); expect(list.scrollTo).not.toHaveBeenCalled();
+	vi.advanceTimersByTime(1500); expect(list.scrollTo).toHaveBeenCalledTimes(1); expect((list.scrollTo as any).mock.calls[0][0].top).toBeCloseTo(10 * 50 - 300 * 0.33, 0); // back at the playing line without waiting for the next one
+	expect(rows[10].classList.contains('is-active')).toBe(true);
+	vi.useRealTimers();
+});
+
+it('does not pull the list back when following is off', () => {
+	vi.useFakeTimers(); vi.setSystemTime(950000);
+	const { bar } = make({ initialOpen: true, initialFollow: false }); bar.setState('ready', longLines); const list = withLayout(bar); bar.setTime(405);
+	list.dispatchEvent(new Event('wheel')); vi.advanceTimersByTime(11000); expect(list.scrollTo).not.toHaveBeenCalled();
 	vi.useRealTimers();
 });
