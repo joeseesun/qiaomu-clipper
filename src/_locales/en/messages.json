@@ -1332,6 +1332,21 @@
 	"youtubePanelReload": {
 		"message": "The extension was updated — reload this page and try again"
 	},
+	"youtubeBarSubtitles": {
+		"message": "Subtitles"
+	},
+	"youtubeBarSettings": {
+		"message": "Settings"
+	},
+	"youtubeBarExpand": {
+		"message": "Show transcript"
+	},
+	"youtubeBarCollapse": {
+		"message": "Collapse"
+	},
+	"youtubeBarMore": {
+		"message": "Open study mode to read the rest"
+	},
 	"youtubePanelCardTitle": {
 		"message": "Qiaomu · Study"
 	},
@@ -1339,7 +1354,7 @@
 		"message": "Preparing transcript…"
 	},
 	"youtubePanelCardReady": {
-		"message": "Transcript ready"
+		"message": "Transcript ready — click a time to jump"
 	},
 	"youtubePanelCardNone": {
 		"message": "Click to read the transcript"

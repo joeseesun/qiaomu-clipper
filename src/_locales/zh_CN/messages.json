@@ -1332,6 +1332,21 @@
 	"youtubePanelReload": {
 		"message": "扩展刚更新过，请刷新此页面后再试"
 	},
+	"youtubeBarSubtitles": {
+		"message": "字幕"
+	},
+	"youtubeBarSettings": {
+		"message": "设置"
+	},
+	"youtubeBarExpand": {
+		"message": "展开字幕"
+	},
+	"youtubeBarCollapse": {
+		"message": "收起"
+	},
+	"youtubeBarMore": {
+		"message": "更多内容请在沉浸学习里查看"
+	},
 	"youtubePanelCardTitle": {
 		"message": "乔木 · 沉浸学习"
 	},
@@ -1339,7 +1354,7 @@
 		"message": "正在准备字幕…"
 	},
 	"youtubePanelCardReady": {
-		"message": "字幕已就绪"
+		"message": "字幕已就绪，点击时间可跳转"
 	},
 	"youtubePanelCardNone": {
 		"message": "点击后读取字幕"

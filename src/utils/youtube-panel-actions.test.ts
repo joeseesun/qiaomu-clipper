@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, expect, it, vi } from 'vitest';
-import { buildPanelActions, buildStudyCard, formatSegments, readPanelSegments, safeFileName, syncPanelActions, syncStudyCard } from './youtube-panel-actions';
+import { formatSegments, readPanelSegments, safeFileName } from './youtube-panel-actions';
 
 const strings = { copy: 'Copy', download: 'Download', study: 'Study', copied: 'Copied', empty: 'Empty' };
 const modern = `<transcript-segment-view-model><div><div><span>13:47</span></div><span class="yt-core-attributed-string">it is a problem before it becomes a</span></div></transcript-segment-view-model>
@@ -19,55 +19,3 @@ it('reads timestamps and text from both the modern and the classic transcript vi
 });
 
 it('makes safe download names', () => { expect(safeFileName('A/B: C | D - YouTube')).toBe('A B C D'); expect(safeFileName(' - YouTube')).toBe('youtube-transcript'); });
-
-it('copies, downloads and opens the study page, and tells when there is nothing to copy', async () => {
-	document.body.innerHTML = panel(modern);
-	const write = vi.fn(async () => {}); Object.defineProperty(navigator, 'clipboard', { value: { writeText: write }, configurable: true });
-	const created = vi.fn(() => 'blob:x'); Object.assign(URL, { createObjectURL: created, revokeObjectURL: vi.fn() });
-	const clicked: string[] = []; vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) { clicked.push(this.download); });
-	const openStudy = vi.fn(); const root = document.querySelector<HTMLElement>('ytd-engagement-panel-section-list-renderer')!;
-	const group = buildPanelActions(document, root, { strings, openStudy, title: () => 'My video - YouTube' });
-	const [copy, download, study] = Array.from(group.querySelectorAll('button'));
-	copy.click(); for (let i = 0; i < 8; i++) await Promise.resolve(); expect(write).toHaveBeenCalledWith('[13:47] it is a problem before it becomes a\n[1:02:03] second line'); expect(copy.title).toBe('Copied');
-	download.click(); for (let i = 0; i < 8; i++) await Promise.resolve(); expect(created).toHaveBeenCalled(); expect(clicked).toEqual(['My video.txt']);
-	study.click(); expect(openStudy).toHaveBeenCalledTimes(1);
-	root.querySelector('#segments')!.innerHTML = ''; copy.click(); download.click(); for (let i = 0; i < 6; i++) await Promise.resolve(); expect(write).toHaveBeenCalledTimes(1); expect(clicked).toHaveLength(1);
-});
-
-it('puts one row of buttons right under the chip bar, hides it while the transcript has no lines, and keeps it in place', () => {
-	document.body.innerHTML = panel('');
-	const make = (panelEl: HTMLElement) => buildPanelActions(document, panelEl, { strings, openStudy: () => {}, title: () => 't' });
-	syncPanelActions(document, make); syncPanelActions(document, make);
-	const rows = document.querySelectorAll('.qiaomu-yt-panel-row'); expect(rows).toHaveLength(1); expect((rows[0] as HTMLElement).hidden).toBe(true);
-	document.querySelector('#segments')!.innerHTML = modern; syncPanelActions(document, make); expect((rows[0] as HTMLElement).hidden).toBe(false);
-	expect(rows[0].previousElementSibling!.tagName.toLowerCase()).toBe('chip-bar-view-model'); expect(rows[0].querySelector('.qiaomu-yt-actions')).not.toBeNull();
-	rows[0].remove(); document.querySelector('chip-bar-view-model')!.after(document.createElement('hr')); syncPanelActions(document, make);
-	expect(document.querySelector('chip-bar-view-model')!.nextElementSibling).toBe(document.querySelectorAll('.qiaomu-yt-panel-row').item(0));
-	document.body.innerHTML = '<div>no panel</div>'; syncPanelActions(document, make); expect(document.querySelector('.qiaomu-yt-actions')).toBeNull();
-});
-
-it('acts on a press even when the page swallows the click, once, and keeps the press from reaching the chip bar', () => {
-	document.body.innerHTML = panel(modern);
-	const openStudy = vi.fn(); const group = buildPanelActions(document, document.querySelector('ytd-engagement-panel-section-list-renderer')!, { strings, openStudy, title: () => 't' });
-	document.body.append(group); const study = group.querySelector<HTMLElement>('.qiaomu-yt-study')!;
-	const reachedBar = vi.fn(); document.body.addEventListener('pointerdown', reachedBar); document.body.addEventListener('mousedown', reachedBar);
-	const fire = (type: string) => study.dispatchEvent(new Event(type, { bubbles: true }));
-	fire('pointerdown'); fire('mousedown'); expect(reachedBar).not.toHaveBeenCalled(); fire('pointerup'); expect(openStudy).toHaveBeenCalledTimes(1);
-	study.click(); expect(openStudy).toHaveBeenCalledTimes(1);
-	fire('pointerup'); expect(openStudy).toHaveBeenCalledTimes(1);
-	vi.useFakeTimers(); vi.advanceTimersByTime(500); study.click(); expect(openStudy).toHaveBeenCalledTimes(2); vi.useRealTimers();
-});
-
-it('builds an always-visible card whose actions read the prefetched lines, and keeps it first in the right column', async () => {
-	document.body.innerHTML = '<ytd-watch-flexy><div id="secondary-inner"><div id="related">related</div></div></ytd-watch-flexy>';
-	const write = vi.fn(async () => {}); Object.defineProperty(navigator, 'clipboard', { value: { writeText: write }, configurable: true });
-	const openStudy = vi.fn(); let card!: ReturnType<typeof buildStudyCard>;
-	const make = () => { card = buildStudyCard(document, { strings, title: () => 't', openStudy, getSegments: async () => [{ time: '0:05', text: 'Prefetched' }], heading: 'Qiaomu', statusText: (state: string) => state }); return card.element; };
-	const column = document.querySelector('#secondary-inner')!;
-	expect(syncStudyCard(document, make)).toBe(column.firstElementChild); expect(syncStudyCard(document, make)).toBe(column.firstElementChild); expect(document.querySelectorAll('.qiaomu-yt-card')).toHaveLength(1);
-	expect(card.element.dataset.state).toBe('loading'); card.setState('ready', 3); expect(card.element.dataset.state).toBe('ready'); expect(card.element.querySelector('.qiaomu-yt-card-status')!.textContent).toBe('ready');
-	const buttons = Array.from(card.element.querySelectorAll('button')); expect(buttons.map(button => button.className.split(' ')[1])).toEqual(['qiaomu-yt-study', 'qiaomu-yt-copy', 'qiaomu-yt-download']);
-	buttons[1].click(); for (let i = 0; i < 8; i++) await Promise.resolve(); expect(write).toHaveBeenCalledWith('[0:05] Prefetched'); buttons[0].click(); expect(openStudy).toHaveBeenCalledTimes(1);
-	column.append(card.element); expect(syncStudyCard(document, make)).toBe(column.firstElementChild);
-	document.body.innerHTML = '<div>watch page without a right column</div>'; expect(syncStudyCard(document, make)).toBeUndefined();
-});

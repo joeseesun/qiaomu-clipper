@@ -1332,6 +1332,21 @@
 	"youtubePanelReload": {
 		"message": "擴充功能剛更新過，請重新整理此頁面後再試"
 	},
+	"youtubeBarSubtitles": {
+		"message": "字幕"
+	},
+	"youtubeBarSettings": {
+		"message": "設定"
+	},
+	"youtubeBarExpand": {
+		"message": "展開字幕"
+	},
+	"youtubeBarCollapse": {
+		"message": "收起"
+	},
+	"youtubeBarMore": {
+		"message": "更多內容請在沉浸學習裡查看"
+	},
 	"youtubePanelCardTitle": {
 		"message": "喬木 · 沉浸學習"
 	},
@@ -1339,7 +1354,7 @@
 		"message": "正在準備字幕…"
 	},
 	"youtubePanelCardReady": {
-		"message": "字幕已就緒"
+		"message": "字幕已就緒，點擊時間可跳轉"
 	},
 	"youtubePanelCardNone": {
 		"message": "點擊後讀取字幕"

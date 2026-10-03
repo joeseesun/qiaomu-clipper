@@ -1,11 +1,11 @@
-import { buildPanelActions, buildStudyCard, PANEL_STYLE, syncPanelActions, syncStudyCard, type CardState, type StudyCard } from './utils/youtube-panel-actions';
 import type { PanelSegment } from './utils/youtube-panel-actions';
+import { BAR_STYLE, buildTranscriptBar, syncTranscriptBar, type BarState, type TranscriptBar } from './utils/youtube-transcript-bar';
 import { fetchTranscriptSegments } from './utils/youtube-innertube-transcript';
 import { openTranscriptPanel, readYouTubeTranscriptFromDom, transcriptHtml, transcriptPanelOpen } from './utils/youtube-dom-transcript';
 import { readPanelSegments } from './utils/youtube-panel-actions';
 
-// Runs on YouTube pages only. Adds an always-visible study card and copy / download / study chips to the transcript
-// panel, and fetches the transcript in the background as soon as a video page is idle, so opening study mode,
+// Runs on YouTube pages only. Adds the transcript bar (subtitles, copy, download, study, settings, dropdown) to the
+// top of the watch page's right column, and fetches the transcript in the background as soon as a video page is idle, so opening study mode,
 // copying or downloading is instant instead of waiting for YouTube's lazily built panel.
 declare global { interface Window { qiaomuYouTubePanelLoaded?: boolean } }
 
@@ -27,24 +27,27 @@ try {
 		const zh = /^zh/i.test(navigator.language);
 		const text = (key: string, zhText: string, enText: string) => api.i18n.getMessage(key) || (zh ? zhText : enText);
 		const strings = {
+			heading: text('youtubePanelCardTitle', '乔木 · 沉浸学习', 'Qiaomu · Study'),
+			subtitles: text('youtubeBarSubtitles', '字幕', 'Subtitles'),
 			copy: text('youtubePanelCopy', '复制', 'Copy'),
 			download: text('youtubePanelDownload', '下载', 'Download'),
 			study: text('youtubePanelStudy', '沉浸学习', 'Study'),
+			settings: text('youtubeBarSettings', '设置', 'Settings'),
+			expand: text('youtubeBarExpand', '展开字幕', 'Show transcript'),
+			collapse: text('youtubeBarCollapse', '收起', 'Collapse'),
 			copied: text('youtubePanelCopied', '已复制', 'Copied'),
 			empty: text('youtubePanelEmpty', '没有读到字幕，请先展开转写文稿', 'No transcript lines found. Open the transcript first.'),
 			reload: text('youtubePanelReload', '扩展刚更新过，请刷新此页面后再试', 'The extension was updated — reload this page and try again'),
-		};
-		const cardText = {
-			heading: text('youtubePanelCardTitle', '乔木 · 沉浸学习', 'Qiaomu · Study'),
 			loading: text('youtubePanelCardLoading', '正在准备字幕…', 'Preparing transcript…'),
-			ready: text('youtubePanelCardReady', '字幕已就绪', 'Transcript ready'),
+			ready: text('youtubePanelCardReady', '字幕已就绪，点击时间可跳转', 'Transcript ready — click a time to jump'),
 			none: text('youtubePanelCardNone', '点击后读取字幕', 'Click to read the transcript'),
+			more: text('youtubeBarMore', '更多内容请在沉浸学习里查看', 'Open study mode to read the rest'),
 		};
 		let enabled = true, autoOpen = true;
 		const autoOpened = new Set<string>(); // one automatic opening per video: if the viewer closes the panel, it stays closed
 
 		// --- transcript prefetch -------------------------------------------------------------------------------
-		interface Entry { state: CardState; segments: PanelSegment[]; done: Promise<PanelSegment[]> }
+		interface Entry { state: BarState; segments: PanelSegment[]; done: Promise<PanelSegment[]> }
 		const store = new Map<string, Entry>();
 		const currentVideo = () => location.pathname === '/watch' ? new URL(location.href).searchParams.get('v') : null;
 		// YouTube answers get_transcript with "precondition failed" when it wants a player token (seen in signed-out
@@ -55,7 +58,7 @@ try {
 			const entry: Entry = { state: 'loading', segments: [], done: Promise.resolve([]) };
 			const request = refusals >= 2 ? Promise.resolve([] as PanelSegment[]) : fetchTranscriptSegments(videoId, document).then(segments => { refusals = 0; return segments; }, () => { refusals++; return [] as PanelSegment[]; });
 			entry.done = request.then(segments => {
-				entry.segments = segments; entry.state = segments.length ? 'ready' : 'none'; updateCard(); return segments;
+				entry.segments = segments; entry.state = segments.length ? 'ready' : 'none'; updateBar(); return segments;
 			});
 			store.set(videoId, entry); return entry;
 		};
@@ -69,40 +72,46 @@ try {
 			}
 			const fromPanel = await readYouTubeTranscriptFromDom(document, open, open ? 12000 : 0);
 			const entry = videoId ? store.get(videoId) : undefined;
-			if (entry && fromPanel.length) { entry.segments = fromPanel; entry.state = 'ready'; updateCard(); }
+			if (entry && fromPanel.length) { entry.segments = fromPanel; entry.state = 'ready'; updateBar(); }
 			return fromPanel;
 		};
 
 		// --- UI ------------------------------------------------------------------------------------------------
-		const style = document.createElement('style'); style.textContent = PANEL_STYLE;
+		const style = document.createElement('style'); style.textContent = BAR_STYLE;
 		// A page opened before the extension was reloaded keeps a dead copy of this script; say so instead of doing nothing.
 		const openStudy = (): boolean => { try { api.runtime.sendMessage({ action: 'qiaomuTripleKey', command: 'read' })?.catch?.(() => {}); return true; } catch { return false; } };
-		let card: StudyCard | undefined;
-		const updateCard = () => {
+		const openSettings = () => { try { api.runtime.sendMessage({ action: 'openSettings', section: 'general' })?.catch?.(() => {}); } catch { /* extension reloaded */ } };
+		const seek = (seconds: number) => { const video = document.querySelector<HTMLVideoElement>('video.html5-main-video, video'); if (video) { video.currentTime = seconds; void video.play?.().catch(() => {}); } };
+		const OPEN_KEY = 'qiaomuTranscriptBarOpen';
+		const wasOpen = (() => { try { return localStorage.getItem(OPEN_KEY) === '1'; } catch { return false; } })();
+		let bar: TranscriptBar | undefined;
+		const updateBar = () => {
 			const videoId = currentVideo(); const entry = videoId ? store.get(videoId) : undefined;
-			card?.setState(entry?.state ?? 'loading', entry?.segments.length ?? 0);
+			bar?.setState(entry?.state ?? 'loading', entry?.segments);
 		};
 		let frame = 0;
 		const refresh = () => {
 			frame = 0;
-			if (!enabled) { document.querySelectorAll('.qiaomu-yt-actions, .qiaomu-yt-card').forEach(node => node.remove()); card = undefined; return; }
+			if (!enabled) { document.querySelectorAll('.qiaomu-yt-bar').forEach(node => node.remove()); bar = undefined; return; }
 			if (!style.isConnected) (document.head || document.documentElement).append(style);
 			const videoId = currentVideo();
 			if (videoId && autoOpen && !autoOpened.has(videoId)) {
 				if (transcriptPanelOpen(document)) autoOpened.add(videoId);
 				else if (openTranscriptPanel(document)) autoOpened.add(videoId);
 			}
-			// Whatever YouTube rendered in the panel is also a ready transcript for copy, download and study mode.
+			// Whatever YouTube rendered in its own panel is also a ready transcript for the bar and for study mode.
 			const entry = videoId ? store.get(videoId) : undefined;
 			const panelEl = document.querySelector('ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-searchable-transcript"]');
 			if (entry && entry.state !== 'ready' && panelEl) { const rendered = readPanelSegments(panelEl); if (rendered.length) { entry.segments = rendered; entry.state = 'ready'; } }
-			syncPanelActions(document, panel => buildPanelActions(document, panel, { strings, title: () => document.title, openStudy, getSegments: () => getSegments(false) }));
-			if (!videoId) { document.querySelector('.qiaomu-yt-card')?.remove(); card = undefined; return; }
-			syncStudyCard(document, () => {
-				card = buildStudyCard(document, { strings, title: () => document.title, openStudy, getSegments: () => getSegments(true), heading: cardText.heading, statusText: state => cardText[state === 'loading' ? 'loading' : state === 'ready' ? 'ready' : 'none'] });
-				return card.element;
+			if (!videoId) { document.querySelector('.qiaomu-yt-bar')?.remove(); bar = undefined; return; }
+			syncTranscriptBar(document, () => {
+				bar = buildTranscriptBar(document, {
+					strings, title: () => document.title, openStudy, openSettings, seek, getSegments: () => getSegments(true),
+					initialOpen: wasOpen, onToggle: open => { try { localStorage.setItem(OPEN_KEY, open ? '1' : '0'); } catch { /* storage unavailable */ } },
+				});
+				return bar.element;
 			});
-			updateCard();
+			updateBar();
 		};
 		// YouTube is a single-page app and re-renders often; coalesce mutations per frame.
 		const schedule = () => { if (!frame) frame = requestAnimationFrame(refresh); };
