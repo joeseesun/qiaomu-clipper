@@ -1,4 +1,5 @@
 import { generalSettings } from './storage-utils';
+import browser from './browser-polyfill';
 import type { ModelConfig, Provider } from '../types/types';
 
 export interface ChatTurn { role: 'user' | 'assistant'; content: string }
@@ -74,7 +75,38 @@ function textFromLine(kind: Kind, line: string): string {
 	} catch { return ''; }
 }
 
+// Content scripts run under the site's network policy. Keep credentials and
+// provider requests in the extension background while forwarding stream deltas.
+function streamViaBackground(options: StreamOptions): Promise<string> {
+	return new Promise((resolve, reject) => {
+		const port = browser.runtime.connect({ name: 'qiaomu-study-chat' });
+		let answer = '';
+		let settled = false;
+		const finish = (error?: Error) => {
+			if (settled) return;
+			settled = true;
+			options.signal?.removeEventListener('abort', abort);
+			port.disconnect();
+			if (error) reject(error); else resolve(answer);
+		};
+		const abort = () => finish(new DOMException('Aborted', 'AbortError'));
+		port.onMessage.addListener(raw => {
+			const message = raw as { delta?: string; error?: string; done?: boolean };
+			if (typeof message.delta === 'string') { answer += message.delta; options.onDelta(message.delta); }
+			if (message.error) finish(new Error(message.error));
+			else if (message.done) finish();
+		});
+		port.onDisconnect.addListener(() => finish(new Error('AI 连接已中断，请重试')));
+		if (options.signal?.aborted) { abort(); return; }
+		options.signal?.addEventListener('abort', abort, { once: true });
+		port.postMessage({ modelId: options.model.id, system: options.system, messages: options.messages });
+	});
+}
+
 export async function streamChat({ model, system, messages, signal, onDelta }: StreamOptions): Promise<string> {
+	if (typeof location !== 'undefined' && /^https?:$/.test(location.protocol)) {
+		return streamViaBackground({ model, system, messages, signal, onDelta });
+	}
 	const provider = generalSettings.providers.find(p => p.id === model.providerId);
 	if (!provider) throw new Error(`Provider not found for model ${model.name}`);
 	if (provider.apiKeyRequired && !provider.apiKey) throw new Error(`API key is not set for provider ${provider.name}`);

@@ -10,7 +10,7 @@
 
 [快速开始](#快速开始) · [功能巡游](#功能巡游) · [快捷键](#三连击快捷键) · [AI](#ai-解读与对话) · [隐私与边界](#隐私与边界) · [反馈](https://github.com/joeseesun/qiaomu-clipper/issues)
 
-![version](https://img.shields.io/badge/version-1.7.1-blue) ![license](https://img.shields.io/badge/license-MIT-green) ![platform](https://img.shields.io/badge/Chrome-Manifest%20V3-orange)
+![version](https://img.shields.io/badge/version-1.8.0-blue) ![license](https://img.shields.io/badge/license-MIT-green) ![platform](https://img.shields.io/badge/Chrome-Manifest%20V3-orange)
 
 </div>
 
@@ -228,3 +228,7 @@ npm run build:chrome
 ```
 
 Screenshots in this README are rendered from the built page styles with a sample article written for this project. See [privacy](PRIVACY.md), [security reporting](SECURITY.md) and the [MIT license](LICENSE). The bundled font Zhuque Fangsong is under the SIL OFL 1.1 ([license text](src/fonts/ZhuqueFangsong-OFL.txt)). Maintained by [joeseesun](https://github.com/joeseesun).
+
+### YouTube 沉浸学习
+
+在 YouTube 视频页、非输入框内快速按 `aaa` 进入阅读模式：上方播放器，下方带时间戳的字幕文稿。文稿工具栏可复制字幕、下载 TXT，并使用设置中启用的 AI 模型基于文稿对话。点击字幕时间戳可跳转播放，支持跟随高亮。没有获取到字幕时会显示原因提示并禁用字幕操作；可先打开 YouTube 自带转写面板再重试。

@@ -200,3 +200,27 @@ article > .player-toggles {
 		display: none !important;
 	}
 }
+.youtube-study-toolbar {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 12px 0;
+	border-bottom: 1px solid var(--background-modifier-border);
+	font-family: var(--font-ui);
+	font-size: 14px;
+	> span:first-child { font-weight: 600; white-space: nowrap; }
+	.youtube-study-status { flex: 1; color: var(--text-muted); font-size: 12px; line-height: 1.5; }
+	button {
+		display: inline-flex; align-items: center; justify-content: center;
+		flex-shrink: 0; width: 32px; height: 32px; padding: 6px;
+		border: 0; border-radius: 6px; background: transparent; color: var(--text-muted); cursor: pointer;
+		svg { width: 18px; height: 18px; }
+		&:hover { background: var(--background-primary-alt); color: var(--text-normal); }
+		&:focus-visible { outline: 1px solid var(--text-muted); outline-offset: 2px; }
+		&:disabled { opacity: .4; cursor: default; }
+	}
+}
+.youtube-study .player-container {
+	iframe, .reader-video-wrapper { max-height: 48vh; box-shadow: none; }
+}
+.youtube-study-notes { border-top: 1px solid var(--background-modifier-border); margin-top: 24px; }

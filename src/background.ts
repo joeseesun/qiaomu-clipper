@@ -6,7 +6,8 @@ import { TextHighlightData } from './utils/highlighter';
 import { debounce } from './utils/debounce';
 import { Settings } from './types/types';
 import { debugLog } from './utils/debug';
-import { incrementStat } from './utils/storage-utils';
+import { incrementStat, loadSettings } from './utils/storage-utils';
+import { enabledChatModels, streamChat } from './utils/chat-llm';
 import { hasStoredHighlights } from './utils/url-utils';
 
 // Accept RSS writes only from our own extension pages, never a website content script.
@@ -1253,4 +1254,28 @@ browser.storage.onChanged.addListener((changes, area) => {
 // Initialize the extension
 initialize().catch(error => {
 	console.error('Failed to initialize background script:', error);
+});
+
+// Only our isolated content scripts may start a study conversation. Provider
+// identity comes from saved settings, never a caller-supplied URL or API key.
+browser.runtime.onConnect.addListener(port => {
+	if (port.name !== 'qiaomu-study-chat') return;
+	if (port.sender?.id !== browser.runtime.id) { port.disconnect(); return; }
+	const controller = new AbortController();
+	port.onDisconnect.addListener(() => controller.abort());
+	let started = false;
+	port.onMessage.addListener(async raw => {
+		const request = raw as { modelId?: string; system?: string; messages?: any[] };
+		if (started) return;
+		started = true;
+		const send = (message: unknown) => { if (!controller.signal.aborted) port.postMessage(message); };
+		try {
+			await loadSettings();
+			const model = enabledChatModels().find(item => item.id === request.modelId);
+			if (!model || typeof request.system !== 'string' || !Array.isArray(request.messages)
+				|| request.messages.some((turn: any) => !['user', 'assistant'].includes(turn.role) || typeof turn.content !== 'string')) throw new Error('无效的 AI 对话请求');
+			await streamChat({ model, system: request.system, messages: request.messages, signal: controller.signal, onDelta: delta => send({ delta }) });
+			send({ done: true });
+		} catch (error) { send({ error: error instanceof Error ? error.message : 'AI 请求失败' }); }
+	});
 });

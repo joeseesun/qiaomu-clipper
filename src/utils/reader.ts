@@ -40,6 +40,7 @@ const VIEWPORT = 'width=device-width, initial-scale=1, maximum-scale=1';
 
 import { ReaderSettings } from '../types/types';
 import { wireTranscript } from './reader-transcript';
+import { mountYouTubeStudy, restoreYouTubePlayer } from './youtube-study';
 
 interface ReaderContent {
 	content: string;
@@ -880,7 +881,15 @@ export class Reader {
 			return pre;
 		}
 
-		const defuddle = new Defuddle(doc, { url: doc.URL });
+		const defuddle = new Defuddle(doc, { url: doc.URL, fetch: async (input, init) => {
+			const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+			const result = await browser.runtime.sendMessage({ action: 'fetchProxy', url, options: {
+				method: init?.method, body: init?.body,
+				headers: init?.headers ? (() => { const headers: Record<string, string> = {}; new Headers(init.headers).forEach((value, key) => { headers[key] = value; }); return headers; })() : undefined,
+			} }) as { status: number; text: string; error?: string };
+			if (result.error) throw new Error(result.error);
+			return new Response(result.text, { status: result.status });
+		} });
 		const defuddled = await defuddle.parseAsync();
 
 		return {
@@ -2276,6 +2285,8 @@ export class Reader {
 			// document.title (which often includes the site name suffix).
 			if (title) hl().setPageTitle(title);
 
+			if (isYouTube) restoreYouTubePlayer(article, doc.URL);
+
 			// On YouTube, replace the Defuddle-generated iframe with the
 			// preserved native video element, or fall back to embed
 			if (isYouTube) {
@@ -2334,16 +2345,15 @@ export class Reader {
 							action: 'enableYouTubeEmbedRule'
 						}).catch(() => {});
 
-						if (videoTimestamp > 0 || videoWasPlaying) {
-							const src = new URL(iframe.src);
-							if (videoTimestamp > 0) {
-								src.searchParams.set('start', String(videoTimestamp));
-							}
-							if (videoWasPlaying) {
-								src.searchParams.set('autoplay', '1');
-							}
-							iframe.src = src.toString();
+						// Reload after the header rule is installed, including a paused video at 0:00.
+						const src = new URL(iframe.src);
+						if (videoTimestamp > 0) {
+							src.searchParams.set('start', String(videoTimestamp));
 						}
+						if (videoWasPlaying) {
+							src.searchParams.set('autoplay', '1');
+						}
+						iframe.src = src.toString();
 					}
 				}
 			}
@@ -2360,6 +2370,8 @@ export class Reader {
 				(this.settings as any)[key] = value;
 				this.saveSettings();
 			});
+
+			if (isYouTube && !Reader.onEdit) await mountYouTubeStudy(doc, article, title || doc.title, doc.URL);
 
 			if (extractorType) {
 				doc.documentElement.setAttribute('data-reader-extractor', extractorType);
