@@ -3,6 +3,7 @@ import { mountClipChat } from './clip-chat';
 import { copyToClipboard } from './clipboard-utils';
 import { saveFile } from './file-utils';
 import { loadSettings } from './storage-utils';
+import { youtubeVideoId } from './youtube-url';
 
 // Read only transcript segments, excluding chapter headings and reader controls.
 export function transcriptText(article: HTMLElement): string {
@@ -67,13 +68,8 @@ export async function mountYouTubeStudy(doc: Document, article: HTMLElement, tit
 // Markdown intentionally drops iframes. Restore only a trusted YouTube player
 // from the clip's source URL, and restore transcript classes lost in conversion.
 export function restoreYouTubePlayer(article: HTMLElement, sourceUrl: string): boolean {
-	let source: URL;
-	try { source = new URL(sourceUrl); } catch { return false; }
-	const host = source.hostname.toLowerCase();
-	if (!['youtube.com', 'www.youtube.com', 'm.youtube.com', 'youtu.be'].includes(host)) return false;
-	const videoId = host === 'youtu.be' ? source.pathname.slice(1).split('/')[0]
-		: source.pathname === '/watch' ? source.searchParams.get('v') : source.pathname.match(/^\/(?:shorts|embed)\/([^/]+)/)?.[1];
-	if (!videoId || !/^[a-zA-Z0-9_-]{11}$/.test(videoId)) return false;
+	const videoId = youtubeVideoId(sourceUrl);
+	if (!videoId) return false;
 	const doc = article.ownerDocument;
 	let iframe = article.querySelector<HTMLIFrameElement>('iframe[src*="youtube.com/embed/"]');
 	if (!iframe) {
