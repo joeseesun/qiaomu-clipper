@@ -77,59 +77,6 @@ export function wireTranscript(
 	const toggleBar = doc.createElement('div');
 	toggleBar.className = 'player-toggles';
 
-	const createToggle = (label: string, defaultOn: boolean, onChange: (on: boolean) => void) => {
-		const wrapper = doc.createElement('label');
-		wrapper.className = 'player-toggle' + (defaultOn ? ' is-enabled' : '');
-
-		const toggle = doc.createElement('div');
-		toggle.className = 'player-toggle-switch';
-		const input = doc.createElement('input');
-		input.type = 'checkbox';
-		input.checked = defaultOn;
-		input.setAttribute('role', 'switch');
-		input.setAttribute('aria-label', label);
-		toggle.appendChild(input);
-
-		const text = doc.createElement('span');
-		text.textContent = label;
-
-		wrapper.appendChild(text);
-		wrapper.appendChild(toggle);
-
-		input.addEventListener('change', () => {
-			wrapper.classList.toggle('is-enabled', input.checked);
-			onChange(input.checked);
-		});
-
-		return wrapper;
-	};
-
-	const pinToggle = createToggle(getMessage('readerPinPlayer'), pinDefault, (on) => {
-		playerContainer.classList.toggle('pin-player', on);
-		if (on) {
-			playerContainer.appendChild(toggleBar);
-		} else {
-			playerContainer.after(toggleBar);
-		}
-		// Reset nav scroll tracking so hide-on-scroll-down works immediately
-		window.dispatchEvent(new CustomEvent('reader-show-nav'));
-		onSettingChange?.('pinPlayer', on);
-	});
-
-	const autoScrollToggle = createToggle(getMessage('readerAutoScroll'), autoScrollDefault, (on) => {
-		autoScrollEnabled = on;
-		onSettingChange?.('autoScroll', on);
-	});
-
-	const highlightToggle = createToggle(getMessage('readerHighlightActiveLine'), highlightDefault, (on) => {
-		highlightEnabled = on;
-		if (!on) {
-			const ph = (CSS as any).highlights?.get('transcript-playback');
-			if (ph) ph.clear();
-		}
-		onSettingChange?.('highlightActiveLine', on);
-	});
-
 	// Floating "current position" button — appended to body,
 	// shown only when the active segment is scrolled out of view
 	const currentPosButton = doc.createElement('button');
@@ -140,9 +87,6 @@ export function wireTranscript(
 
 	const toggleGroup = doc.createElement('div');
 	toggleGroup.className = 'player-toggle-group is-open';
-	toggleGroup.appendChild(pinToggle);
-	toggleGroup.appendChild(autoScrollToggle);
-	toggleGroup.appendChild(highlightToggle);
 
 	toggleBar.appendChild(toggleGroup);
 

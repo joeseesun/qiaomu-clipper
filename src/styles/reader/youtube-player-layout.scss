@@ -1,11 +1,11 @@
 // The video uses the available workspace, while text keeps the existing Aa line width.
 html.youtube-study.obsidian-reader-active:has(.youtube-sized-player) body {
 	.obsidian-reader-container {
-		grid-template-columns: 240px minmax(0, 1fr) var(--clipper-sidebar-width, 0px);
+		grid-template-columns: 240px minmax(0, 1fr) var(--youtube-grid-sidebar-width, var(--clipper-sidebar-width, 0px));
 		gap: 16px;
 		box-sizing: border-box;
-		&:has(> .obsidian-reader-left-sidebar.is-empty) { grid-template-columns: 0 minmax(0, 1fr) var(--clipper-sidebar-width, 0px); }
-		&:has(> .obsidian-reader-left-sidebar.is-collapsed:not(.is-empty)) { grid-template-columns: 44px minmax(0, 1fr) var(--clipper-sidebar-width, 0px); }
+		&:has(> .obsidian-reader-left-sidebar.is-empty) { grid-template-columns: 0 minmax(0, 1fr) var(--youtube-grid-sidebar-width, var(--clipper-sidebar-width, 0px)); }
+		&:has(> .obsidian-reader-left-sidebar.is-collapsed:not(.is-empty)) { grid-template-columns: 44px minmax(0, 1fr) var(--youtube-grid-sidebar-width, var(--clipper-sidebar-width, 0px)); }
 	}
 	.obsidian-reader-content {
 		padding-top: max(calc(var(--youtube-bar-height, 56px) + 16px), 4rem, 4vh) !important;
@@ -38,7 +38,7 @@ html.youtube-player-resizing {
 	iframe, video { pointer-events: none; }
 }
 @media (min-width: 1100px) {
-	html.youtube-study.clip-chat-open:has(.youtube-sized-player) .obsidian-reader-container { width: calc(100% - var(--clip-chat-width)); margin-inline: 0 auto; }
+	html.youtube-study.clip-chat-open:has(.youtube-sized-player) .obsidian-reader-container { --youtube-grid-sidebar-width: 0px; width: calc(100% - var(--clip-chat-width)); margin-inline: 0 auto; }
 }
 @media (max-width: 768px) {
 	html.youtube-study.obsidian-reader-active:has(.youtube-sized-player) body .obsidian-reader-container { grid-template-columns: minmax(0, 1fr) !important; gap: 0; }

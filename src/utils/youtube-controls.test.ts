@@ -19,6 +19,7 @@ it('connects late subtitles to the original handle and iframe without nesting co
  expect(article.querySelector('.youtube-player-resize')).toBe(handle);expect(handle?.previousElementSibling).toBe(frame);
  expect(article.querySelector('iframe')).toBe(frame);expect(frame.src).toBe(src);
  expect(article.querySelector('.player-toggle-group')!.lastElementChild?.className).toContain('youtube-translate-toggle');
+ expect(article.querySelectorAll('.player-toggle')).toHaveLength(1);
  expect(article.querySelector('.youtube-size-control,.youtube-study-toolbar')).toBeNull();
  const post=vi.spyOn(frame.contentWindow!,'postMessage'); const grip=handle as HTMLElement;
  grip.dispatchEvent(new KeyboardEvent('keydown',{key:'Home',code:'Home',bubbles:true}));const size=Number(grip.getAttribute('aria-valuenow'));
