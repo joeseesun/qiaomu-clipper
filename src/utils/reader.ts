@@ -199,8 +199,8 @@ export class Reader {
 		trigger.setAttribute('aria-label', getMessage('settings'));
 		trigger.appendChild(this.createSVG({
 			width: '18', height: '18', viewBox: '0 0 24 24', strokeWidth: '1.75',
-			// lucide "type": same line weight as the copy/download icons beside it.
-			paths: ['M4 7V4h16v3', 'M9 20h6', 'M12 4v16'],
+			// lucide "a-large-small": the reading-typography glyph, same line weight as the icons beside it.
+			paths: ['M21 14h-5', 'M16 16v-3.5a2.5 2.5 0 0 1 5 0V16', 'M4.5 13h6', 'm3 16 4.5-9 4.5 9'],
 		}));
 		trigger.addEventListener('click', (e) => {
 			e.stopPropagation();
