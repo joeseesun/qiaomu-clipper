@@ -2,7 +2,7 @@ import Defuddle from 'defuddle';
 import DOMPurify from 'dompurify';
 import browser from './browser-polyfill';
 import { Reader } from './reader';
-import { transcriptText } from './youtube-study';
+import { transcriptText, mountYouTubeStudy } from './youtube-study';
 import { youtubeVideoId } from './youtube-url';
 import { setPageTitle, setPageUrl } from './highlighter';
 
@@ -17,7 +17,7 @@ export async function withTranscriptDeadline<T>(extract: (signal: AbortSignal) =
 }
 
 // Render the learning page before doing any page fetch or subtitle extraction.
-export async function startYouTubeStudy(url: string, sourceTabId: number, initialTitle: string, onReady: (result: any) => Promise<void>): Promise<void> {
+export async function startYouTubeStudy(url: string, sourceTabId: number, initialTitle: string, onReady: (result: any) => Promise<void>, mountShell?: () => {chat: {toggle: () => boolean}; ready: () => void}): Promise<void> {
 	if (!youtubeVideoId(url)) throw new Error('无效的 YouTube 视频链接');
 	const title = initialTitle.replace(/\s*- YouTube$/, '') || 'YouTube 视频学习';
 	Object.defineProperty(document, 'URL', { value: url, configurable: true });
@@ -27,6 +27,8 @@ export async function startYouTubeStudy(url: string, sourceTabId: number, initia
 	document.title = title;
 	await Reader.apply(document);
 	const article = document.querySelector('article')!;
+	const shell = mountShell?.();
+	await mountYouTubeStudy(document, article, title, url, shell?.chat);
 	const status = article.querySelector<HTMLElement>('.youtube-study-status')!;
 	const clip = document.getElementById('qiaomu-reader-clip') as HTMLButtonElement | null;
 	if (clip) clip.disabled = true;
@@ -63,13 +65,18 @@ export async function startYouTubeStudy(url: string, sourceTabId: number, initia
 			const content = document.createElement('div');
 			content.innerHTML = DOMPurify.sanitize(result.content);
 			const transcript = content.querySelector<HTMLElement>('.youtube.transcript');
-			if (!transcript || !transcriptText(content)) throw new Error('暂未获取到字幕，视频可能没有字幕或尚未加载完成，请重试');
 			const nextTitle = result.title || title;
 			document.title = nextTitle; setPageTitle(nextTitle);
 			const heading = document.querySelector('main h1'); if (heading) heading.textContent = nextTitle;
 			await onReady(result);
-			await Reader.attachYouTubeTranscript(document, transcript, nextTitle);
+			if (!transcript || !transcriptText(content)) {
+				shell?.ready();
+				if (clip) clip.disabled = false;
+				throw new Error('暂未获取到字幕，视频可能没有字幕或尚未加载完成，请重试');
+			}
+			await Reader.attachYouTubeTranscript(document, transcript, nextTitle, shell?.chat);
 			loaded = true;
+			shell?.ready();
 			if (clip) clip.disabled = false;
 		} catch (error) {
 			if (article.isConnected) { status.textContent = error instanceof Error ? error.message : '字幕加载失败，请重试'; retry.hidden = false; }

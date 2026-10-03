@@ -2722,7 +2722,7 @@ export class Reader {
 	}
 
 	// Attach late-arriving subtitles without replacing or restarting the player.
-	static async attachYouTubeTranscript(doc: Document, transcript: HTMLElement, title: string): Promise<void> {
+	static async attachYouTubeTranscript(doc: Document, transcript: HTMLElement, title: string, chat?: {toggle: () => boolean}): Promise<void> {
 		const article = doc.querySelector('article')!;
 		article.querySelector('.youtube-study-toolbar')?.remove();
 		article.appendChild(doc.adoptNode(transcript));
@@ -2732,7 +2732,7 @@ export class Reader {
 			scrollTo: y => this.scrollTo(y),
 			programmaticScroll: () => this.programmaticScroll,
 		}, (key, value) => { (this.settings as any)[key] = value; void this.saveSettings(); });
-		await mountYouTubeStudy(doc, article, title, doc.URL);
+		await mountYouTubeStudy(doc, article, title, doc.URL, chat);
 		await this.initializeContentFeatures(doc, title);
 	}
 
