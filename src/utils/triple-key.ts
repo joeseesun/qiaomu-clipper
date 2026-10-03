@@ -1,4 +1,4 @@
-// Press the same plain key three times quickly (outside text fields) to run an action.
+// Press the same plain key three times quickly (outside text fields and open dialogs) to run an action.
 export const TRIPLE_KEY_WINDOW_MS = 600;
 
 export type TripleCommand = 'read' | 'edit' | 'clip';
@@ -25,7 +25,7 @@ export function commandForKey(map: TripleKeyMap, key: string): TripleCommand | u
 function isEditableTarget(event: KeyboardEvent): boolean {
 	const target = (event.composedPath?.()[0] ?? event.target) as HTMLElement | null;
 	if (!target || !target.tagName) return false;
-	return target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.getAttribute?.('role') === 'textbox';
+	return !!target.closest?.('dialog[open]') || target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.getAttribute?.('role') === 'textbox';
 }
 
 export function listenTripleKey(keys: string[] | (() => string[]), onTriple: (key: string) => void, isEnabled: () => boolean = () => true): void {
