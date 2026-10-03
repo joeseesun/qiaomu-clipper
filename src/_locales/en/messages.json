@@ -1317,6 +1317,27 @@
 	"qiaomuChatQuoteRewrite": {
 		"message": "Rewrite more concisely"
 	},
+	"youtubePanelActionsTitle": {
+		"message": "YouTube transcript buttons"
+	},
+	"youtubePanelActionsDescription": {
+		"message": "On YouTube, add Copy, Download and Study buttons next to the Chapters / Transcript tabs of the transcript panel."
+	},
+	"youtubePanelCopy": {
+		"message": "Copy"
+	},
+	"youtubePanelDownload": {
+		"message": "Download"
+	},
+	"youtubePanelStudy": {
+		"message": "Study"
+	},
+	"youtubePanelCopied": {
+		"message": "Copied"
+	},
+	"youtubePanelEmpty": {
+		"message": "No transcript lines found. Open the transcript first."
+	},
 	"selectionToolbarTitle": {
 		"message": "Selection toolbar"
 	},

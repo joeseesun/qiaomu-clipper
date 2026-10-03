@@ -58,6 +58,15 @@
 		},
 		{
 			"matches": [
+				"https://www.youtube.com/*"
+			],
+			"js": [
+				"youtube-panel.js"
+			],
+			"run_at": "document_idle"
+		},
+		{
+			"matches": [
 				"http://*/*",
 				"https://*/*"
 			],

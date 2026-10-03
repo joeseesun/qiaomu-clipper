@@ -20,3 +20,12 @@
 - 单元测试：布局滞回、最大宽度、模式切换不移动 iframe、存储恢复不覆盖早到的点击、容器晚到、拖动吸附与缩放、画中画移动/续播/收回/被拒绝。全套 323 个测试、tsc、Chrome 构建通过。
 - 预览：`dev/study-preview`（生产代码 + 示例字幕，本地忽略）用无头 Chrome 截图检查 1500px 并排、剧场、小窗、900px 上下排列、AI 面板打开。
 - 未验证：真实已安装扩展；Document PiP 在真实 YouTube 嵌入、Referer 规则与扩展来源下的实际表现（尤其是重新加载后的续播与 error 153）；浏览器原生全屏；触屏拖动。
+
+## YouTube 原页转写面板按钮
+
+在 YouTube 视频页右侧「在此视频中」面板的「章节 / 转写文稿」标签后增加三枚同款 chip：复制（带时间戳）、下载（UTF-8 TXT）、沉浸学习（等同 `aaa`，发送 `qiaomuTripleKey: read`）。
+
+- 新内容脚本 `youtube-panel.js` 只匹配 `https://www.youtube.com/*`（其他页面不加载）；读取面板里已渲染的字幕行（新版 `transcript-segment-view-model` 与旧版 `ytd-transcript-segment-renderer`），面板没有字幕行时按钮隐藏。
+- 只用 DOM API，不写 innerHTML（YouTube 开启 Trusted Types）。YouTube 是单页应用，用按帧合并的 MutationObserver 保持按钮存在。
+- 设置页新增「YouTube 转写文稿按钮」开关，默认开启，关闭后立即移除。
+- 已核对：真实 YouTube 页的 chip 栏选择器、32px 高 / 8px 圆角 / 14px 字重 500 与原生 chip 一致。未验证：已登录账号下的真实字幕行结构、复制到剪贴板的权限表现、`aaa` 等价的消息在真实扩展中的打开。

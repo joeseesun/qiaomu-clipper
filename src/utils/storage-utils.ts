@@ -71,6 +71,7 @@ interface StorageData {
 		tripleKeys?: { read: string; edit: string; clip: string };
 		tripleKeyBlockedSites?: string[];
 		selectionToolbar?: boolean;
+		youtubePanelActions?: boolean;
 	};
 	vaults?: string[];
 	highlighter_settings?: {
@@ -198,6 +199,7 @@ export async function loadSettings(): Promise<Settings> {
 		tripleKeys: data.general_settings?.tripleKeys,
 		tripleKeyBlockedSites: data.general_settings?.tripleKeyBlockedSites,
 		selectionToolbar: data.general_settings?.selectionToolbar ?? true,
+		youtubePanelActions: data.general_settings?.youtubePanelActions ?? true,
 		highlighterEnabled: data.highlighter_settings?.highlighterEnabled ?? defaultSettings.highlighterEnabled,
 		alwaysShowHighlights: data.highlighter_settings?.alwaysShowHighlights ?? defaultSettings.alwaysShowHighlights,
 		highlightBehavior: data.highlighter_settings?.highlightBehavior ?? defaultSettings.highlightBehavior,
@@ -255,6 +257,7 @@ export async function saveSettings(settings?: Partial<Settings>): Promise<void> 
 			tripleKeys: generalSettings.tripleKeys,
 			tripleKeyBlockedSites: generalSettings.tripleKeyBlockedSites,
 			selectionToolbar: generalSettings.selectionToolbar,
+			youtubePanelActions: generalSettings.youtubePanelActions,
 		},
 		highlighter_settings: {
 			highlighterEnabled: generalSettings.highlighterEnabled,

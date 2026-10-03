@@ -80,6 +80,7 @@ export interface Settings {
 	tripleKeys?: { read: string; edit: string; clip: string };
 	tripleKeyBlockedSites?: string[];
 	selectionToolbar?: boolean;
+	youtubePanelActions?: boolean;
 	highlighterEnabled: boolean;
 	alwaysShowHighlights: boolean;
 	highlightBehavior: string;

@@ -1317,6 +1317,27 @@
 	"qiaomuChatQuoteRewrite": {
 		"message": "改写得更简洁"
 	},
+	"youtubePanelActionsTitle": {
+		"message": "YouTube 转写文稿按钮"
+	},
+	"youtubePanelActionsDescription": {
+		"message": "在 YouTube 的转写文稿面板里，“章节 / 转写文稿”旁增加“复制”“下载”“沉浸学习”按钮。"
+	},
+	"youtubePanelCopy": {
+		"message": "复制"
+	},
+	"youtubePanelDownload": {
+		"message": "下载"
+	},
+	"youtubePanelStudy": {
+		"message": "沉浸学习"
+	},
+	"youtubePanelCopied": {
+		"message": "已复制"
+	},
+	"youtubePanelEmpty": {
+		"message": "没有读到字幕，请先展开转写文稿"
+	},
 	"selectionToolbarTitle": {
 		"message": "选中文字工具条"
 	},
