@@ -4,12 +4,15 @@ import { copyToClipboard } from './clipboard-utils';
 import { saveFile } from './file-utils';
 import { loadSettings } from './storage-utils';
 import { youtubeVideoId } from './youtube-url';
+import { mountPlayerSize } from './youtube-player-size';
+import { mountTranslation } from './youtube-translation';
 
 // Read only transcript segments, excluding chapter headings and reader controls.
 export function transcriptText(article: HTMLElement): string {
 	return Array.from(article.querySelectorAll('.youtube.transcript .transcript-segment')).map(segment => {
 		const timestamp = segment.querySelector('strong')?.textContent?.trim() || '';
 		const clone = segment.cloneNode(true) as HTMLElement;
+		clone.querySelectorAll('.transcript-translation').forEach(node => node.remove());
 		clone.querySelector('strong')?.remove();
 		const text = clone.textContent?.replace(/^\s*·\s*/, '').replace(/\s+/g, ' ').trim() || '';
 		return text ? `${timestamp ? `[${timestamp}] ` : ''}${text}` : '';
@@ -17,6 +20,7 @@ export function transcriptText(article: HTMLElement): string {
 }
 
 export async function mountYouTubeStudy(doc: Document, article: HTMLElement, title: string, url: string, existingChat?: { toggle: () => boolean }): Promise<void> {
+	mountPlayerSize(article);
 	if (doc.querySelector('.youtube-study-toolbar')) return;
 	doc.documentElement.classList.add('youtube-study');
 	const toolbar = doc.createElement('div');
@@ -51,6 +55,7 @@ export async function mountYouTubeStudy(doc: Document, article: HTMLElement, tit
 		status.textContent = '未获取到字幕：视频可能没有字幕，或 YouTube 暂时限制了获取。打开原页转写文稿后再进入学习模式可重试。';
 		return;
 	}
+	mountTranslation(article, toolbar, status);
 	if (existingChat) return;
 	ask.disabled = true;
 	await loadSettings();
