@@ -472,6 +472,9 @@ function initializeDefaultTemplateDropdown(): void {
 	initializeSettingToggle('youtube-auto-transcript-toggle', generalSettings.youtubeAutoTranscript !== false, (checked) => {
 		saveSettings({ ...generalSettings, youtubeAutoTranscript: checked });
 	});
+	void browser.storage.local.get('qiaomuRssEnabled').then(saved => {
+		initializeSettingToggle('rss-share-toggle', saved.qiaomuRssEnabled === true, (checked) => { void browser.storage.local.set({ qiaomuRssEnabled: checked }); });
+	});
 	initializeSettingToggle('learning-notes-toggle', generalSettings.learningNotes !== false, (checked) => {
 		saveSettings({ ...generalSettings, learningNotes: checked });
 	});

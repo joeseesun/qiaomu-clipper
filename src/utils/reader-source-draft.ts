@@ -15,7 +15,7 @@ export async function createReaderSourceDraft(url: string, initialTitle: string)
 	const saved = await browser.storage.local.get(['lastSelectedVault','qiaomuRssEnabled','qiaomuNativeConfigured']) as {lastSelectedVault?:string; qiaomuRssEnabled?:boolean; qiaomuNativeConfigured?:boolean};
 	const title = initialTitle.replace(/\s*- YouTube$/, '') || 'YouTube 视频学习';
 	const draft: ClipPreview = {
-		createdAt:Date.now(), aggregate:saved.qiaomuRssEnabled !== false, native:saved.qiaomuNativeConfigured === true,
+		createdAt:Date.now(), aggregate:saved.qiaomuRssEnabled === true, native:saved.qiaomuNativeConfigured === true,
 		clip:{url,title,markdown:''}, properties:[],
 		local:{requestId:crypto.randomUUID(), content:'', name:`${sanitizeFileName(title)}.md`, folder:template.path, vault:template.vault || saved.lastSelectedVault || generalSettings.vaults[0] || '', behavior:template.behavior},
 	};

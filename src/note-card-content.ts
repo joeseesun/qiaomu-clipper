@@ -5,7 +5,7 @@ import { bilibiliVideo } from './utils/video-source';
 
 // Injected on demand by the triple-press note shortcut (default `iii`) into any page. It opens the same quick-note card
 // as the study view, with this page as the source and the current selection as the excerpt.
-declare global { interface Window { qiaomuNoteCardLoaded?: boolean } }
+declare global { interface Window { qiaomuNoteCardLoaded?: boolean; qiaomuNoteQuote?: string } }
 
 const MAX_QUOTE = 4000;
 
@@ -37,10 +37,10 @@ export function pageSelection(doc: Document): string {
 	return selection.toString().trim().slice(0, MAX_QUOTE);
 }
 
-async function openNote(): Promise<void> {
+async function openNote(fallbackQuote?: string): Promise<void> {
 	await loadSettings();
 	const notes = mountLearningNotes({ doc: document, singleKey: false, getTime: () => playheadSeconds(document), getSource: () => ({ title: noteTitle(document), url: noteSourceUrl(document.URL) }) });
-	const quote = pageSelection(document);
+	const quote = pageSelection(document) || fallbackQuote?.trim().slice(0, MAX_QUOTE) || '';
 	await notes.open(quote ? { quote } : {});
 }
 
@@ -49,11 +49,12 @@ try {
 		window.qiaomuNoteCardLoaded = true;
 		chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 			if (message?.action !== 'qiaomuOpenNote') return undefined;
-			void openNote().catch(() => {});
+			void openNote(typeof message.quote === 'string' ? message.quote : undefined).catch(() => {});
 			sendResponse(true);
 			return undefined;
 		});
-		void openNote().catch(() => {});
+		const pending = window.qiaomuNoteQuote; window.qiaomuNoteQuote = undefined;
+		void openNote(pending).catch(() => {});
 	}
 } catch {
 	// The extension may have been updated while this page was open.

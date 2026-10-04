@@ -34,7 +34,7 @@
 1. 保存到 Obsidian 需要你安装 Obsidian；也可只复制/下载 Markdown。
 2. 不打开 Obsidian 的静默保存需要另装本地 Native Messaging 助手，当前支持 macOS/Linux Chrome，Windows 暂不支持助手。商店安装不会自动安装该助手。
 3. AI 功能需要你自行配置服务商、模型及凭证，费用按服务商规则计算。文章内容、提示词和对话会发送给你选择的服务商。
-4. “分享到乔木 RSS”当前默认勾选。开启后内容会公开发布，请在剪藏私人页面前关闭；阅读和编辑本身不会提交 RSS。
+4. “分享到乔木 RSS”默认不勾选。开启后内容会公开发布，请在剪藏私人页面前确认；阅读和编辑本身不会提交 RSS。
 5. 本项目基于 Obsidian Web Clipper 独立开发，保留 MIT 许可；不是 Obsidian 官方扩展，也不代表 Obsidian 官方。
 
 支持与反馈：https://github.com/joeseesun/qiaomu-clipper/issues

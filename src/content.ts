@@ -12,6 +12,7 @@ import { saveFile } from './utils/file-utils';
 import { debugLog } from './utils/debug';
 import { updateSidebarWidth, addResizeHandle, cleanupResizeHandlers } from './utils/iframe-resize';
 import { parseForClip } from './utils/clip-utils';
+import { tidyBilibiliContent } from './utils/video-clip-content';
 import { readYouTubeTranscriptFromDom, transcriptHtml } from './utils/youtube-dom-transcript';
 
 declare global {
@@ -166,6 +167,7 @@ declare global {
 			flattenShadowDom(document).then(() => {
 				try {
 					const defuddled = parseForClip(document);
+					defuddled.content = tidyBilibiliContent(defuddled.content, document.URL);
 
 					// Convert HTML content to markdown
 					const markdown = createMarkdownContent(defuddled.content, document.URL);
@@ -191,6 +193,7 @@ declare global {
 			flattenShadowDom(document).then(async () => {
 				try {
 					const defuddled = parseForClip(document);
+					defuddled.content = tidyBilibiliContent(defuddled.content, document.URL);
 					const markdown = createMarkdownContent(defuddled.content, document.URL);
 					const title = defuddled.title || document.title || 'Untitled';
 					const fileName = title.replace(/[/\\?%*:|"<>]/g, '-');
@@ -237,6 +240,7 @@ declare global {
 				);
 				const defuddled = await Promise.race([defuddle.parseAsync(), parseTimeout])
 					.catch(() => defuddle.parse());
+				defuddled.content = tidyBilibiliContent(defuddled.content, document.URL);
 				const extractedContent: { [key: string]: string } = {
 					...defuddled.variables,
 				};

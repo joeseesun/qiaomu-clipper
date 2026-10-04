@@ -1149,6 +1149,15 @@
 	"qiaomuSaveMarkdown": {
 		"message": "Save as Markdown"
 	},
+	"rssShareTitle": {
+		"message": "Share clips to Qiaomu RSS"
+	},
+	"rssShareDescription": {
+		"message": "Off by default. When on, the share option in the clipper is checked for you, and clips are submitted publicly to the Reader Submissions feed."
+	},
+	"saveSelectionToDiary": {
+		"message": "Save selection to daily note"
+	},
 	"qiaomuShareRss": {
 		"message": "Share to Qiaomu RSS"
 	},

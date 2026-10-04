@@ -1149,6 +1149,15 @@
 	"qiaomuSaveMarkdown": {
 		"message": "儲存為 Markdown"
 	},
+	"rssShareTitle": {
+		"message": "分享剪藏到喬木 RSS"
+	},
+	"rssShareDescription": {
+		"message": "預設關閉。開啟後，剪藏時會預設勾選「分享到喬木 RSS」，內容會公開提交到「讀者提交」。"
+	},
+	"saveSelectionToDiary": {
+		"message": "儲存到日記"
+	},
 	"qiaomuShareRss": {
 		"message": "分享到喬木 RSS"
 	},
