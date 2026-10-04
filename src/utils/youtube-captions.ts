@@ -54,7 +54,7 @@ export async function fetchCaptionTracks(videoId: string, doc: Document, request
 export function pickTrack(tracks: CaptionTrack[]): CaptionTrack | undefined {
 	const usable = tracks.filter(track => !/[?&]exp=xpe\b/.test(track.baseUrl));
 	const automatic = usable.find(track => track.kind === 'asr'), manual = usable.filter(track => track.kind !== 'asr');
-	return (automatic && manual.find(track => track.languageCode === automatic.languageCode)) || automatic || manual[0];
+	return (automatic && manual.find(track => track.languageCode === automatic.languageCode)) || automatic || manual.find(track => /^en(?:-|$)/i.test(track.languageCode)) || manual[0];
 }
 
 const decode = (value: string) => value.replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code))).replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCodePoint(parseInt(code, 16))).replace(/&quot;/g, '"').replace(/&apos;|&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
@@ -73,11 +73,13 @@ export function parseCaptions(body: string): PanelSegment[] {
 	return out;
 }
 
-export async function fetchCaptionSegments(videoId: string, doc: Document, request: Request = (...args) => fetch(...args)): Promise<PanelSegment[]> {
-	const track = pickTrack(await fetchCaptionTracks(videoId, doc, request)); if (!track) return [];
+export interface CaptionResult { segments: PanelSegment[]; language?: string }
+export async function fetchCaptionResult(videoId: string, doc: Document, request: Request = (...args) => fetch(...args)): Promise<CaptionResult> {
+	const track = pickTrack(await fetchCaptionTracks(videoId, doc, request)); if (!track) return { segments: [] };
 	const base = track.baseUrl.replace(/&fmt=[^&]*/g, '');
 	for (const url of [`${base}&fmt=json3`, base]) {
-		try { const segments = parseCaptions(await (await ok(await request(url, { credentials: 'include' }))).text()); if (segments.length) return segments; } catch { /* try the plain format */ }
+		try { const segments = parseCaptions(await (await ok(await request(url, { credentials: 'include' }))).text()); if (segments.length) return { segments, language: track.languageCode }; } catch { /* try the plain format */ }
 	}
-	return [];
+	return { segments: [], language: track.languageCode };
 }
+export async function fetchCaptionSegments(videoId: string, doc: Document, request: Request = (...args) => fetch(...args)): Promise<PanelSegment[]> { return (await fetchCaptionResult(videoId, doc, request)).segments; }

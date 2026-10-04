@@ -1,6 +1,6 @@
 import type { PanelSegment } from './utils/youtube-panel-actions';
 import { BAR_STYLE, buildTranscriptBar, syncTranscriptBar, type BarState, type TranscriptBar } from './utils/youtube-transcript-bar';
-import { fetchCaptionSegments } from './utils/youtube-captions';
+import { fetchCaptionResult } from './utils/youtube-captions';
 import { createTranscriptCache } from './utils/youtube-transcript-cache';
 import { markAutoOpenedPanel, openTranscriptPanel, readYouTubeTranscriptFromDom, releaseAutoPanel, resetOpenAttempts, transcriptHtml, transcriptPanelOpen } from './utils/youtube-dom-transcript';
 import { readPanelSegments } from './utils/youtube-panel-actions';
@@ -58,7 +58,7 @@ try {
 		const cache = api.storage.local ? createTranscriptCache(api.storage.local) : undefined;
 
 		// --- transcript prefetch -------------------------------------------------------------------------------
-		interface Entry { state: BarState; segments: PanelSegment[]; done: Promise<PanelSegment[]> }
+		interface Entry { state: BarState; segments: PanelSegment[]; language?: string; done: Promise<PanelSegment[]> }
 		const store = new Map<string, Entry>();
 		const currentVideo = () => location.pathname === '/watch' ? new URL(location.href).searchParams.get('v') : null;
 		// YouTube answers get_transcript with "precondition failed" when it wants a player token (seen in signed-out
@@ -68,9 +68,15 @@ try {
 			const known = store.get(videoId); if (known) return known;
 			const entry: Entry = { state: 'loading', segments: [], done: Promise.resolve([]) };
 			// A transcript read before is shown at once; otherwise ask YouTube, and keep what comes back.
-			const fresh = () => refusals >= 2 ? Promise.resolve([] as PanelSegment[]) : fetchCaptionSegments(videoId, document).then(segments => { refusals = 0; return segments; }, () => { refusals++; return [] as PanelSegment[]; });
-			const request = (cache ? cache.read(videoId) : Promise.resolve(undefined)).then(cached => cached ?? fresh().then(segments => { if (segments.length) void cache?.write(videoId, segments); return segments; }));
-			entry.done = request.then(segments => {
+			const fresh = (): Promise<{ segments: PanelSegment[]; language?: string }> => refusals >= 2 ? Promise.resolve({ segments: [] as PanelSegment[] }) : fetchCaptionResult(videoId, document).then(result => { refusals = 0; return result; }, () => { refusals++; return { segments: [] as PanelSegment[] }; });
+			const request = (cache ? cache.read(videoId) : Promise.resolve(undefined as { segments: PanelSegment[]; language?: string } | undefined)).then(async cached => {
+				if (cached?.language) return cached;
+				const result = await fresh();
+				if (result.segments.length) { void cache?.write(videoId, result.segments, result.language); return result; }
+				return cached || result;
+			});
+			entry.done = request.then(result => {
+				const segments = result.segments; entry.language = result.language;
 				// The endpoint can be refused; then read the lines from YouTube's own panel without waiting to be asked.
 				if (!segments.length && enabled) void getSegments(true).catch(() => []);
 				entry.segments = segments; entry.state = segments.length ? 'ready' : 'none'; updateBar(); return segments;
@@ -87,7 +93,7 @@ try {
 			}
 			const fromPanel = await readYouTubeTranscriptFromDom(document, open, open ? 12000 : 0);
 			const entry = videoId ? store.get(videoId) : undefined;
-			if (entry && fromPanel.length) { entry.segments = fromPanel; entry.state = 'ready'; updateBar(); if (videoId) void cache?.write(videoId, fromPanel); }
+			if (entry && fromPanel.length) { entry.segments = fromPanel; entry.state = 'ready'; updateBar(); if (videoId) void cache?.write(videoId, fromPanel, entry.language); }
 			return fromPanel;
 		};
 
@@ -174,7 +180,7 @@ try {
 		// The background asks for the transcript when study mode opens.
 		api.runtime.onMessage.addListener((request, _sender, respond) => {
 			if (request?.action !== 'qiaomuTranscript') return;
-			getSegments(true).then(segments => respond({ html: segments.length ? transcriptHtml(segments) : '', count: segments.length })).catch(() => respond({ html: '', count: 0 }));
+			getSegments(true).then(segments => { const entry = currentVideo() ? store.get(currentVideo()!) : undefined; respond({ html: segments.length ? transcriptHtml(segments, entry?.language) : '', count: segments.length }); }).catch(() => respond({ html: '', count: 0 }));
 			return true;
 		});
 

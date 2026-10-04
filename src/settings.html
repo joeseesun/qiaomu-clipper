@@ -665,6 +665,20 @@
 							<h2 data-i18n="interpreter">Interpreter</h2>
 						</div>
 						<form id="interpreter-settings-form">
+							<div class="setting-group" id="answer-subsection">
+								<div class="setting-item setting-item-heading"><h3 data-i18n="qiaomuAnswerSettings">AI 回答</h3></div>
+								<div class="setting-items"><div class="setting-item mod-horizontal">
+									<div class="setting-item-info"><label for="answer-model-select" data-i18n="qiaomuAnswerModel">回答模型</label></div>
+									<div class="setting-item-control"><select id="answer-model-select" name="interpreterModel"></select></div>
+								</div></div>
+							</div>
+							<div class="setting-group" id="translation-subsection">
+								<div class="setting-item setting-item-heading"><h3 data-i18n="qiaomuTranslationSettings">字幕翻译</h3></div>
+								<div class="setting-items">
+									<div class="setting-item mod-horizontal"><div class="setting-item-info"><label for="translation-model-select" data-i18n="qiaomuTranslationModel">翻译模型</label></div><div class="setting-item-control"><select id="translation-model-select" name="translationModel"></select></div></div>
+									<div class="setting-item mod-horizontal"><div class="setting-item-info"><label for="translation-target-select" data-i18n="qiaomuTranslationTarget">目标语言</label></div><div class="setting-item-control"><select id="translation-target-select" name="translationTargetLanguage"></select></div></div>
+								</div>
+							</div>
 							<div class="setting-group">
 								<div class="setting-items">
 									<div class="setting-item mod-horizontal mod-toggle">

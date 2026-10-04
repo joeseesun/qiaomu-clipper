@@ -2,9 +2,9 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 const state = vi.hoisted(() => ({stream:vi.fn(), models:[{id:'model',name:'Model'}]}));
 vi.mock('./chat-llm', () => ({enabledChatModels:()=>state.models, streamChat:(...args:unknown[])=>state.stream(...args)}));
-vi.mock('./storage-utils', () => ({loadSettings:async()=>{},getLocalStorage:async()=> 'model'}));
+vi.mock('./storage-utils', () => ({loadSettings:async()=>{},saveSettings:vi.fn(async()=>{}),generalSettings:{translationModel:'model',translationTargetLanguage:'zh-CN'}}));
 vi.mock('./i18n', () => ({getMessage:(key:string)=>key}));
-import { translationBatches, parseTranslation, mountTranslation, TRANSLATION_SYSTEM } from './youtube-translation';
+import { translationBatches, parseTranslation, mountTranslation, buildTranslationSystem } from './youtube-translation';
 import { transcriptText } from './youtube-study';
 const flush=async()=>{for(let i=0;i<25;i++)await Promise.resolve();};
 function setup(texts=['English source','Another segment']) {
@@ -73,7 +73,7 @@ it('cleans music cues, passes neighboring context and renders short bilingual pa
 	expect(request.length).toBeGreaterThan(1);
 	expect(request.every((part:{text:string}) => !part.text.includes('[music]'))).toBe(true);
 	expect(request[0].contextAfter).toContain('Why not me');
-	expect(options.system).toBe(TRANSLATION_SYSTEM);
+	expect(options.system).toContain('Source language:');
 	expect(article.querySelectorAll('.transcript-bilingual-block')).toHaveLength(request.length);
 	expect(article.querySelector('.transcript-translation')!.textContent).not.toContain('[音乐]');
 	expect(article.querySelectorAll('.transcript-translation p').length).toBe(request.length * 2);
@@ -86,6 +86,27 @@ it('keeps provider markup inert and never renders it as HTML', async () => {
 	const {article,input}=setup();input.click();await flush();
 	expect(article.querySelector('img')).toBeNull();
 	expect(article.querySelector('.transcript-translation')!.textContent).toContain('<img');
+});
+
+it('requires an explicitly configured translation model and never falls back to the answer model', async () => {
+	const storage = await import('./storage-utils');
+	(storage.generalSettings as any).translationModel = '';
+	const { article, input } = setup(); input.click(); await flush();
+	expect(state.stream).not.toHaveBeenCalled();
+	expect(article.querySelector('[role=status]')!.textContent).toContain('qiaomuTranslationNoModel');
+	(storage.generalSettings as any).translationModel = 'model';
+});
+
+it('uses track metadata, constrains the target language, and clears the previous language before retrying', async () => {
+	const { article, input } = setup();
+	input.click(); await flush();
+	expect(state.stream.mock.calls[0][0].model.id).toBe('model');
+	const target = article.querySelector<HTMLSelectElement>('.youtube-translation-target')!;
+	target.value = 'ja'; target.dispatchEvent(new Event('change')); await flush();
+	expect(state.stream).toHaveBeenCalledTimes(2);
+	expect(state.stream.mock.calls[1][0].system).toContain('Target language: 日本語');
+	expect(article.querySelector('.transcript-translation')!.getAttribute('lang')).toBe('ja');
+	expect(buildTranslationSystem('en', '简体中文')).toContain('Source language: en. Target language: 简体中文');
 });
 
 

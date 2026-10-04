@@ -1554,6 +1554,36 @@
 	"qiaomuTranslateChinese": {
 		"message": "中文翻译"
 	},
+	"qiaomuTranslate": {
+		"message": "翻译字幕"
+	},
+	"qiaomuCaptionTrackLanguage": {
+		"message": "来源语言来自字幕轨道"
+	},
+	"qiaomuCaptionLanguageUncertain": {
+		"message": "来源语言根据文本推测，置信度较低"
+	},
+	"qiaomuAnswerSettings": {
+		"message": "AI 回答"
+	},
+	"qiaomuTranslationSettings": {
+		"message": "字幕翻译"
+	},
+	"qiaomuAnswerModel": {
+		"message": "回答模型"
+	},
+	"qiaomuTranslationModel": {
+		"message": "翻译模型"
+	},
+	"qiaomuTranslationTarget": {
+		"message": "目标语言"
+	},
+	"qiaomuSelectModel": {
+		"message": "选择模型"
+	},
+	"qiaomuModelUnavailable": {
+		"message": "不可用"
+	},
 	"qiaomuTranslationRetry": {
 		"message": "重试翻译"
 	},
@@ -1564,10 +1594,10 @@
 		"message": "正在翻译"
 	},
 	"qiaomuTranslationNoModel": {
-		"message": "请先在扩展设置中配置并启用 AI 模型。"
+		"message": "请在设置 → AI 与翻译 → 字幕翻译中选择已启用的翻译模型。翻译不会使用回答模型。"
 	},
 	"qiaomuTranslationDone": {
-		"message": "翻译完成；中文原文保持不变。"
+		"message": "翻译完成。"
 	},
 	"qiaomuTranslationTimeout": {
 		"message": "翻译超时，可重试继续。"

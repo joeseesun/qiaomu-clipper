@@ -1318,7 +1318,7 @@ browser.runtime.onMessage.addListener((raw: unknown, sender) => {
 	const request = raw as { action?: string; sourceTabId?: number; url?: string };
 	if (request?.action !== 'qiaomuStudyTranscript') return;
 	if (sender.id !== browser.runtime.id || !sender.url?.startsWith(browser.runtime.getURL('reader.html'))
-		|| !Number.isInteger(request.sourceTabId) || !request.url || !videoKey(request.url)?.startsWith('youtube:')) return Promise.resolve({ error: '无效的视频来源' });
+		|| !Number.isInteger(request.sourceTabId) || !request.url || !videoKey(request.url)) return Promise.resolve({ error: '无效的视频来源' });
 	return (async () => {
 		try {
 			const tab = await browser.tabs.get(request.sourceTabId!);

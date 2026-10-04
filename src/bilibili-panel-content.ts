@@ -4,6 +4,7 @@ import { createTranscriptCache } from './utils/youtube-transcript-cache';
 import { fetchBilibiliCaptions } from './utils/bilibili-captions';
 import { bilibiliVideo } from './utils/video-source';
 import { pageSettled, SETTLE_MS } from './utils/bilibili-page';
+import { transcriptHtml } from './utils/youtube-dom-transcript';
 
 // Runs on Bilibili video pages only. Adds the same transcript bar as on YouTube (subtitles, copy, download, study mode)
 // at the top of the right column. Subtitles are read from the viewer's own page, so they are there only for a signed-in
@@ -14,7 +15,7 @@ try {
 	if (!window.qiaomuBilibiliPanelLoaded) {
 		window.qiaomuBilibiliPanelLoaded = true;
 		type Api = {
-			runtime: { sendMessage(message: unknown): Promise<unknown> | undefined };
+			runtime: { sendMessage(message: unknown): Promise<unknown> | undefined; onMessage: { addListener(listener: (request: any, sender: unknown, respond: (response: unknown) => void) => boolean | void): void } };
 			i18n: { getMessage(key: string): string };
 			storage: {
 				local?: { get(keys: string | string[]): Promise<Record<string, any>>; set(items: Record<string, unknown>): Promise<void>; remove(keys: string | string[]): Promise<void> };
@@ -55,7 +56,7 @@ try {
 		const cache = api.storage.local ? createTranscriptCache(api.storage.local) : undefined;
 
 		// --- transcript prefetch -------------------------------------------------------------------------------
-		interface Entry { state: BarState; segments: PanelSegment[]; needLogin: boolean; done: Promise<PanelSegment[]> }
+		interface Entry { state: BarState; segments: PanelSegment[]; needLogin: boolean; language?: string; done: Promise<PanelSegment[]> }
 		const store = new Map<string, Entry>();
 		const currentKey = (): { key: string; bvid: string; page: number } | null => { const video = bilibiliVideo(location.href); return video ? { key: `bilibili:${video.bvid}:${video.page}`, ...video } : null; };
 		const getJson = async (url: string, withCookies: boolean) => (await fetch(url, { credentials: withCookies ? 'include' : 'omit', headers: { Accept: 'application/json' } })).json();
@@ -63,15 +64,24 @@ try {
 			const known = store.get(video.key); if (known) return known;
 			const entry: Entry = { state: 'loading', segments: [], needLogin: false, done: Promise.resolve([]) };
 			entry.done = (cache ? cache.read(video.key) : Promise.resolve(undefined)).then(async cached => {
-				if (cached) return cached;
+				if (cached) { entry.language = cached.language; return cached.segments; }
 				const result = await fetchBilibiliCaptions(video.bvid, video.page, getJson);
 				entry.needLogin = result.needLogin;
-				if (result.segments.length) void cache?.write(video.key, result.segments);
+				entry.language = result.language;
+				if (result.segments.length) void cache?.write(video.key, result.segments, result.language);
 				return result.segments;
 			}).catch(() => [] as PanelSegment[]).then(segments => { entry.segments = segments; entry.state = segments.length ? 'ready' : 'none'; updateBar(); return segments; });
 			store.set(video.key, entry); return entry;
 		};
 		const getSegments = async (): Promise<PanelSegment[]> => { const video = currentKey(); return video ? prefetch(video).done : []; };
+		api.runtime.onMessage.addListener((request, _sender, respond) => {
+			if (request?.action !== 'qiaomuTranscript') return;
+			getSegments().then(segments => {
+				const key = currentKey()?.key, entry = key ? store.get(key) : undefined;
+				respond({ html: segments.length ? transcriptHtml(segments, entry?.language, 'bilibili') : '', count: segments.length });
+			}).catch(() => respond({ html: '', count: 0 }));
+			return true;
+		});
 
 		// --- UI ------------------------------------------------------------------------------------------------
 		const style = document.createElement('style');

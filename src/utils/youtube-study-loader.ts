@@ -81,7 +81,9 @@ export async function startYouTubeStudy(url: string, sourceTabId: number, initia
 						meta = await new Defuddle(doc, { url, fetch: async () => { throw new Error('offline'); } }).parseAsync().catch(() => meta);
 					}
 					// Defuddle may already have read the same lines from an open panel, with chapters; keep those if so.
-					return { ...meta, content: hasTranscript(meta) ? meta.content : (meta.content || '') + answer.html };
+					const content = document.createElement('div'); content.innerHTML = DOMPurify.sanitize(meta.content || '');
+					content.querySelectorAll(TRANSCRIPT_SELECTOR).forEach(node => node.remove());
+					return { ...meta, content: content.innerHTML + answer.html };
 				};
 				const fromTab = async (): Promise<any> => {
 					const live = await browser.runtime.sendMessage({ action: 'qiaomuStudyLiveExtract', sourceTabId, url }).catch(() => undefined) as Record<string, any> | undefined;
@@ -113,7 +115,7 @@ export async function startYouTubeStudy(url: string, sourceTabId: number, initia
 				Object.defineProperty(doc, 'URL', { value: url, configurable: true });
 				return await new Defuddle(doc, { url, fetch: withReliableBilibili(proxyFetch) }).parseAsync();
 				};
-				if (youtubeVideoId(url)) {
+				if (videoKey(url)) {
 					const fast = await fromPrefetch().catch(() => undefined);
 					if (fast && hasTranscript(fast)) return fast;
 				}

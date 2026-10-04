@@ -122,7 +122,7 @@ const CJK = /[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]/;
 const joinText = (a: string, b: string) => CJK.test(a.slice(-1)) && CJK.test(b[0] || '') ? a + b : `${a} ${b}`;
 
 // The same markup Defuddle produces, so the study page treats both sources identically.
-export function transcriptHtml(segments: PanelSegment[]): string {
+export function transcriptHtml(segments: PanelSegment[], language?: string, platform = 'youtube'): string {
 	const lines = groupSegments(segments).map(({ time, text, chapter }) => `${chapter ? `<h3>${escapeHtml(chapter)}</h3>\n` : ''}<p class="transcript-segment"><strong><span class="timestamp" data-timestamp="${seconds(time)}">${escapeHtml(time)}</span></strong> · ${escapeHtml(text)}</p>`);
-	return `<div class="youtube transcript">\n<h2>Transcript</h2>\n${lines.join('\n')}\n</div>`;
+	return `<div class="${platform === 'bilibili' ? 'bilibili' : 'youtube'} transcript"${language ? ` data-source-language="${escapeHtml(language)}"` : ''}>\n<h2>Transcript</h2>\n${lines.join('\n')}\n</div>`;
 }

@@ -6,6 +6,7 @@ import { showModal, hideModal } from '../utils/modal-utils';
 import { getMessage, translatePage } from '../utils/i18n';
 import { debugLog } from '../utils/debug';
 import { fetchProviderModels } from '../utils/provider-models';
+import { translationLanguages, validTargetLanguage } from '../utils/translation-languages';
 
 export interface PresetProvider {
 	id: string;
@@ -177,9 +178,7 @@ export function updatePromptContextVisibility(): void {
 		templateAdvancedSection.style.display = interpreterToggle.checked ? 'block' : 'none';
 	}
 
-	if (interpreterSection) {
-		interpreterSection.classList.toggle('is-disabled', !interpreterToggle.checked);
-	}
+	interpreterSection?.classList.remove('is-disabled');
 }
 
 export async function initializeInterpreterSettings(): Promise<void> {
@@ -221,6 +220,7 @@ export async function initializeInterpreterSettings(): Promise<void> {
 		}
 
 		initializeInterpreterToggles();
+		initializeModelAssignments();
 
 		const defaultPromptContextInput = document.getElementById('default-prompt-context') as HTMLTextAreaElement;
 		if (defaultPromptContextInput) {
@@ -657,6 +657,38 @@ export function initializeModelList() {
 	});
 
 	initializeIcons(modelList);
+	refreshModelAssignments();
+}
+
+export function refreshModelAssignments(): void {
+	for (const [id, setting] of [['answer-model-select', 'interpreterModel'], ['translation-model-select', 'translationModel']] as const) {
+		const select = document.getElementById(id) as HTMLSelectElement | null;
+		if (!select) continue;
+		select.replaceChildren(new Option(getMessage('qiaomuSelectModel'), ''));
+		for (const model of generalSettings.models.filter(item => item.enabled && generalSettings.providers.some(provider => provider.id === item.providerId))) {
+			const provider = generalSettings.providers.find(item => item.id === model.providerId);
+			select.add(new Option(`${model.name} · ${provider?.name || ''}`, model.id));
+		}
+		const selected = generalSettings[setting];
+		if (selected && !Array.from(select.options).some(option => option.value === selected)) {
+			const option = new Option(`${selected} (${getMessage('qiaomuModelUnavailable')})`, selected); option.disabled = true; select.add(option);
+		}
+		select.value = selected || '';
+	}
+}
+
+function initializeModelAssignments(): void {
+	refreshModelAssignments();
+	for (const [id, setting] of [['answer-model-select', 'interpreterModel'], ['translation-model-select', 'translationModel']] as const) {
+		const select = document.getElementById(id) as HTMLSelectElement | null;
+		if (select) select.onchange = () => { void saveSettings({ [setting]: select.value }); };
+	}
+	const target = document.getElementById('translation-target-select') as HTMLSelectElement | null;
+	if (target) {
+		target.replaceChildren(...translationLanguages.map(item => new Option(item.label, item.code)));
+		target.value = validTargetLanguage(generalSettings.translationTargetLanguage);
+		target.onchange = () => { void saveSettings({ translationTargetLanguage: target.value }); };
+	}
 }
 
 function createModelListItem(model: ModelConfig, index: number): HTMLElement {
@@ -758,6 +790,7 @@ function createModelListItem(model: ModelConfig, index: number): HTMLElement {
 		if (modelIndex !== -1) {
 			generalSettings.models[modelIndex].enabled = checkbox.checked;
 			saveSettings();
+			refreshModelAssignments();
 		}
 	});
 

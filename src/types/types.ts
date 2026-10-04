@@ -90,6 +90,8 @@ export interface Settings {
 	alwaysShowHighlights: boolean;
 	highlightBehavior: string;
 	interpreterModel?: string;
+	translationModel?: string;
+	translationTargetLanguage?: string;
 	models: ModelConfig[];
 	providers: Provider[];
 	interpreterEnabled: boolean;

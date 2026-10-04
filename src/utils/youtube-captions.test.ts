@@ -30,6 +30,7 @@ it('picks the spoken language, prefers a hand-made track in it, and never a toke
 	expect(pickTrack([track('fr'), track('en'), track('en', 'asr')])!.languageCode).toBe('en');
 	expect(pickTrack([track('fr'), track('en', 'asr')])!.kind).toBe('asr'); // no hand-made track in the spoken language
 	expect(pickTrack([track('fr'), track('es')])!.languageCode).toBe('fr');
+	expect(pickTrack([track('ar'), track('en')])!.languageCode).toBe('en');
 	expect(pickTrack([track('en', undefined, '&exp=xpe'), track('en', 'asr', '&exp=xpe')])).toBeUndefined();
 	expect(pickTrack([track('en', undefined, '&exp=xpe'), track('fr')])!.languageCode).toBe('fr'); expect(pickTrack([])).toBeUndefined();
 });

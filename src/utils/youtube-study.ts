@@ -31,7 +31,8 @@ export async function mountYouTubeStudy(doc: Document, article: HTMLElement, tit
 	const status = doc.createElement('span'); status.className = 'youtube-study-status'; status.setAttribute('role', 'status');
 	feedback.append(status);
 	const text = transcriptText(article);
-	const transcript = article.querySelector(TRANSCRIPT_SELECTOR);
+	const transcript = article.querySelector<HTMLElement>(TRANSCRIPT_SELECTOR);
+	if (transcript && !transcript.dataset.sourceLanguage) transcript.dataset.sourceLanguage = transcript.getAttribute('data-language') || '';
 	if (transcript) transcript.before(feedback); else article.append(feedback);
 	const toggleGroup = article.querySelector<HTMLElement>('.player-toggle-group');
 	const controls = toggleGroup || feedback;
@@ -42,9 +43,9 @@ export async function mountYouTubeStudy(doc: Document, article: HTMLElement, tit
 			: '未获取到字幕：视频可能没有字幕，或 YouTube 暂时限制了获取。打开原页转写文稿后再进入学习模式可重试。';
 		return;
 	}
+	await loadSettings();
 	mountTranslation(article, controls, status);
 	if (existingChat) return;
-	await loadSettings();
 	chat = mountClipChat({
 		onLearningRecord: quote => { void learningNotes(doc)?.open({quote}); },
 		onLearningAi: aiSupplement => { void learningNotes(doc)?.open({aiSupplement}); },

@@ -15,6 +15,8 @@ export let generalSettings: Settings = {
 	highlightBehavior: 'highlight-inline',
 	showMoreActionsButton: false,
 	interpreterModel: '',
+	translationModel: '',
+	translationTargetLanguage: 'zh-CN',
 	models: [],
 	providers: [],
 	interpreterEnabled: false,
@@ -103,6 +105,8 @@ interface StorageData {
 	};
 	interpreter_settings?: {
 		interpreterModel?: string;
+		translationModel?: string;
+		translationTargetLanguage?: string;
 		models?: ModelConfig[];
 		providers?: Provider[];
 		interpreterEnabled?: boolean;
@@ -139,6 +143,8 @@ export async function loadSettings(): Promise<Settings> {
 		alwaysShowHighlights: true,
 		highlightBehavior: 'highlight-inline',
 		interpreterModel: '',
+		translationModel: '',
+		translationTargetLanguage: 'zh-CN',
 		models: [],
 		providers: [],
 		interpreterEnabled: false,
@@ -214,6 +220,8 @@ export async function loadSettings(): Promise<Settings> {
 		alwaysShowHighlights: data.highlighter_settings?.alwaysShowHighlights ?? defaultSettings.alwaysShowHighlights,
 		highlightBehavior: data.highlighter_settings?.highlightBehavior ?? defaultSettings.highlightBehavior,
 		interpreterModel: data.interpreter_settings?.interpreterModel || defaultSettings.interpreterModel,
+		translationModel: data.interpreter_settings?.translationModel || '',
+		translationTargetLanguage: data.interpreter_settings?.translationTargetLanguage || 'zh-CN',
 		models: sanitizedModels,
 		providers: sanitizedProviders,
 		interpreterEnabled: data.interpreter_settings?.interpreterEnabled ?? defaultSettings.interpreterEnabled,
@@ -281,6 +289,8 @@ export async function saveSettings(settings?: Partial<Settings>): Promise<void> 
 		},
 		interpreter_settings: {
 			interpreterModel: generalSettings.interpreterModel,
+			translationModel: generalSettings.translationModel,
+			translationTargetLanguage: generalSettings.translationTargetLanguage,
 			models: generalSettings.models,
 			providers: generalSettings.providers,
 			interpreterEnabled: generalSettings.interpreterEnabled,
