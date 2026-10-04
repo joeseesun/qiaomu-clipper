@@ -1,10 +1,16 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { generalSettings } from './storage-utils';
-import { streamChat } from './chat-llm';
+import { normalizeOpenAIChatEndpoint, streamChat } from './chat-llm';
 
 const stream = (chunks: string[]) => new Response(new ReadableStream({ start(controller) { chunks.forEach(c => controller.enqueue(new TextEncoder().encode(c))); controller.close(); } }));
 const model = (providerId: string) => ({ id: 'm', providerId, providerModelId: 'x', name: 'X', enabled: true });
 afterEach(() => vi.unstubAllGlobals());
+
+it('normalizes OpenAI-compatible gateway endpoints without duplicating complete paths', () => {
+	expect(normalizeOpenAIChatEndpoint('https://magpie.example')).toBe('https://magpie.example/chat/completions');
+	expect(normalizeOpenAIChatEndpoint('https://magpie.example/v1')).toBe('https://magpie.example/v1/chat/completions');
+	expect(normalizeOpenAIChatEndpoint('https://magpie.example/v1/chat/completions')).toBe('https://magpie.example/v1/chat/completions');
+});
 
 it('streams OpenAI-style deltas, even when a line is split between chunks', async () => {
 	generalSettings.providers = [{ id: 'p', name: 'OpenAI', baseUrl: 'https://api.test/v1/chat/completions', apiKeyRequired: true, apiKey: 'k' }] as any;
@@ -18,6 +24,14 @@ it('streams OpenAI-style deltas, even when a line is split between chunks', asyn
 	expect(body.stream).toBe(true);
 	expect(body.messages[0]).toEqual({ role: 'system', content: 's' });
 	expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe('Bearer k');
+});
+
+it('uses the normalized endpoint for a Magpie-style provider', async () => {
+	generalSettings.providers = [{ id: 'p', name: 'Magpie', baseUrl: 'https://magpie.example/v1', apiKeyRequired: false, apiKey: '' }] as any;
+	const fetchMock = vi.fn().mockResolvedValue(stream(['data: {"choices":[{"delta":{"content":"ok"}}]}\n', 'data: [DONE]\n']));
+	vi.stubGlobal('fetch', fetchMock);
+	await streamChat({ model: model('p'), system: 's', messages: [], onDelta: () => {} });
+	expect(fetchMock.mock.calls[0][0]).toBe('https://magpie.example/v1/chat/completions');
 });
 
 it('streams Anthropic text deltas', async () => {
