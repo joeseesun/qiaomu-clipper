@@ -1,7 +1,8 @@
 import type { PanelSegment } from './utils/youtube-panel-actions';
 import { BAR_STYLE, buildTranscriptBar, syncTranscriptBar, type BarState, type TranscriptBar } from './utils/youtube-transcript-bar';
-import { fetchTranscriptSegments } from './utils/youtube-innertube-transcript';
-import { markAutoOpenedPanel, openTranscriptPanel, readYouTubeTranscriptFromDom, releaseAutoPanel, transcriptHtml, transcriptPanelOpen } from './utils/youtube-dom-transcript';
+import { fetchCaptionSegments } from './utils/youtube-captions';
+import { createTranscriptCache } from './utils/youtube-transcript-cache';
+import { markAutoOpenedPanel, openTranscriptPanel, readYouTubeTranscriptFromDom, releaseAutoPanel, resetOpenAttempts, transcriptHtml, transcriptPanelOpen } from './utils/youtube-dom-transcript';
 import { readPanelSegments } from './utils/youtube-panel-actions';
 
 // Runs on YouTube pages only. Adds the transcript bar (subtitles, copy, download, study, settings, dropdown) to the
@@ -19,6 +20,7 @@ try {
 			};
 			i18n: { getMessage(key: string): string };
 			storage: {
+				local?: { get(keys: string | string[]): Promise<Record<string, any>>; set(items: Record<string, unknown>): Promise<void>; remove(keys: string | string[]): Promise<void> };
 				sync?: { get(key: string): Promise<Record<string, any>> };
 				onChanged: { addListener(listener: (changes: Record<string, { newValue?: any }>, area: string) => void): void };
 			};
@@ -38,9 +40,10 @@ try {
 			copied: text('youtubePanelCopied', '已复制', 'Copied'),
 			empty: text('youtubePanelEmpty', '没有读到字幕，请先展开转写文稿', 'No transcript lines found. Open the transcript first.'),
 			reload: text('youtubePanelReload', '扩展刚更新过，请刷新此页面后再试', 'The extension was updated — reload this page and try again'),
-			loading: text('youtubePanelCardLoading', '正在准备字幕…', 'Preparing transcript…'),
+			loading: text('youtubePanelCardLoading', '正在读取字幕…', 'Reading the transcript…'),
 			ready: text('youtubePanelCardReady', '字幕已就绪，点击时间可跳转', 'Transcript ready — click a time to jump'),
-			none: text('youtubePanelCardNone', '点击后读取字幕', 'Click to read the transcript'),
+			none: text('youtubePanelCardNone', '没有读到字幕。可以试试在 YouTube 里展开“转写文稿”。', 'No transcript found. Try opening “Transcript” on YouTube.'),
+			retry: text('youtubeBarRetry', '重试', 'Retry'),
 			more: text('youtubeBarMore', '更多内容请在沉浸学习里查看', 'Open study mode to read the rest'),
 			search: text('youtubeBarSearch', '搜索字幕', 'Search transcript'),
 			clear: text('youtubeBarClear', '清除搜索', 'Clear search'),
@@ -52,6 +55,8 @@ try {
 		let enabled = true, autoOpen = true, hideNative = true, weOpenedPanel = false, openedAt = 0;
 		const autoOpened = new Set<string>(); // one automatic opening per video: if the viewer closes the panel, it stays closed
 
+		const cache = api.storage.local ? createTranscriptCache(api.storage.local) : undefined;
+
 		// --- transcript prefetch -------------------------------------------------------------------------------
 		interface Entry { state: BarState; segments: PanelSegment[]; done: Promise<PanelSegment[]> }
 		const store = new Map<string, Entry>();
@@ -62,8 +67,12 @@ try {
 		const prefetch = (videoId: string): Entry => {
 			const known = store.get(videoId); if (known) return known;
 			const entry: Entry = { state: 'loading', segments: [], done: Promise.resolve([]) };
-			const request = refusals >= 2 ? Promise.resolve([] as PanelSegment[]) : fetchTranscriptSegments(videoId, document).then(segments => { refusals = 0; return segments; }, () => { refusals++; return [] as PanelSegment[]; });
+			// A transcript read before is shown at once; otherwise ask YouTube, and keep what comes back.
+			const fresh = () => refusals >= 2 ? Promise.resolve([] as PanelSegment[]) : fetchCaptionSegments(videoId, document).then(segments => { refusals = 0; return segments; }, () => { refusals++; return [] as PanelSegment[]; });
+			const request = (cache ? cache.read(videoId) : Promise.resolve(undefined)).then(cached => cached ?? fresh().then(segments => { if (segments.length) void cache?.write(videoId, segments); return segments; }));
 			entry.done = request.then(segments => {
+				// The endpoint can be refused; then read the lines from YouTube's own panel without waiting to be asked.
+				if (!segments.length && enabled) void getSegments(true).catch(() => []);
 				entry.segments = segments; entry.state = segments.length ? 'ready' : 'none'; updateBar(); return segments;
 			});
 			store.set(videoId, entry); return entry;
@@ -78,7 +87,7 @@ try {
 			}
 			const fromPanel = await readYouTubeTranscriptFromDom(document, open, open ? 12000 : 0);
 			const entry = videoId ? store.get(videoId) : undefined;
-			if (entry && fromPanel.length) { entry.segments = fromPanel; entry.state = 'ready'; updateBar(); }
+			if (entry && fromPanel.length) { entry.segments = fromPanel; entry.state = 'ready'; updateBar(); if (videoId) void cache?.write(videoId, fromPanel); }
 			return fromPanel;
 		};
 
@@ -86,8 +95,18 @@ try {
 		const style = document.createElement('style'); style.textContent = BAR_STYLE;
 		// A page opened before the extension was reloaded keeps a dead copy of this script; say so instead of doing nothing.
 		const openStudy = (): boolean => { try { api.runtime.sendMessage({ action: 'qiaomuTripleKey', command: 'read' })?.catch?.(() => {}); return true; } catch { return false; } };
+		const retry = () => {
+			const id = currentVideo(); if (!id) return;
+			store.delete(id); autoOpened.delete(id); resetOpenAttempts(); prefetch(id); updateBar();
+		};
 		const openSettings = () => { try { api.runtime.sendMessage({ action: 'openSettings', section: 'general' })?.catch?.(() => {}); } catch { /* extension reloaded */ } };
-		const seek = (seconds: number) => { const video = document.querySelector<HTMLVideoElement>('video.html5-main-video, video'); if (video) { video.currentTime = seconds; void video.play?.().catch(() => {}); } };
+		// The page's own player does the seeking (it keeps its controls, buffering and state in step); setting the element's
+		// time is the fallback. The player object lives in the page, out of reach of a content script, so ask the worker to
+		// call it there.
+		const seek = (seconds: number) => {
+			const fallback = () => { const video = document.querySelector<HTMLVideoElement>('video.html5-main-video, video'); if (video) { video.currentTime = seconds; void video.play?.().catch(() => {}); } };
+			try { Promise.resolve(api.runtime.sendMessage({ action: 'qiaomuSeek', seconds })).then(done => { if (!(done as { ok?: boolean } | undefined)?.ok) fallback(); }, fallback); } catch { fallback(); }
+		};
 		const OPEN_KEY = 'qiaomuTranscriptBarOpen', FOLLOW_KEY = 'qiaomuTranscriptBarFollow';
 		const stored = (key: string, fallback: boolean) => { try { const value = localStorage.getItem(key); return value === null ? fallback : value === '1'; } catch { return fallback; } };
 		const remember = (key: string, value: boolean) => { try { localStorage.setItem(key, value ? '1' : '0'); } catch { /* storage unavailable */ } };
@@ -111,18 +130,17 @@ try {
 			}
 			// Hide the panel we opened (our bar shows the same lines); give it back if the viewer closes or reopens it.
 			// Hide it only after its lines have rendered (or after a few seconds), so hiding can never starve the fallback.
-			const lineCount = readPanelSegments(document.querySelector('ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-searchable-transcript"]') || document.createElement('div')).length;
+			const lineCount = readPanelSegments(document).length;
 			if (weOpenedPanel && transcriptPanelOpen(document) && (lineCount > 0 || Date.now() - openedAt > 6000)) { markAutoOpenedPanel(document, hideNative); weOpenedPanel = false; }
 			else if (!hideNative) markAutoOpenedPanel(document, false);
 			else releaseAutoPanel(document);
 			// Whatever YouTube rendered in its own panel is also a ready transcript for the bar and for study mode.
 			const entry = videoId ? store.get(videoId) : undefined;
-			const panelEl = document.querySelector('ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-searchable-transcript"]');
-			if (entry && entry.state !== 'ready' && panelEl) { const rendered = readPanelSegments(panelEl); if (rendered.length) { entry.segments = rendered; entry.state = 'ready'; } }
+			if (entry && entry.state !== 'ready') { const rendered = readPanelSegments(document); if (rendered.length) { entry.segments = rendered; entry.state = 'ready'; if (videoId) void cache?.write(videoId, rendered); } }
 			if (!videoId) { document.querySelector('.qiaomu-yt-bar')?.remove(); bar = undefined; return; }
 			syncTranscriptBar(document, () => {
 				bar = buildTranscriptBar(document, {
-					strings, title: () => document.title, openStudy, openSettings, seek, getSegments: () => getSegments(true),
+					strings, title: () => document.title, openStudy, openSettings, retry, seek, getSegments: () => getSegments(true),
 					getTime: () => mainVideo()?.currentTime,
 					initialOpen: wasOpen, onToggle: open => remember(OPEN_KEY, open),
 					initialFollow: stored(FOLLOW_KEY, true), onFollow: follow => remember(FOLLOW_KEY, follow),
@@ -133,10 +151,12 @@ try {
 		};
 		// YouTube is a single-page app and re-renders often; coalesce mutations per frame.
 		const schedule = () => { if (!frame) frame = requestAnimationFrame(refresh); };
-		new MutationObserver(schedule).observe(document.documentElement, { childList: true, subtree: true });
+		// Our own list and status changes must not wake the page watcher, or every update would cause the next one.
+		const ours = (node: Node | null) => Boolean((node instanceof Element ? node : node?.parentElement)?.closest('.qiaomu-yt-bar'));
+		new MutationObserver(records => { if (!records.every(record => ours(record.target))) schedule(); }).observe(document.documentElement, { childList: true, subtree: true });
 
 		// Media events do not bubble, but a capturing listener hears every video element, even a replaced one.
-		const onTime = (event: Event) => { const video = event.target; if (video instanceof HTMLVideoElement && bar && video === mainVideo()) bar.setTime(video.currentTime); };
+		const onTime = (event: Event) => { const video = event.target; if (video instanceof HTMLVideoElement && bar && video === mainVideo()) bar.setTime(video.currentTime, event.type === 'seeked'); };
 		for (const type of ['timeupdate', 'seeked', 'playing']) document.addEventListener(type, onTime, true);
 
 		// Prefetch once the page is idle, and again after each in-app navigation to another video.
@@ -144,7 +164,7 @@ try {
 		const startPrefetch = () => {
 			const videoId = currentVideo();
 			if (!enabled || !videoId || videoId === lastPrefetched) return;
-			lastPrefetched = videoId;
+			lastPrefetched = videoId; resetOpenAttempts();
 			const run = () => { if (currentVideo() === videoId) prefetch(videoId); };
 			const idle = (window as any).requestIdleCallback as undefined | ((callback: () => void, options?: { timeout: number }) => void);
 			if (idle) idle(run, { timeout: 4000 }); else setTimeout(run, 1500);

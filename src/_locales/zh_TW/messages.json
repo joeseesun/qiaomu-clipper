@@ -1353,6 +1353,12 @@
 	"youtubeBarMore": {
 		"message": "更多內容請在沉浸學習裡查看"
 	},
+	"studyPinVideo": {
+		"message": "固定影片"
+	},
+	"studyScrollTranscript": {
+		"message": "字幕捲動"
+	},
 	"transcriptSearch": {
 		"message": "搜尋字幕"
 	},
@@ -1380,17 +1386,20 @@
 	"youtubeBarHere": {
 		"message": "回到目前位置"
 	},
+	"youtubeBarRetry": {
+		"message": "重試"
+	},
 	"youtubePanelCardTitle": {
 		"message": "喬木 · 沉浸學習"
 	},
 	"youtubePanelCardLoading": {
-		"message": "正在準備字幕…"
+		"message": "正在讀取字幕…"
 	},
 	"youtubePanelCardReady": {
 		"message": "字幕已就緒，點擊時間可跳轉"
 	},
 	"youtubePanelCardNone": {
-		"message": "點擊後讀取字幕"
+		"message": "沒有讀到字幕。可以試試在 YouTube 裡展開「轉寫文稿」。"
 	},
 	"youtubePanelActionsTitle": {
 		"message": "YouTube 轉寫文稿按鈕"

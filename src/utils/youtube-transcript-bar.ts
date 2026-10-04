@@ -5,13 +5,14 @@ import { groupSegments } from './youtube-dom-transcript';
 // extensions), with five tools (subtitles, copy, download, study, settings) and a chevron that opens a
 // dropdown with the transcript itself. It does not depend on YouTube's lazily built transcript panel.
 export type BarState = 'loading' | 'ready' | 'none';
-export interface BarStrings { heading: string; subtitles: string; copy: string; download: string; study: string; settings: string; expand: string; collapse: string; copied: string; empty: string; reload: string; loading: string; ready: string; none: string; more: string; search: string; clear: string; noMatch: string; follow: string; followOff: string; here: string }
+export interface BarStrings { heading: string; subtitles: string; copy: string; download: string; study: string; settings: string; expand: string; collapse: string; copied: string; empty: string; reload: string; loading: string; ready: string; none: string; more: string; search: string; clear: string; noMatch: string; follow: string; followOff: string; here: string; retry: string }
 export interface BarHooks {
 	strings: BarStrings;
 	title: () => string;
 	getSegments: () => Promise<PanelSegment[]>;
 	openStudy: () => boolean | void;
 	openSettings: () => void;
+	retry?: () => void;
 	seek: (seconds: number) => void;
 	// Current playback time of the page's video, if there is one.
 	getTime?: () => number | undefined;
@@ -20,7 +21,7 @@ export interface BarHooks {
 	initialFollow?: boolean;
 	onFollow?: (follow: boolean) => void;
 }
-export interface TranscriptBar { element: HTMLElement; setState: (state: BarState, segments?: PanelSegment[]) => void; setOpen: (open: boolean) => void; setTime: (seconds: number) => void }
+export interface TranscriptBar { element: HTMLElement; setState: (state: BarState, segments?: PanelSegment[]) => void; setOpen: (open: boolean) => void; setTime: (seconds: number, afterSeek?: boolean) => void }
 
 type Tool = 'subtitles' | 'copy' | 'download' | 'study' | 'settings';
 type Extra = 'chevron' | 'search' | 'follow' | 'clear';
@@ -37,7 +38,7 @@ const SHAPES: Record<Tool | Extra, Array<[string, Record<string, string>]>> = {
 	chevron: [['path', { d: 'm6 9 6 6 6-6' }]],
 };
 const MAX_ROWS = 1500;
-const FOLLOW_COOLDOWN = 2500; // after the viewer scrolls the list themselves, stay put for a moment (as the reading mode does)
+const FOLLOW_COOLDOWN = 10000; // the list is the viewer's to scroll freely; after this long without touching it, it returns to the current line
 
 // Index of the last line that has started at time t (-1 before the first one).
 export function activeIndexAt(starts: number[], t: number): number {
@@ -79,7 +80,9 @@ export function buildTranscriptBar(doc: Document, hooks: BarHooks): TranscriptBa
 	const list = doc.createElement('div'); list.className = 'qiaomu-yt-bar-lines'; list.setAttribute('role', 'list');
 	const here = doc.createElement('button'); here.type = 'button'; here.className = 'qiaomu-yt-bar-here'; here.textContent = strings.here; here.hidden = true;
 	listWrap.append(list, here);
-	body.append(status, finder, listWrap);
+	const retryButton = doc.createElement('button'); retryButton.type = 'button'; retryButton.className = 'qiaomu-yt-bar-retry'; retryButton.textContent = strings.retry; retryButton.hidden = true;
+	const notice = doc.createElement('div'); notice.className = 'qiaomu-yt-bar-notice'; notice.append(status, retryButton);
+	body.append(notice, finder, listWrap);
 	element.append(head, body);
 
 	const flash = (button: HTMLElement, text: string) => {
@@ -103,8 +106,19 @@ export function buildTranscriptBar(doc: Document, hooks: BarHooks): TranscriptBa
 	};
 
 	interface Row { element: HTMLElement; words: HTMLElement; start: number; text: string; match: boolean }
+	interface Heading { element: HTMLElement; from: number; to: number }
+	let headings: Heading[] = [];
 	let segments: PanelSegment[] = [], state: BarState = 'loading', open = false, rendered = -1;
 	let rows: Row[] = [], starts: number[] = [], activeIndex = -1, query = '', follow = hooks.initialFollow !== false, lastUserScroll = 0, searchTimer: ReturnType<typeof setTimeout> | undefined;
+	let ignoreTimeUntil = 0, lastScroll = { target: -1, at: 0 }, resumeTimer: ReturnType<typeof setTimeout> | undefined;
+	let ours = { from: 0, to: 0, until: 0 };
+	const win = doc.defaultView as (Window & { CSS?: { highlights?: Map<string, unknown> }; Highlight?: new (...ranges: Range[]) => unknown }) | null;
+	const HIGHLIGHT = 'qiaomu-yt-line';
+	// Our own scrolls are remembered with the stretch they cover. A scroll event that lies on that stretch while it
+	// is under way is ours; anything else (wheel, touch, scrollbar drag, keys, inertia) is the viewer's, even if it
+	// happens right after an automatic scroll.
+	const moveList = (top: number, smooth: boolean) => { ours = { from: list.scrollTop, to: top, until: Date.now() + (smooth ? 1000 : 150) }; list.scrollTo({ top, behavior: smooth ? 'smooth' : 'auto' }); };
+	const isOurScroll = () => Date.now() <= ours.until && list.scrollTop >= Math.min(ours.from, ours.to) - 2 && list.scrollTop <= Math.max(ours.from, ours.to) + 2;
 	const reduced = () => doc.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 
 	// Plain text in a row, or the text with every match wrapped in <mark>.
@@ -122,6 +136,8 @@ export function buildTranscriptBar(doc: Document, hooks: BarHooks): TranscriptBa
 	const applyFilter = () => {
 		let matches = 0;
 		for (const row of rows) { row.match = !query || row.text.toLowerCase().includes(query); row.element.hidden = !row.match; if (row.match) { matches++; paintText(row); } }
+		// A chapter title stays while any line under it is shown.
+		for (const heading of headings) heading.element.hidden = Boolean(query) && !rows.slice(heading.from, heading.to).some(row => row.match);
 		count.textContent = query ? (matches ? String(matches) : strings.noMatch) : ''; clear.hidden = !query;
 		list.dataset.searching = String(Boolean(query));
 	};
@@ -131,9 +147,12 @@ export function buildTranscriptBar(doc: Document, hooks: BarHooks): TranscriptBa
 		if (!height || row.element.hidden) return;
 		const inBand = top >= list.scrollTop + height * 0.15 && top + row.element.offsetHeight <= list.scrollTop + height * 0.7;
 		if (inBand && !force) return;
-		const target = Math.max(0, top - height * 0.33);
+		const target = Math.max(0, top - height * 0.33), now = Date.now();
 		if (Math.abs(target - list.scrollTop) < 2) return; // already there
-		list.scrollTo({ top: target, behavior: reduced() ? 'auto' : 'smooth' });
+		if (Math.abs(target - lastScroll.target) < 2 && now - lastScroll.at < 700) return; // a scroll to this line is already under way
+		lastScroll = { target, at: now };
+		// Small steps glide; a far jump (after a seek) just lands, so the list never sweeps past hundreds of lines.
+		moveList(target, !(reduced() || Math.abs(target - list.scrollTop) > height * 2));
 	};
 	const updateHere = () => {
 		const row = rows[activeIndex];
@@ -147,48 +166,84 @@ export function buildTranscriptBar(doc: Document, hooks: BarHooks): TranscriptBa
 		if (scroll && row && follow && open && !query && Date.now() - lastUserScroll > FOLLOW_COOLDOWN) reveal(row);
 		updateHere();
 	};
-	const setTime = (t: number) => { if (rows.length && Number.isFinite(t)) setActive(activeIndexAt(starts, t), true); };
+	// Right after a jump the video still reports its old position for a moment; ignore that until it has really moved.
+	// Mark the phrase being spoken inside the current line (as the study page does), with the CSS Custom Highlight API so
+	// the text itself is never rewritten. The position inside the line is estimated from the time until the next line.
+	const BOUNDARY = /[,.;:!?，。；：！？、]/;
+	const clearProgress = () => win?.CSS?.highlights?.delete(HIGHLIGHT);
+	const paintProgress = (t: number) => {
+		if (!win?.CSS?.highlights || !win.Highlight) return;
+		const row = rows[activeIndex], node = row?.words.firstChild;
+		if (!row || query || !node || node.nodeType !== 3 || row.words.childNodes.length !== 1 || !open) { clearProgress(); return; }
+		const end = rows[activeIndex + 1]?.start ?? row.start + 8, span = Math.max(1, end - row.start);
+		const text = row.text, position = Math.min(text.length - 1, Math.max(0, Math.floor(Math.min(1, Math.max(0, (t - row.start) / span)) * text.length)));
+		let from = position; while (from > 0 && !BOUNDARY.test(text[from - 1])) from--;
+		let to = position; while (to < text.length && !BOUNDARY.test(text[to])) to++; if (to < text.length) to++;
+		while (from < to && /\s/.test(text[from])) from++;
+		if (to <= from) { clearProgress(); return; }
+		const range = doc.createRange(); range.setStart(node, from); range.setEnd(node, to);
+		win.CSS.highlights.set(HIGHLIGHT, new win.Highlight(range));
+	};
+	const setTime = (t: number, afterSeek = false) => {
+		if (afterSeek) ignoreTimeUntil = 0;
+		if (!rows.length || !Number.isFinite(t) || Date.now() < ignoreTimeUntil) return;
+		setActive(activeIndexAt(starts, t), true); paintProgress(t);
+	};
 	const renderLines = () => {
 		if (!open || rendered === segments.length) return;
-		rendered = segments.length; list.replaceChildren(); rows = []; activeIndex = -1;
-		const groups = groupSegments(segments);
-		for (const { time, text } of groups.slice(0, MAX_ROWS)) {
+		rendered = segments.length; list.replaceChildren(); rows = []; headings = []; activeIndex = -1;
+		// One row per caption cue like YouTube's own transcript (a few seconds each), not a long paragraph.
+		const groups = groupSegments(segments, 8, 3);
+		for (const { time, text, chapter } of groups.slice(0, MAX_ROWS)) {
+			if (chapter) { const heading = doc.createElement('div'); heading.className = 'qiaomu-yt-bar-chapter'; heading.setAttribute('role', 'heading'); heading.setAttribute('aria-level', '3'); heading.textContent = chapter; list.append(heading); headings.push({ element: heading, from: rows.length, to: rows.length }); }
 			const element = doc.createElement('button'); element.type = 'button'; element.className = 'qiaomu-yt-bar-line'; element.setAttribute('role', 'listitem');
 			const stamp = doc.createElement('span'); stamp.className = 'qiaomu-yt-bar-time'; stamp.textContent = time;
 			const words = doc.createElement('span'); words.className = 'qiaomu-yt-bar-text';
 			element.append(stamp, words);
 			const start = seconds(time);
-			press(element, () => { lastUserScroll = 0; hooks.seek(start); setActive(activeIndexAt(starts, start), true); });
+			// The pressed line is already on screen: mark it, jump the video, and leave the list where it is.
+			press(element, () => { ignoreTimeUntil = Date.now() + 900; lastUserScroll = 0; clearTimeout(resumeTimer); hooks.seek(start); setActive(activeIndexAt(starts, start), false); paintProgress(start); });
 			rows.push({ element, words, start, text, match: true }); list.append(element);
+			if (headings.length) headings[headings.length - 1].to = rows.length;
 		}
 		starts = rows.map(row => row.start);
 		if (groups.length > MAX_ROWS) { const more = doc.createElement('p'); more.className = 'qiaomu-yt-bar-more'; more.textContent = strings.more; list.append(more); }
 		applyFilter();
 		const now = hooks.getTime?.(); if (now !== undefined) setActive(activeIndexAt(starts, now), false);
 		// A first look at the list starts at the current line, not at the top.
-		const row = rows[activeIndex]; if (row && follow && !query) list.scrollTop = Math.max(0, row.element.offsetTop - list.offsetTop - list.clientHeight * 0.33);
+		const row = rows[activeIndex]; if (row && follow && !query) { const top = Math.max(0, row.element.offsetTop - list.offsetTop - list.clientHeight * 0.33); ours = { from: list.scrollTop, to: top, until: Date.now() + 150 }; list.scrollTop = top; }
 		updateHere();
 	};
 	const toggle = tool('toggle', strings.expand, () => setOpen(!open));
 	const paint = () => {
-		element.dataset.state = state; element.dataset.open = String(open); body.hidden = !open;
-		const message = strings[state]; status.textContent = message; dot.title = message; dot.setAttribute('aria-label', message);
+		if (!open || state !== 'ready') clearProgress();
+		element.dataset.state = state; element.dataset.open = String(open); body.hidden = !open; retryButton.hidden = state !== 'none' || !hooks.retry; notice.hidden = state === 'ready'; finder.hidden = state === 'none' && !segments.length; listWrap.hidden = finder.hidden;
+		const message = strings[state]; if (status.textContent !== message) status.textContent = message; dot.title = message; dot.setAttribute('aria-label', message);
 		toggle.setAttribute('aria-expanded', String(open)); toggle.title = open ? strings.collapse : strings.expand; toggle.setAttribute('aria-label', toggle.title);
 		followButton.setAttribute('aria-pressed', String(follow)); followButton.title = follow ? strings.follow : strings.followOff; followButton.setAttribute('aria-label', followButton.title);
 		renderLines();
 	};
 	function setOpen(next: boolean, persist = true) { if (next === open) { paint(); return; } open = next; if (persist) hooks.onToggle?.(open); rendered = -1; paint(); }
 
+	press(retryButton, () => { state = 'loading'; paint(); hooks.retry?.(); });
 	// Search: filter as you type with matches marked; Escape clears. Following pauses while a search is active.
 	search.addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => { query = search.value.trim().toLowerCase(); applyFilter(); updateHere(); if (!query) { const row = rows[activeIndex]; if (row && follow) reveal(row, true); } }, 100); });
 	search.addEventListener('keydown', event => { event.stopPropagation(); if (event.key === 'Escape') { search.value = ''; search.dispatchEvent(new Event('input')); } });
 	for (const type of ['keyup', 'keypress']) search.addEventListener(type, event => event.stopPropagation()); // YouTube listens for single-key shortcuts
 	press(clear, () => { search.value = ''; search.dispatchEvent(new Event('input')); search.focus(); });
 	press(followButton, () => { follow = !follow; hooks.onFollow?.(follow); paint(); if (follow) { lastUserScroll = 0; const row = rows[activeIndex]; if (row && !query) reveal(row, true); } updateHere(); });
-	press(here, () => { lastUserScroll = 0; const row = rows[activeIndex]; if (row) reveal(row, true); });
+	press(here, () => { lastUserScroll = 0; clearTimeout(resumeTimer); const row = rows[activeIndex]; if (row) reveal(row, true); });
 	// The viewer taking over the scroll pauses following for a moment; our own smooth scrolls do not count.
-	for (const type of ['wheel', 'touchstart', 'pointerdown', 'keydown']) list.addEventListener(type, () => { lastUserScroll = Date.now(); }, { passive: true });
-	list.addEventListener('scroll', updateHere, { passive: true });
+	// Free scrolling. Following pauses on any sign that the viewer is moving the list (wheel, touch, a press on the
+	// scrollbar, scroll keys, and any scroll event that is not ours, which also covers dragging the scrollbar and
+	// trackpad inertia) and the countdown restarts with every one of them. Once the viewer has stopped for
+	// FOLLOW_COOLDOWN the list glides back to the playing line; the button does it at once.
+	const resume = () => { lastUserScroll = 0; const row = rows[activeIndex]; if (open && follow && !query && row) reveal(row, true); updateHere(); };
+	const touched = () => { lastUserScroll = Date.now(); clearTimeout(resumeTimer); resumeTimer = setTimeout(resume, FOLLOW_COOLDOWN); };
+	for (const type of ['wheel', 'touchstart', 'touchmove', 'pointerdown']) list.addEventListener(type, touched, { passive: true });
+	list.addEventListener('keydown', event => { if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) touched(); });
+	list.addEventListener('scroll', () => { updateHere(); if (!isOurScroll()) touched(); }, { passive: true });
+	list.addEventListener('scrollend', () => { ours.until = 0; });
 
 	tools.append(
 		tool('subtitles', strings.subtitles, () => { setOpen(true); void hooks.getSegments().then(found => { if (found.length) { segments = found; state = 'ready'; rendered = -1; paint(); } }); }),
@@ -209,10 +264,18 @@ export function buildTranscriptBar(doc: Document, hooks: BarHooks): TranscriptBa
 	// Clicking the empty part of the strip also opens and closes it; the tools handle their own presses.
 	press(head, () => setOpen(!open));
 	if (hooks.initialOpen) setOpen(true, false); else paint();
-	return { element, setTime, setOpen: next => setOpen(next, false), setState: (next, found) => { state = next; if (found) segments = found; rendered = -1; paint(); } };
+	return { element, setTime, setOpen: next => setOpen(next, false), setState: (next, found) => {
+		// Called on every page change: only touch the DOM when something really changed. Rebuilding the list under
+		// the viewer's pointer breaks presses and drags, and our own changes would feed the page observer in a loop.
+		let changed = false;
+		if (next !== state) { state = next; changed = true; }
+		if (found && found !== segments && (found.length !== segments.length || found[0] !== segments[0] || found[found.length - 1] !== segments[segments.length - 1])) { segments = found; rendered = -1; changed = true; } else if (found && found !== segments) segments = found;
+		if (changed) paint();
+	} };
 }
 
 export const BAR_STYLE = `
+::highlight(qiaomu-yt-line){background-color:rgba(6,95,212,.2);color:inherit}
 ytd-engagement-panel-section-list-renderer[data-qiaomu-auto="1"]{display:none!important}
 .qiaomu-yt-bar{box-sizing:border-box;margin-bottom:12px;border:1px solid var(--yt-spec-10-percent-layer,rgba(0,0,0,.12));border-radius:8px;background:var(--yt-spec-base-background,#fff);color:var(--yt-spec-text-primary,#0f0f0f);font:400 14px/20px Roboto,Arial,sans-serif;overflow:hidden}
 .qiaomu-yt-bar-head{display:flex;align-items:center;gap:8px;min-height:48px;padding:0 8px 0 12px;cursor:pointer}
@@ -232,7 +295,11 @@ ytd-engagement-panel-section-list-renderer[data-qiaomu-auto="1"]{display:none!im
 .qiaomu-yt-bar[data-open=true] .qiaomu-yt-tool-toggle svg{transform:rotate(180deg)}
 .qiaomu-yt-bar-body{border-top:1px solid var(--yt-spec-10-percent-layer,rgba(0,0,0,.12))}
 .qiaomu-yt-bar-body[hidden]{display:none}
-.qiaomu-yt-bar-status{margin:0;padding:8px 14px;color:var(--yt-spec-text-secondary,#606060);font-size:12px}
+.qiaomu-yt-bar-notice[hidden]{display:none}
+.qiaomu-yt-bar-notice{display:flex;align-items:center;gap:8px;padding:8px 14px}
+.qiaomu-yt-bar-status{flex:1 1 auto;margin:0;color:var(--yt-spec-text-secondary,#606060);font-size:12px}
+.qiaomu-yt-bar-retry{flex:0 0 auto;height:28px;padding:0 12px;border:0;border-radius:14px;background:var(--yt-spec-text-primary,#0f0f0f);color:var(--yt-spec-base-background,#fff);font:500 13px/28px Roboto,Arial,sans-serif;cursor:pointer}
+.qiaomu-yt-bar-retry[hidden],.qiaomu-yt-bar-finder[hidden],.qiaomu-yt-bar-listwrap[hidden]{display:none}
 .qiaomu-yt-bar-finder{display:flex;align-items:center;gap:6px;padding:0 10px 8px}
 .qiaomu-yt-bar-search{display:flex;align-items:center;gap:6px;flex:1 1 auto;min-width:0;height:34px;padding:0 10px;border-radius:17px;background:var(--yt-spec-badge-chip-background,rgba(0,0,0,.05));color:var(--yt-spec-text-secondary,#606060)}
 .qiaomu-yt-bar-search:focus-within{box-shadow:inset 0 0 0 2px var(--yt-spec-call-to-action,#065fd4)}
@@ -247,19 +314,22 @@ ytd-engagement-panel-section-list-renderer[data-qiaomu-auto="1"]{display:none!im
 .qiaomu-yt-bar-clear:focus,.qiaomu-yt-bar-follow:focus{outline:none}.qiaomu-yt-bar-clear:focus-visible,.qiaomu-yt-bar-follow:focus-visible{outline:2px solid var(--yt-spec-call-to-action,#065fd4);outline-offset:-2px}
 .qiaomu-yt-bar-clear svg,.qiaomu-yt-bar-follow svg{display:block;pointer-events:none}
 .qiaomu-yt-bar-listwrap{position:relative}
-.qiaomu-yt-bar-lines{position:relative;max-height:340px;overflow-y:auto;padding:0 6px 8px;overscroll-behavior:contain}
+.qiaomu-yt-bar-lines{position:relative;max-height:min(60vh,520px);overflow-y:auto;padding:0 0 8px;overscroll-behavior:contain}
 .qiaomu-yt-bar-here{position:absolute;inset-inline:0;bottom:10px;margin:0 auto;width:max-content;max-width:90%;padding:0 14px;height:30px;border:0;border-radius:15px;background:var(--yt-spec-text-primary,#0f0f0f);color:var(--yt-spec-base-background,#fff);font:500 13px/30px Roboto,Arial,sans-serif;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25)}
 .qiaomu-yt-bar-here[hidden]{display:none}
 .qiaomu-yt-bar-mark{padding:0;border-radius:2px;background:rgba(255,208,0,.45);color:inherit}
 /* The current line is marked by type alone: full contrast and weight while the others step back. */
 .qiaomu-yt-bar-lines[data-searching=false]:has(.is-active) .qiaomu-yt-bar-line:not(.is-active) .qiaomu-yt-bar-text{color:var(--yt-spec-text-secondary,#606060)}
+.qiaomu-yt-bar-line.is-active{background:var(--yt-spec-badge-chip-background,rgba(0,0,0,.06))}
 .qiaomu-yt-bar-line.is-active .qiaomu-yt-bar-text{font-weight:500}
-.qiaomu-yt-bar-line.is-active .qiaomu-yt-bar-time{font-weight:700}
+.qiaomu-yt-bar-chapter{padding:14px 16px 4px;color:var(--yt-spec-text-primary,#0f0f0f);font:500 16px/22px Roboto,Arial,sans-serif}
+.qiaomu-yt-bar-chapter[hidden]{display:none}
 .qiaomu-yt-bar-line[hidden]{display:none}
-.qiaomu-yt-bar-line{display:flex;gap:10px;width:100%;padding:6px 8px;border:0;border-radius:0;background:transparent;color:inherit;font:inherit;text-align:start;cursor:pointer}
+.qiaomu-yt-bar-line{display:flex;align-items:flex-start;gap:12px;width:100%;padding:8px 16px;border:0;border-radius:0;background:transparent;color:inherit;font:400 14px/20px Roboto,Arial,sans-serif;text-align:start;cursor:pointer}
 .qiaomu-yt-bar-line:hover{background:var(--yt-spec-badge-chip-background,rgba(0,0,0,.05))}
 .qiaomu-yt-bar-line:focus{outline:none}.qiaomu-yt-bar-line:focus-visible{outline:2px solid var(--yt-spec-call-to-action,#065fd4);outline-offset:-2px}
-.qiaomu-yt-bar-time{flex:0 0 auto;min-width:42px;color:var(--yt-spec-call-to-action,#065fd4);font-variant-numeric:tabular-nums}
+.qiaomu-yt-bar-time{flex:0 0 auto;margin-top:1px;padding:0 6px;border-radius:4px;background:var(--yt-spec-badge-chip-background,rgba(0,0,0,.08));color:var(--yt-spec-text-primary,#0f0f0f);font:500 12px/20px Roboto,Arial,sans-serif;font-variant-numeric:tabular-nums}
+.qiaomu-yt-bar-line.is-active .qiaomu-yt-bar-time{background:var(--yt-spec-call-to-action-secondary,rgba(6,95,212,.14));color:var(--yt-spec-call-to-action,#065fd4)}
 .qiaomu-yt-bar-text{min-width:0;overflow-wrap:anywhere}
 .qiaomu-yt-bar-more{margin:6px 8px 0;color:var(--yt-spec-text-secondary,#606060);font-size:12px}
 `;

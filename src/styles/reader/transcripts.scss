@@ -264,3 +264,8 @@ article > .player-toggles {
 }
 .transcript-segment[hidden], .transcript h3[hidden], .transcript h4[hidden] { display: none; }
 ::highlight(transcript-search) { background-color: rgb(255 208 0 / 45%); color: inherit; }
+
+// Study transcripts read best in the system's sans-serif (黑体 on Chinese systems) until the reader chooses a font in Aa.
+html.youtube-study:not(.reader-custom-font) .transcript {
+	font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", "WenQuanYi Micro Hei", system-ui, sans-serif;
+}

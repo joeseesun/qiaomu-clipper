@@ -25,13 +25,15 @@ html.youtube-study.obsidian-reader-active:has(.youtube-sized-player) body {
 			width: var(--yt-w) !important; max-width: 100%; min-width: min(100%, 356px); margin-inline: auto;
 		}
 		.player-container {
-			display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; box-sizing: border-box;
+			display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; box-sizing: border-box;
 			border-top: 8px solid var(--background-primary); background: var(--background-primary);
 			> .youtube-sized-player, > .youtube-player-resize { grid-column: 1 / -1; width: 100% !important; margin: 0; }
 			> .youtube-sized-player { grid-row: 1; }
 			> .youtube-player-resize { grid-row: 2; }
-			> .player-toggles { grid-column: 1; grid-row: 3; min-width: 0; }
-			> .youtube-mode-bar { grid-column: 2; grid-row: 3; }
+			// Left: where the video sits. Right: the switches (pin, follow, translate), translate last.
+			> .youtube-mode-bar { grid-column: 1; grid-row: 3; }
+			> .player-toggles { grid-column: 2; grid-row: 3; min-width: 0; justify-content: flex-end; }
+			.player-toggle-group { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 4px 16px; }
 			// The stacked fallback pins the video under the bar; solid background, no glow over the text.
 			&.pin-player { top: var(--youtube-bar-height, var(--clip-bar-offset, 0px)); }
 			.reader-video-wrapper, iframe { box-shadow: none; }
@@ -42,8 +44,8 @@ html.youtube-study.obsidian-reader-active:has(.youtube-sized-player) body {
 		}
 		article > .youtube-sized-player { min-width: min(100%, 356px); }
 
-		// Theater: the video is a plain block above the text, not pinned.
-		article[data-yt-layout="theater"] .player-container { position: static; }
+		// Theater: the video is a plain block above the text, and stays put while the transcript scrolls if pinned.
+		article[data-yt-layout="theater"] .player-container:not(.pin-player) { position: static; }
 
 		// Dock beside the transcript: video column pinned on the left, text scrolls on the right.
 		article[data-yt-layout="side"] {
@@ -110,7 +112,9 @@ html.youtube-study.clip-bar-hidden .player-container.pin-player { top: 0; }
 // Mode switcher under the video and the floating window's overlay. Buttons are scoped because
 // buttons.scss styles every `button:not(.clickable-icon)`; svg must not be multiplied by the reader theme.
 html.youtube-study {
-	.youtube-mode-bar { display: inline-flex; align-items: center; gap: 2px; padding: 8px 0 4px 8px; line-height: 0; }
+	.youtube-mode-bar { display: inline-flex; align-items: center; gap: 2px; padding: 8px 8px 4px 0; line-height: 0; }
+	// Pinning only means something when the video sits above the text (stacked or theater).
+	article:not([data-yt-layout="stack"]):not([data-yt-layout="theater"]) .player-toggle[data-toggle="pin"] { display: none; }
 	.youtube-mode-bar button.youtube-mode-btn:not(.clickable-icon), .youtube-float-chrome button.youtube-mode-btn:not(.clickable-icon) {
 		display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; flex: 0 0 auto; padding: 0;
 		border: 0; border-radius: 6px; background: transparent; box-shadow: none; color: var(--text-faint); cursor: pointer;

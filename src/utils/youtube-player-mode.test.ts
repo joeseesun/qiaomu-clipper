@@ -26,6 +26,8 @@ it('leaves room for the transcript beside the video and for the text under it', 
 	expect(maxPlayerWidth('side', 1196, 900, 56)).toBe(656); expect(maxPlayerWidth('side', 1000, 900, 56)).toBe(460);
 	expect(maxPlayerWidth('stack', 800, 900, 56)).toBeCloseTo(736, 0); expect(maxPlayerWidth('theater', 2000, 900, 56)).toBeCloseTo(1280, 0);
 	expect(maxPlayerWidth('theater', 300, 900, 56)).toBe(300);
+	expect(maxPlayerWidth('theater', 2000, 900, 56, true)).toBeCloseTo(880, 0); // pinned in theater: 55% of the height, so the text keeps room
+	expect(maxPlayerWidth('theater', 2000, 900, 56, false)).toBeCloseTo(1280, 0);
 });
 
 it('validates stored preferences and keeps a wide-screen width when the window is narrow', () => {

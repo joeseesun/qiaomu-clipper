@@ -2,7 +2,7 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import { activeIndexAt, buildTranscriptBar, syncTranscriptBar, type BarHooks } from './youtube-transcript-bar';
 
-const strings = { heading: 'Qiaomu', subtitles: 'Subtitles', copy: 'Copy', download: 'Download', study: 'Study', settings: 'Settings', expand: 'Show', collapse: 'Hide', copied: 'Copied', empty: 'Empty', reload: 'Reload page', loading: 'Loading', ready: 'Ready', none: 'None', more: 'More in study mode', search: 'Search', clear: 'Clear', noMatch: 'No results', follow: 'Following', followOff: 'Not following', here: 'Back to current' };
+const strings = { heading: 'Qiaomu', subtitles: 'Subtitles', copy: 'Copy', download: 'Download', study: 'Study', settings: 'Settings', expand: 'Show', collapse: 'Hide', copied: 'Copied', empty: 'Empty', reload: 'Reload page', loading: 'Loading', ready: 'Ready', none: 'None', more: 'More in study mode', search: 'Search', clear: 'Clear', noMatch: 'No results', follow: 'Following', followOff: 'Not following', here: 'Back to current', retry: 'Retry' };
 const lines = [['0:05', 'Hello there,'], ['0:09', 'welcome back.'], ['1:02:03', 'Much later']].map(([time, text]) => ({ time, text }));
 const tick = async () => { for (let i = 0; i < 10; i++) await Promise.resolve(); };
 const make = (overrides: Partial<BarHooks> = {}) => {
@@ -116,7 +116,8 @@ it('follows playback: highlights the current line, scrolls only when it leaves t
 	expect((list.scrollTo as any)).toHaveBeenCalledWith({ top: 10 * 50 - 300 * 0.33, behavior: 'smooth' } as any);
 	(list.scrollTo as any).mockClear(); bar.setTime(410); expect(list.scrollTo).not.toHaveBeenCalled(); // same line: nothing to do
 	list.dispatchEvent(new Event('wheel')); bar.setTime(1000); expect(list.scrollTo).not.toHaveBeenCalled(); // the viewer is in charge
-	vi.setSystemTime(100000 + 3000); bar.setTime(1100); expect(list.scrollTo).toHaveBeenCalled();
+	vi.setSystemTime(100000 + 5000); bar.setTime(1100); expect(list.scrollTo).not.toHaveBeenCalled(); // still in charge for the full ten seconds
+	vi.setSystemTime(100000 + 11000); bar.setTime(1100); expect(list.scrollTo).toHaveBeenCalled();
 	vi.useRealTimers();
 });
 
@@ -137,4 +138,103 @@ it('starts at the current line when opened late, using the page\'s playback time
 	const { hooks, bar } = make({ getTime: () => 125, initialOpen: false }); bar.setState('ready', longLines); bar.setOpen(true);
 	const rows = Array.from(bar.element.querySelectorAll<HTMLElement>('.qiaomu-yt-bar-line')); expect(rows.find(row => row.classList.contains('is-active'))!.querySelector('.qiaomu-yt-bar-time')!.textContent).toBe('2:00');
 	rows[10].click(); expect(hooks.seek).toHaveBeenCalledWith(400); expect(rows[10].classList.contains('is-active')).toBe(true);
+});
+
+it('says nothing cryptic when no transcript was found: a plain message and a retry that starts over', () => {
+	const retry = vi.fn(); const { bar } = make({ retry, initialOpen: true }); bar.setState('none');
+	const button = bar.element.querySelector<HTMLElement>('.qiaomu-yt-bar-retry')!;
+	expect(button.hidden).toBe(false); expect(bar.element.querySelector('.qiaomu-yt-bar-status')!.textContent).toBe('None'); expect(bar.element.querySelector<HTMLElement>('.qiaomu-yt-bar-finder')!.hidden).toBe(true);
+	button.click(); expect(retry).toHaveBeenCalledTimes(1); expect(bar.element.dataset.state).toBe('loading'); expect(button.hidden).toBe(true);
+	bar.setState('ready', lines); expect(bar.element.querySelector<HTMLElement>('.qiaomu-yt-bar-finder')!.hidden).toBe(false);
+});
+
+it('does not move the list when a line is pressed, and ignores the old position the video still reports right after the jump', () => {
+	vi.useFakeTimers(); vi.setSystemTime(500000);
+	const { hooks, bar } = make({ initialOpen: true }); bar.setState('ready', longLines); const list = withLayout(bar); const rows = Array.from(list.querySelectorAll<HTMLElement>('.qiaomu-yt-bar-line'));
+	bar.setTime(1); (list.scrollTo as any).mockClear();
+	rows[12].click(); expect(hooks.seek).toHaveBeenCalledWith(480); expect(rows[12].classList.contains('is-active')).toBe(true); expect(list.scrollTo).not.toHaveBeenCalled();
+	bar.setTime(2); expect(rows[12].classList.contains('is-active')).toBe(true); // the stale position is ignored
+	bar.setTime(481, true); expect(rows[12].classList.contains('is-active')).toBe(true); // "seeked" reports where the video really is
+	vi.setSystemTime(502000); bar.setTime(1); expect(rows[0].classList.contains('is-active')).toBe(true); // and time updates count again later
+	vi.useRealTimers();
+});
+
+it('does not restart a smooth scroll that is already heading to the same line, and lands far jumps at once', () => {
+	vi.useFakeTimers(); vi.setSystemTime(700000);
+	const { bar } = make({ initialOpen: true }); bar.setState('ready', longLines); const list = withLayout(bar);
+	(list.scrollTo as any).mockImplementation(() => {}); // pretend the glide has not arrived yet
+	bar.setTime(405); bar.setTime(406); bar.setTime(407); expect(list.scrollTo).toHaveBeenCalledTimes(1); expect((list.scrollTo as any).mock.calls[0][0].behavior).toBe('smooth');
+	vi.setSystemTime(701000); bar.setTime(1100); expect((list.scrollTo as any).mock.calls.at(-1)[0].behavior).toBe('auto'); // 25 lines away: lands at once
+	vi.useRealTimers();
+});
+
+it('lets the viewer scroll freely, and after ten quiet seconds glides back to the playing line by itself', () => {
+	vi.useFakeTimers(); vi.setSystemTime(900000);
+	const { bar } = make({ initialOpen: true }); bar.setState('ready', longLines); const list = withLayout(bar); const rows = Array.from(list.querySelectorAll<HTMLElement>('.qiaomu-yt-bar-line'));
+	bar.setTime(405); (list.scrollTo as any).mockClear();
+	list.dispatchEvent(new Event('wheel')); list.scrollTop = 1200; // the viewer browses far away
+	vi.advanceTimersByTime(9000); list.dispatchEvent(new Event('wheel')); // another touch restarts the countdown
+	vi.advanceTimersByTime(9000); expect(list.scrollTo).not.toHaveBeenCalled(); bar.setTime(410); expect(list.scrollTo).not.toHaveBeenCalled();
+	vi.advanceTimersByTime(1500); expect(list.scrollTo).toHaveBeenCalledTimes(1); expect((list.scrollTo as any).mock.calls[0][0].top).toBeCloseTo(10 * 50 - 300 * 0.33, 0); // back at the playing line without waiting for the next one
+	expect(rows[10].classList.contains('is-active')).toBe(true);
+	vi.useRealTimers();
+});
+
+it('does not pull the list back when following is off', () => {
+	vi.useFakeTimers(); vi.setSystemTime(950000);
+	const { bar } = make({ initialOpen: true, initialFollow: false }); bar.setState('ready', longLines); const list = withLayout(bar); bar.setTime(405);
+	list.dispatchEvent(new Event('wheel')); vi.advanceTimersByTime(11000); expect(list.scrollTo).not.toHaveBeenCalled();
+	vi.useRealTimers();
+});
+
+it('counts any scroll that is not one of ours as the viewer\'s (scrollbar drag, inertia, keys, touch), even right after an automatic scroll', () => {
+	vi.useFakeTimers(); vi.setSystemTime(1200000);
+	const { bar } = make({ initialOpen: true }); bar.setState('ready', longLines); const list = withLayout(bar);
+	bar.setTime(405); // our own scroll: from 0 towards 401
+	expect(list.scrollTo).toHaveBeenCalledTimes(1);
+	list.scrollTop = 200; list.dispatchEvent(new Event('scroll')); // on the stretch of our scroll: ours, ignored
+	(list.scrollTo as any).mockClear(); bar.setTime(500); expect(list.scrollTo).toHaveBeenCalledTimes(1); // following carries on
+	list.scrollTop = 1400; list.dispatchEvent(new Event('scroll')); // far off our stretch, a fraction of a second later: the viewer's
+	(list.scrollTo as any).mockClear(); vi.advanceTimersByTime(300); bar.setTime(560); expect(list.scrollTo).not.toHaveBeenCalled();
+	vi.advanceTimersByTime(10100); expect(list.scrollTo).toHaveBeenCalledTimes(1); // ten quiet seconds later it is back at the playing line
+	vi.useRealTimers();
+});
+
+it('treats touch moves and scroll keys inside the list as the viewer\'s, but ignores other keys, and our own placement on opening', () => {
+	vi.useFakeTimers(); vi.setSystemTime(1300000);
+	const { bar } = make({ getTime: () => 405, initialOpen: false }); bar.setState('ready', longLines); bar.setOpen(true); const list = withLayout(bar);
+	list.dispatchEvent(new Event('scroll')); (list.scrollTo as any).mockClear(); bar.setTime(900); expect(list.scrollTo).toHaveBeenCalledTimes(1); // the opening placement did not pause following
+	for (const make of [() => new Event('touchmove'), () => new KeyboardEvent('keydown', { key: 'PageDown' }), () => new KeyboardEvent('keydown', { key: ' ' })]) {
+		(list.scrollTo as any).mockClear(); vi.setSystemTime(Date.now() + 20000); list.dispatchEvent(make()); bar.setTime(1000 + Math.random()); expect(list.scrollTo).not.toHaveBeenCalled();
+		vi.advanceTimersByTime(10100);
+	}
+	(list.scrollTo as any).mockClear(); vi.setSystemTime(Date.now() + 20000); list.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' })); bar.setTime(1500); expect(list.scrollTo).toHaveBeenCalled(); // an unrelated key does not pause it
+	vi.useRealTimers();
+});
+
+it('leaves the list alone when the page reports the same transcript again: no rebuilt rows, presses survive', () => {
+	const { hooks, bar } = make({ initialOpen: true }); bar.setState('ready', longLines);
+	const list = bar.element.querySelector('.qiaomu-yt-bar-lines')!, before = Array.from(list.children);
+	const mutations = vi.fn(); const watcher = new MutationObserver(mutations); watcher.observe(bar.element, { childList: true, subtree: true, characterData: true });
+	for (let i = 0; i < 20; i++) bar.setState('ready', longLines); // what the page watcher does on every change
+	bar.setState('ready', [...longLines]); // an identical copy is no change either
+	expect(Array.from(list.children).every((row, i) => row === before[i])).toBe(true); expect(watcher.takeRecords()).toHaveLength(0);
+	const row = list.querySelector<HTMLElement>('.qiaomu-yt-bar-line')!; row.dispatchEvent(new Event('pointerdown', { bubbles: true })); bar.setState('ready', longLines); row.dispatchEvent(new Event('pointerup', { bubbles: true }));
+	expect(hooks.seek).toHaveBeenCalledTimes(1); // the row pressed is still the row released
+	bar.setState('ready', longLines.slice(0, 10)); expect(list.children[0]).not.toBe(before[0]); // a real change does rebuild
+	watcher.disconnect();
+});
+
+it('marks the phrase being spoken in the current line, moves it with the time, and never touches the text', () => {
+	const highlights = new Map<string, any>(); (window as any).CSS = { highlights }; (window as any).Highlight = class { ranges: Range[]; constructor(...ranges: Range[]) { this.ranges = ranges; } };
+	const spoken = [{ time: '0:00', text: 'First clause, second clause, and a third one.' }, { time: '0:20', text: 'Next line' }];
+	const { bar } = make({ initialOpen: true }); bar.setState('ready', spoken);
+	const marked = () => (highlights.get('qiaomu-yt-line')?.ranges as Range[] | undefined)?.map(range => range.toString());
+	bar.setTime(1); expect(marked()).toEqual(['First clause,']);
+	bar.setTime(10); expect(marked()).toEqual([' second clause,'.trim()]);
+	bar.setTime(19); expect(marked()).toEqual(['and a third one.']);
+	expect(bar.element.querySelector('.qiaomu-yt-bar-line.is-active .qiaomu-yt-bar-text')!.textContent).toBe(spoken[0].text);
+	bar.setTime(25); expect(marked()).toEqual(['Next line']);
+	bar.setOpen(false); expect(highlights.has('qiaomu-yt-line')).toBe(false);
+	delete (window as any).CSS; delete (window as any).Highlight; expect(() => bar.setOpen(true)).not.toThrow();
 });

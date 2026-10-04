@@ -1353,6 +1353,12 @@
 	"youtubeBarMore": {
 		"message": "更多内容请在沉浸学习里查看"
 	},
+	"studyPinVideo": {
+		"message": "固定视频"
+	},
+	"studyScrollTranscript": {
+		"message": "字幕滚动"
+	},
 	"transcriptSearch": {
 		"message": "搜索字幕"
 	},
@@ -1380,17 +1386,20 @@
 	"youtubeBarHere": {
 		"message": "回到当前位置"
 	},
+	"youtubeBarRetry": {
+		"message": "重试"
+	},
 	"youtubePanelCardTitle": {
 		"message": "乔木 · 沉浸学习"
 	},
 	"youtubePanelCardLoading": {
-		"message": "正在准备字幕…"
+		"message": "正在读取字幕…"
 	},
 	"youtubePanelCardReady": {
 		"message": "字幕已就绪，点击时间可跳转"
 	},
 	"youtubePanelCardNone": {
-		"message": "点击后读取字幕"
+		"message": "没有读到字幕。可以试试在 YouTube 里展开“转写文稿”。"
 	},
 	"youtubePanelActionsTitle": {
 		"message": "YouTube 转写文稿按钮"

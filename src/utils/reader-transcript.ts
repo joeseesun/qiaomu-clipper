@@ -1,5 +1,6 @@
 import { getMessage } from './i18n';
 import { bilibiliEmbedUrl, isBilibiliEmbed, PLAYER_SELECTOR, TRANSCRIPT_SELECTOR } from './video-source';
+import { LAYOUT_EVENT } from './layout-event';
 import { sourceTextNodes } from './transcript-format';
 import { mountTranscriptSearch } from './transcript-search';
 
@@ -90,8 +91,33 @@ export function wireTranscript(
 	transcript.style.position = 'relative';
 	transcript.appendChild(currentPosButton);
 
+	const createToggle = (key: string, label: string, defaultOn: boolean, onChange: (on: boolean) => void) => {
+		const wrapper = doc.createElement('label');
+		wrapper.className = 'player-toggle' + (defaultOn ? ' is-enabled' : ''); wrapper.dataset.toggle = key;
+		const toggle = doc.createElement('div'); toggle.className = 'player-toggle-switch';
+		const input = doc.createElement('input'); input.type = 'checkbox'; input.checked = defaultOn; input.setAttribute('role', 'switch'); input.setAttribute('aria-label', label);
+		toggle.appendChild(input);
+		const text = doc.createElement('span'); text.textContent = label;
+		wrapper.append(text, toggle);
+		input.addEventListener('change', () => { wrapper.classList.toggle('is-enabled', input.checked); onChange(input.checked); });
+		return wrapper;
+	};
+	// Pin the video while reading (only meaningful when the video sits above the text) and follow the line being
+	// played. The translation switch is added after these, so it stays the last one in the row.
+	const pinToggle = createToggle('pin', getMessage('studyPinVideo'), pinDefault, on => {
+		playerContainer.classList.toggle('pin-player', on);
+		article.dispatchEvent(new CustomEvent(LAYOUT_EVENT)); // a pinned video in theater mode is sized to leave room for the text
+		window.dispatchEvent(new CustomEvent('reader-show-nav'));
+		onSettingChange?.('pinPlayer', on);
+	});
+	const autoScrollToggle = createToggle('follow', getMessage('studyScrollTranscript'), autoScrollDefault, on => {
+		autoScrollEnabled = on;
+		onSettingChange?.('autoScroll', on);
+	});
+
 	const toggleGroup = doc.createElement('div');
 	toggleGroup.className = 'player-toggle-group is-open';
+	toggleGroup.append(pinToggle, autoScrollToggle);
 
 	toggleBar.appendChild(toggleGroup);
 
@@ -154,7 +180,7 @@ export function wireTranscript(
 	});
 
 	const FALLBACK_SEGMENT_DURATION = 30;
-	const AUTO_SCROLL_COOLDOWN = 2000;
+	const AUTO_SCROLL_COOLDOWN = 10000; // free scrolling: after ten quiet seconds the page returns to the playing line
 	const getSegmentEnd = (i: number) =>
 		i < segmentTimes.length - 1 ? segmentTimes[i + 1] : segmentTimes[i] + FALLBACK_SEGMENT_DURATION;
 
@@ -191,9 +217,18 @@ export function wireTranscript(
 	let scrubbing = false;
 	let lastScrub = 0;
 
+	let resumeTimer: ReturnType<typeof setTimeout> | undefined;
 	window.addEventListener('scroll', () => {
 		if (scroll.programmaticScroll() || scrubbing) return;
 		lastUserScroll = Date.now();
+		// Do not wait for the next line to start: when the reader has been idle long enough, go back to the one playing.
+		clearTimeout(resumeTimer);
+		resumeTimer = setTimeout(() => {
+			lastUserScroll = 0;
+			if (!autoScrollEnabled || suppressScroll || search.active() || !activeSegment) return;
+			const rect = activeSegment.getBoundingClientRect();
+			scroll.scrollTo((window.pageYOffset || doc.documentElement.scrollTop) + rect.top - (scroll.getFocusOffset?.() ?? scroll.getStickyOffset() + 20));
+		}, AUTO_SCROLL_COOLDOWN);
 	}, { passive: true });
 
 	const updateActiveSegment = (currentTime: number) => {

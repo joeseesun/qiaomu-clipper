@@ -1353,6 +1353,12 @@
 	"youtubeBarMore": {
 		"message": "Open study mode to read the rest"
 	},
+	"studyPinVideo": {
+		"message": "Pin video"
+	},
+	"studyScrollTranscript": {
+		"message": "Scroll transcript"
+	},
 	"transcriptSearch": {
 		"message": "Search transcript"
 	},
@@ -1380,17 +1386,20 @@
 	"youtubeBarHere": {
 		"message": "Back to current line"
 	},
+	"youtubeBarRetry": {
+		"message": "Retry"
+	},
 	"youtubePanelCardTitle": {
 		"message": "Qiaomu · Study"
 	},
 	"youtubePanelCardLoading": {
-		"message": "Preparing transcript…"
+		"message": "Reading the transcript…"
 	},
 	"youtubePanelCardReady": {
 		"message": "Transcript ready — click a time to jump"
 	},
 	"youtubePanelCardNone": {
-		"message": "Click to read the transcript"
+		"message": "No transcript found. Try opening “Transcript” on YouTube."
 	},
 	"youtubePanelActionsTitle": {
 		"message": "YouTube transcript buttons"
