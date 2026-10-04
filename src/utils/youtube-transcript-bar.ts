@@ -112,6 +112,8 @@ export function buildTranscriptBar(doc: Document, hooks: BarHooks): TranscriptBa
 	let rows: Row[] = [], starts: number[] = [], activeIndex = -1, query = '', follow = hooks.initialFollow !== false, lastUserScroll = 0, searchTimer: ReturnType<typeof setTimeout> | undefined;
 	let ignoreTimeUntil = 0, lastScroll = { target: -1, at: 0 }, resumeTimer: ReturnType<typeof setTimeout> | undefined;
 	let ours = { from: 0, to: 0, until: 0 };
+	const win = doc.defaultView as (Window & { CSS?: { highlights?: Map<string, unknown> }; Highlight?: new (...ranges: Range[]) => unknown }) | null;
+	const HIGHLIGHT = 'qiaomu-yt-line';
 	// Our own scrolls are remembered with the stretch they cover. A scroll event that lies on that stretch while it
 	// is under way is ours; anything else (wheel, touch, scrollbar drag, keys, inertia) is the viewer's, even if it
 	// happens right after an automatic scroll.
@@ -165,10 +167,27 @@ export function buildTranscriptBar(doc: Document, hooks: BarHooks): TranscriptBa
 		updateHere();
 	};
 	// Right after a jump the video still reports its old position for a moment; ignore that until it has really moved.
+	// Mark the phrase being spoken inside the current line (as the study page does), with the CSS Custom Highlight API so
+	// the text itself is never rewritten. The position inside the line is estimated from the time until the next line.
+	const BOUNDARY = /[,.;:!?，。；：！？、]/;
+	const clearProgress = () => win?.CSS?.highlights?.delete(HIGHLIGHT);
+	const paintProgress = (t: number) => {
+		if (!win?.CSS?.highlights || !win.Highlight) return;
+		const row = rows[activeIndex], node = row?.words.firstChild;
+		if (!row || query || !node || node.nodeType !== 3 || row.words.childNodes.length !== 1 || !open) { clearProgress(); return; }
+		const end = rows[activeIndex + 1]?.start ?? row.start + 8, span = Math.max(1, end - row.start);
+		const text = row.text, position = Math.min(text.length - 1, Math.max(0, Math.floor(Math.min(1, Math.max(0, (t - row.start) / span)) * text.length)));
+		let from = position; while (from > 0 && !BOUNDARY.test(text[from - 1])) from--;
+		let to = position; while (to < text.length && !BOUNDARY.test(text[to])) to++; if (to < text.length) to++;
+		while (from < to && /\s/.test(text[from])) from++;
+		if (to <= from) { clearProgress(); return; }
+		const range = doc.createRange(); range.setStart(node, from); range.setEnd(node, to);
+		win.CSS.highlights.set(HIGHLIGHT, new win.Highlight(range));
+	};
 	const setTime = (t: number, afterSeek = false) => {
 		if (afterSeek) ignoreTimeUntil = 0;
 		if (!rows.length || !Number.isFinite(t) || Date.now() < ignoreTimeUntil) return;
-		setActive(activeIndexAt(starts, t), true);
+		setActive(activeIndexAt(starts, t), true); paintProgress(t);
 	};
 	const renderLines = () => {
 		if (!open || rendered === segments.length) return;
@@ -183,7 +202,7 @@ export function buildTranscriptBar(doc: Document, hooks: BarHooks): TranscriptBa
 			element.append(stamp, words);
 			const start = seconds(time);
 			// The pressed line is already on screen: mark it, jump the video, and leave the list where it is.
-			press(element, () => { ignoreTimeUntil = Date.now() + 900; lastUserScroll = 0; clearTimeout(resumeTimer); hooks.seek(start); setActive(activeIndexAt(starts, start), false); });
+			press(element, () => { ignoreTimeUntil = Date.now() + 900; lastUserScroll = 0; clearTimeout(resumeTimer); hooks.seek(start); setActive(activeIndexAt(starts, start), false); paintProgress(start); });
 			rows.push({ element, words, start, text, match: true }); list.append(element);
 			if (headings.length) headings[headings.length - 1].to = rows.length;
 		}
@@ -197,8 +216,9 @@ export function buildTranscriptBar(doc: Document, hooks: BarHooks): TranscriptBa
 	};
 	const toggle = tool('toggle', strings.expand, () => setOpen(!open));
 	const paint = () => {
+		if (!open || state !== 'ready') clearProgress();
 		element.dataset.state = state; element.dataset.open = String(open); body.hidden = !open; retryButton.hidden = state !== 'none' || !hooks.retry; notice.hidden = state === 'ready'; finder.hidden = state === 'none' && !segments.length; listWrap.hidden = finder.hidden;
-		const message = strings[state]; status.textContent = message; dot.title = message; dot.setAttribute('aria-label', message);
+		const message = strings[state]; if (status.textContent !== message) status.textContent = message; dot.title = message; dot.setAttribute('aria-label', message);
 		toggle.setAttribute('aria-expanded', String(open)); toggle.title = open ? strings.collapse : strings.expand; toggle.setAttribute('aria-label', toggle.title);
 		followButton.setAttribute('aria-pressed', String(follow)); followButton.title = follow ? strings.follow : strings.followOff; followButton.setAttribute('aria-label', followButton.title);
 		renderLines();
@@ -244,10 +264,18 @@ export function buildTranscriptBar(doc: Document, hooks: BarHooks): TranscriptBa
 	// Clicking the empty part of the strip also opens and closes it; the tools handle their own presses.
 	press(head, () => setOpen(!open));
 	if (hooks.initialOpen) setOpen(true, false); else paint();
-	return { element, setTime, setOpen: next => setOpen(next, false), setState: (next, found) => { state = next; if (found) segments = found; rendered = -1; paint(); } };
+	return { element, setTime, setOpen: next => setOpen(next, false), setState: (next, found) => {
+		// Called on every page change: only touch the DOM when something really changed. Rebuilding the list under
+		// the viewer's pointer breaks presses and drags, and our own changes would feed the page observer in a loop.
+		let changed = false;
+		if (next !== state) { state = next; changed = true; }
+		if (found && found !== segments && (found.length !== segments.length || found[0] !== segments[0] || found[found.length - 1] !== segments[segments.length - 1])) { segments = found; rendered = -1; changed = true; } else if (found && found !== segments) segments = found;
+		if (changed) paint();
+	} };
 }
 
 export const BAR_STYLE = `
+::highlight(qiaomu-yt-line){background-color:rgba(6,95,212,.2);color:inherit}
 ytd-engagement-panel-section-list-renderer[data-qiaomu-auto="1"]{display:none!important}
 .qiaomu-yt-bar{box-sizing:border-box;margin-bottom:12px;border:1px solid var(--yt-spec-10-percent-layer,rgba(0,0,0,.12));border-radius:8px;background:var(--yt-spec-base-background,#fff);color:var(--yt-spec-text-primary,#0f0f0f);font:400 14px/20px Roboto,Arial,sans-serif;overflow:hidden}
 .qiaomu-yt-bar-head{display:flex;align-items:center;gap:8px;min-height:48px;padding:0 8px 0 12px;cursor:pointer}

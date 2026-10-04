@@ -211,3 +211,30 @@ it('treats touch moves and scroll keys inside the list as the viewer\'s, but ign
 	(list.scrollTo as any).mockClear(); vi.setSystemTime(Date.now() + 20000); list.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' })); bar.setTime(1500); expect(list.scrollTo).toHaveBeenCalled(); // an unrelated key does not pause it
 	vi.useRealTimers();
 });
+
+it('leaves the list alone when the page reports the same transcript again: no rebuilt rows, presses survive', () => {
+	const { hooks, bar } = make({ initialOpen: true }); bar.setState('ready', longLines);
+	const list = bar.element.querySelector('.qiaomu-yt-bar-lines')!, before = Array.from(list.children);
+	const mutations = vi.fn(); const watcher = new MutationObserver(mutations); watcher.observe(bar.element, { childList: true, subtree: true, characterData: true });
+	for (let i = 0; i < 20; i++) bar.setState('ready', longLines); // what the page watcher does on every change
+	bar.setState('ready', [...longLines]); // an identical copy is no change either
+	expect(Array.from(list.children).every((row, i) => row === before[i])).toBe(true); expect(watcher.takeRecords()).toHaveLength(0);
+	const row = list.querySelector<HTMLElement>('.qiaomu-yt-bar-line')!; row.dispatchEvent(new Event('pointerdown', { bubbles: true })); bar.setState('ready', longLines); row.dispatchEvent(new Event('pointerup', { bubbles: true }));
+	expect(hooks.seek).toHaveBeenCalledTimes(1); // the row pressed is still the row released
+	bar.setState('ready', longLines.slice(0, 10)); expect(list.children[0]).not.toBe(before[0]); // a real change does rebuild
+	watcher.disconnect();
+});
+
+it('marks the phrase being spoken in the current line, moves it with the time, and never touches the text', () => {
+	const highlights = new Map<string, any>(); (window as any).CSS = { highlights }; (window as any).Highlight = class { ranges: Range[]; constructor(...ranges: Range[]) { this.ranges = ranges; } };
+	const spoken = [{ time: '0:00', text: 'First clause, second clause, and a third one.' }, { time: '0:20', text: 'Next line' }];
+	const { bar } = make({ initialOpen: true }); bar.setState('ready', spoken);
+	const marked = () => (highlights.get('qiaomu-yt-line')?.ranges as Range[] | undefined)?.map(range => range.toString());
+	bar.setTime(1); expect(marked()).toEqual(['First clause,']);
+	bar.setTime(10); expect(marked()).toEqual([' second clause,'.trim()]);
+	bar.setTime(19); expect(marked()).toEqual(['and a third one.']);
+	expect(bar.element.querySelector('.qiaomu-yt-bar-line.is-active .qiaomu-yt-bar-text')!.textContent).toBe(spoken[0].text);
+	bar.setTime(25); expect(marked()).toEqual(['Next line']);
+	bar.setOpen(false); expect(highlights.has('qiaomu-yt-line')).toBe(false);
+	delete (window as any).CSS; delete (window as any).Highlight; expect(() => bar.setOpen(true)).not.toThrow();
+});

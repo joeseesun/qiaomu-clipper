@@ -1281,6 +1281,20 @@ browser.runtime.onMessage.addListener((raw: unknown, sender) => {
 	})();
 });
 
+// Seek the YouTube player through its own API. The player object lives in the page's JavaScript world, which a content
+// script cannot reach, so run a tiny function there. Only the sender's own tab, only a number, only YouTube pages.
+browser.runtime.onMessage.addListener((raw: unknown, sender) => {
+	const request = raw as { action?: string; seconds?: number };
+	if (request?.action !== 'qiaomuSeek') return;
+	const tabId = sender.tab?.id, seconds = request.seconds;
+	if (sender.id !== browser.runtime.id || tabId === undefined || typeof seconds !== 'number' || !Number.isFinite(seconds) || seconds < 0 || !/^https:\/\/www\.youtube\.com\//.test(sender.tab?.url || '')) return Promise.resolve({ ok: false });
+	return browser.scripting.executeScript({
+		target: { tabId }, world: 'MAIN',
+		func: (to: number) => { const player = document.getElementById('movie_player') as unknown as { seekTo?: (s: number, ahead: boolean) => void; playVideo?: () => void } | null; if (!player?.seekTo) return false; player.seekTo(to, true); player.playVideo?.(); return true; },
+		args: [seconds],
+	}).then(results => ({ ok: results[0]?.result === true })).catch(() => ({ ok: false }));
+});
+
 // Fast route for study mode: the YouTube tab already prefetched the transcript (or reads it from the panel).
 browser.runtime.onMessage.addListener((raw: unknown, sender) => {
 	const request = raw as { action?: string; sourceTabId?: number; url?: string };

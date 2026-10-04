@@ -39,12 +39,15 @@ const findOpener = (doc: Document): HTMLButtonElement | undefined => {
 // The description has to be open for its transcript button to exist. Open it for a moment, and close it again once
 // the transcript has been requested so the page layout returns to what the viewer had.
 const expander = (doc: Document) => doc.querySelector<HTMLElement>('ytd-watch-metadata ytd-text-inline-expander, #description ytd-text-inline-expander, ytd-text-inline-expander');
-let expandAttempts = 0, expandedByUs = false;
-export const resetOpenAttempts = () => { expandAttempts = 0; expandedByUs = false; };
+let expandAttempts = 0, lastExpandAt = 0, expandedByUs = false;
+export const resetOpenAttempts = () => { expandAttempts = 0; lastExpandAt = 0; expandedByUs = false; };
 function expandDescription(doc: Document): void {
-	const box = expander(doc); if (!box || box.hasAttribute('is-expanded') || expandAttempts >= 2) return;
+	// After a page refresh YouTube builds the description late, so one early try is not enough: try again every few
+	// seconds (a handful of times) instead of giving up after two quick attempts.
+	const now = Date.now();
+	const box = expander(doc); if (!box || box.hasAttribute('is-expanded') || expandAttempts >= 8 || now - lastExpandAt < 2500) return;
 	const more = box.querySelector<HTMLElement>('#expand'); if (!more) return;
-	expandAttempts++; expandedByUs = true; more.click();
+	expandAttempts++; lastExpandAt = now; expandedByUs = true; more.click();
 }
 function restoreDescription(doc: Document): void {
 	if (!expandedByUs) return; expandedByUs = false;

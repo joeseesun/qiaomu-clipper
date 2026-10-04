@@ -80,13 +80,17 @@ it('opens the transcript from the description in any interface language: expands
 	vi.useRealTimers();
 });
 
-it('never clicks a transcript button inside a panel that is not open, and gives up expanding after two tries', async () => {
+it('never clicks a transcript button inside a panel that is not open, and retries expanding every few seconds, a handful of times', async () => {
 	const { openTranscriptPanel, resetOpenAttempts } = await import('./youtube-dom-transcript');
-	resetOpenAttempts();
+	vi.useFakeTimers(); vi.setSystemTime(2000000); resetOpenAttempts();
 	document.body.innerHTML = '<ytd-engagement-panel-section-list-renderer visibility="ENGAGEMENT_PANEL_VISIBILITY_HIDDEN"><ytd-engagement-panel-title-header-renderer><button aria-label="转写文稿" id="ghost">转写文稿</button></ytd-engagement-panel-title-header-renderer></ytd-engagement-panel-section-list-renderer><ytd-text-inline-expander id="box"><button id="expand">more</button></ytd-text-inline-expander>';
 	const ghost = vi.fn(), expand = vi.fn(); document.getElementById('ghost')!.addEventListener('click', ghost); document.getElementById('expand')!.addEventListener('click', expand);
 	for (let i = 0; i < 5; i++) expect(openTranscriptPanel(document)).toBe(false);
-	expect(ghost).not.toHaveBeenCalled(); expect(expand).toHaveBeenCalledTimes(2);
+	expect(expand).toHaveBeenCalledTimes(1); // five quick tries are one real attempt
+	for (let i = 0; i < 20; i++) { vi.setSystemTime(Date.now() + 2600); openTranscriptPanel(document); }
+	expect(expand).toHaveBeenCalledTimes(8); // a page that is slow to build its description gets several chances, not unlimited ones
+	expect(ghost).not.toHaveBeenCalled();
+	vi.useRealTimers();
 });
 
 const modernLayout = `<ytd-engagement-panel-section-list-renderer target-id="PAmodern_transcript_view" visibility="ENGAGEMENT_PANEL_VISIBILITY_EXPANDED">
