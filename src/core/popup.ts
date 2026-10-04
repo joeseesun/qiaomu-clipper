@@ -1307,6 +1307,17 @@ async function syncQiaomuClip(clip: QiaomuClip): Promise<boolean> {
 	return Boolean(result?.accepted);
 }
 
+function nativeHelperRepairPrompt(extensionId: string): string {
+	return [
+		'请帮我修复「乔木剪藏」浏览器扩展的「本地保存助手未连接」问题。你需要能在我的电脑上运行终端命令。',
+		'1. 若本机还没有仓库，先克隆：git clone https://github.com/joeseesun/qiaomu-clipper ，然后进入仓库目录。',
+		'2. 运行 python3 native/install.py --check 诊断，再运行 python3 native/install.py 安装或修复（无需参数，会自动识别扩展和 Obsidian 库）。需要 Python 3.9 或更新版本。',
+		'3. 输出 JSON 里 "ok": true 才算成功；"ok": false 时按 error 和 hint 处理。如果列出了多个 Obsidian 库，请先问我用哪个，再加 --vault 绝对路径重新运行。',
+		`4. 如果找不到扩展，用 --extension-id ${extensionId} 手动指定（这是我当前扩展的 ID），不要自己编造 ID。`,
+		'5. 成功后再运行一次 python3 native/install.py --check 确认，并告诉我去 chrome://extensions 重新加载「乔木剪藏」，不需要重启浏览器。'
+	].join('\n');
+}
+
 async function initializeQiaomuRss(): Promise<void> {
 	const checkbox = document.getElementById('qiaomu-rss-enabled') as HTMLInputElement | null;
 	const retry = document.getElementById('qiaomu-rss-retry') as HTMLButtonElement | null;
@@ -1319,7 +1330,17 @@ async function initializeQiaomuRss(): Promise<void> {
 	if (nativeStatus?.ok) {
 		await browser.storage.local.set({ qiaomuNativeConfigured: true });
 		if (localStatus) localStatus.textContent = '';
-	} else if (nativeLocalSave && localStatus) localStatus.textContent = '本地保存助手未连接，请检查安装后重试';
+	} else if (nativeLocalSave && localStatus) {
+		localStatus.textContent = '本地保存助手未连接。复制修复指令，发给你的 AI 助手（Codex、Claude Code、WorkBuddy、豆包等）即可自动修复。';
+		const fix = document.getElementById('qiaomu-local-fix') as HTMLButtonElement | null;
+		if (fix) {
+			fix.hidden = false;
+			fix.addEventListener('click', async () => {
+				try { await navigator.clipboard.writeText(nativeHelperRepairPrompt(browser.runtime.id)); fix.textContent = '已复制，去发给 AI 助手'; }
+				catch { fix.textContent = '复制失败，请手动查看 native/README.md'; }
+			});
+		}
+	}
 	const localPendingKey = Object.keys(saved).find(key => key.startsWith('qiaomuLocalPending:'));
 	if (localPendingKey) {
 		pendingLocalSave = saved[localPendingKey] as LocalSavePayload;

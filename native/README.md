@@ -2,11 +2,29 @@
 
 Chrome 扩展通过 Native Messaging 按需调用助手，直接保存 Markdown 到指定 Obsidian 库，不使用 obsidian://、剪贴板或网络端口，也不唤起 Obsidian。
 
-安装（macOS / Linux Chrome）：
+安装（macOS / Linux，Chrome / Edge / Brave / Vivaldi / Chromium / Arc）：先在浏览器里装好扩展，然后无需任何参数：
 
 ```sh
-python3 native/install.py --vault /absolute/path/to/vault --extension-id YOUR_CHROME_EXTENSION_ID
+python3 native/install.py
 ```
+
+安装器会自动找到浏览器里的「乔木剪藏」扩展 ID（商店版与本地加载版都会识别，同时存在则都放行）和 Obsidian 库（读取 Obsidian 的库列表；有多个库时会列出并要求用 `--vault` 指定），为每个检测到的浏览器注册，最后用真实的 Native Messaging 协议自检，输出 JSON，`ok: true` 才算装好。需要 Python 3.9+。
+
+遇到「本地保存助手未连接」，先诊断（不改任何文件）：
+
+```sh
+python3 native/install.py --check
+```
+
+输出 `problems` 会指出原因：未注册、扩展 ID 不在允许列表（商店版与本地加载版 ID 不同）、库路径失效等。多数情况重新运行安装命令即可修复。
+
+### 让 AI agent 代装
+
+把下面这句话发给 Claude Code / Codex 等 agent（它需要在你的电脑上有终端权限）：
+
+> 帮我安装乔木剪藏的本地保存助手：克隆 https://github.com/joeseesun/qiaomu-clipper ，在仓库里运行 `python3 native/install.py`，不要手动编造扩展 ID 或库路径。输出 `ok: false` 时读 `error` 和 `hint` 处理；如果列出了多个库，问我用哪个；成功后运行 `python3 native/install.py --check` 确认，并告诉我去 chrome://extensions 重新加载扩展。
+
+agent 注意：不要猜扩展 ID（商店版与本地加载版不同，猜错就是「未连接」的头号原因）；浏览器没装扩展时先让用户装；安装后不需要重启浏览器，只需重新加载扩展。手动指定仍可用：`--vault /绝对路径 --extension-id 扩展ID`（`--extension-id` 可重复）。
 
 重新构建并在 Chrome 扩展管理页重新加载扩展。弹窗提供目标库与相对笔记位置选择，主按钮改为“剪藏”。一次点击保存本地笔记，并按原有勾选状态提交 RSS；两处结果分开显示。助手已配置但不可用时保留本地待保存内容和重试按钮，不自动跳转 Obsidian。
 
@@ -30,12 +48,8 @@ python3 native/install.py --vault /absolute/path/to/vault --extension-id YOUR_CH
 
 - **日记位置**：读取库里 `.obsidian/daily-notes.json` 的目录和日期格式，用电脑真实日期解析。只支持数字日期（如 `YYYY-MM-DD`、`YYYY/MM/DD`）且未配置模板；否则返回明确原因，不会猜路径。
 - **只追加**：不改动 frontmatter 和已有正文，日记里不留任何标记；同一条重试靠助手本地的回执（写入前日记的哈希与长度）判断是否已写入，不会重复，崩溃后同样凭回执恢复，跨午夜会要求重新确认目标。
-- **升级后要重装**：学习笔记需要新版助手，升级扩展后请重新运行安装命令（会覆盖 `~/.local/share/qiaomu-clipper/host.py`，库路径和扩展来源沿用你给的参数）。
+- **升级后要重装**：学习笔记需要新版助手，升级扩展后请重新运行 `python3 native/install.py`（会覆盖 `~/.local/share/qiaomu-clipper/host.py`，库路径和扩展来源沿用你给的参数）。
 
-找到自己的扩展 ID：打开 `chrome://extensions`，开启右上角「开发者模式」，复制「乔木剪藏」卡片上的 ID（32 个字母）。从应用商店安装与本地加载的 ID 不同，助手只接受安装时给出的那一个。
-
-```sh
-python3 native/install.py --vault /绝对路径/你的库 --extension-id 你的扩展ID
-```
+自动检测失败时手动找扩展 ID：打开 `chrome://extensions`，开启右上角「开发者模式」，复制「乔木剪藏」卡片上的 ID（32 个字母）。从应用商店安装与本地加载的 ID 不同，助手只接受安装时给出的 ID，两种都在用就都传。
 
 不想让助手碰你的日记时，在扩展设置里关闭「学习笔记」即可。

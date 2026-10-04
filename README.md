@@ -62,7 +62,17 @@ npm run build:chrome
 <details>
 <summary><b>想静默写入笔记库，或把学习笔记追加到今天日记？</b></summary>
 
-安装可选的 [本地助手](native/README.md)：需要 Python 3，支持 macOS / Linux 的 Chrome，Windows 暂不支持。普通剪藏默认通过 Obsidian URI 保存；助手可直接写入库内文件。
+安装可选的 [本地助手](native/README.md)：需要 Python 3.9+，支持 macOS / Linux 的 Chrome 系浏览器（Chrome / Edge / Brave / Arc 等），Windows 暂不支持。先装好扩展，再在仓库里运行（无需任何参数，自动识别扩展 ID 和 Obsidian 库）：
+
+```sh
+python3 native/install.py
+```
+
+输出 `"ok": true` 即安装成功，然后在 `chrome://extensions` 重新加载扩展。遇到「本地保存助手未连接」，运行 `python3 native/install.py --check` 诊断。
+
+**让 AI agent 代装**：把这句话发给 Claude Code / Codex：「帮我安装乔木剪藏的本地保存助手：克隆 https://github.com/joeseesun/qiaomu-clipper ，在仓库里运行 `python3 native/install.py`，不要手动编造扩展 ID 或库路径；`ok: false` 时按 `error` / `hint` 处理，有多个库时问我用哪个。」
+
+普通剪藏默认通过 Obsidian URI 保存；助手可直接写入库内文件。
 
 学习笔记的日记追加也由助手完成。升级扩展后，按助手文档重新运行一次 `native/install.py`；在 Obsidian 中启用「日记」核心插件。目前要求纯数字日期格式（如 `YYYY-MM-DD`），不支持日记模板。目标不满足条件时会显示原因并保留草稿。[日记设置与保存说明](docs/LEARNING-DIARY.md)。
 
@@ -288,7 +298,7 @@ npm run build:chrome
 
 Open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select `dist`. Open an article or video, then press `aaa` outside an input field. Rebuild and reload the extension after pulling updates.
 
-For AI chat or translation, configure your own model and API key in the extension's AI settings. Reading and copying captions do not require AI. To save silently or append learning notes to today's daily note, install the optional Python 3 [local helper](native/README.md) for macOS / Linux Chrome; re-run its installer after upgrading. Daily-note append requires Obsidian's Daily notes plugin with a numeric date format and no template.
+For AI chat or translation, configure your own model and API key in the extension's AI settings. Reading and copying captions do not require AI. To save silently or append learning notes to today's daily note, install the optional Python 3 [local helper](native/README.md) for macOS / Linux Chrome; run `python3 native/install.py` (no arguments; it detects the extension ID and vault) and re-run it after upgrading; `--check` diagnoses a "helper not connected" error, and an AI agent can run the same command for you. Daily-note append requires Obsidian's Daily notes plugin with a numeric date format and no template.
 
 ### What you can do
 
