@@ -8,7 +8,7 @@ export type PlayerMode = 'dock' | 'theater' | 'float';
 export type PlayerLayout = 'side' | 'stack' | 'theater' | 'float';
 export type FloatCorner = 'br' | 'bl' | 'tr' | 'tl';
 
-import { LAYOUT_EVENT } from './video-source';
+import { LAYOUT_EVENT } from './layout-event';
 export { LAYOUT_EVENT };
 const SIDE_ENTER = 1000, SIDE_LEAVE = 960; // hysteresis: a new scrollbar must not flip the layout back and forth
 const FLOAT_MIN = 240, FLOAT_MAX = 640, FLOAT_DEFAULT = 360;

@@ -1,5 +1,6 @@
 import { getMessage } from './i18n';
-import { bilibiliEmbedUrl, isBilibiliEmbed, LAYOUT_EVENT, PLAYER_SELECTOR, TRANSCRIPT_SELECTOR } from './video-source';
+import { bilibiliEmbedUrl, isBilibiliEmbed, PLAYER_SELECTOR, TRANSCRIPT_SELECTOR } from './video-source';
+import { LAYOUT_EVENT } from './layout-event';
 import { sourceTextNodes } from './transcript-format';
 import { mountTranscriptSearch } from './transcript-search';
 
