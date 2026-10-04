@@ -1557,6 +1557,14 @@
 	"qiaomuTranslate": {
 		"message": "翻译字幕"
 	},
+	"settingsBasics": { "message": "基础" },
+	"settingsReading": { "message": "阅读" },
+	"settingsAi": { "message": "AI 与翻译" },
+	"settingsContent": { "message": "内容" },
+	"qiaomuProvidersModels": { "message": "服务商与模型" },
+	"qiaomuNotConfigured": { "message": "未配置" },
+	"qiaomuProviderUnknown": { "message": "未知服务商" },
+	"qiaomuProviderCount": { "message": "服务商数量" },
 	"qiaomuCaptionTrackLanguage": {
 		"message": "来源语言来自字幕轨道"
 	},

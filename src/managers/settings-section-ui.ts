@@ -5,7 +5,7 @@ import { initializePropertyTypesManager } from './property-types-manager';
 
 export type SettingsSection = 'general' | 'properties' | 'highlighter' | 'interpreter' | 'reader' | 'templates';
 
-export function showSettingsSection(section: SettingsSection, templateId?: string): void {
+export function showSettingsSection(section: SettingsSection, templateId?: string, focus?: string): void {
 	const sections = document.querySelectorAll('.settings-section');
 	const sidebarItems = document.querySelectorAll('#sidebar li[data-section]');
 
@@ -13,16 +13,23 @@ export function showSettingsSection(section: SettingsSection, templateId?: strin
 	sidebarItems.forEach(item => item.classList.remove('active'));
 
 	const selectedSection = document.getElementById(`${section}-section`);
-	const selectedSidebarItem = document.querySelector(`#sidebar li[data-section="${section}"]`);
+	const sectionItems = Array.from(document.querySelectorAll<HTMLElement>(`#sidebar li[data-section="${section}"]`));
+	const selectedSidebarItem = sectionItems.find(item => focus ? item.dataset.focus === focus : !item.dataset.focus) || sectionItems[0];
 
 	if (selectedSection) {
 		selectedSection.classList.add('active');
 	}
 	if (selectedSidebarItem) {
 		selectedSidebarItem.classList.add('active');
+		document.querySelectorAll('#sidebar li[data-section]').forEach(item => item.removeAttribute('aria-current'));
+		selectedSidebarItem.setAttribute('aria-current', 'page');
 	}
 
-	updateUrl(section, templateId);
+	updateUrl(section, templateId, focus);
+	if (focus) {
+		const target = ['answer-subsection', 'translation-subsection', 'providers-subsection'].includes(focus) ? document.getElementById(focus) : null;
+		if (target) window.setTimeout(() => target.scrollIntoView({ block: 'start', behavior: 'smooth' }), 0);
+	}
 
 	if (section === 'properties') {
 		initializePropertyTypesManager();
@@ -72,19 +79,27 @@ export function initializeSidebar(): void {
 			const target = event.target as HTMLElement;
 			const li = target.closest('li[data-section]') as HTMLElement | null;
 			const section = li?.dataset.section;
+			const focus = li?.dataset.focus;
 			if (section === 'general'
 				|| section === 'properties'
 				|| section === 'highlighter'
 				|| section === 'interpreter'
 				|| section === 'reader') {
-				showSettingsSection(section as 'general' | 'properties' | 'highlighter' | 'interpreter' | 'reader');
+				showSettingsSection(section as 'general' | 'properties' | 'highlighter' | 'interpreter' | 'reader', undefined, focus);
 			}
+			if (li) { document.querySelectorAll('#sidebar li[data-section]').forEach(item => item.removeAttribute('aria-current')); li.setAttribute('aria-current', 'page'); }
 			if (settingsContainer) {
 				settingsContainer.classList.remove('sidebar-open');
 			}
 			if (hamburgerMenu) {
 				hamburgerMenu.classList.remove('is-active');
 			}
+		});
+		sidebar.addEventListener('keydown', event => {
+			if (event.key !== 'Enter' && event.key !== ' ') return;
+			const li = (event.target as HTMLElement).closest('li[data-section]') as HTMLElement | null;
+			if (!li) return;
+			event.preventDefault(); li.click();
 		});
 	}
 
@@ -105,9 +120,16 @@ export function initializeSidebar(): void {
 	}
 
 	if (hamburgerMenu && settingsContainer) {
+		const closeMenu = () => {
+			settingsContainer.classList.remove('sidebar-open'); hamburgerMenu.classList.remove('is-active'); hamburgerMenu.setAttribute('aria-expanded', 'false'); hamburgerMenu.focus();
+		};
+		hamburgerMenu.setAttribute('aria-expanded', 'false');
 		hamburgerMenu.addEventListener('click', () => {
 			settingsContainer.classList.toggle('sidebar-open');
 			hamburgerMenu.classList.toggle('is-active');
+			hamburgerMenu.setAttribute('aria-expanded', settingsContainer.classList.contains('sidebar-open') ? 'true' : 'false');
+			if (settingsContainer.classList.contains('sidebar-open')) (sidebar?.querySelector('li[data-section]') as HTMLElement | null)?.focus();
 		});
+		document.addEventListener('keydown', event => { if (event.key === 'Escape' && settingsContainer.classList.contains('sidebar-open')) closeMenu(); });
 	}
 }

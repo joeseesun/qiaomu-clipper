@@ -221,6 +221,7 @@ export async function initializeInterpreterSettings(): Promise<void> {
 
 		initializeInterpreterToggles();
 		initializeModelAssignments();
+		updateAiSettingsSummary();
 
 		const defaultPromptContextInput = document.getElementById('default-prompt-context') as HTMLTextAreaElement;
 		if (defaultPromptContextInput) {
@@ -426,6 +427,7 @@ function duplicateProvider(index: number) {
 	generalSettings.providers.push(duplicatedProvider);
 	saveSettings();
 	initializeProviderList();
+	updateAiSettingsSummary();
 
 	const newIndex = generalSettings.providers.length - 1;
 	showProviderModal(duplicatedProvider, newIndex);
@@ -444,6 +446,7 @@ function deleteProvider(index: number): void {
 		generalSettings.providers.splice(index, 1);
 		saveSettings();
 		initializeProviderList();
+		updateAiSettingsSummary();
 	}
 }
 
@@ -624,6 +627,7 @@ async function showProviderModal(provider: Provider, index?: number) {
 			await saveSettings();
 			debugLog('Providers', 'Settings saved');
 			initializeProviderList();
+			updateAiSettingsSummary();
 			hideModal(modal);
 		} catch (error) {
 			console.error('Failed to save settings:', error);
@@ -675,6 +679,33 @@ export function refreshModelAssignments(): void {
 		}
 		select.value = selected || '';
 	}
+	updateAiSettingsSummary();
+}
+
+export function updateAiSettingsSummary(): void {
+	const summary = document.getElementById('ai-settings-summary');
+	if (!summary) return;
+	const modelLabel = (id?: string): string => {
+		if (!id) return getMessage('qiaomuNotConfigured');
+		const model = generalSettings.models.find(item => item.id === id);
+		if (!model) return getMessage('qiaomuModelUnavailable');
+		const provider = generalSettings.providers.find(item => item.id === model.providerId);
+		return `${model.name} · ${provider?.name || getMessage('qiaomuProviderUnknown')}`;
+	};
+	summary.replaceChildren();
+	const entries: Array<[string, string, string]> = [
+		[getMessage('qiaomuAnswerModel'), modelLabel(generalSettings.interpreterModel), 'message-circle'],
+		[getMessage('qiaomuTranslationModel'), modelLabel(generalSettings.translationModel), 'languages'],
+		[getMessage('qiaomuProviderCount'), String(generalSettings.providers.length), 'plug-zap'],
+	];
+	for (const [label, value, icon] of entries) {
+		const item = document.createElement('div'); item.className = 'settings-summary-item';
+		const iconNode = document.createElement('i'); iconNode.setAttribute('data-lucide', icon); iconNode.setAttribute('aria-hidden', 'true');
+		const term = document.createElement('dt'); term.textContent = label;
+		const detail = document.createElement('dd'); detail.textContent = value;
+		item.append(iconNode, term, detail); summary.append(item);
+	}
+	initializeIcons(summary);
 }
 
 function initializeModelAssignments(): void {
@@ -1049,6 +1080,7 @@ async function showModelModal(model: ModelConfig, index?: number) {
 			try {
 				await saveSettings();
 				initializeModelList();
+				updateAiSettingsSummary();
 				hideModal(modal);
 			} catch (error) {
 				console.error('Failed to save model settings:', error);

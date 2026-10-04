@@ -19,7 +19,7 @@
 	flex-direction: column;
 	gap: 2px;
 
-	li {
+		li {
 		display: flex;
 		align-items: center;
 		gap: 6px;
@@ -27,7 +27,9 @@
 		padding: 0.25rem 0.425rem;
 		border-radius: var(--radius-s);
 		corner-shape: var(--corner-shape);
-		user-select: none;
+			user-select: none;
+			min-height: 40px;
+			outline: none;
 		-webkit-user-select: none;
 
 		svg {
@@ -51,12 +53,13 @@
 			}
 		}
 
-		&.active {
+			&.active {
 			background-color: var(--background-modifier-hover);
 			color: var(--text-normal);
 			svg {
 				color: var(--text-normal);
 			}
+			&:focus-visible { outline: 2px solid var(--color-accent-1); outline-offset: 2px; }
 		}
 	}
 }

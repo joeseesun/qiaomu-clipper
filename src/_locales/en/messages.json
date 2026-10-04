@@ -1557,6 +1557,14 @@
 	"qiaomuTranslate": {
 		"message": "Translate subtitles"
 	},
+	"settingsBasics": { "message": "Basics" },
+	"settingsReading": { "message": "Reading" },
+	"settingsAi": { "message": "AI & translation" },
+	"settingsContent": { "message": "Content" },
+	"qiaomuProvidersModels": { "message": "Providers & models" },
+	"qiaomuNotConfigured": { "message": "Not configured" },
+	"qiaomuProviderUnknown": { "message": "Unknown provider" },
+	"qiaomuProviderCount": { "message": "Providers" },
 	"qiaomuCaptionTrackLanguage": {
 		"message": "Source language from the caption track"
 	},

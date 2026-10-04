@@ -1,6 +1,6 @@
 import { enabledChatModels, streamChat } from './chat-llm';
 import { TRANSCRIPT_SELECTOR } from './video-source';
-import { loadSettings, saveSettings, generalSettings } from './storage-utils';
+import * as storageUtils from './storage-utils';
 import { getMessage } from './i18n';
 import { sourceParagraphs, withoutMusicCues, translationParagraphs, renderBilingualBlocks, sourceTextNodes } from './transcript-format';
 import { detectTranscriptLanguage, languageLabel, TRANSLATION_TARGET_KEY, translationLanguages, validTargetLanguage } from './translation-languages';
@@ -58,7 +58,11 @@ export function mountTranslation(article: HTMLElement, toolbar: HTMLElement, sta
 	const transcript = article.querySelector<HTMLElement>('.youtube.transcript, .bilibili.transcript');
 	const sourceLanguage = transcript?.dataset.sourceLanguage || detectTranscriptLanguage(texts.join(' '));
 	const savedTarget = (() => { try { return localStorage.getItem(TRANSLATION_TARGET_KEY); } catch { return null; } })();
-	target.value = validTargetLanguage(generalSettings.translationTargetLanguage || savedTarget);
+	const currentSettings = () => {
+		try { return (storageUtils as unknown as { generalSettings?: { translationTargetLanguage?: string; translationModel?: string; providers?: Array<{ id: string; name: string }> } }).generalSettings; }
+		catch { return undefined; }
+	};
+	target.value = validTargetLanguage(currentSettings()?.translationTargetLanguage || savedTarget);
 	const sourceLabel = doc.createElement('span'); sourceLabel.className = 'youtube-translation-source';
 	sourceLabel.textContent = `${languageLabel(sourceLanguage)}${transcript?.dataset.sourceLanguage ? '' : ' (?)'} →`;
 	sourceLabel.title = transcript?.dataset.sourceLanguage ? getMessage('qiaomuCaptionTrackLanguage') : getMessage('qiaomuCaptionLanguageUncertain');
@@ -66,7 +70,7 @@ export function mountTranslation(article: HTMLElement, toolbar: HTMLElement, sta
 	const input = doc.createElement('input'); input.type = 'checkbox'; input.setAttribute('role', 'switch'); input.setAttribute('aria-label', caption.textContent);
 	track.append(input); label.append(caption, track);
 	const retry = doc.createElement('button'); retry.type = 'button'; retry.className = 'youtube-translation-retry'; retry.textContent = getMessage('qiaomuTranslationRetry'); retry.hidden = true;
-	toolbar.append(label, sourceLabel, target); status.after(retry);
+	toolbar.append(sourceLabel, target, label); status.after(retry);
 	let controller: AbortController | undefined; let generation = 0;
 	const cache = new Map<number, string>();
 	const parts = batches.flat();
@@ -128,11 +132,12 @@ export function mountTranslation(article: HTMLElement, toolbar: HTMLElement, sta
 		const progress = () => { status.textContent = `${getMessage('qiaomuTranslationProgress')} ${cache.size}/${parts.length}`; };
 		progress();
 		try {
-			await loadSettings(); const models = enabledChatModels();
+			await storageUtils.loadSettings(); const models = enabledChatModels();
 			if (current !== generation) return;
-			const model = generalSettings.translationModel ? models.find(item => item.id === generalSettings.translationModel) : undefined;
+			const settings = currentSettings();
+			const model = settings?.translationModel ? models.find(item => item.id === settings.translationModel) : undefined;
 			if (!model) throw new Error(getMessage('qiaomuTranslationNoModel'));
-			const provider = generalSettings.providers?.find(item => item.id === model.providerId)?.name || model.name;
+			const provider = settings?.providers?.find(item => item.id === model.providerId)?.name || model.name;
 			const destination = target.value;
 			status.textContent = `${provider} · ${languageLabel(destination)} · ${cache.size}/${parts.length}`;
 			for (const batch of batches) {
@@ -162,7 +167,7 @@ export function mountTranslation(article: HTMLElement, toolbar: HTMLElement, sta
 	};
 	target.onchange = () => {
 		try { localStorage.setItem(TRANSLATION_TARGET_KEY, target.value); } catch { /* storage unavailable */ }
-		void Promise.resolve(saveSettings({ translationTargetLanguage: target.value })).catch(() => {});
+		void Promise.resolve(storageUtils.saveSettings?.({ translationTargetLanguage: target.value })).catch(() => {});
 		++generation; controller?.abort(); input.checked = false; render(); cache.clear();
 		input.checked = true; label.classList.add('is-enabled'); void translate();
 	};
