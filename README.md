@@ -72,9 +72,18 @@ npm run build:chrome
 
 ## 功能巡游
 
+以下暖色配图是 **AI 生成的功能概念插画**，用于说明工作流；可展开查看界面截图。视频配图中的“书”是阅读体验的比喻。完整素材与提示词见[功能插画图集](docs/FEATURE-ILLUSTRATIONS.md)。
+
 ### 视频学习：播放器与文稿一起用
 
+![视频阅读：把视频变成一本书](docs/assets/features/video-reading.jpg)
+
+<details>
+<summary>查看视频学习截图</summary>
+
 ![视频学习：双语字幕、搜索、可调视频尺寸和位置切换](docs/assets/screens/video-study.png)
+
+</details>
 
 在 **YouTube / B 站视频页按 `aaa`**，先进入学习页并显示播放器，再异步加载字幕。字幕还没准备好时也不用卡在剪藏面板；失败可在原地重试，播放器保留。
 
@@ -86,6 +95,12 @@ npm run build:chrome
 
 B 站使用官方嵌入播放器：点击时间戳会按该秒重新加载，高亮只跟随点击行；字幕通常需要登录 B 站。字幕是否可用也取决于视频、站点加载和网络条件。[视频工作区说明](docs/STUDY-WORKSPACE.md)。
 
+### 双语字幕：英文视频，中文对照
+
+![双语字幕：原文与中文译文保留相同时间戳](docs/assets/features/bilingual-transcripts.jpg)
+
+原文与中文译文对照阅读，保留原始时间戳；读到某一句时，可以点击时间戳回看对应片段。翻译使用你配置的 AI 模型，字幕是否可用取决于视频与平台。
+
 ### YouTube 原页：不打开面板，也能找到字幕入口
 
 <img src="docs/assets/screens/youtube-transcript-bar.png" alt="YouTube 转写条组件：字幕、复制、下载、沉浸学习、设置与字幕搜索" width="650">
@@ -94,7 +109,14 @@ B 站使用官方嵌入播放器：点击时间戳会按该秒重新加载，高
 
 ### 学习笔记：把自己的理解留下来
 
+![学习笔记：边看边记，留下收获](docs/assets/features/learning-notes.jpg)
+
+<details>
+<summary>查看学习笔记截图</summary>
+
 ![学习笔记：视频旁打开小卡片，记录我的理解并显示目标日记与时间点](docs/assets/screens/learning-note.png)
+
+</details>
 
 不用切走视频，也不用先建一篇新笔记。按 **`N`** 或点顶栏笔记图标，右下角出现小卡片，把空间留给「我的理解」。
 
@@ -107,11 +129,23 @@ B 站使用官方嵌入播放器：点击时间戳会按该秒重新加载，高
 
 ### AI 对话：理解本文，也按你的习惯回答
 
+![文章 AI 对话：没读懂，直接问 AI](docs/assets/features/ai-chat.jpg)
+
+<details>
+<summary>查看 AI 对话截图</summary>
+
 ![文章阅读与 AI 对话：选中一段文字后直接围绕它提问](docs/assets/screens/reader-chat.png)
+
+</details>
 
 点顶栏魔法棒，展开右侧对话面板；全文或选中段落作为上下文，回答流式显示并支持 Markdown。中间分隔线可拖动；对话历史按文章保存，下次打开可继续聊。回答可复制、加入笔记或通过学习卡片加入日记。
 
+<details>
+<summary>查看 AI 对话设置截图</summary>
+
 ![AI 对话设置：字体、字号、全局指令与快捷提示词](docs/assets/screens/ai-settings.png)
+
+</details>
 
 标题栏的 **设置按钮**支持：
 
@@ -124,23 +158,58 @@ B 站使用官方嵌入播放器：点击时间戳会按该秒重新加载，高
 
 ### 阅读与编辑：读得舒服，改得方便
 
+![阅读与划线：读得舒服，记住重点](docs/assets/features/reader-highlights.jpg)
+
+<details>
+<summary>查看阅读页截图</summary>
+
 ![阅读页：干净正文、中文字体、高亮与来源](docs/assets/screens/reader.png)
+
+</details>
 
 在顶栏 **Aa** 调整字体、字号、行距与配色；内置朱雀仿宋、宋体、楷体、苹方等中文字体，也可选本机字体。正文支持划线与 `==高亮==`，顶栏显示划线数量。
 
 **阅读目录与编辑侧栏都能收起 / 展开，并记住状态**，长文章保留导航，需要空间时让正文铺开。阅读与编辑一键切换，共用顶栏与草稿流程，修改后内容同步。
 
+![Markdown 编辑：先改好，再保存](docs/assets/features/markdown-editor.jpg)
+
+<details>
+<summary>查看编辑页截图</summary>
+
 ![整页编辑器：左侧属性，右侧 Markdown 正文](docs/assets/screens/editor.png)
+
+</details>
 
 标题、标签、来源等属性与 Markdown 正文并排编辑，完成后直接复制、下载或剪藏。滚动时顶栏可收起，向上滚动或移到顶部再次出现。
 
 ### 弹窗：保存之前，少做几次选择
 
+![网页保存：喜欢这篇，一键收藏](docs/assets/features/clip-to-obsidian.jpg)
+
+<details>
+<summary>查看弹窗截图</summary>
+
 <img src="docs/assets/screens/popup.png" alt="剪藏弹窗：阅读、复制、下载、编辑与一键剪藏" width="520">
+
+</details>
 
 常用动作放在前面：**阅读 / 复制 / 下载 / 编辑**；模板、保存位置与 RSS 分享按需展开。模板需要 AI 时显示处理状态，失败给出原因并允许重试；默认模板与自动匹配规则减少重复选择。
 
+### 模板与 AI 解读：照着模板，自动整理
+
+![模板与 AI 解读：照着模板，自动整理](docs/assets/features/ai-templates.jpg)
+
+用模板统一属性与 Markdown 正文，按网址或页面数据自动匹配；需要摘要时加入 AI 提示变量，由你配置的模型按需生成。模板、模型和 API Key 均可自行设置，默认不自动运行 AI。
+
+### RSS 分享：好文章，一起读
+
+![RSS 分享：好文章，一起读](docs/assets/features/rss-sharing.jpg)
+
+剪藏时勾选「分享到乔木 RSS」，在保存到 Obsidian 的同时提交到[公开读者提交源](https://rss.qiaomu.ai/feeds/user-submitted.xml)，方便其他人订阅。**此选项默认勾选，投稿内容会公开；私人内容请取消勾选。** 本地保存和公开投稿分别显示结果，阅读、编辑与学习笔记的日记保存不会触发投稿。
+
 ## 三连击快捷键
+
+![三连击快捷键：AAA 阅读、EEE 编辑、QQQ 剪藏](docs/assets/features/triple-key.jpg)
 
 在非输入框内快速连按同一个键 3 次（相邻按键间隔不超过约 0.6 秒）：
 
@@ -177,7 +246,7 @@ npm run build:chrome          # 构建 dist/
 - `integration/qmreader/`：RSS 接口参考实现与测试，不随扩展 ZIP 打包。
 - [Chrome 应用商店发布准备](docs/CHROME-WEB-STORE.md)：权限、材料、包与验收说明。
 
-截图基于生产界面样式或组件渲染，示例文章与字幕用于展示交互。[截图来源与验收边界](docs/README-SCREENSHOTS.md)。
+暖色功能插画由 AI 生成，不是界面截图；完整素材与提示词见[功能插画图集](docs/FEATURE-ILLUSTRATIONS.md)。界面截图基于生产界面样式或组件渲染，示例文章与字幕用于展示交互。[截图来源与验收边界](docs/README-SCREENSHOTS.md)。
 
 ## 来源与许可证
 
@@ -219,6 +288,8 @@ Open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and
 For AI chat or translation, configure your own model and API key in the extension's AI settings. Reading and copying captions do not require AI. To save silently or append learning notes to today's daily note, install the optional Python 3 [local helper](native/README.md) for macOS / Linux Chrome; re-run its installer after upgrading. Daily-note append requires Obsidian's Daily notes plugin with a numeric date format and no template.
 
 ### What you can do
+
+The Chinese feature tour includes ten matching AI-generated concept illustrations for clipping, reading and highlights, editing, AI chat, video study, bilingual captions, learning notes, shortcuts, templates and RSS sharing. They illustrate workflows, not literal interfaces. Rendered interface screenshots remain in expandable panels; see the [illustration gallery and prompts](docs/FEATURE-ILLUSTRATIONS.md).
 
 | Problem | Feature |
 |---|---|
