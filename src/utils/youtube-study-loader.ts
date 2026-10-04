@@ -7,6 +7,7 @@ import { bilibiliVideo, videoKey } from './video-source';
 import { youtubeVideoId } from './youtube-url';
 import { TRANSCRIPT_SELECTOR } from './video-source';
 import { setPageTitle, setPageUrl } from './highlighter';
+import { withReliableBilibili } from './bilibili-captions';
 
 export async function withTranscriptDeadline<T>(extract: (signal: AbortSignal) => Promise<T>, timeoutMs = 35000): Promise<T> {
 	const controller = new AbortController();
@@ -110,7 +111,7 @@ export async function startYouTubeStudy(url: string, sourceTabId: number, initia
 				if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
 				const doc = new DOMParser().parseFromString(html, 'text/html');
 				Object.defineProperty(doc, 'URL', { value: url, configurable: true });
-				return await new Defuddle(doc, { url, fetch: proxyFetch }).parseAsync();
+				return await new Defuddle(doc, { url, fetch: withReliableBilibili(proxyFetch) }).parseAsync();
 				};
 				if (youtubeVideoId(url)) {
 					const fast = await fromPrefetch().catch(() => undefined);

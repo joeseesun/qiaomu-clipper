@@ -52,3 +52,27 @@ export async function fetchBilibiliCaptions(bvid: string, page: number, getJson:
 	}
 	return { segments, needLogin: false, language: track.lan };
 }
+
+// Bilibili's older player endpoint, when asked by bvid, answers a part that has no subtitles with a subtitle that belongs
+// to some other video (seen on part 20 of BV1hM4m1U7rA: a travel vlog's lines under a lecture). Defuddle tries it after
+// the reliable endpoints come back empty and takes whatever it gets, so the reader, a clip and study mode would all show
+// another video's text. Once a reliable endpoint has answered for a part, that answer stands: the older endpoint is then
+// answered with "no subtitles" for the same part. When the reliable ones fail, it stays available as a fallback.
+type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+const playerRequest = (raw: string): { path: string; bvid: boolean; cid: string } | undefined => {
+	try { const url = new URL(raw); return url.hostname === 'api.bilibili.com' && /^\/x\/player\/(wbi\/)?v2$/.test(url.pathname) ? { path: url.pathname, bvid: url.searchParams.has('bvid'), cid: url.searchParams.get('cid') || '' } : undefined; } catch { return undefined; }
+};
+export const isUnreliablePlayerUrl = (raw: string): boolean => { const request = playerRequest(raw); return Boolean(request && request.path === '/x/player/v2' && request.bvid); };
+export function withReliableBilibili(base: FetchLike = (input, init) => fetch(input, init)): FetchLike {
+	const answered = new Set<string>(); // parts for which a reliable endpoint replied successfully
+	return async (input, init) => {
+		const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+		const request = playerRequest(url);
+		if (request && isUnreliablePlayerUrl(url) && request.cid && answered.has(request.cid)) return new Response(JSON.stringify({ code: 0, data: { subtitle: { subtitles: [] } } }), { status: 200 });
+		const response = await base(input, init);
+		if (request && !isUnreliablePlayerUrl(url) && request.cid && response.ok) {
+			try { if ((await response.clone().json())?.code === 0) answered.add(request.cid); } catch { /* not JSON: nothing is vouched for */ }
+		}
+		return response;
+	};
+}
