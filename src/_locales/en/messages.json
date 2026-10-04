@@ -1222,7 +1222,7 @@
 		"message": "Triple-press shortcuts"
 	},
 	"tripleKeyDescription": {
-		"message": "Press a letter three times quickly on a web page to open reading mode, open the editor, or clip with the default template. Ignored while typing in text fields."
+		"message": "Press a letter three times quickly on a web page to open reading mode, open the editor, clip with the default template, or open the quick-note card. Ignored while typing in text fields."
 	},
 	"qiaomuActionPreview": {
 		"message": "Preview"

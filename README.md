@@ -18,7 +18,7 @@ Read, watch, ask AI, and turn what you learn into Obsidian notes.
 
 </div>
 
-> **当前为 Chrome 开发版，尚未上架应用商店。** 本页介绍当前 `main` 的功能；完整体验请按下方步骤从源码安装。[1.10.0 预览包](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.10.0) 较旧，不包含这里全部新增功能。截图采用实际界面组件与示例数据，视频区域展示封面预览；[截图说明](docs/README-SCREENSHOTS.md)。
+> **当前为 Chrome 开发版，尚未上架应用商店。** 本页介绍当前 `main` 的功能；完整体验请按下方步骤从源码安装。不想装 Node.js？可直接下载 [1.10.1 预览包](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.10.1)（与当前 `main` 一致）；更早的版本（如 1.10.0）没有视频字幕工具栏。截图采用实际界面组件与示例数据，视频区域展示封面预览；[截图说明](docs/README-SCREENSHOTS.md)。
 
 ## 它解决什么问题
 
@@ -53,9 +53,9 @@ npm run build:chrome
 **先试一条完整流程：** 打开视频 → `aaa` → 点时间戳回看 → 按 `N` 写理解。只想读文章和复制字幕，无需配置 AI；写入日记需先装下方助手。
 
 <details>
-<summary><b>不想安装 Node.js？也可以先试较旧的 1.10.0 预览包</b></summary>
+<summary><b>不想安装 Node.js？直接下载 1.10.1 预览包</b></summary>
 
-下载 [Chrome ZIP](https://github.com/joeseesun/qiaomu-clipper/releases/download/1.10.0/qiaomu-clipper-1.10.0-chrome.zip)，解压后在 `chrome://extensions` 中加载解压目录。[发布说明](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.10.0)。它不包含当前 `main` 的全部视频学习、日记和 AI 设置更新，体验本页新功能请使用源码构建。
+下载 [Chrome ZIP](https://github.com/joeseesun/qiaomu-clipper/releases/download/1.10.1/qiaomu-clipper-1.10.1-chrome.zip)，解压后在 `chrome://extensions` 开启「开发者模式」，点「加载已解压的扩展程序」选择解压目录。[发布说明](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.10.1)。**装好后请刷新已打开的 YouTube 页面**，字幕工具栏才会出现；请勿使用 1.10.0 及更早版本，它们没有视频字幕工具栏。
 
 </details>
 
@@ -220,7 +220,7 @@ B 站使用官方嵌入播放器：点击时间戳会按该秒重新加载，高
 
 ## 三连击快捷键
 
-![三连击快捷键：AAA 阅读、EEE 编辑、QQQ 剪藏](docs/assets/features/triple-key.jpg)
+![三连击快捷键：AAA 阅读、EEE 编辑、QQQ 剪藏、III 记笔记](docs/assets/features/triple-key.jpg)
 
 在非输入框内快速连按同一个键 3 次（相邻按键间隔不超过约 0.6 秒）：
 
@@ -283,7 +283,7 @@ Qiaomu Clipper combines web clipping, a clean reader, a full-page Markdown edito
 
 **[Install current features](#quick-start)** · [Screenshots](#功能巡游) · [Report an issue](https://github.com/joeseesun/qiaomu-clipper/issues)
 
-> Chrome development build; not yet on the Chrome Web Store. This README describes current `main`. The downloadable [1.10.0 preview](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.10.0) is older and does not contain all features shown here. Screenshots use production components with sample articles, captions, AI responses and daily-note targets; the video area is a cover preview. See [screenshot provenance](docs/README-SCREENSHOTS.md).
+> Chrome development build; not yet on the Chrome Web Store. This README describes current `main`. The downloadable [1.10.1 preview](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.10.1) matches current `main` (no Node.js needed; refresh open YouTube tabs after installing). Earlier releases such as 1.10.0 lack the video transcript bar. Screenshots use production components with sample articles, captions, AI responses and daily-note targets; the video area is a cover preview. See [screenshot provenance](docs/README-SCREENSHOTS.md).
 
 ### Quick start
 
@@ -311,7 +311,7 @@ The Chinese feature tour includes ten matching AI-generated concept illustration
 | Lose your own thoughts while watching | Press `N` to write in a small card, with source and video time; append to today's daily note using the helper |
 | Re-type the same AI instructions | Global custom instructions, editable article / selection quick prompts, font choice and 12–28 px chat size |
 | Need a better place to read and edit | Shared top bar, collapsible navigation, Chinese fonts, highlights, side-by-side properties and Markdown |
-| Too many steps to clip | Configurable triple-press shortcuts: `aaa` read / study, `eee` edit, `qqq` clip; site exclusions and typing guards |
+| Too many steps to clip | Configurable triple-press shortcuts: `aaa` read / study, `eee` edit, `qqq` clip, `iii` quick-note card on any page; site exclusions and typing guards |
 
 Video loads before captions; caption failure can be retried without rebuilding the player. YouTube supports playback-following highlights. Bilibili uses its official embed: timestamp seeking reloads the player and captions highlight the clicked row rather than following playback; captions may require login. Actual availability depends on the video, site and network.
 
