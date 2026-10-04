@@ -7,9 +7,11 @@ const model = (providerId: string) => ({ id: 'm', providerId, providerModelId: '
 afterEach(() => vi.unstubAllGlobals());
 
 it('normalizes OpenAI-compatible gateway endpoints without duplicating complete paths', () => {
-	expect(normalizeOpenAIChatEndpoint('https://magpie.example')).toBe('https://magpie.example/chat/completions');
+	expect(normalizeOpenAIChatEndpoint('https://magpie.example')).toBe('https://magpie.example/v1/chat/completions');
 	expect(normalizeOpenAIChatEndpoint('https://magpie.example/v1')).toBe('https://magpie.example/v1/chat/completions');
 	expect(normalizeOpenAIChatEndpoint('https://magpie.example/v1/chat/completions')).toBe('https://magpie.example/v1/chat/completions');
+	expect(normalizeOpenAIChatEndpoint('https://magpie.example/v1/responses')).toBe('https://magpie.example/v1/responses');
+	expect(normalizeOpenAIChatEndpoint('https://magpie.example/v1/messages')).toBe('https://magpie.example/v1/messages');
 });
 
 it('streams OpenAI-style deltas, even when a line is split between chunks', async () => {

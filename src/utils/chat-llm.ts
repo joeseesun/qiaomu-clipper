@@ -16,7 +16,13 @@ type Kind = 'anthropic' | 'gemini' | 'ollama' | 'openai';
 
 export function normalizeOpenAIChatEndpoint(raw: string): string {
 	const url = new URL(raw.trim());
-	url.pathname = `${openAICompatibleBasePath(url.pathname)}/chat/completions`;
+	const pathname = url.pathname.replace(/\/+$/, '');
+	if (/\/(?:chat\/completions|responses|messages|completions)$/.test(pathname)) {
+		url.pathname = pathname;
+		return url.href;
+	}
+	const base = pathname && pathname !== '/' ? pathname : '/v1';
+	url.pathname = `${base}/chat/completions`;
 	return url.href;
 }
 
