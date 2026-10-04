@@ -1413,6 +1413,12 @@
 	"youtubePanelCardNone": {
 		"message": "沒有讀到字幕。可以試試在 YouTube 裡展開「轉寫文稿」。"
 	},
+	"bilibiliBarNone": {
+		"message": "這部影片沒有字幕"
+	},
+	"bilibiliBarLogin": {
+		"message": "B 站只提供字幕給已登入的帳號，請登入後點「重試」"
+	},
 	"youtubePanelActionsTitle": {
 		"message": "YouTube 轉寫文稿按鈕"
 	},

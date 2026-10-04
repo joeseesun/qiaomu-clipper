@@ -60,6 +60,15 @@
 		},
 		{
 			"matches": [
+				"https://www.bilibili.com/video/*"
+			],
+			"js": [
+				"bilibili-panel.js"
+			],
+			"run_at": "document_idle"
+		},
+		{
+			"matches": [
 				"http://*/*",
 				"https://*/*"
 			],

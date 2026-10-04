@@ -1425,6 +1425,12 @@
 	"youtubePanelCardNone": {
 		"message": "没有读到字幕。可以试试在 YouTube 里展开“转写文稿”。"
 	},
+	"bilibiliBarNone": {
+		"message": "这个视频没有字幕"
+	},
+	"bilibiliBarLogin": {
+		"message": "B 站只给已登录的账号提供字幕，请登录后点“重试”"
+	},
 	"youtubePanelActionsTitle": {
 		"message": "YouTube 转写文稿按钮"
 	},

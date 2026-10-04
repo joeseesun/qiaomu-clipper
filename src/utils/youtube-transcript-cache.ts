@@ -15,7 +15,7 @@ export function createTranscriptCache(storage: CacheStorage) {
 			try { const value = (await storage.get(prefix + videoId))[prefix + videoId]; return valid(value?.segments) ? value.segments : undefined; } catch { return undefined; }
 		},
 		async write(videoId: string, segments: PanelSegment[]): Promise<void> {
-			if (!/^[\w-]{11}$/.test(videoId) || !valid(segments) || JSON.stringify(segments).length > MAX_BYTES) return;
+			if (!/^[\w-]{11}$|^bilibili:BV[0-9A-Za-z]{10}:\d{1,4}$/.test(videoId) || !valid(segments) || JSON.stringify(segments).length > MAX_BYTES) return;
 			try {
 				const index: Array<{ id: string; at: number }> = ((await storage.get(INDEX))[INDEX] as Array<{ id: string; at: number }> | undefined) || [];
 				const next = [{ id: videoId, at: Date.now() }, ...index.filter(entry => entry.id !== videoId)];

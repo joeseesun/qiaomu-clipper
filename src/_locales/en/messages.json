@@ -1425,6 +1425,12 @@
 	"youtubePanelCardNone": {
 		"message": "No transcript found. Try opening “Transcript” on YouTube."
 	},
+	"bilibiliBarNone": {
+		"message": "This video has no subtitles"
+	},
+	"bilibiliBarLogin": {
+		"message": "Bilibili only provides subtitles to signed-in accounts. Sign in, then press Retry"
+	},
 	"youtubePanelActionsTitle": {
 		"message": "YouTube transcript buttons"
 	},
