@@ -21,7 +21,7 @@
 | declarativeNetRequest | 上游阅读器的 YouTube 嵌入 Referer 规则 |
 | 网页 host permissions | 网页提取、阅读模式请求、RSS 和用户配置的 AI 服务 |
 
-Chrome Manifest 已去掉不是权限项的 commands（快捷键声明保留）和重复的 <all_urls>。HTTP/HTTPS 访问仍用于任意网页剪藏、每站三连击快捷键和用户配置的 AI 端点，逐项说明见提交资料。商店隐私申报必须说明网页内容、本地存储、匿名设备编号、默认勾选的公开 RSS 投稿、可选 AI 服务的数据处理。不能宣称所有数据始终留在本机。
+Chrome Manifest 已去掉不是权限项的 commands（快捷键声明保留）和重复的 <all_urls>。HTTP/HTTPS 访问仍用于任意网页剪藏、每站三连击快捷键和用户配置的 AI 端点，逐项说明见提交资料。商店隐私申报必须说明网页内容、本地存储、匿名设备编号、默认关闭、可由用户开启的公开 RSS 投稿、可选 AI 服务的数据处理。不能宣称所有数据始终留在本机。
 
 ## 验收与审核说明
 

@@ -42,6 +42,7 @@ module.exports = (env, argv) => {
 			'content-loader': './src/content-loader.ts',
 			'triple-key': './src/triple-key-content.ts',
 			'youtube-panel': './src/youtube-panel-content.ts',
+			'note-card': ['./src/note-card-content.ts', './src/note-card.scss'],
 			popup: './src/core/popup.ts',
 			settings: './src/core/settings.ts',
 			highlights: './src/core/highlights.ts',

@@ -29,14 +29,14 @@ it('uses the defaults when nothing is configured', () => {
 
 it('keeps valid custom keys, lowercases them, and turns empty ones off', () => {
 	const keys = normalizeTripleKeys({ read: 'R', edit: '', clip: '7' });
-	expect(keys).toEqual({ read: 'r', edit: '', clip: '7' });
+	expect(keys).toEqual({ read: 'r', edit: '', clip: '7', note: 'i' });
 	expect(commandForKey(keys, 'r')).toBe('read');
 	expect(commandForKey(keys, '7')).toBe('clip');
 	expect(commandForKey(keys, 'e')).toBeUndefined();
 });
 
 it('drops invalid and duplicate keys instead of letting two actions share one', () => {
-	expect(normalizeTripleKeys({ read: 'x', edit: 'x', clip: 'ab' })).toEqual({ read: 'x', edit: '', clip: '' });
+	expect(normalizeTripleKeys({ read: 'x', edit: 'x', clip: 'ab' })).toEqual({ read: 'x', edit: '', clip: '', note: 'i' });
 });
 
 it('listens to a key list that changes at runtime', () => {

@@ -1330,7 +1330,7 @@ async function initializeQiaomuRss(): Promise<void> {
 	const pendingKey = Object.keys(saved).find(key => key.startsWith('qiaomuPending:'));
 	const pending = pendingKey ? saved[pendingKey] as QiaomuClip : null;
 	if (checkbox) {
-		checkbox.checked = saved.qiaomuRssEnabled !== false;
+		checkbox.checked = saved.qiaomuRssEnabled === true;
 		checkbox.addEventListener('change', () => { void browser.storage.local.set({ qiaomuRssEnabled: checkbox.checked }); });
 	}
 	if (pending) {

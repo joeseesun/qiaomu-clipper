@@ -1,0 +1,112 @@
+--- a/lib/sources.js	2026-10-04 14:32:14
++++ b/lib/sources.js	2026-10-04 14:30:10
+@@ -142,7 +142,7 @@
+   { id: 'github_trending', name: 'GitHub Trending', category: 'news', siteUrl: 'https://github.com/trending', enabled: true, limit: 15,
+     feeds: ['https://mshibanami.github.io/GitHubTrendingRSS/daily/all.xml', '{rsshub}/github/trending/daily/any'] },
+   // Clippings belong to the existing reader submission source.
+-  { id: 'user-submitted', name: '读者提交', category: 'news', siteUrl: 'https://rss.qiaomu.ai', enabled: true, limit: 50,
++  { id: 'user-submitted', name: '读者提交', category: 'community', separate: true, siteUrl: 'https://rss.qiaomu.ai', enabled: true, limit: 50,
+     manual: true, feeds: [], description: '用户提交的优质链接，按站内反馈挖掘价值' },
+   { id: 'bestblogs', name: 'BestBlogs.dev', category: 'news', siteUrl: 'https://www.bestblogs.dev/articles', enabled: true, limit: 10,
+     feeds: ['https://www.bestblogs.dev/feeds/rss', 'https://api.bestblogs.dev/feeds/rss'], description: '中文技术博客聚合精选' },
+--- a/lib/fetcher.js	2026-10-04 14:32:19
++++ b/lib/fetcher.js	2026-10-04 14:30:10
+@@ -3036,6 +3036,8 @@
+     .filter(source => !allowedOptInSourceIds || !source.optIn || source.id === sourceId || allowedOptInSourceIds.has(source.id))
+     .filter(source => !sourceId || source.id === sourceId)
+     .filter(source => !category || source.category === category)
++    // A separate channel (reader submissions) stays out of the combined list; it is read by asking for it.
++    .filter(source => !source.separate || source.id === sourceId || source.category === category)
+     .map(source => source.id);
+   if (requireRewrite && !q) {
+     return withTranslations(
+@@ -3050,6 +3052,7 @@
+   let all = [];
+   for (const src of SOURCES) {
+     if (allowedOptInSourceIds && src.optIn && src.id !== sourceId && !allowedOptInSourceIds.has(src.id)) continue;
++    if (src.separate && src.id !== sourceId && src.category !== category) continue;
+     if (src.manual) {
+       if (!isEnabled(src)) continue;
+       if (sourceId && src.id !== sourceId) continue;
+--- a/lib/qiaomu-clipper.js	2026-10-04 14:32:25
++++ b/lib/qiaomu-clipper.js	2026-10-04 14:30:10
+@@ -1297,12 +1297,26 @@
+   const w2 = Number(width || /(?:[,/])w_(\d+)/.exec(src)?.[1]);
+   const h = Number(height || /(?:[,/])h_(\d+)/.exec(src)?.[1]);
+   return w2 > 0 && w2 < 100 || h > 0 && h < 100;
++}
++var BILIBILI_EMBED = /<iframe\b[^>]*?\bsrc=(["'])([^"']*player\.bilibili\.com\/player\.html[^"']*)\1[^<>]*>?\s*(?:<\/iframe>?)?/gi;
++function bilibiliEmbedsToLinks(markdown) {
++  return markdown.replace(BILIBILI_EMBED, (whole, _quote, src) => {
++    try {
++      const params = new URL(src.replace(/&amp;/g, "&"), "https://player.bilibili.com/").searchParams;
++      const bvid = params.get("bvid") || "";
++      if (!/^BV[0-9A-Za-z]{10}$/.test(bvid)) return whole;
++      const page = parseInt(params.get("p") || params.get("page") || "1", 10);
++      return `[\u25B6 \u5728 B \u7AD9\u89C2\u770B](https://www.bilibili.com/video/${bvid}/${page > 1 ? `?p=${page}` : ""})`;
++    } catch {
++      return whole;
++    }
++  });
+ }
+ function prepareClip(body = {}, user = {}, previous = null) {
+   const url = new URL(String(body.url || ""));
+   if (!["https:", "http:"].includes(url.protocol) || url.username || url.password || url.hostname === "localhost" || /^127\.|^10\.|^192\.168\.|^169\.254\.|^172\.(1[6-9]|2\d|3[01])\./.test(url.hostname) || url.hostname.includes(":")) throw Object.assign(new Error("\u8BF7\u526A\u85CF\u516C\u5F00\u7F51\u9875\u94FE\u63A5"), { statusCode: 400 });
+   url.hash = "";
+-  const markdown = String(body.markdown || "").trim();
++  const markdown = bilibiliEmbedsToLinks(String(body.markdown || "").trim());
+   const title = String(body.title || "").trim().slice(0, 300);
+   if (!title || !markdown || markdown.length > 5e5) throw Object.assign(new Error("\u526A\u85CF\u6807\u9898\u6216\u6B63\u6587\u65E0\u6548\uFF08\u6B63\u6587\u6700\u591A 50 \u4E07\u5B57\u7B26\uFF09"), { statusCode: 400 });
+   const $2 = cheerio.load(marked.parse(escape(markdown), { async: false }), null, false);
+--- a/public/app.js	2026-10-04 14:32:32
++++ b/public/app.js	2026-10-04 14:30:10
+@@ -23,7 +23,7 @@
+   return Number.isFinite(n) ? n : 0;
+ }
+ 
+-const CATEGORY_LABELS = { article: '文章', news: '资讯', podcast: '播客' };
++const CATEGORY_LABELS = { article: '文章', news: '资讯', podcast: '播客', community: '社区' };
+ const storedWechatSources = readJson('qm_wechat_sources', '[]');
+ const storedPodcastSources = readJson('qm_podcast_sources', '[]');
+ const READER_TABS = ['original', 'rewrite', 'translation'];
+@@ -2186,7 +2186,7 @@
+ }
+ 
+ function renderSidebar() {
+-  const groups = { article: [], news: [], podcast: [] };
++  const groups = { article: [], news: [], podcast: [], community: [] };
+   for (const s of state.sources) if (s.enabled && (!s.optIn || (s.category === 'podcast' && state.optInSources.has(s.id)))) groups[s.category]?.push(s);
+ 
+   const wrap = $('#feed-groups');
+@@ -8367,8 +8367,20 @@
+           videoUrl.pathname === '/watch' && /^[A-Za-z0-9_-]{11}$/.test(id)) youtubeVideoId = id;
+     } catch { /* an invalid source link must not create an embed */ }
+   }
++  // A Bilibili video link plays in Bilibili's own embed; its page and tracking parameters are dropped.
++  let bilibiliId = '', bilibiliPage = 1;
++  try {
++    const videoUrl = new URL(e.link);
++    const match = videoUrl.pathname.match(/^\/video\/(BV[0-9A-Za-z]{10})\/?$/);
++    if (videoUrl.protocol === 'https:' && ['www.bilibili.com', 'bilibili.com', 'm.bilibili.com'].includes(videoUrl.hostname) && match) {
++      bilibiliId = match[1];
++      const part = parseInt(videoUrl.searchParams.get('p') || '1', 10);
++      bilibiliPage = part > 0 ? part : 1;
++    }
++  } catch { /* an invalid source link must not create an embed */ }
+   $('#reader-audio').innerHTML = youtubeVideoId
+     ? `<div class="reader-youtube"><iframe src="https://www.youtube-nocookie.com/embed/${youtubeVideoId}" title="${escapeHtml(e.title)} · YouTube 视频" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></div><a class="reader-youtube-link" href="https://www.youtube.com/watch?v=${youtubeVideoId}" target="_blank" rel="noopener noreferrer">无法内嵌播放？在 YouTube 打开</a>`
++    : bilibiliId ? `<div class="reader-youtube"><iframe src="https://player.bilibili.com/player.html?isOutside=true&bvid=${bilibiliId}&p=${bilibiliPage}&autoplay=0&high_quality=1&danmaku=0" title="${escapeHtml(e.title)} · 哔哩哔哩视频" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" scrolling="no" frameborder="0" allowfullscreen></iframe></div><a class="reader-youtube-link" href="https://www.bilibili.com/video/${bilibiliId}/${bilibiliPage > 1 ? `?p=${bilibiliPage}` : ''}" target="_blank" rel="noopener noreferrer">无法内嵌播放？在 B 站打开</a>`
+     : e.audio ? `<audio controls preload="none" src="${escapeHtml(e.audio.url)}"></audio>` : '';
+   const podcastNotesLink = $('#reader-podcast-notes');
+   if (podcastNotesLink) {
+--- a/public/index.html	2026-10-04 14:32:37
++++ b/public/index.html	2026-10-04 14:30:27
+@@ -860,7 +860,7 @@
+ 
+   <script src="/purify.min.js?v=3.4.11"></script>
+   <script src="/lucide-icons.js?v=3"></script>
+-  <script src="/app.js?v=submissions-unified-20261001"></script>
++  <script src="/app.js?v=separate-channel-20261004"></script>
+   <script src="/podscribe.js?v=6"></script>
+ </body>
+ </html>

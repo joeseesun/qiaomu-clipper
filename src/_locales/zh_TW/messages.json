@@ -1149,6 +1149,15 @@
 	"qiaomuSaveMarkdown": {
 		"message": "儲存為 Markdown"
 	},
+	"rssShareTitle": {
+		"message": "分享剪藏到喬木 RSS"
+	},
+	"rssShareDescription": {
+		"message": "預設關閉。開啟後，剪藏時會預設勾選「分享到喬木 RSS」，內容會公開提交到「讀者提交」。"
+	},
+	"saveSelectionToDiary": {
+		"message": "儲存到日記"
+	},
 	"qiaomuShareRss": {
 		"message": "分享到喬木 RSS"
 	},
@@ -1220,6 +1229,9 @@
 	},
 	"qiaomuActionEditShort": {
 		"message": "編輯"
+	},
+	"qiaomuActionNoteShort": {
+		"message": "記筆記"
 	},
 	"qiaomuActionReadShort": {
 		"message": "閱讀"
@@ -1432,7 +1444,7 @@
 		"message": "快速鍵字母"
 	},
 	"tripleKeyKeysDescription": {
-		"message": "為每個動作指定一個字母或數字，留空表示關閉該動作。預設：閱讀 A、編輯 E、剪藏 Q。"
+		"message": "為每個動作指定一個字母或數字，留空表示關閉該動作。預設：閱讀 A、編輯 E、剪藏 Q、記筆記 I。"
 	},
 	"tripleKeyReset": {
 		"message": "恢復預設"

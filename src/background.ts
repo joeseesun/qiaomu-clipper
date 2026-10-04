@@ -923,6 +923,11 @@ const debouncedUpdateContextMenu = debounce(async (tabId: number) => {
 					contexts: ["image", "video", "audio"]
 				},
 				{
+					id: 'save-selection-to-diary',
+					title: browser.i18n.getMessage('saveSelectionToDiary'),
+					contexts: ["selection"]
+				},
+				{
 					id: 'open-embedded',
 					title: browser.i18n.getMessage('openEmbedded'),
 					contexts: ["page", "selection"]
@@ -961,6 +966,8 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
 		await highlightElement(tab.id, info);
 	} else if ((info.menuItemId === "enter-reader" || info.menuItemId === "exit-reader") && tab && tab.id) {
 		await toggleReaderModeInTab(tab.id);
+	} else if (info.menuItemId === 'save-selection-to-diary' && tab && tab.id) {
+		await openNoteCard(tab.id, info.selectionText);
 	} else if (info.menuItemId === 'open-embedded' && tab && tab.id) {
 		await sendMessageToContentScript(tab.id, { action: "toggle-iframe" });
 	} else if (info.menuItemId === 'open-side-panel' && tab && tab.id && tab.windowId) {
@@ -1174,8 +1181,19 @@ async function updateActionPopup(openBehavior?: Settings['openBehavior']): Promi
 
 let currentOpenBehavior: Settings['openBehavior'] = 'popup';
 
+// The note card lives in the page itself: ask a copy that is already there, otherwise inject it (it opens on load).
+async function openNoteCard(tabId: number, quote?: string): Promise<void> {
+	try { if (await browser.tabs.sendMessage(tabId, { action: 'qiaomuOpenNote', quote }, { frameId: 0 })) return; } catch { /* not injected yet */ }
+	try {
+		if (quote) await browser.scripting.executeScript({ target: { tabId }, func: (text: string) => { (window as unknown as { qiaomuNoteQuote?: string }).qiaomuNoteQuote = text; }, args: [quote] });
+		await browser.scripting.insertCSS({ target: { tabId }, files: ['note-card.css'] });
+		await browser.scripting.executeScript({ target: { tabId }, files: ['note-card.js'] });
+	} catch { /* restricted page */ }
+}
+
 // The triple-press commands open the clipper, which runs read / edit / clip once the clip is ready.
 async function runTripleKeyAction(action: string, tabId: number): Promise<void> {
+	if (action === 'note') { await openNoteCard(tabId); return; }
 	if (action !== 'read' && action !== 'edit' && action !== 'clip') return;
 	if (action === 'read') {
 		const tab = await browser.tabs.get(tabId);

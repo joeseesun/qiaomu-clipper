@@ -1298,11 +1298,25 @@ function isDecorativeImage(value, alt = "", width = "", height = "") {
   const h = Number(height || /(?:[,/])h_(\d+)/.exec(src)?.[1]);
   return w2 > 0 && w2 < 100 || h > 0 && h < 100;
 }
+var BILIBILI_EMBED = /<iframe\b[^>]*?\bsrc=(["'])([^"']*player\.bilibili\.com\/player\.html[^"']*)\1[^<>]*>?\s*(?:<\/iframe>?)?/gi;
+function bilibiliEmbedsToLinks(markdown) {
+  return markdown.replace(BILIBILI_EMBED, (whole, _quote, src) => {
+    try {
+      const params = new URL(src.replace(/&amp;/g, "&"), "https://player.bilibili.com/").searchParams;
+      const bvid = params.get("bvid") || "";
+      if (!/^BV[0-9A-Za-z]{10}$/.test(bvid)) return whole;
+      const page = parseInt(params.get("p") || params.get("page") || "1", 10);
+      return `[\u25B6 \u5728 B \u7AD9\u89C2\u770B](https://www.bilibili.com/video/${bvid}/${page > 1 ? `?p=${page}` : ""})`;
+    } catch {
+      return whole;
+    }
+  });
+}
 function prepareClip(body = {}, user = {}, previous = null) {
   const url = new URL(String(body.url || ""));
   if (!["https:", "http:"].includes(url.protocol) || url.username || url.password || url.hostname === "localhost" || /^127\.|^10\.|^192\.168\.|^169\.254\.|^172\.(1[6-9]|2\d|3[01])\./.test(url.hostname) || url.hostname.includes(":")) throw Object.assign(new Error("\u8BF7\u526A\u85CF\u516C\u5F00\u7F51\u9875\u94FE\u63A5"), { statusCode: 400 });
   url.hash = "";
-  const markdown = String(body.markdown || "").trim();
+  const markdown = bilibiliEmbedsToLinks(String(body.markdown || "").trim());
   const title = String(body.title || "").trim().slice(0, 300);
   if (!title || !markdown || markdown.length > 5e5) throw Object.assign(new Error("\u526A\u85CF\u6807\u9898\u6216\u6B63\u6587\u65E0\u6548\uFF08\u6B63\u6587\u6700\u591A 50 \u4E07\u5B57\u7B26\uFF09"), { statusCode: 400 });
   const $2 = cheerio.load(marked.parse(escape(markdown), { async: false }), null, false);

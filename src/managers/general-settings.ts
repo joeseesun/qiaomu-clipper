@@ -432,7 +432,7 @@ function populateDefaultTemplateDropdown(templates: Template[]): void {
 function initializeTripleKeyFields(): void {
 	const inputs = Object.fromEntries(TRIPLE_COMMANDS.map(command => [command, document.getElementById(`triple-key-${command}`) as HTMLInputElement | null])) as Record<TripleCommand, HTMLInputElement | null>;
 	const error = document.getElementById('triple-key-error');
-	if (!inputs.read || !inputs.edit || !inputs.clip) return;
+	if (!inputs.read || !inputs.edit || !inputs.clip || !inputs.note) return;
 
 	const fill = (keys: Record<TripleCommand, string>) => TRIPLE_COMMANDS.forEach(command => { inputs[command]!.value = keys[command]; });
 	fill(normalizeTripleKeys(generalSettings.tripleKeys));
@@ -471,6 +471,9 @@ function initializeDefaultTemplateDropdown(): void {
 	});
 	initializeSettingToggle('youtube-auto-transcript-toggle', generalSettings.youtubeAutoTranscript !== false, (checked) => {
 		saveSettings({ ...generalSettings, youtubeAutoTranscript: checked });
+	});
+	void browser.storage.local.get('qiaomuRssEnabled').then(saved => {
+		initializeSettingToggle('rss-share-toggle', saved.qiaomuRssEnabled === true, (checked) => { void browser.storage.local.set({ qiaomuRssEnabled: checked }); });
 	});
 	initializeSettingToggle('learning-notes-toggle', generalSettings.learningNotes !== false, (checked) => {
 		saveSettings({ ...generalSettings, learningNotes: checked });

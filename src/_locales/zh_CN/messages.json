@@ -1149,6 +1149,15 @@
 	"qiaomuSaveMarkdown": {
 		"message": "保存为 Markdown"
 	},
+	"rssShareTitle": {
+		"message": "分享剪藏到乔木 RSS"
+	},
+	"rssShareDescription": {
+		"message": "默认关闭。开启后，剪藏时会默认勾选「分享到乔木 RSS」，内容会公开提交到「读者提交」。"
+	},
+	"saveSelectionToDiary": {
+		"message": "保存到日记"
+	},
 	"qiaomuShareRss": {
 		"message": "分享到乔木 RSS"
 	},
@@ -1220,6 +1229,9 @@
 	},
 	"qiaomuActionEditShort": {
 		"message": "编辑"
+	},
+	"qiaomuActionNoteShort": {
+		"message": "记笔记"
 	},
 	"qiaomuActionReadShort": {
 		"message": "阅读"
@@ -1432,7 +1444,7 @@
 		"message": "快捷键字母"
 	},
 	"tripleKeyKeysDescription": {
-		"message": "为每个动作指定一个字母或数字，留空表示关闭该动作。默认：阅读 A、编辑 E、剪藏 Q。"
+		"message": "为每个动作指定一个字母或数字，留空表示关闭该动作。默认：阅读 A、编辑 E、剪藏 Q、记笔记 I。"
 	},
 	"tripleKeyReset": {
 		"message": "恢复默认"
