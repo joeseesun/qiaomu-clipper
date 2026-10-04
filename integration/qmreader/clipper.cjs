@@ -30,11 +30,24 @@ function isDecorativeImage(value, alt = '', width = '', height = '') {
   const h = Number(height || /(?:[,/])h_(\d+)/.exec(src)?.[1]);
   return (w > 0 && w < 100) || (h > 0 && h < 100);
 }
+// The site shows clips as text and never runs page HTML, so a Bilibili embed becomes a link to the video.
+const BILIBILI_EMBED = /<iframe\b[^>]*?\bsrc=(["'])([^"']*player\.bilibili\.com\/player\.html[^"']*)\1[^<>]*>?\s*(?:<\/iframe>?)?/gi;
+function bilibiliEmbedsToLinks(markdown) {
+  return markdown.replace(BILIBILI_EMBED, (whole, _quote, src) => {
+    try {
+      const params = new URL(src.replace(/&amp;/g, '&'), 'https://player.bilibili.com/').searchParams;
+      const bvid = params.get('bvid') || '';
+      if (!/^BV[0-9A-Za-z]{10}$/.test(bvid)) return whole;
+      const page = parseInt(params.get('p') || params.get('page') || '1', 10);
+      return `[▶ 在 B 站观看](https://www.bilibili.com/video/${bvid}/${page > 1 ? `?p=${page}` : ''})`;
+    } catch { return whole; }
+  });
+}
 function prepareClip(body = {}, user = {}, previous = null) {
   const url = new URL(String(body.url || ''));
   if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password || url.hostname === 'localhost' || /^127\.|^10\.|^192\.168\.|^169\.254\.|^172\.(1[6-9]|2\d|3[01])\./.test(url.hostname) || url.hostname.includes(':')) throw Object.assign(new Error('请剪藏公开网页链接'), { statusCode: 400 });
   url.hash = '';
-  const markdown = String(body.markdown || '').trim();
+  const markdown = bilibiliEmbedsToLinks(String(body.markdown || '').trim());
   const title = String(body.title || '').trim().slice(0, 300);
   if (!title || !markdown || markdown.length > 500000) throw Object.assign(new Error('剪藏标题或正文无效（正文最多 50 万字符）'), { statusCode: 400 });
   // Escape raw HTML before rendering; downstream reader sanitizes generated HTML as well.
