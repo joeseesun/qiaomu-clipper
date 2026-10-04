@@ -29,6 +29,12 @@ class NativeSaveTests(unittest.TestCase):
   def call(origin):
    r=subprocess.run([sys.executable,str(script),origin],input=struct.pack('=I',len(b))+b,capture_output=True,check=True);n=struct.unpack('=I',r.stdout[:4])[0];self.assertEqual(n,len(r.stdout[4:]));return json.loads(r.stdout[4:])
   self.assertFalse(call('chrome-extension://other/')['ok']);self.assertTrue(call(self.config['origin'])['ok']);self.assertEqual((self.vault/'Clippings/中文.md').read_text(),p['content'])
+ def test_multiple_allowed_origins(self):
+  script=self.state/'host.py';script.write_text(Path(__file__).with_name('host.py').read_text());(self.state/'config.json').write_text(json.dumps({'vault':str(self.vault),'origins':['chrome-extension://a/','chrome-extension://b/']}))
+  b=json.dumps({'action':'status'}).encode()
+  def ok(origin):
+   r=subprocess.run([sys.executable,str(script),origin],input=struct.pack('=I',len(b))+b,capture_output=True,check=True);return json.loads(r.stdout[4:])['ok']
+  self.assertTrue(ok('chrome-extension://a/'));self.assertTrue(ok('chrome-extension://b/'));self.assertFalse(ok('chrome-extension://c/'))
  def test_configure_then_retry_failed_clip_in_selected_vault(self):
   daily=self.base/'rockfish';(daily/'.obsidian').mkdir(parents=True);p=self.payload(vault='rockfish')
   with self.assertRaises(ValueError):self.save(p)

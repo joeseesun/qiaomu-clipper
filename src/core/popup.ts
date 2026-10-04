@@ -1319,7 +1319,7 @@ async function initializeQiaomuRss(): Promise<void> {
 	if (nativeStatus?.ok) {
 		await browser.storage.local.set({ qiaomuNativeConfigured: true });
 		if (localStatus) localStatus.textContent = '';
-	} else if (nativeLocalSave && localStatus) localStatus.textContent = '本地保存助手未连接，请检查安装后重试';
+	} else if (nativeLocalSave && localStatus) localStatus.textContent = '本地保存助手未连接：运行 python3 native/install.py --check 诊断，或重新安装后重试';
 	const localPendingKey = Object.keys(saved).find(key => key.startsWith('qiaomuLocalPending:'));
 	if (localPendingKey) {
 		pendingLocalSave = saved[localPendingKey] as LocalSavePayload;

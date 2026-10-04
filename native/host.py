@@ -218,7 +218,7 @@ def main():
     base=Path(__file__).resolve().parent
     try:
         config=json.loads((base/'config.json').read_text())
-        if len(sys.argv)<2 or sys.argv[1] != config['origin']: raise ValueError('本地保存请求来源无效')
+        if len(sys.argv)<2 or sys.argv[1] not in ([config['origin']] if 'origin' in config else [])+list(config.get('origins',[])): raise ValueError('本地保存请求来源无效')
         header=sys.stdin.buffer.read(4)
         if len(header)!=4: raise ValueError('本地保存请求不完整')
         length=struct.unpack('=I',header)[0]
