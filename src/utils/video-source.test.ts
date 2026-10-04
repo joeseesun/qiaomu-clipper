@@ -48,3 +48,17 @@ it('wires a Bilibili transcript: jumps by reloading at the clicked second, once 
 	const url = new URL(frame.src); expect(Number(url.searchParams.get('t'))).toBeGreaterThanOrEqual(75); // somewhere inside the clicked line expect(url.searchParams.get('autoplay')).toBe('1'); expect(second.classList.contains('is-active')).toBe(true);
 	vi.unstubAllGlobals();
 });
+
+it('recognises the video on a playlist, favourites or watch-later page from its ?bvid= and keeps the same key as the plain page', () => {
+	const list = 'https://www.bilibili.com/list/ml118372123?oid=113718453081471&bvid=BV1XJCzYyEcp';
+	expect(bilibiliVideo(list)).toEqual({ bvid: 'BV1XJCzYyEcp', page: 1 });
+	expect(bilibiliVideo('https://www.bilibili.com/list/watchlater?bvid=BV1XJCzYyEcp&p=2')).toEqual({ bvid: 'BV1XJCzYyEcp', page: 2 });
+	expect(videoKey(list)).toBe(videoKey('https://www.bilibili.com/video/BV1XJCzYyEcp/'));
+	for (const bad of ['https://www.bilibili.com/list/ml1?oid=1', 'https://www.bilibili.com/list/ml1?bvid=nope', 'https://www.bilibili.com/read/cv1?bvid=BV1XJCzYyEcp', 'https://evilbilibili.com/list/ml1?bvid=BV1XJCzYyEcp']) expect(bilibiliVideo(bad)).toBeNull();
+});
+
+it('opens study mode for a playlist page on the plain video page, so the subtitles can be read', () => {
+	const path = videoStudyPath('https://www.bilibili.com/list/ml118372123?oid=1&bvid=BV1XJCzYyEcp', 7, '电磁学')!;
+	expect(path).toContain('study=bilibili'); expect(decodeURIComponent(path)).toContain('url=https://www.bilibili.com/video/BV1XJCzYyEcp/&sourceTab=7');
+	expect(decodeURIComponent(videoStudyPath('https://www.bilibili.com/list/watchlater?bvid=BV1XJCzYyEcp&p=3', 7)!)).toContain('url=https://www.bilibili.com/video/BV1XJCzYyEcp/?p=3');
+});

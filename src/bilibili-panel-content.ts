@@ -114,7 +114,7 @@ try {
 					initialFollow: stored(FOLLOW_KEY, true), onFollow: follow => remember(FOLLOW_KEY, follow), theme: 'bilibili',
 				});
 				return bar.element;
-			}, '.right-container-inner', '.up-panel-container');
+			}, '.right-container-inner, .playlist-container--right', '.up-panel-container');
 			updateBar();
 		};
 		// Bilibili re-renders its right column as parts and recommendations change; coalesce mutations per frame.

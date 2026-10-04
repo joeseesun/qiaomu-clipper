@@ -7,13 +7,15 @@ export const TRANSCRIPT_SELECTOR = '.transcript:is(.youtube, .bilibili)';
 
 export interface BilibiliVideo { bvid: string; page: number }
 
+// A video page (/video/BV…), or a playlist / favourites / watch-later page (/list/…) whose current video is in ?bvid=.
 export function bilibiliVideo(sourceUrl: string): BilibiliVideo | null {
 	let source: URL;
 	try { source = new URL(sourceUrl); } catch { return null; }
 	if (!/^https?:$/.test(source.protocol)) return null;
 	const host = source.hostname.toLowerCase();
 	if (!['bilibili.com', 'www.bilibili.com', 'm.bilibili.com'].includes(host)) return null;
-	const bvid = source.pathname.match(/^\/video\/(BV[0-9A-Za-z]{10})\/?/)?.[1];
+	const bvid = source.pathname.match(/^\/video\/(BV[0-9A-Za-z]{10})\/?/)?.[1]
+		|| (/^\/list\//.test(source.pathname) ? source.searchParams.get('bvid')?.match(/^BV[0-9A-Za-z]{10}$/)?.[0] : undefined);
 	if (!bvid) return null;
 	const page = parseInt(source.searchParams.get('p') || '1', 10);
 	return { bvid, page: Number.isFinite(page) && page > 0 ? page : 1 };
@@ -39,7 +41,10 @@ export function videoKey(sourceUrl: string): string | null {
 }
 
 export function videoStudyPath(url: string, sourceTabId: number, title = ''): string | null {
-	const platform = youtubeVideoId(url) ? 'youtube' : bilibiliVideo(url) ? 'bilibili' : null;
+	const bilibili = bilibiliVideo(url);
+	const platform = youtubeVideoId(url) ? 'youtube' : bilibili ? 'bilibili' : null;
 	if (!platform) return null;
+	// Study mode reads the subtitles from the plain video page, whichever kind of page the viewer is on.
+	if (bilibili && !/^\/video\//.test(new URL(url).pathname)) url = `https://www.bilibili.com/video/${bilibili.bvid}/${bilibili.page > 1 ? `?p=${bilibili.page}` : ''}`;
 	return `reader.html?study=${platform}&url=${encodeURIComponent(url)}&sourceTab=${sourceTabId}&title=${encodeURIComponent(title)}`;
 }
