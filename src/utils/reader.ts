@@ -43,6 +43,7 @@ import { wireTranscript } from './reader-transcript';
 import { mountYouTubeStudy, restoreYouTubePlayer } from './youtube-study';
 import { mountSidebarToggle } from './sidebar-toggle';
 import { mountLearningNotes, learningSelection, learningNotes } from './learning-composer';
+import { withReliableBilibili } from './bilibili-captions';
 
 interface ReaderContent {
 	content: string;
@@ -903,7 +904,7 @@ export class Reader {
 			return pre;
 		}
 
-		const defuddle = new Defuddle(doc, { url: doc.URL, fetch: async (input, init) => {
+		const defuddle = new Defuddle(doc, { url: doc.URL, fetch: withReliableBilibili(async (input, init) => {
 			const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
 			const result = await browser.runtime.sendMessage({ action: 'fetchProxy', url, options: {
 				method: init?.method, body: init?.body,
@@ -911,7 +912,7 @@ export class Reader {
 			} }) as { status: number; text: string; error?: string };
 			if (result.error) throw new Error(result.error);
 			return new Response(result.text, { status: result.status });
-		} });
+		}) });
 		const defuddled = await defuddle.parseAsync();
 
 		return {
