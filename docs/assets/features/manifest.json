@@ -1,0 +1,154 @@
+{
+  "generated_on": "2026-10-04",
+  "generator": "built-in imagegen",
+  "style_reference": "video-reading.png",
+  "purpose": "AI-generated conceptual feature illustrations; not interface screenshots",
+  "assets": [
+    {
+      "id": "video-reading",
+      "file": "video-reading.jpg",
+      "original": "video-reading.png",
+      "title": "把视频变成一本书",
+      "source": "Original user-selected cover from this conversation",
+      "review": {
+        "status": "pass",
+        "note": "Original selected cover retained; video/book metaphor, not EPUB export."
+      }
+    },
+    {
+      "id": "clip-to-obsidian",
+      "file": "clip-to-obsidian.jpg",
+      "title": "一键剪藏，存进 Obsidian",
+      "headline": [
+        "喜欢这篇？",
+        "一键收藏"
+      ],
+      "label": "乔木剪藏 · 网页保存",
+      "prompt": "Generate one finished landscape 16:9 feature illustration for the Qiaomu Clipper GitHub README. The supplied image is a STYLE REFERENCE only; do not reuse its video-book subject unless this specific feature asks for it. Match its warm ivory and sunlight, warm wooden desktop, tactile cream paper and realistic sculptural objects, dramatic enormous black Chinese editorial typography with the key phrase in vermilion, calm premium atmosphere. Composition left 43% gigantic two-line headline with safe 5% margins; right 57% one coherent large physical metaphor. Background soft and restrained, at most one blurred plant or pen; no extra books, mugs, quotes or unrelated decor. The label below headline is discreet black Chinese on warm cream, not a colored banner. Main headline and short label MUST be exactly the specified Chinese, correctly spelled and uncropped. Simplified Chinese. Only permitted text is headline, label, and exact scene text listed. Any other document marks must be abstract broad writing strokes. No watermark, invented metrics, tiny UI controls, speech balloons unrelated to the feature, extra feature badges, or real product screenshot claims. Render as a cohesive series matching the style reference, individual finished poster NOT a collage of multiple posters.  Exact headline lines: “喜欢这篇？” / “一键收藏”. Exact label: “乔木剪藏 · 网页保存”. Scene: On the right, a physical browser article card gently slides into a beautiful open ivory notebook. A single vermilion clip button and a small purple faceted crystal on the notebook indicate saving to Obsidian. Preserve source-link metaphor as a small chain icon, not many badges. This represents clipping article content to Markdown, not bookmarking the URL alone.",
+      "review": {
+        "status": "pass",
+        "note": "Headline and label readable and uncropped; coherent feature metaphor and reference style. Concept illustration, not a literal UI."
+      }
+    },
+    {
+      "id": "reader-highlights",
+      "file": "reader-highlights.jpg",
+      "title": "舒服阅读，随手划线",
+      "headline": [
+        "读得舒服",
+        "记住重点"
+      ],
+      "label": "乔木剪藏 · 阅读与划线",
+      "prompt": "Generate one finished landscape 16:9 feature illustration for the Qiaomu Clipper GitHub README. The supplied image is a STYLE REFERENCE only; do not reuse its video-book subject unless this specific feature asks for it. Match its warm ivory and sunlight, warm wooden desktop, tactile cream paper and realistic sculptural objects, dramatic enormous black Chinese editorial typography with the key phrase in vermilion, calm premium atmosphere. Composition left 43% gigantic two-line headline with safe 5% margins; right 57% one coherent large physical metaphor. Background soft and restrained, at most one blurred plant or pen; no extra books, mugs, quotes or unrelated decor. The label below headline is discreet black Chinese on warm cream, not a colored banner. Main headline and short label MUST be exactly the specified Chinese, correctly spelled and uncropped. Simplified Chinese. Only permitted text is headline, label, and exact scene text listed. Any other document marks must be abstract broad writing strokes. No watermark, invented metrics, tiny UI controls, speech balloons unrelated to the feature, extra feature badges, or real product screenshot claims. Render as a cohesive series matching the style reference, individual finished poster NOT a collage of multiple posters.  Exact headline lines: “读得舒服” / “记住重点”. Exact label: “乔木剪藏 · 阅读与划线”. Scene: On the right, a large elegant open cream book with several broad black typeset lines, one bright yellow highlighted paragraph, a vermilion ribbon bookmark, and a tasteful magnifying reading-lens. Focus on a calm clean readable page, not a tablet full of small settings. One small ivory Aa tile hints at adjustable typography.",
+      "review": {
+        "status": "pass",
+        "note": "Headline and label readable and uncropped; coherent feature metaphor and reference style. Concept illustration, not a literal UI."
+      }
+    },
+    {
+      "id": "markdown-editor",
+      "file": "markdown-editor.jpg",
+      "title": "属性与 Markdown 并排编辑",
+      "headline": [
+        "先改好",
+        "再保存"
+      ],
+      "label": "乔木剪藏 · Markdown 编辑",
+      "prompt": "Generate one finished landscape 16:9 feature illustration for the Qiaomu Clipper GitHub README. The supplied image is a STYLE REFERENCE only; do not reuse its video-book subject unless this specific feature asks for it. Match its warm ivory and sunlight, warm wooden desktop, tactile cream paper and realistic sculptural objects, dramatic enormous black Chinese editorial typography with the key phrase in vermilion, calm premium atmosphere. Composition left 43% gigantic two-line headline with safe 5% margins; right 57% one coherent large physical metaphor. Background soft and restrained, at most one blurred plant or pen; no extra books, mugs, quotes or unrelated decor. The label below headline is discreet black Chinese on warm cream, not a colored banner. Main headline and short label MUST be exactly the specified Chinese, correctly spelled and uncropped. Simplified Chinese. Only permitted text is headline, label, and exact scene text listed. Any other document marks must be abstract broad writing strokes. No watermark, invented metrics, tiny UI controls, speech balloons unrelated to the feature, extra feature badges, or real product screenshot claims. Render as a cohesive series matching the style reference, individual finished poster NOT a collage of multiple posters.  Exact headline lines: “先改好” / “再保存”. Exact label: “乔木剪藏 · Markdown 编辑”. Scene: On the right, a sculptural folding ivory editing board split into two connected panels. Left panel shows two large property fields with exact short labels “标题” and “标签”; right panel a large Markdown page with visible # and ** symbols and three graphical writing lines. A vermilion pencil lies diagonally across the seam, purple notebook tucked beneath. This is editing the clipping before saving.",
+      "review": {
+        "status": "pass",
+        "note": "Headline and label readable and uncropped; coherent feature metaphor and reference style. Concept illustration, not a literal UI."
+      }
+    },
+    {
+      "id": "ai-chat",
+      "file": "ai-chat.jpg",
+      "title": "围绕文章与选段问 AI",
+      "headline": [
+        "没读懂？",
+        "直接问 AI"
+      ],
+      "label": "乔木剪藏 · 文章对话",
+      "prompt": "Generate one finished landscape 16:9 feature illustration for the Qiaomu Clipper GitHub README. The supplied image is a STYLE REFERENCE only; do not reuse its video-book subject unless this specific feature asks for it. Match its warm ivory and sunlight, warm wooden desktop, tactile cream paper and realistic sculptural objects, dramatic enormous black Chinese editorial typography with the key phrase in vermilion, calm premium atmosphere. Composition left 43% gigantic two-line headline with safe 5% margins; right 57% one coherent large physical metaphor. Background soft and restrained, at most one blurred plant or pen; no extra books, mugs, quotes or unrelated decor. The label below headline is discreet black Chinese on warm cream, not a colored banner. Main headline and short label MUST be exactly the specified Chinese, correctly spelled and uncropped. Simplified Chinese. Only permitted text is headline, label, and exact scene text listed. Any other document marks must be abstract broad writing strokes. No watermark, invented metrics, tiny UI controls, speech balloons unrelated to the feature, extra feature badges, or real product screenshot claims. Render as a cohesive series matching the style reference, individual finished poster NOT a collage of multiple posters.  Exact headline lines: “没读懂？” / “直接问 AI”. Exact label: “乔木剪藏 · 文章对话”. Scene: On the right, an open ivory article book with one yellow highlighted passage linked to a large white speech bubble with a vermilion question mark. Bubble contains only exact text “这段怎么理解？”. A second small blank reply card with three graphical lines suggests the context-aware AI answer. No OpenAI, ChatGPT or provider logos: users choose their own models.",
+      "review": {
+        "status": "pass",
+        "note": "Headline and label readable and uncropped; coherent feature metaphor and reference style. Concept illustration, not a literal UI."
+      }
+    },
+    {
+      "id": "triple-key",
+      "file": "triple-key.jpg",
+      "title": "三连击：阅读、编辑、直接剪藏",
+      "headline": [
+        "连按三下",
+        "马上行动"
+      ],
+      "label": "乔木剪藏 · 三连击快捷键",
+      "prompt": "Generate one finished landscape 16:9 feature illustration for the Qiaomu Clipper GitHub README. The supplied image is a STYLE REFERENCE only; do not reuse its video-book subject unless this specific feature asks for it. Match its warm ivory and sunlight, warm wooden desktop, tactile cream paper and realistic sculptural objects, dramatic enormous black Chinese editorial typography with the key phrase in vermilion, calm premium atmosphere. Composition left 43% gigantic two-line headline with safe 5% margins; right 57% one coherent large physical metaphor. Background soft and restrained, at most one blurred plant or pen; no extra books, mugs, quotes or unrelated decor. The label below headline is discreet black Chinese on warm cream, not a colored banner. Main headline and short label MUST be exactly the specified Chinese, correctly spelled and uncropped. Simplified Chinese. Only permitted text is headline, label, and exact scene text listed. Any other document marks must be abstract broad writing strokes. No watermark, invented metrics, tiny UI controls, speech balloons unrelated to the feature, extra feature badges, or real product screenshot claims. Render as a cohesive series matching the style reference, individual finished poster NOT a collage of multiple posters.  Exact headline lines: “连按三下” / “马上行动”. Exact label: “乔木剪藏 · 三连击快捷键”. Scene: On the right, three neat physical rows of oversize ivory keyboard keycaps on a warm wood desk. First row exactly A A A with an open-book icon; second exactly E E E with pencil icon; third exactly Q Q Q with a purple notebook icon. Keycap letters must be correct, exactly three each, rows aligned, red edge accents. Clear tactile keyboard action metaphor, not other shortcuts.",
+      "review": {
+        "status": "pass",
+        "note": "Headline and label readable and uncropped; coherent feature metaphor and reference style. Concept illustration, not a literal UI."
+      }
+    },
+    {
+      "id": "ai-templates",
+      "file": "ai-templates.jpg",
+      "title": "模板与 AI 解读",
+      "headline": [
+        "照着模板",
+        "自动整理"
+      ],
+      "label": "乔木剪藏 · 模板与 AI 解读",
+      "prompt": "Generate one finished landscape 16:9 feature illustration for the Qiaomu Clipper GitHub README. The supplied image is a STYLE REFERENCE only; do not reuse its video-book subject unless this specific feature asks for it. Match its warm ivory and sunlight, warm wooden desktop, tactile cream paper and realistic sculptural objects, dramatic enormous black Chinese editorial typography with the key phrase in vermilion, calm premium atmosphere. Composition left 43% gigantic two-line headline with safe 5% margins; right 57% one coherent large physical metaphor. Background soft and restrained, at most one blurred plant or pen; no extra books, mugs, quotes or unrelated decor. The label below headline is discreet black Chinese on warm cream, not a colored banner. Main headline and short label MUST be exactly the specified Chinese, correctly spelled and uncropped. Simplified Chinese. Only permitted text is headline, label, and exact scene text listed. Any other document marks must be abstract broad writing strokes. No watermark, invented metrics, tiny UI controls, speech balloons unrelated to the feature, extra feature badges, or real product screenshot claims. Render as a cohesive series matching the style reference, individual finished poster NOT a collage of multiple posters.  Exact headline lines: “照着模板” / “自动整理”. Exact label: “乔木剪藏 · 模板与 AI 解读”. Scene: On the right, an ivory reusable template stencil overlays a webpage article card and produces a tidy Markdown note with exactly three large labelled slots “标题”, “标签”, “摘要”. A vermilion brass stamp and a restrained star-shaped AI mark indicate configured AI prompt variables filling the summary. No promise of free AI, no invention of autonomous tasks. Template document and structured result are the main subjects.",
+      "review": {
+        "status": "pass",
+        "note": "Headline and label readable and uncropped; coherent feature metaphor and reference style. Concept illustration, not a literal UI."
+      }
+    },
+    {
+      "id": "rss-sharing",
+      "file": "rss-sharing.jpg",
+      "title": "剪藏时分享到公开 RSS",
+      "headline": [
+        "好文章",
+        "一起读"
+      ],
+      "label": "乔木剪藏 · RSS 分享",
+      "prompt": "Generate one finished landscape 16:9 feature illustration for the Qiaomu Clipper GitHub README. The supplied image is a STYLE REFERENCE only; do not reuse its video-book subject unless this specific feature asks for it. Match its warm ivory and sunlight, warm wooden desktop, tactile cream paper and realistic sculptural objects, dramatic enormous black Chinese editorial typography with the key phrase in vermilion, calm premium atmosphere. Composition left 43% gigantic two-line headline with safe 5% margins; right 57% one coherent large physical metaphor. Background soft and restrained, at most one blurred plant or pen; no extra books, mugs, quotes or unrelated decor. The label below headline is discreet black Chinese on warm cream, not a colored banner. Main headline and short label MUST be exactly the specified Chinese, correctly spelled and uncropped. Simplified Chinese. Only permitted text is headline, label, and exact scene text listed. Any other document marks must be abstract broad writing strokes. No watermark, invented metrics, tiny UI controls, speech balloons unrelated to the feature, extra feature badges, or real product screenshot claims. Render as a cohesive series matching the style reference, individual finished poster NOT a collage of multiple posters.  Exact headline lines: “好文章” / “一起读”. Exact label: “乔木剪藏 · RSS 分享”. Scene: On the right, a large ivory article card with a red RSS symbol connects via three restrained curved red lines to three small ivory reading cards. A purple notebook remains below the origin article, indicating local clipping can accompany public sharing. Small explicit text on one card “公开分享”. Convey optional public RSS distribution when clipping, not private sync or auto publish on mere reading.",
+      "review": {
+        "status": "pass",
+        "note": "Headline and label readable and uncropped; coherent feature metaphor and reference style. Concept illustration, not a literal UI."
+      }
+    },
+    {
+      "id": "bilingual-transcripts",
+      "file": "bilingual-transcripts.jpg",
+      "title": "双语字幕与时间戳",
+      "headline": [
+        "英文视频",
+        "中文对照"
+      ],
+      "label": "乔木剪藏 · 双语字幕",
+      "prompt": "Generate one finished landscape 16:9 feature illustration for the Qiaomu Clipper GitHub README. The supplied image is a STYLE REFERENCE only; do not reuse its video-book subject unless this specific feature asks for it. Match its warm ivory and sunlight, warm wooden desktop, tactile cream paper and realistic sculptural objects, dramatic enormous black Chinese editorial typography with the key phrase in vermilion, calm premium atmosphere. Composition left 43% gigantic two-line headline with safe 5% margins; right 57% one coherent large physical metaphor. Background soft and restrained, at most one blurred plant or pen; no extra books, mugs, quotes or unrelated decor. The label below headline is discreet black Chinese on warm cream, not a colored banner. Main headline and short label MUST be exactly the specified Chinese, correctly spelled and uncropped. Simplified Chinese. Only permitted text is headline, label, and exact scene text listed. Any other document marks must be abstract broad writing strokes. No watermark, invented metrics, tiny UI controls, speech balloons unrelated to the feature, extra feature badges, or real product screenshot claims. Render as a cohesive series matching the style reference, individual finished poster NOT a collage of multiple posters.  Exact headline lines: “英文视频” / “中文对照”. Exact label: “乔木剪藏 · 双语字幕”. Scene: On the right, an open ivory book paired with a small vermilion video-player tile. The book shows two LARGE readable bilingual caption blocks, exact first timestamp “02:18”, English “Learn one idea at a time.” then Chinese “一次学懂一个想法。”; second timestamp “02:35”, English “Turn ideas into action.” then Chinese “把想法变成行动。”. Yellow highlights connect the original and translation. Accurate natural translation, shared timestamps, no flag icons, no promise for every video.",
+      "review": {
+        "status": "pass",
+        "note": "Headline and label readable and uncropped; coherent feature metaphor and reference style. Concept illustration, not a literal UI."
+      }
+    },
+    {
+      "id": "learning-notes",
+      "file": "learning-notes.jpg",
+      "title": "边看边记，写进今天的日记",
+      "headline": [
+        "边看边记",
+        "留下收获"
+      ],
+      "label": "乔木剪藏 · 学习笔记",
+      "prompt": "Generate one finished landscape 16:9 feature illustration for the Qiaomu Clipper GitHub README. The supplied image is a STYLE REFERENCE only; do not reuse its video-book subject unless this specific feature asks for it. Match its warm ivory and sunlight, warm wooden desktop, tactile cream paper and realistic sculptural objects, dramatic enormous black Chinese editorial typography with the key phrase in vermilion, calm premium atmosphere. Composition left 43% gigantic two-line headline with safe 5% margins; right 57% one coherent large physical metaphor. Background soft and restrained, at most one blurred plant or pen; no extra books, mugs, quotes or unrelated decor. The label below headline is discreet black Chinese on warm cream, not a colored banner. Main headline and short label MUST be exactly the specified Chinese, correctly spelled and uncropped. Simplified Chinese. Only permitted text is headline, label, and exact scene text listed. Any other document marks must be abstract broad writing strokes. No watermark, invented metrics, tiny UI controls, speech balloons unrelated to the feature, extra feature badges, or real product screenshot claims. Render as a cohesive series matching the style reference, individual finished poster NOT a collage of multiple posters.  Exact headline lines: “边看边记” / “留下收获”. Exact label: “乔木剪藏 · 学习笔记”. Scene: On the right, a video tile with vermilion play triangle stands behind an open daily journal. A fountain pen touches a highlighted note on the journal, which has only large heading “今天的收获”, a timestamp chip “12:34” and three graphical writing lines. A small purple crystal on the journal suggests Obsidian. It represents manually recording a thought plus video source and timestamp into today's daily note; do not portray automatic AI journaling.",
+      "review": {
+        "status": "pass",
+        "note": "Headline and label readable and uncropped; coherent feature metaphor and reference style. Concept illustration, not a literal UI."
+      }
+    }
+  ]
+}
