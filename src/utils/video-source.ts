@@ -40,11 +40,12 @@ export function videoKey(sourceUrl: string): string | null {
 	return bilibili ? `bilibili:${bilibili.bvid}:${bilibili.page}` : null;
 }
 
-export function videoStudyPath(url: string, sourceTabId: number, title = ''): string | null {
+export function videoStudyPath(url: string, sourceTabId: number, title = '', timestamp = 0, autoplay = false): string | null {
 	const bilibili = bilibiliVideo(url);
 	const platform = youtubeVideoId(url) ? 'youtube' : bilibili ? 'bilibili' : null;
 	if (!platform) return null;
 	// Study mode reads the subtitles from the plain video page, whichever kind of page the viewer is on.
 	if (bilibili && !/^\/video\//.test(new URL(url).pathname)) url = `https://www.bilibili.com/video/${bilibili.bvid}/${bilibili.page > 1 ? `?p=${bilibili.page}` : ''}`;
-	return `reader.html?study=${platform}&url=${encodeURIComponent(url)}&sourceTab=${sourceTabId}&title=${encodeURIComponent(title)}`;
+	const time = Number.isFinite(timestamp) && timestamp > 0 ? Math.floor(timestamp) : 0;
+	return `reader.html?study=${platform}&url=${encodeURIComponent(url)}&sourceTab=${sourceTabId}&title=${encodeURIComponent(title)}${time ? `&t=${time}` : ''}${autoplay ? '&autoplay=1' : ''}`;
 }

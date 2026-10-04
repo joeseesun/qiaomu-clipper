@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('./clip-chat', () => ({ mountClipChat: vi.fn(() => ({ toggle: vi.fn() })) }));
 vi.mock('./clipboard-utils', () => ({ copyToClipboard: vi.fn().mockResolvedValue(true) }));
 vi.mock('./file-utils', () => ({ saveFile: vi.fn() }));
-vi.mock('./storage-utils', () => ({ loadSettings: vi.fn(), getLocalStorage: vi.fn().mockResolvedValue(undefined), setLocalStorage: vi.fn().mockResolvedValue(undefined) }));
+vi.mock('./storage-utils', () => ({ loadSettings: vi.fn(), saveSettings: vi.fn().mockResolvedValue(undefined), generalSettings: { translationModel: '', translationTargetLanguage: 'zh-CN' }, getLocalStorage: vi.fn().mockResolvedValue(undefined), setLocalStorage: vi.fn().mockResolvedValue(undefined) }));
 import { mountYouTubeStudy, transcriptText } from './youtube-study';
 import { mountClipChat } from './clip-chat';
 import { copyToClipboard } from './clipboard-utils';
@@ -46,7 +46,8 @@ describe('YouTube study transcript', () => {
 		await mountYouTubeStudy(document, node, 'Video', 'https://www.youtube.com/watch?v=dbqweBCynuI', {toggle: () => true});
 		expect(node.querySelector('.youtube-study-toolbar, .youtube-size-control')).toBeNull();
 		expect(node.querySelector('[aria-label="复制字幕"], [aria-label="下载字幕（TXT）"]')).toBeNull();
-		expect(node.querySelector('.player-toggle-group')!.lastElementChild?.classList.contains('youtube-translate-toggle')).toBe(true);
+		expect(node.querySelector('.player-toggle-group .youtube-translate-toggle')).not.toBeNull();
+		expect(node.querySelector('.player-toggle-group .youtube-translation-target')).not.toBeNull();
 		await mountYouTubeStudy(document,node,'Video','https://www.youtube.com/watch?v=dbqweBCynuI');
 		expect(node.querySelectorAll('.youtube-translate-toggle')).toHaveLength(1);
 	});

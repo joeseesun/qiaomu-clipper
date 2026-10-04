@@ -9,7 +9,8 @@ export function youtubeVideoId(sourceUrl: string): string | null {
 	return id && /^[a-zA-Z0-9_-]{11}$/.test(id) ? id : null;
 }
 
-export function youtubeStudyPath(url: string, sourceTabId: number, title = ''): string | null {
+export function youtubeStudyPath(url: string, sourceTabId: number, title = '', timestamp = 0, autoplay = false): string | null {
 	if (!youtubeVideoId(url)) return null;
-	return `reader.html?study=youtube&url=${encodeURIComponent(url)}&sourceTab=${sourceTabId}&title=${encodeURIComponent(title)}`;
+	const time = Number.isFinite(timestamp) && timestamp > 0 ? Math.floor(timestamp) : 0;
+	return `reader.html?study=youtube&url=${encodeURIComponent(url)}&sourceTab=${sourceTabId}&title=${encodeURIComponent(title)}${time ? `&t=${time}` : ''}${autoplay ? '&autoplay=1' : ''}`;
 }

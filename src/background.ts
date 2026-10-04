@@ -9,6 +9,7 @@ import { debugLog } from './utils/debug';
 import { incrementStat, loadSettings } from './utils/storage-utils';
 import { enabledChatModels, streamChat } from './utils/chat-llm';
 import { videoKey, videoStudyPath } from './utils/video-source';
+import { pauseVideoForStudy } from './utils/study-playback';
 import { hasStoredHighlights } from './utils/url-utils';
 import { handleLearningNativeMessage } from './utils/local-save';
 import { enableYouTubeEmbedRule, disableYouTubeEmbedRule } from './utils/youtube-embed-rules';
@@ -611,6 +612,20 @@ browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime
 			return undefined;
 		}
 
+		if (typedRequest.action === 'qiaomuOpenStudy') {
+			const tab = sender.tab;
+			const timestamp = Number((typedRequest as { timestamp?: number }).timestamp);
+			const autoplay = Boolean((typedRequest as { autoplay?: boolean }).autoplay);
+			if (!tab?.id || !tab.url || !videoKey(tab.url) || !Number.isFinite(timestamp) || timestamp < 0) { sendResponse({ ok: false }); return true; }
+			const path = videoStudyPath(tab.url, tab.id, tab.title || '', timestamp, autoplay);
+			if (!path) { sendResponse({ ok: false }); return true; }
+			browser.scripting.executeScript({ target: { tabId: tab.id }, func: pauseVideoForStudy }).then(results => {
+				if (!results[0]?.result) throw new Error('播放器不可用');
+				return browser.tabs.create({ url: browser.runtime.getURL(path), openerTabId: tab.id });
+			}).then(() => sendResponse({ ok: true }), () => sendResponse({ ok: false }));
+			return true;
+		}
+
 		if (typedRequest.action === "getActiveTabAndToggleIframe") {
 			browser.tabs.query({active: true, currentWindow: true}).then(async (tabs) => {
 				const currentTab = tabs[0];
@@ -1197,8 +1212,12 @@ async function runTripleKeyAction(action: string, tabId: number): Promise<void> 
 	if (action !== 'read' && action !== 'edit' && action !== 'clip') return;
 	if (action === 'read') {
 		const tab = await browser.tabs.get(tabId);
-		const path = videoStudyPath(tab.url || '', tabId, tab.title || '');
+		let path = videoStudyPath(tab.url || '', tabId, tab.title || '');
 		if (path) {
+			const results = await browser.scripting.executeScript({ target: { tabId }, func: pauseVideoForStudy });
+			const playback = results[0]?.result as { timestamp?: number; autoplay?: boolean } | undefined;
+			if (!playback) return;
+			path = videoStudyPath(tab.url || '', tabId, tab.title || '', playback.timestamp, playback.autoplay)!;
 			// Open the player immediately; subtitle extraction belongs to the reader.
 			await browser.tabs.create({ url: browser.runtime.getURL(path), openerTabId: tabId });
 			return;

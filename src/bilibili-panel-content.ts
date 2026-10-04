@@ -5,6 +5,7 @@ import { fetchBilibiliCaptions } from './utils/bilibili-captions';
 import { bilibiliVideo } from './utils/video-source';
 import { pageSettled, SETTLE_MS } from './utils/bilibili-page';
 import { transcriptHtml } from './utils/youtube-dom-transcript';
+import { pauseVideoForStudy } from './utils/study-playback';
 
 // Runs on Bilibili video pages only. Adds the same transcript bar as on YouTube (subtitles, copy, download, study mode)
 // at the top of the right column. Subtitles are read from the viewer's own page, so they are there only for a signed-in
@@ -86,7 +87,14 @@ try {
 		// --- UI ------------------------------------------------------------------------------------------------
 		const style = document.createElement('style');
 		style.textContent = BAR_STYLE;
-		const openStudy = (): boolean => { try { api.runtime.sendMessage({ action: 'qiaomuTripleKey', command: 'read' })?.catch?.(() => {}); return true; } catch { return false; } };
+		const openStudy = (): boolean => {
+			try {
+				const playback = pauseVideoForStudy();
+				if (!playback) return false;
+				api.runtime.sendMessage({ action: 'qiaomuOpenStudy', ...playback })?.catch?.(() => {});
+				return true;
+			} catch { return false; }
+		};
 		const openSettings = () => { try { api.runtime.sendMessage({ action: 'openSettings', section: 'general' })?.catch?.(() => {}); } catch { /* extension reloaded */ } };
 		const retry = () => { const video = currentKey(); if (!video) return; store.delete(video.key); prefetch(video); updateBar(); };
 		const mainVideo = () => document.querySelector<HTMLVideoElement>('.bpx-player-video-wrap video, video') ?? undefined;

@@ -52,7 +52,7 @@ export function mountTranslation(article: HTMLElement, toolbar: HTMLElement, sta
 	const label = doc.createElement('label'); label.className = 'player-toggle youtube-translate-toggle';
 	label.title = getMessage('qiaomuTranslationService');
 	label.addEventListener('mousedown', event => { if (!doc.getSelection()?.isCollapsed) event.preventDefault(); });
-	const caption = doc.createElement('span'); caption.textContent = getMessage('qiaomuTranslate');
+	const caption = doc.createElement('span'); caption.textContent = getMessage('qiaomuTranslate') || getMessage('qiaomuTranslateChinese');
 	const target = doc.createElement('select'); target.className = 'youtube-translation-target'; target.setAttribute('aria-label', 'Translation target language');
 	translationLanguages.forEach(item => { const option = doc.createElement('option'); option.value = item.code; option.textContent = item.label; target.append(option); });
 	const transcript = article.querySelector<HTMLElement>('.youtube.transcript, .bilibili.transcript');

@@ -4,6 +4,7 @@ import { fetchCaptionResult } from './utils/youtube-captions';
 import { createTranscriptCache } from './utils/youtube-transcript-cache';
 import { markAutoOpenedPanel, openTranscriptPanel, readYouTubeTranscriptFromDom, releaseAutoPanel, resetOpenAttempts, transcriptHtml, transcriptPanelOpen } from './utils/youtube-dom-transcript';
 import { readPanelSegments } from './utils/youtube-panel-actions';
+import { pauseVideoForStudy } from './utils/study-playback';
 
 // Runs on YouTube pages only. Adds the transcript bar (subtitles, copy, download, study, settings, dropdown) to the
 // top of the watch page's right column, and fetches the transcript in the background as soon as a video page is idle, so opening study mode,
@@ -100,7 +101,14 @@ try {
 		// --- UI ------------------------------------------------------------------------------------------------
 		const style = document.createElement('style'); style.textContent = BAR_STYLE;
 		// A page opened before the extension was reloaded keeps a dead copy of this script; say so instead of doing nothing.
-		const openStudy = (): boolean => { try { api.runtime.sendMessage({ action: 'qiaomuTripleKey', command: 'read' })?.catch?.(() => {}); return true; } catch { return false; } };
+		const openStudy = (): boolean => {
+			try {
+				const playback = pauseVideoForStudy();
+				if (!playback) return false;
+				api.runtime.sendMessage({ action: 'qiaomuOpenStudy', ...playback })?.catch?.(() => {});
+				return true;
+			} catch { return false; }
+		};
 		const retry = () => {
 			const id = currentVideo(); if (!id) return;
 			store.delete(id); autoOpened.delete(id); resetOpenAttempts(); prefetch(id); updateBar();
