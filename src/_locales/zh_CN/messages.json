@@ -1347,6 +1347,18 @@
 	"learningNotesDescription": {
 		"message": "在阅读页和视频学习页提供“记笔记”按钮和 N 快捷键，笔记通过本地助手追加到库里今天的日记。"
 	},
+	"learningIncludeQuoteTitle": {
+		"message": "笔记带上摘录"
+	},
+	"learningIncludeQuoteDescription": {
+		"message": "记笔记时如果带有选中的原文，就把它作为引用一起写进日记。也可以在笔记卡片里单条开关。"
+	},
+	"learningIncludeSourceTitle": {
+		"message": "笔记带上来源与时间"
+	},
+	"learningIncludeSourceDescription": {
+		"message": "在日记里写上网页或视频的链接，以及视频时间点。也可以在笔记卡片里单条开关。"
+	},
 	"youtubePanelReload": {
 		"message": "扩展刚更新过，请刷新此页面后再试"
 	},

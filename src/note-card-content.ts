@@ -19,7 +19,7 @@ export function noteSourceUrl(href: string): string {
 	} catch { return href; }
 }
 
-const noteTitle = (doc: Document) => doc.title.replace(/\s*[-–|]\s*YouTube$/i, '').replace(/\s*[-_]\s*哔哩哔哩.*$/, '').trim() || doc.location.hostname;
+const noteTitle = (doc: Document) => doc.title.replace(/[\p{Cf}\p{Cc}]/gu, '').replace(/\s*[-–|]\s*YouTube$/i, '').replace(/\s*[-_]\s*哔哩哔哩.*$/, '').trim() || doc.location.hostname;
 
 // An ad shares the player with the video, so only the main video's time counts.
 function playheadSeconds(doc: Document): number | undefined {

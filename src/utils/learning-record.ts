@@ -1,7 +1,8 @@
 import browser from './browser-polyfill';
 
 export interface LearningSource { title: string; url?: string; timestampSeconds?: number; kind?: 'web' | 'youtube' | 'bilibili' | 'thought' }
-export interface LearningRecordDraft { captureId: string; createdAt: string; source: LearningSource; originSource?: LearningSource; reflection: string; quote: string; aiSupplement?: string }
+// `omit` keeps the text in the draft but leaves it out of the diary entry (the quote, or the source link and video time).
+export interface LearningRecordDraft { captureId: string; createdAt: string; source: LearningSource; originSource?: LearningSource; reflection: string; quote: string; aiSupplement?: string; omit?: { quote?: boolean; source?: boolean } }
 export interface DailyTargetResult { status: 'ready' | 'unavailable' | 'unsupported' | 'invalid'; vault?: string; date?: string; relativePath?: string; targetToken?: string; error?: string }
 export interface LearningSaveResult { status: 'saved' | 'dispatched' | 'unconfirmed' | 'failed' | 'cancelled' | 'target-changed'; captureId: string; vault?: string; date?: string; relativePath?: string; error?: string; duplicate?: boolean; target?: DailyTargetResult }
 
@@ -35,7 +36,11 @@ const inFlight = new Map<string, Promise<LearningSaveResult>>();
 // Page text and AI answers are untrusted: keep them readable, but neutralise HTML and Obsidian wikilink/embed syntax.
 const quoteSafe = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/!?\[\[/g, match => match.replace(/\[/g, '\\['));
 const callout = (kind: string, label: string, value: string) => [`> [!${kind}] ${label}`, ...quoteSafe(value.trim()).split(/\r?\n/).map(line => `> ${line}`)].join('\n');
-const linkLabel = (value: string) => value.replace(/\s+/g, ' ').trim().replace(/[<>]/g, '').replace(/([\[\]\\])/g, '\\$1');
+// Page titles can be a whole description; keep the diary line to one readable link.
+const LABEL_MAX = 50;
+// Some sites (Feishu) pad titles with zero-width characters; drop them so they neither show nor eat the length budget.
+const INVISIBLE = /[\p{Cf}\p{Cc}\u2028\u2029]/gu;
+const linkLabel = (value: string) => { const flat = Array.from(value.replace(INVISIBLE, ' ').replace(/\s+/g, ' ').trim().replace(/[<>]/g, '')), short = flat.length > LABEL_MAX ? flat.slice(0, LABEL_MAX).join('').trimEnd() + '…' : flat.join(''); return short.replace(/([\[\]\\])/g, '\\$1'); };
 export const clockLabel = (seconds: number) => { const total = Math.floor(seconds), h = Math.floor(total / 3600), m = Math.floor(total % 3600 / 60), s = total % 60; return (h ? `${h}:${String(m).padStart(2, '0')}` : String(m)) + ':' + String(s).padStart(2, '0'); };
 const TIMED_HOST = /(^|\.)(youtube\.com|youtu\.be|bilibili\.com)$/i;
 
@@ -43,19 +48,21 @@ const TIMED_HOST = /(^|\.)(youtube\.com|youtu\.be|bilibili\.com)$/i;
 // (wikilinks and #tags keep working); only content that came from a page or an AI answer is neutralised.
 export function serializeLearningRecord(draft: LearningRecordDraft): string {
     if (!/^[a-zA-Z0-9-]{8,80}$/.test(draft.captureId)) throw new Error('学习记录标识无效');
-    if (![draft.reflection, draft.quote, draft.aiSupplement || ''].some(value => typeof value === 'string' && value.trim())) throw new Error('请写下理解或加入摘录，不能保存空记录');
+    const quoteText = draft.omit?.quote ? '' : draft.quote;
+    if (![draft.reflection, quoteText, draft.aiSupplement || ''].some(value => typeof value === 'string' && value.trim())) throw new Error('请写下理解或加入摘录，不能保存空记录');
     if (typeof draft.reflection !== 'string' || typeof draft.quote !== 'string' || (draft.aiSupplement !== undefined && typeof draft.aiSupplement !== 'string')) throw new Error('学习记录格式无效');
     const created = new Date(draft.createdAt); if (!Number.isFinite(created.getTime())) throw new Error('记录时间无效');
     const clock = `${String(created.getHours()).padStart(2,'0')}:${String(created.getMinutes()).padStart(2,'0')}`;
     const source = draft.source;
     if (source.timestampSeconds !== undefined && (!Number.isFinite(source.timestampSeconds) || source.timestampSeconds < 0)) throw new Error('视频时间无效');
     const head = [clock];
-    if (source.url) {
+    if (draft.omit?.source) { /* clock only */ }
+    else if (source.url) {
         const url = new URL(source.url); if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password) throw new Error('来源链接只支持不含凭证的 http(s) 地址');
         const timed = source.timestampSeconds !== undefined && TIMED_HOST.test(url.hostname);
         if (timed) url.searchParams.set('t', String(Math.floor(source.timestampSeconds!)));
         const href = url.href.replace(/\(/g, '%28').replace(/\)/g, '%29');
-        head.push(`[${linkLabel(source.title || url.hostname)}](${href})`);
+        head.push(`[${linkLabel(source.title) || linkLabel(url.hostname)}](${href})`);
         if (timed) head.push(`[${clockLabel(source.timestampSeconds!)}](${href})`);
     } else {
         head.push(linkLabel(source.title || '') || '随手记');
@@ -63,7 +70,7 @@ export function serializeLearningRecord(draft: LearningRecordDraft): string {
     }
     const blocks = [`#### ${head.join(' · ')}`];
     if (draft.reflection.trim()) blocks.push(draft.reflection.trim());
-    if (draft.quote.trim()) blocks.push(callout('quote', '原文摘录', draft.quote));
+    if (quoteText.trim()) blocks.push(callout('quote', '原文摘录', quoteText));
     if (draft.aiSupplement?.trim()) blocks.push(callout('info', 'AI 补充（我选择加入）', draft.aiSupplement));
     const content = blocks.join('\n\n');
     if (new TextEncoder().encode(content).length > 4 * 1024 * 1024) throw new Error('记录超过 4 MB，请缩短摘录');

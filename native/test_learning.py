@@ -44,10 +44,8 @@ class LearningDiaryTests(unittest.TestCase):
   self.assertEqual(recovered['status'],'saved');self.assertTrue(recovered['duplicate']);self.assertEqual(self.path(recovered).read_text().count(p['content']),1)
  def test_changed_target_requires_reconfirmation_and_writes_nothing(self):
   p=self.payload();self.configure({'folder':'Other','format':'YYYY-MM-DD'});r=self.save(p);self.assertEqual(r['status'],'target-changed');self.assertFalse(list(self.vault.rglob('*.md')))
- def test_same_id_with_other_content_and_partial_marker_are_not_appended(self):
+ def test_same_id_with_other_content_is_not_appended(self):
   p=self.payload();r=self.save(p);self.assertEqual(self.save({**p,'content':'different'})['status'],'unconfirmed')
-  fresh=self.payload();path=self.path(r);digest=hashlib.sha256(fresh['content'].encode()).hexdigest();path.write_text(path.read_text()+'\n'+host.learning_marker(fresh['captureId'],digest))
-  self.assertEqual(self.save(fresh)['status'],'unconfirmed');self.assertNotIn(fresh['content']+'\n<!--',path.read_text().split(host.learning_marker(fresh['captureId'],digest))[-1])
  def test_external_concurrent_append_survives_single_append_write(self):
   p=self.payload();path=self.vault/self.target()['relativePath'];path.parent.mkdir();path.write_text('original')
   original_write=host.os.write
@@ -103,3 +101,26 @@ class LearningDiaryTests(unittest.TestCase):
    r=self.save(p);self.assertEqual(r['status'],'target-changed');self.assertFalse(list(self.vault.rglob('*.md')))
    r=self.save({**p,'expectedTargetToken':r['target']['targetToken']})
   self.assertEqual(r['status'],'saved');self.assertEqual(self.path(r).read_text().count(p['content']),1)
+
+ def test_entries_carry_no_marker_comments(self):
+  p=self.payload();r=self.save(p);text=self.path(r).read_text();self.assertNotIn('<!--',text);self.assertNotIn('%%',text);self.assertEqual(text,'\n\n'+p['content'].rstrip()+'\n')
+ def test_crash_after_write_is_recognised_even_after_the_user_edited_elsewhere(self):
+  p=self.payload();path=self.vault/self.target()['relativePath'];path.parent.mkdir();path.write_text('original')
+  original=host.atomic_json;calls=0
+  def failing(target,data):
+   nonlocal calls
+   calls+=1
+   if calls==2:raise OSError('simulated receipt crash')
+   original(target,data)
+  with patch.object(host,'atomic_json',failing): self.assertEqual(self.save(p)['status'],'unconfirmed')
+  path.write_text(path.read_text()+'\nlater external line')
+  r=self.save(p);self.assertTrue(r['duplicate']);self.assertEqual(path.read_text().count(p['content']),1)
+ def test_pending_write_that_never_happened_is_retried_and_an_edited_original_is_not_touched(self):
+  p=self.payload();path=self.vault/self.target()['relativePath'];path.parent.mkdir();path.write_text('original');original_open=host.os.open
+  def denied(target,*args,**kwargs):
+   if str(target).endswith('.md'):raise PermissionError('interrupted before append')
+   return original_open(target,*args,**kwargs)
+  with patch.object(host.os,'open',denied):
+   with self.assertRaises(PermissionError):self.save(p)
+  path.write_text('rewritten by someone else');self.assertEqual(self.save(p)['status'],'unconfirmed');self.assertEqual(path.read_text(),'rewritten by someone else')
+  path.write_text('original');self.assertEqual(self.save(p)['status'],'saved');self.assertEqual(path.read_text().count(p['content']),1)

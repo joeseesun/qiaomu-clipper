@@ -94,3 +94,18 @@ it('retains an unknown URI response as uncertain so retry cannot duplicate dispa
  const draft=createLearningDraft(source,{quote:'q'});env.send.mockResolvedValue({});
  expect((await dispatchLearningRecord(draft,'test-vault')).status).toBe('unconfirmed');expect((await dispatchLearningRecord(draft,'test-vault')).status).toBe('unconfirmed');expect(env.send).toHaveBeenCalledTimes(1);
 });
+it('omits the quote and the source link/time from the entry on request, keeps them otherwise',()=>{
+ const draft=createLearningDraft({title:'Video',url:'https://www.youtube.com/watch?v=abc12345678',kind:'youtube',timestampSeconds:75},{reflection:'mine',quote:'quoted words'});
+ const full=serializeLearningRecord(draft);expect(full).toContain('quoted words');expect(full).toContain('[Video]');
+ const bare=serializeLearningRecord({...draft,omit:{quote:true,source:true}});expect(bare).not.toContain('quoted words');expect(bare).not.toContain('youtube');expect(bare.split('\n')[0]).toMatch(/^#### \d\d:\d\d$/);expect(bare).toContain('mine');
+ expect(()=>serializeLearningRecord({...draft,reflection:'',omit:{quote:true}})).toThrow();
+});
+it('shortens a very long source title in the diary link but keeps the full address',()=>{
+ const body=serializeLearningRecord(createLearningDraft({title:'长'.repeat(200),url:'https://example.com/a'},{reflection:'x'}));const head=body.split('\n')[0];
+ expect(head).toContain('…');expect(head.length).toBeLessThan(110);expect(head).toContain('https://example.com/a');
+});
+it('ignores zero-width padding in a source title and falls back to the host when nothing visible is left',()=>{
+ const pad='\u200b\u2060\u200d\ufeff'.repeat(40);
+ const a=serializeLearningRecord(createLearningDraft({title:pad+'手册标题',url:'https://example.com/a'},{reflection:'x'})).split('\n')[0];expect(a).toContain('[手册标题]');
+ const b=serializeLearningRecord(createLearningDraft({title:pad,url:'https://example.com/a'},{reflection:'x'})).split('\n')[0];expect(b).toContain('[example.com]');
+});

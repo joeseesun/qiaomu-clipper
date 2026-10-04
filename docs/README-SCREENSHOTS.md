@@ -8,7 +8,7 @@
 |---|---|---|
 | `assets/screens/video-study.png` | 统一顶栏、视频布局切换、尺寸分隔线、字幕搜索、双语显示 | 使用生产 `clip-bar`、`reader-transcript`、`youtube-study` 与阅读样式；本地封面预览，字幕和译文为说明交互的示例，并非该视频的完整实取字幕 |
 | `assets/screens/youtube-transcript-bar.png` | 原页常驻转写条、搜索、当前行与时间跳转入口 | 生产 `youtube-transcript-bar` 组件独立预览；使用示例字幕，非完整 YouTube 原页截图 |
-| `assets/screens/learning-note.png` | 不中断学习的笔记卡片、我的理解、时间点、日记目标 | 生产 `learning-composer` 与草稿逻辑；日记目标为演示返回值，没有连接用户库或执行写入 |
+| `assets/screens/learning-note.png` | 底部居中的笔记卡片：我的理解、摘录与来源开关、日记目标 | 生产 `learning-composer` 打包成演示页，叠在示例视频学习页背景上截图（headless Chrome）；日记目标为演示返回值，没有连接用户库或执行写入 |
 | `assets/screens/ai-settings.png` | 字体、字号、全局指令、快捷提示词 | 生产 `clip-chat` 设置面板；示例指令，无真实模型请求 |
 | `assets/screens/reader.png`、`reader-chat.png`、`editor.png`、`popup.png` | 普通阅读、选中文字问 AI、整页编辑和剪藏弹窗 | 保留仓库此前截图；生产页面样式渲染，自拟示例文章与演示回答，部分旧截图不含最新的笔记/设置/目录按钮 |
 

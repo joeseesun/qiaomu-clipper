@@ -1,7 +1,7 @@
-import { createElement, NotebookPen, Play, X } from 'lucide';
+import { createElement, NotebookPen, X } from 'lucide';
 import * as records from './learning-record';
 import { clockLabel } from './learning-record';
-import { generalSettings } from './storage-utils';
+import { generalSettings, saveSettings } from './storage-utils';
 import type { LearningSource, LearningRecordDraft, DailyTargetResult } from './learning-record';
 import { bilibiliVideo } from './video-source';
 import { addMark, loadMarks, MARKS_EVENT, renderMarks } from './learning-marks';
@@ -55,15 +55,13 @@ export function mountLearningNotes(options: { doc: Document; getSource: () => Le
   const form = node('form'); form.noValidate = true;
   const header = node('header'); const closeButton = node('button', '', 'learning-close'); closeButton.type = 'button';
   closeButton.title = '关闭并保留草稿（Esc）'; closeButton.setAttribute('aria-label', '关闭并保留草稿'); closeButton.append(createElement(X));
-  const timeChip = node('button', '', 'learning-time-chip'); timeChip.type = 'button'; timeChip.hidden = true; timeChip.title = '这条笔记对应的视频时间，点击修改';
-  const titleWrap = node('div', '', 'learning-title'); titleWrap.append(node('h2', '记笔记'), timeChip);
-  header.append(titleWrap, closeButton);
+  header.append(closeButton);
   const status = node('p', '', 'learning-status'); status.setAttribute('role', 'status');
   const field = (label: string, tag: 'input' | 'textarea' = 'textarea') => {
     const wrap = node('label', label, 'learning-field'); const input = node(tag); input.setAttribute('aria-label', label); wrap.append(input); return { wrap, input };
   };
   const reflection = field('我的理解'); const reflectionInput = reflection.input as HTMLTextAreaElement;
-  reflection.wrap.classList.add('learning-main'); reflectionInput.rows = 4; reflectionInput.placeholder = '写下你的想法…  ⌘/Ctrl + Enter 保存';
+  reflection.wrap.classList.add('learning-main'); reflectionInput.rows = 4; reflectionInput.placeholder = '随手记点什么…  ⌘/Ctrl + Enter 保存';
   // The excerpt is part of the note, so it is shown as a quotation rather than hidden in a settings-like panel.
   const quote = field('原文摘录'); const quoteInput = quote.input as HTMLTextAreaElement; quoteInput.rows = 2;
   const quoteBlock = node('div', '', 'learning-quote'); quoteBlock.hidden = true;
@@ -72,17 +70,14 @@ export function mountLearningNotes(options: { doc: Document; getSource: () => Le
   const sourceTitle = field('来源标题', 'input'), sourceUrl = field('来源链接', 'input'), time = field('视频时间（秒）', 'input');
   const titleInput = sourceTitle.input as HTMLInputElement, urlInput = sourceUrl.input as HTMLInputElement, timeInput = time.input as HTMLInputElement;
   urlInput.type = 'url'; timeInput.type = 'number'; timeInput.min = '0'; timeInput.step = '1';
-  const details = node('details', '', 'learning-more'); details.append(node('summary', '来源与时间'));
-  const removeSource = node('button', '移除来源与时间', 'learning-secondary'); removeSource.type = 'button';
-  details.append(sourceTitle.wrap, sourceUrl.wrap, time.wrap, removeSource);
+  const details = node('details', '', 'learning-more learning-source-details'); details.append(node('summary', '来源与时间'));
+  details.append(sourceTitle.wrap, sourceUrl.wrap, time.wrap);
   const aiDetails = node('details', '', 'learning-ai'); aiDetails.hidden = true; aiDetails.append(node('summary', 'AI 补充（已选择的回答）'));
   const ai = field('AI 补充'); const aiInput = ai.input as HTMLTextAreaElement; aiInput.rows = 3;
   const removeAi = node('button', '移除 AI 补充', 'learning-secondary'); removeAi.type = 'button'; aiDetails.append(ai.wrap, removeAi);
   const replaceQuote = node('button', '改用本次选中的摘录', 'learning-secondary'); replaceQuote.type = 'button'; replaceQuote.hidden = true;
   const showQuote = () => { quoteBlock.hidden = false; };
   const syncQuote = () => { if (quoteInput.value.trim()) showQuote(); };
-  const addQuote = node('button', '＋ 摘录', 'learning-secondary learning-add-quote'); addQuote.type = 'button';
-  addQuote.title = '从页面选中文字后再点记笔记，或在这里手动添加'; addQuote.onclick = () => { showQuote(); quoteInput.focus(); };
   const highlightDetails = node('details', '', 'learning-more'); highlightDetails.append(node('summary', '从已有高亮选择摘录'));
   highlightDetails.hidden = !getHighlights;
   const highlightList = node('div'); highlightDetails.append(highlightList);
@@ -105,12 +100,21 @@ export function mountLearningNotes(options: { doc: Document; getSource: () => Le
   const uriVault = field('Obsidian 库名', 'input'); const uriVaultInput = uriVault.input as HTMLInputElement;
   const dispatch = node('button', '发送到 Obsidian（未验证）', 'learning-secondary'); dispatch.type = 'button';
   uriDetails.append(node('p', '需明确输入库名；日期与路径由 Obsidian 解析，无法在这里确认写入。'), uriVault.wrap, dispatch);
-  const tools = node('div', '', 'learning-tools'); tools.append(addQuote);
+  // What goes into the diary besides your own words. Each switch is also a setting, so the choice is remembered.
+  const toggle = (label: string, extra: string) => {
+    const element = node('button', '', 'learning-toggle ' + extra); element.type = 'button'; element.setAttribute('role', 'switch');
+    element.append(node('span', '', 'learning-switch'), node('span', label)); return element;
+  };
+  const quoteToggle = toggle('摘录', 'learning-toggle-quote'), sourceToggle = toggle('来源', 'learning-toggle-source'), sourceLabel = sourceToggle.lastElementChild as HTMLElement;
+  quoteToggle.title = '关闭后，这条笔记不写入摘录'; sourceToggle.title = '关闭后，这条笔记不写入来源链接和视频时间';
+  const editSource = node('button', '编辑', 'learning-secondary learning-edit-source'); editSource.type = 'button'; editSource.title = '修改来源标题、链接和视频时间';
+  const tools = node('div', '', 'learning-tools'); tools.append(quoteToggle, sourceToggle, editSource);
   // Where the note will land: one quiet line, shown in the footer next to the save button.
   const targetLine = node('p', '正在确认今日日记位置…', 'learning-target'); targetLine.setAttribute('role', 'status');
-  const footer = node('footer'); const retryTarget = node('button', '重新确认目标', 'learning-secondary'); retryTarget.type = 'button';
+  const footer = node('footer'); const retryTarget = node('button', '重试', 'learning-secondary'); retryTarget.title = '重新确认今日日记位置'; retryTarget.type = 'button';
   const save = node('button', '保存到日记', 'learning-primary'); save.type = 'submit'; save.disabled = true; save.title = '保存（⌘/Ctrl + Enter）';
-  const destination = node('div', '', 'learning-destination'); destination.append(targetLine, retryTarget);
+  const destination = node('div', '', 'learning-destination'); const draftNote = node('span', '', 'learning-draft'); draftNote.title = '这是上次没写完的草稿';
+  destination.append(targetLine, draftNote, retryTarget);
   footer.append(destination, save);
   const notice = node('div', '', 'learning-save-notice'); notice.hidden = true; notice.setAttribute('role','status'); doc.body.append(notice);
   let noticeTimer: ReturnType<typeof setTimeout> | undefined;
@@ -118,18 +122,26 @@ export function mountLearningNotes(options: { doc: Document; getSource: () => Le
   form.append(header, reflection.wrap, quoteBlock, replaceQuote, aiDetails, tools, highlightDetails, details, uriDetails, status, footer); dialog.append(form); doc.body.append(dialog);
   let draft: LearningRecordDraft | undefined, origin: LearningSource | undefined, target: DailyTargetResult = { status: 'unavailable' };
   let pendingQuote = '', pendingTime: number | undefined, busy = false, loading = false, generation = 0, writeQueue = Promise.resolve(), lastTime: number | undefined;
-  let timedFrameSrc = '', targetLoading = false;
+  let timedFrameSrc = '', targetLoading = false, includeQuote = true, includeSource = true;
   let returnFocus: HTMLElement | null = null;
-  const hasContent = () => Boolean(reflectionInput.value.trim() || quoteInput.value.trim() || aiInput.value.trim());
+  const hasContent = () => Boolean(reflectionInput.value.trim() || (includeQuote && quoteInput.value.trim()) || aiInput.value.trim());
+  // "example.com · 6:04": where the note came from, as the label of its switch.
   const updateChip = () => {
-    const raw = timeInput.value, seconds = Number(raw);
-    timeChip.hidden = raw === '' || time.wrap.hidden || !Number.isFinite(seconds) || seconds < 0;
-    if (!timeChip.hidden) timeChip.replaceChildren(createElement(Play), doc.createTextNode(clockLabel(seconds)));
+    const raw = timeInput.value, seconds = Number(raw); let label = '';
+    try { label = new URL(urlInput.value).hostname.replace(/^www\./, ''); } catch { label = titleInput.value.trim().slice(0, 24); }
+    if (raw !== '' && !time.wrap.hidden && Number.isFinite(seconds) && seconds >= 0) label += (label ? ' · ' : '') + clockLabel(seconds);
+    sourceLabel.textContent = label || '来源';
   };
-  const updateButtons = () => { save.disabled = !draft || busy || loading || targetLoading || target.status !== 'ready' || !hasContent(); dispatch.disabled = busy || loading || !hasContent() || !uriVaultInput.value.trim(); };
+  const paintOptions = () => {
+    quoteToggle.setAttribute('aria-checked', String(includeQuote)); quoteToggle.classList.toggle('is-off', !includeQuote); quoteBlock.classList.toggle('is-off', !includeQuote);
+    const hasSource = Boolean(urlInput.value.trim() || titleInput.value.trim());
+    sourceToggle.hidden = !hasSource; sourceToggle.setAttribute('aria-checked', String(includeSource)); sourceToggle.classList.toggle('is-off', !includeSource);
+    details.hidden = !hasSource || !includeSource; editSource.hidden = details.hidden;
+  };
+  const updateButtons = () => { paintOptions(); save.disabled = !draft || busy || loading || targetLoading || target.status !== 'ready' || !hasContent(); dispatch.disabled = busy || loading || !hasContent() || !uriVaultInput.value.trim(); };
   const collect = () => {
     if (!draft) return;
-    draft.reflection = reflectionInput.value; draft.quote = quoteInput.value; draft.aiSupplement = aiInput.value || undefined;
+    draft.reflection = reflectionInput.value; draft.quote = quoteInput.value; draft.aiSupplement = aiInput.value || undefined; draft.omit = { quote: !includeQuote, source: !includeSource };
     draft.source = { title: titleInput.value, url: urlInput.value || undefined, kind: origin?.kind };
     if (timeInput.value !== '') draft.source.timestampSeconds = Number(timeInput.value);
     updateButtons();
@@ -148,7 +160,7 @@ export function mountLearningNotes(options: { doc: Document; getSource: () => Le
     quoteBlock.hidden = !quoteInput.value.trim(); updateChip(); updateButtons();
   };
   const paintTarget = () => {
-    targetLine.textContent = target.status === 'ready' ? '→ ' + target.relativePath + ' · ' + target.vault : (target.error || '尚未确认库与今日日记位置，请检查本地保存助手与日记配置');
+    targetLine.title = target.status === 'ready' ? (target.relativePath || '') : ''; targetLine.textContent = target.status === 'ready' ? (target.vault || '') + ' · ' + (target.date || '') : (target.error || '没连上本地保存助手，暂时无法写入日记');
     targetLine.classList.toggle('is-problem', target.status !== 'ready'); retryTarget.hidden = target.status === 'ready';
     uriDetails.hidden = target.status !== 'unavailable'; updateButtons();
   };
@@ -175,11 +187,12 @@ export function mountLearningNotes(options: { doc: Document; getSource: () => Le
       reflectionInput.focus(); return;
     }
     const selectedTime = learningTimestamp(doc);
-    returnFocus = doc.activeElement as HTMLElement; show(); loading = true; busy = false; status.textContent = ''; pendingQuote = ''; replaceQuote.hidden = true;
+    includeQuote = generalSettings.learningIncludeQuote !== false; includeSource = generalSettings.learningIncludeSource !== false;
+    returnFocus = doc.activeElement as HTMLElement; show(); loading = true; busy = false; status.textContent = ''; draftNote.textContent = ''; pendingQuote = ''; replaceQuote.hidden = true;
     draft = undefined; origin = { ...getSource() };
     target = {status:'unavailable'}; targetLoading = false; targetLine.textContent = '正在确认今日日记位置…';
     for (const input of Array.from(form.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('input,textarea'))) input.value = '';
-    details.open = false; quoteBlock.hidden = true; timeChip.hidden = true; highlightDetails.open = false; highlightList.replaceChildren(); highlightDetails.hidden = !getHighlights; aiDetails.hidden = true; aiDetails.open = false; uriDetails.hidden = true;
+    details.open = false; paintEdit(); quoteBlock.hidden = true; highlightDetails.open = false; highlightList.replaceChildren(); highlightDetails.hidden = !getHighlights; aiDetails.hidden = true; aiDetails.open = false; uriDetails.hidden = true;
     updateButtons();
     if (youtubeVideoId(origin.url || '') || bilibiliVideo(origin.url || '')) {
       origin.kind = youtubeVideoId(origin.url || '') ? 'youtube' : 'bilibili';
@@ -196,7 +209,7 @@ export function mountLearningNotes(options: { doc: Document; getSource: () => Le
       draft = restored || service.createLearningDraft(origin, entry); target = fresh;
       if (restored && entry.quote && entry.quote !== restored.quote) { pendingQuote = entry.quote; pendingTime = origin.timestampSeconds; replaceQuote.hidden = false; }
       if (restored && entry.aiSupplement) draft.aiSupplement = [draft.aiSupplement, entry.aiSupplement].filter(Boolean).join('\n\n');
-      paintDraft(); paintTarget(); status.textContent = restored ? '已恢复此来源的草稿' : '';
+      paintDraft(); paintTarget(); draftNote.textContent = restored ? '已恢复草稿' : ''; updateButtons();
       if (entry.aiSupplement) { aiDetails.hidden = false; aiDetails.open = true; }
     } catch { status.textContent = '草稿或日记目标读取失败，请关闭后重试'; }
     finally {
@@ -214,7 +227,7 @@ export function mountLearningNotes(options: { doc: Document; getSource: () => Le
       const result = uri ? await service.dispatchLearningRecord(snapshot, uriVaultInput.value.trim()) : await service.saveLearningRecord(snapshot, target);
       if (result.target) { target = result.target; paintTarget(); }
       if (result.status === 'saved') {
-        if (draft.source.timestampSeconds !== undefined && origin?.url) { const text = draft.reflection.trim() || draft.quote.trim() || draft.aiSupplement || ''; await addMark(origin.url, { t: draft.source.timestampSeconds, text, at: draft.createdAt }); doc.dispatchEvent(new CustomEvent(MARKS_EVENT)); }
+        if (includeSource && draft.source.timestampSeconds !== undefined && origin?.url) { const text = draft.reflection.trim() || draft.quote.trim() || draft.aiSupplement || ''; await addMark(origin.url, { t: draft.source.timestampSeconds, text, at: draft.createdAt }); doc.dispatchEvent(new CustomEvent(MARKS_EVENT)); }
         status.textContent = '已写入 ' + result.vault + ' · ' + result.date + (result.error ? '；' + result.error : '');
         notify(status.textContent);
         // Core clears only the saved capture. A new entry must get a fresh ID.
@@ -225,7 +238,9 @@ export function mountLearningNotes(options: { doc: Document; getSource: () => Le
     finally { busy = false; for (const input of Array.from(form.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('input,textarea'))) input.disabled = false; updateButtons(); }
   };
   form.addEventListener('input', () => { updateChip(); if (!busy && !loading) void persist(); });
-  timeChip.onclick = () => { details.open = true; timeInput.focus(); };
+  const paintEdit = () => { editSource.textContent = details.open ? '收起' : '编辑'; };
+  details.addEventListener('toggle', paintEdit);
+  editSource.onclick = () => { details.open = !details.open; paintEdit(); if (details.open) titleInput.focus(); };
   removeQuote.onclick = () => { if (busy || loading) return; quoteInput.value = ''; quoteBlock.hidden = true; pendingQuote = ''; replaceQuote.hidden = true; void persist(); reflectionInput.focus(); };
   form.addEventListener('submit', event => { event.preventDefault(); void submit(); });
   form.addEventListener('keydown', event => {
@@ -235,7 +250,9 @@ export function mountLearningNotes(options: { doc: Document; getSource: () => Le
   });
   dialog.addEventListener('cancel', event => { event.preventDefault(); close(); }); closeButton.onclick = close;
   retryTarget.onclick = () => { if (!busy && !loading) void refreshTarget(); }; dispatch.onclick = () => { void submit(true); };
-  removeSource.onclick = () => { if (busy || loading) return; titleInput.value = ''; urlInput.value = ''; timeInput.value = ''; updateChip(); void persist(); };
+  const remember = (key: 'learningIncludeQuote' | 'learningIncludeSource', value: boolean) => { void saveSettings({ [key]: value }).catch(() => { /* the choice still applies to this note */ }); };
+  quoteToggle.onclick = () => { if (busy || loading) return; includeQuote = !includeQuote; remember('learningIncludeQuote', includeQuote); updateChip(); void persist(); };
+  sourceToggle.onclick = () => { if (busy || loading) return; includeSource = !includeSource; remember('learningIncludeSource', includeSource); updateChip(); void persist(); };
   removeAi.onclick = () => { if (busy || loading) return; aiInput.value = ''; aiDetails.hidden = true; void persist(); };
   replaceQuote.onclick = () => { if (busy || loading) return; quoteInput.value = pendingQuote; timeInput.value = pendingTime === undefined ? '' : String(Math.floor(pendingTime)); pendingQuote = ''; pendingTime = undefined; replaceQuote.hidden = true; showQuote(); updateChip(); void persist(); };
   button.onclick = () => { void open({ quote: learningSelection(doc) }); };

@@ -73,6 +73,8 @@ interface StorageData {
 		selectionToolbar?: boolean;
 		youtubePanelActions?: boolean;
 		learningNotes?: boolean;
+		learningIncludeQuote?: boolean;
+		learningIncludeSource?: boolean;
 		youtubeAutoTranscript?: boolean;
 		youtubeHideNativeTranscript?: boolean;
 	};
@@ -204,6 +206,8 @@ export async function loadSettings(): Promise<Settings> {
 		selectionToolbar: data.general_settings?.selectionToolbar ?? true,
 		youtubePanelActions: data.general_settings?.youtubePanelActions ?? true,
 		learningNotes: data.general_settings?.learningNotes ?? true,
+		learningIncludeQuote: data.general_settings?.learningIncludeQuote ?? true,
+		learningIncludeSource: data.general_settings?.learningIncludeSource ?? true,
 		youtubeAutoTranscript: data.general_settings?.youtubeAutoTranscript ?? true,
 		youtubeHideNativeTranscript: data.general_settings?.youtubeHideNativeTranscript ?? true,
 		highlighterEnabled: data.highlighter_settings?.highlighterEnabled ?? defaultSettings.highlighterEnabled,
@@ -265,6 +269,8 @@ export async function saveSettings(settings?: Partial<Settings>): Promise<void> 
 			selectionToolbar: generalSettings.selectionToolbar,
 			youtubePanelActions: generalSettings.youtubePanelActions,
 			learningNotes: generalSettings.learningNotes,
+			learningIncludeQuote: generalSettings.learningIncludeQuote,
+			learningIncludeSource: generalSettings.learningIncludeSource,
 			youtubeAutoTranscript: generalSettings.youtubeAutoTranscript,
 			youtubeHideNativeTranscript: generalSettings.youtubeHideNativeTranscript,
 		},
