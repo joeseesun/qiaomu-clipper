@@ -220,7 +220,7 @@ B 站使用官方嵌入播放器：点击时间戳会按该秒重新加载，高
 
 ## 三连击快捷键
 
-![三连击快捷键：AAA 阅读、EEE 编辑、QQQ 剪藏](docs/assets/features/triple-key.jpg)
+![三连击快捷键：AAA 阅读、EEE 编辑、QQQ 剪藏、III 记笔记](docs/assets/features/triple-key.jpg)
 
 在非输入框内快速连按同一个键 3 次（相邻按键间隔不超过约 0.6 秒）：
 
@@ -311,7 +311,7 @@ The Chinese feature tour includes ten matching AI-generated concept illustration
 | Lose your own thoughts while watching | Press `N` to write in a small card, with source and video time; append to today's daily note using the helper |
 | Re-type the same AI instructions | Global custom instructions, editable article / selection quick prompts, font choice and 12–28 px chat size |
 | Need a better place to read and edit | Shared top bar, collapsible navigation, Chinese fonts, highlights, side-by-side properties and Markdown |
-| Too many steps to clip | Configurable triple-press shortcuts: `aaa` read / study, `eee` edit, `qqq` clip; site exclusions and typing guards |
+| Too many steps to clip | Configurable triple-press shortcuts: `aaa` read / study, `eee` edit, `qqq` clip, `iii` quick-note card on any page; site exclusions and typing guards |
 
 Video loads before captions; caption failure can be retried without rebuilding the player. YouTube supports playback-following highlights. Bilibili uses its official embed: timestamp seeking reloads the player and captions highlight the clicked row rather than following playback; captions may require login. Actual availability depends on the video, site and network.
 
