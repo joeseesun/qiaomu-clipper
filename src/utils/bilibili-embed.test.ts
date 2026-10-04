@@ -16,5 +16,7 @@ it('turns embeds into a plain link for the RSS site, including a cut-off tag', (
 
 it('leaves other iframes and unrelated text alone', () => {
 	const other = '<iframe src="https://example.com/embed"></iframe> text';
+	const escaped = '&lt;iframe width="560" height="315" src="https://player.bilibili.com/player.html?bvid=BV1GjaD6jEVx&amp;page=1&amp;high_quality=1&amp;danmaku=0" title="Bilibili video player" frameborder="0" allowfullscreen=""&gt;&lt;/iframe&gt;';
+	expect(bilibiliEmbedsToLinks(`前文\n\n${escaped}\n\n后文`)).toBe('前文\n\n[▶ 在 B 站观看](https://www.bilibili.com/video/BV1GjaD6jEVx/)\n\n后文');
 	expect(bilibiliEmbedsToLinks(other)).toBe(other); expect(normalizeBilibiliEmbeds(other)).toBe(other);
 });

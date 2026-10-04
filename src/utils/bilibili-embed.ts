@@ -23,6 +23,10 @@ export function normalizeBilibiliEmbeds(markdown: string): string {
 	return markdown.replace(EMBED, (whole, _quote, src: string) => { const video = videoOf(src); return video ? bilibiliPlayerHtml(video.bvid, video.page) : whole; });
 }
 
+// An embed shown as text arrives HTML-escaped (`&lt;iframe …&gt;`); turn it back so it is recognised and replaced too.
+const ESCAPED_EMBED = /&lt;iframe\b(?:(?!&lt;)[^<>])*?player\.bilibili\.com\/player\.html(?:(?!&lt;)[^<>])*?&gt;\s*(?:&lt;\/iframe&gt;)?/gi;
+const unescapeEmbeds = (markdown: string) => markdown.replace(ESCAPED_EMBED, m => m.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"'));
+
 export function bilibiliEmbedsToLinks(markdown: string): string {
-	return markdown.replace(EMBED, (whole, _quote, src: string) => { const video = videoOf(src); return video ? `[▶ 在 B 站观看](${bilibiliWatchUrl(video.bvid, video.page)})` : whole; });
+	return unescapeEmbeds(markdown).replace(EMBED, (whole, _quote, src: string) => { const video = videoOf(src); return video ? `[▶ 在 B 站观看](${bilibiliWatchUrl(video.bvid, video.page)})` : whole; });
 }
