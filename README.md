@@ -12,7 +12,7 @@ Read, watch, ask AI, and turn what you learn into Obsidian notes.
 
 **[安装并体验最新功能](#快速开始)** · [看功能截图](#功能巡游) · [快捷键](#三连击快捷键) · [反馈问题](https://github.com/joeseesun/qiaomu-clipper/issues)
 
-![视频学习：视频与双语字幕并排，统一顶栏支持复制、下载、剪藏与 AI](docs/assets/screens/video-study.png)
+![视频学习：视频与双语字幕并排，统一顶栏支持复制、下载、剪藏与 AI](https://joeseesun.github.io/qiaomu-clipper/assets/screens/video-study.png)
 
 ![license](https://img.shields.io/badge/license-MIT-green) ![platform](https://img.shields.io/badge/Chrome-Manifest%20V3-orange) ![install](https://img.shields.io/badge/安装方式-源码加载-blue)
 
@@ -86,12 +86,12 @@ python3 native/install.py
 
 ### 视频学习：播放器与文稿一起用
 
-![视频阅读：把视频变成一本书](docs/assets/features/video-reading.jpg)
+![视频阅读：把视频变成一本书](https://joeseesun.github.io/qiaomu-clipper/assets/features/video-reading.jpg)
 
 <details>
 <summary>查看视频学习截图</summary>
 
-![视频学习：双语字幕、搜索、可调视频尺寸和位置切换](docs/assets/screens/video-study.png)
+![视频学习：双语字幕、搜索、可调视频尺寸和位置切换](https://joeseesun.github.io/qiaomu-clipper/assets/screens/video-study.png)
 
 </details>
 
@@ -107,24 +107,24 @@ B 站使用官方嵌入播放器：点击时间戳会按该秒重新加载，高
 
 ### 双语字幕：英文视频，中文对照
 
-![双语字幕：原文与中文译文保留相同时间戳](docs/assets/features/bilingual-transcripts.jpg)
+![双语字幕：原文与中文译文保留相同时间戳](https://joeseesun.github.io/qiaomu-clipper/assets/features/bilingual-transcripts.jpg)
 
 原文与中文译文对照阅读，保留原始时间戳；读到某一句时，可以点击时间戳回看对应片段。翻译使用你配置的 AI 模型，字幕是否可用取决于视频与平台。
 
 ### YouTube 原页：不打开面板，也能找到字幕入口
 
-<img src="docs/assets/screens/youtube-transcript-bar.png" alt="YouTube 转写条组件：字幕、复制、下载、沉浸学习、设置与字幕搜索" width="650">
+<img src="https://joeseesun.github.io/qiaomu-clipper/assets/screens/youtube-transcript-bar.png" alt="YouTube 转写条组件：字幕、复制、下载、沉浸学习、设置与字幕搜索" width="650">
 
 视频页右栏顶部常驻「转写条」：**字幕 / 复制 / 下载 / 沉浸学习 / 设置**。展开即可搜索、看当前播放行或点时间跳转；「沉浸学习」进入完整学习页。可自动打开 YouTube 原生转写面板作为字幕来源，设置里可关闭。上图为转写条组件预览，使用示例字幕。
 
 ### 学习笔记：把自己的理解留下来
 
-![学习笔记：边看边记，留下收获](docs/assets/features/learning-notes.jpg)
+![学习笔记：边看边记，留下收获](https://joeseesun.github.io/qiaomu-clipper/assets/features/learning-notes.jpg)
 
 <details>
 <summary>查看学习笔记截图</summary>
 
-![学习笔记：视频下方的小卡片，写我的理解，摘录与来源各有开关](docs/assets/screens/learning-note.png)
+![学习笔记：视频下方的小卡片，写我的理解，摘录与来源各有开关](https://joeseesun.github.io/qiaomu-clipper/assets/screens/learning-note.png)
 
 </details>
 
@@ -140,12 +140,12 @@ B 站使用官方嵌入播放器：点击时间戳会按该秒重新加载，高
 
 ### AI 对话：理解本文，也按你的习惯回答
 
-![文章 AI 对话：没读懂，直接问 AI](docs/assets/features/ai-chat.jpg)
+![文章 AI 对话：没读懂，直接问 AI](https://joeseesun.github.io/qiaomu-clipper/assets/features/ai-chat.jpg)
 
 <details>
 <summary>查看 AI 对话截图</summary>
 
-![文章阅读与 AI 对话：选中一段文字后直接围绕它提问](docs/assets/screens/reader-chat.png)
+![文章阅读与 AI 对话：选中一段文字后直接围绕它提问](https://joeseesun.github.io/qiaomu-clipper/assets/screens/reader-chat.png)
 
 </details>
 
@@ -154,7 +154,7 @@ B 站使用官方嵌入播放器：点击时间戳会按该秒重新加载，高
 <details>
 <summary>查看 AI 对话设置截图</summary>
 
-![AI 对话设置：字体、字号、全局指令与快捷提示词](docs/assets/screens/ai-settings.png)
+![AI 对话设置：字体、字号、全局指令与快捷提示词](https://joeseesun.github.io/qiaomu-clipper/assets/screens/ai-settings.png)
 
 </details>
 
@@ -169,12 +169,12 @@ B 站使用官方嵌入播放器：点击时间戳会按该秒重新加载，高
 
 ### 阅读与编辑：读得舒服，改得方便
 
-![阅读与划线：读得舒服，记住重点](docs/assets/features/reader-highlights.jpg)
+![阅读与划线：读得舒服，记住重点](https://joeseesun.github.io/qiaomu-clipper/assets/features/reader-highlights.jpg)
 
 <details>
 <summary>查看阅读页截图</summary>
 
-![阅读页：干净正文、中文字体、高亮与来源](docs/assets/screens/reader.png)
+![阅读页：干净正文、中文字体、高亮与来源](https://joeseesun.github.io/qiaomu-clipper/assets/screens/reader.png)
 
 </details>
 
@@ -182,12 +182,12 @@ B 站使用官方嵌入播放器：点击时间戳会按该秒重新加载，高
 
 **阅读目录与编辑侧栏都能收起 / 展开，并记住状态**，长文章保留导航，需要空间时让正文铺开。阅读与编辑一键切换，共用顶栏与草稿流程，修改后内容同步。
 
-![Markdown 编辑：先改好，再保存](docs/assets/features/markdown-editor.jpg)
+![Markdown 编辑：先改好，再保存](https://joeseesun.github.io/qiaomu-clipper/assets/features/markdown-editor.jpg)
 
 <details>
 <summary>查看编辑页截图</summary>
 
-![整页编辑器：左侧属性，右侧 Markdown 正文](docs/assets/screens/editor.png)
+![整页编辑器：左侧属性，右侧 Markdown 正文](https://joeseesun.github.io/qiaomu-clipper/assets/screens/editor.png)
 
 </details>
 
@@ -195,12 +195,12 @@ B 站使用官方嵌入播放器：点击时间戳会按该秒重新加载，高
 
 ### 弹窗：保存之前，少做几次选择
 
-![网页保存：喜欢这篇，一键收藏](docs/assets/features/clip-to-obsidian.jpg)
+![网页保存：喜欢这篇，一键收藏](https://joeseesun.github.io/qiaomu-clipper/assets/features/clip-to-obsidian.jpg)
 
 <details>
 <summary>查看弹窗截图</summary>
 
-<img src="docs/assets/screens/popup.png" alt="剪藏弹窗：阅读、复制、下载、编辑与一键剪藏" width="520">
+<img src="https://joeseesun.github.io/qiaomu-clipper/assets/screens/popup.png" alt="剪藏弹窗：阅读、复制、下载、编辑与一键剪藏" width="520">
 
 </details>
 
@@ -208,19 +208,19 @@ B 站使用官方嵌入播放器：点击时间戳会按该秒重新加载，高
 
 ### 模板与 AI 解读：照着模板，自动整理
 
-![模板与 AI 解读：照着模板，自动整理](docs/assets/features/ai-templates.jpg)
+![模板与 AI 解读：照着模板，自动整理](https://joeseesun.github.io/qiaomu-clipper/assets/features/ai-templates.jpg)
 
 用模板统一属性与 Markdown 正文，按网址或页面数据自动匹配；需要摘要时加入 AI 提示变量，由你配置的模型按需生成。模板、模型和 API Key 均可自行设置，默认不自动运行 AI。
 
 ### RSS 分享：好文章，一起读
 
-![RSS 分享：好文章，一起读](docs/assets/features/rss-sharing.jpg)
+![RSS 分享：好文章，一起读](https://joeseesun.github.io/qiaomu-clipper/assets/features/rss-sharing.jpg)
 
 剪藏时勾选「分享到乔木 RSS」，在保存到 Obsidian 的同时提交到[公开读者提交源](https://rss.qiaomu.ai/feeds/user-submitted.xml)，方便其他人订阅。**此选项默认关闭（设置页可改为默认开启），投稿内容会公开。** 本地保存和公开投稿分别显示结果，阅读、编辑与学习笔记的日记保存不会触发投稿。
 
 ## 三连击快捷键
 
-![三连击快捷键：AAA 阅读、EEE 编辑、QQQ 剪藏、III 记笔记](docs/assets/features/triple-key.jpg)
+![三连击快捷键：AAA 阅读、EEE 编辑、QQQ 剪藏、III 记笔记](https://joeseesun.github.io/qiaomu-clipper/assets/features/triple-key.jpg)
 
 在非输入框内快速连按同一个键 3 次（相邻按键间隔不超过约 0.6 秒）：
 
