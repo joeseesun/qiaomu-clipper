@@ -29,7 +29,7 @@ python3 native/install.py --vault /absolute/path/to/vault --extension-id YOUR_CH
 同一个助手也负责「学习笔记」：扩展先问助手今天的日记在哪（`learningDailyTarget`），你确认后再追加内容（`saveLearning`）。
 
 - **日记位置**：读取库里 `.obsidian/daily-notes.json` 的目录和日期格式，用电脑真实日期解析。只支持数字日期（如 `YYYY-MM-DD`、`YYYY/MM/DD`）且未配置模板；否则返回明确原因，不会猜路径。
-- **只追加**：不改动 frontmatter 和已有正文，每条笔记自带标记注释，同一条重试不会重复写入，崩溃后可凭回执恢复，跨午夜会要求重新确认目标。
+- **只追加**：不改动 frontmatter 和已有正文，日记里不留任何标记；同一条重试靠助手本地的回执（写入前日记的哈希与长度）判断是否已写入，不会重复，崩溃后同样凭回执恢复，跨午夜会要求重新确认目标。
 - **升级后要重装**：学习笔记需要新版助手，升级扩展后请重新运行安装命令（会覆盖 `~/.local/share/qiaomu-clipper/host.py`，库路径和扩展来源沿用你给的参数）。
 
 找到自己的扩展 ID：打开 `chrome://extensions`，开启右上角「开发者模式」，复制「乔木剪藏」卡片上的 ID（32 个字母）。从应用商店安装与本地加载的 ID 不同，助手只接受安装时给出的那一个。

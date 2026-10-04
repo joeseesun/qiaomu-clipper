@@ -13,7 +13,9 @@ const invokeLearningNative = (payload: unknown) => Promise.resolve().then(() => 
 export function handleLearningNativeMessage(request: unknown, sender: { id?: string; url?: string }): Promise<unknown> | undefined {
     const message = request as { action?: string; vault?: string; url?: string; payload?: { captureId?: string; vault?: string } };
     if (!['qiaomuLearningDailyTarget', 'qiaomuLearningSave', 'qiaomuLearningDispatch'].includes(message?.action || '')) return;
-    if (sender.id !== browser.runtime.id || !sender.url?.startsWith(browser.runtime.getURL(''))) return Promise.resolve({ status: 'failed', error: '无效的日记请求' });
+    // Extension pages and this extension's own content scripts (the quick-note card on ordinary pages) both carry our id.
+    // Web pages and other extensions cannot reach this listener with it.
+    if (sender.id !== browser.runtime.id) return Promise.resolve({ status: 'failed', error: '日记请求被拒绝，请刷新页面后重试' });
     if (message.action === 'qiaomuLearningDispatch') {
         try {
             const uri = new URL(message.url || '');

@@ -82,6 +82,8 @@ export interface Settings {
 	selectionToolbar?: boolean;
 	youtubePanelActions?: boolean;
 	learningNotes?: boolean;
+	learningIncludeQuote?: boolean;
+	learningIncludeSource?: boolean;
 	youtubeAutoTranscript?: boolean;
 	youtubeHideNativeTranscript?: boolean;
 	highlighterEnabled: boolean;

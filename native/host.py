@@ -67,8 +67,11 @@ def learning_daily_target(root, vault=''):
     token=hashlib.sha256((str(root)+'\n'+str(target)+'\n'+date).encode()).hexdigest()
     return {'status':'ready','vault':root.name,'date':date,'relativePath':target.relative_to(root).as_posix(),'targetToken':token}
 
-def learning_marker(capture_id, digest, end=False):
-    return f'<!-- qiaomu-learning-record:{capture_id}:{digest}:{"end" if end else "begin"} -->'
+# Entries carry no marker comments. Whether a capture was written is decided from the receipt journal instead:
+# the receipt stores the diary's hash and length from before the write, so a retry can tell "untouched" (write it)
+# from "original part unchanged and the entry follows it" (already written) without leaving anything in the note.
+def sha(text):
+    return hashlib.sha256(text.encode('utf8')).hexdigest()
 
 def save_learning(message, root, base):
     capture_id=message.get('captureId','')
@@ -78,8 +81,7 @@ def save_learning(message, root, base):
     vault=message.get('vault') or ''
     if vault and vault not in {root.name,str(root)}: return {'status':'failed','error':'所选库与本地助手配置不一致'}
     digest=hashlib.sha256(content.encode('utf8')).hexdigest()
-    begin,end=learning_marker(capture_id,digest),learning_marker(capture_id,digest,True)
-    block=begin+'\n'+content.rstrip()+'\n'+end
+    piece='\n\n'+content.rstrip()+'\n'
     receipt_file=base/'learning-receipts.json'
     base.mkdir(parents=True,exist_ok=True)
     with (base/'save.lock').open('a') as lock:
@@ -91,13 +93,22 @@ def save_learning(message, root, base):
             path=Path(previous['path'])
             if not path.resolve().is_relative_to(root) or path.is_symlink() or (not path.is_file() and (previous.get('state')!='pending' or previous.get('originalExists'))): return {'status':'unconfirmed','error':'先前记录目标已移除或更改，请在 Obsidian 核对'}
             current=path.read_text(encoding='utf8') if path.exists() else ''
-            if block in current:
+            pending=previous.get('state')=='pending'
+            # Pending: the part that existed before our write must be intact, and our entry must follow it.
+            # Saved: the entry must still be in the note. Anything else is for the user to check.
+            if pending:
+                size=previous.get('originalLength')
+                if not isinstance(size,int) or sha(current[:size])!=previous.get('originalHash'):
+                    return {'status':'unconfirmed','error':'先前目标已被外部修改，请在 Obsidian 核对，未重复追加'}
+                found=piece in current[size:]
+            else: found=piece in current
+            if found:
                 previous['state']='saved'
                 try: atomic_json(receipt_file,receipts)
                 except OSError: return {'status':'unconfirmed','error':'记录已找到但回执未完成，请同记录重试'}
                 return {**previous['result'],'duplicate':True}
-            if previous.get('state')!='pending' or hashlib.sha256(current.encode('utf8')).hexdigest()!=previous.get('originalHash'):
-                return {'status':'unconfirmed','error':'先前目标已被外部修改，请在 Obsidian 核对，未重复追加'}
+            # Not found: only write again if the diary is exactly as it was before the interrupted attempt.
+            if not pending or sha(current)!=previous.get('originalHash'): return {'status':'unconfirmed','error':'先前目标已被外部修改，请在 Obsidian 核对，未重复追加'}
         target_info=learning_daily_target(root,vault)
         if target_info['status']!='ready': return {'status':'failed','error':target_info.get('error','日记位置未知'),'target':target_info}
         if message.get('expectedTargetToken')!=target_info['targetToken']: return {'status':'target-changed','error':'今日日期或日记配置已变化，请核对目标后再保存','target':target_info}
@@ -105,15 +116,8 @@ def save_learning(message, root, base):
         target.parent.mkdir(parents=True,exist_ok=True)
         if target.is_symlink() or not target.parent.resolve().is_relative_to(root): return {'status':'failed','error':'日记目标路径无效'}
         result={'status':'saved','captureId':capture_id,'vault':root.name,'date':target_info['date'],'relativePath':target_info['relativePath']}
-        if target.exists():
-            current=target.read_text(encoding='utf8')
-            if block in current:
-                receipts[capture_id]={'digest':digest,'vault':str(root),'path':str(target),'result':result,'state':'saved'}
-                atomic_json(receipt_file,receipts)
-                return {**result,'duplicate':True}
-            if f'<!-- qiaomu-learning-record:{capture_id}:' in current: return {'status':'unconfirmed','error':'发现未完成或内容不同的记录，请在 Obsidian 核对，未重复追加'}
         original=target.read_text(encoding='utf8') if target.exists() else ''
-        receipts[capture_id]={'digest':digest,'vault':str(root),'path':str(target),'result':result,'state':'pending','originalHash':hashlib.sha256(original.encode('utf8')).hexdigest(),'originalExists':target.exists()}
+        receipts[capture_id]={'digest':digest,'vault':str(root),'path':str(target),'result':result,'state':'pending','originalHash':sha(original),'originalLength':len(original),'originalExists':target.exists()}
         # Persist the target BEFORE writing, so recovery after midnight still checks the original diary.
         atomic_json(receipt_file,receipts)
         # One O_APPEND write preserves existing/frontmatter and concurrent external appends.
@@ -124,13 +128,13 @@ def save_learning(message, root, base):
             before=os.fstat(fd)
             live=target.stat()
             if (before.st_dev,before.st_ino)!=(live.st_dev,live.st_ino): return {'status':'unconfirmed','error':'日记被外部修改，请核对后重试'}
-            data=('\n\n'+block+'\n').encode('utf8')
+            data=piece.encode('utf8')
             count=os.write(fd,data)
             os.fsync(fd)
             live=target.stat()
             if count!=len(data) or (before.st_dev,before.st_ino)!=(live.st_dev,live.st_ino): return {'status':'unconfirmed','error':'写入期间日记发生变化，请在 Obsidian 核对'}
         finally: os.close(fd)
-        if block not in target.read_text(encoding='utf8'): return {'status':'unconfirmed','error':'无法确认记录仍在日记中，请核对后重试'}
+        if piece not in target.read_text(encoding='utf8'): return {'status':'unconfirmed','error':'无法确认记录仍在日记中，请核对后重试'}
         receipts[capture_id]={'digest':digest,'vault':str(root),'path':str(target),'result':result,'state':'saved'}
         try: atomic_json(receipt_file,receipts)
         except OSError: return {'status':'unconfirmed','error':'记录可能已写入但回执未完成，请用同一记录重试'}

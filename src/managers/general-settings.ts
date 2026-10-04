@@ -478,6 +478,12 @@ function initializeDefaultTemplateDropdown(): void {
 	initializeSettingToggle('learning-notes-toggle', generalSettings.learningNotes !== false, (checked) => {
 		saveSettings({ ...generalSettings, learningNotes: checked });
 	});
+	initializeSettingToggle('learning-include-quote-toggle', generalSettings.learningIncludeQuote !== false, (checked) => {
+		saveSettings({ ...generalSettings, learningIncludeQuote: checked });
+	});
+	initializeSettingToggle('learning-include-source-toggle', generalSettings.learningIncludeSource !== false, (checked) => {
+		saveSettings({ ...generalSettings, learningIncludeSource: checked });
+	});
 	initializeSettingToggle('youtube-panel-actions-toggle', generalSettings.youtubePanelActions !== false, (checked) => {
 		saveSettings({ ...generalSettings, youtubePanelActions: checked });
 	});

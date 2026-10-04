@@ -5,10 +5,13 @@ vi.mock('./browser-polyfill',()=>({default:{tabs:{create:(...args:unknown[])=>ta
 import { handleLearningNativeMessage } from './local-save';
 const sender={id:'test-id',url:'chrome-extension://test-id/reader.html'};
 beforeEach(()=>{ native.mockReset(); });
-it('rejects website content senders, malformed IDs and unrelated requests without native writes',async()=>{
- expect(await handleLearningNativeMessage({action:'qiaomuLearningDailyTarget'},{id:'test-id',url:'https://example.com'})).toMatchObject({status:'failed'});
+it('rejects other extensions, malformed IDs and unrelated requests without native writes',async()=>{
+ expect(await handleLearningNativeMessage({action:'qiaomuLearningDailyTarget'},{id:'other-extension',url:'chrome-extension://other-extension/x.html'})).toMatchObject({status:'failed'});
  expect(await handleLearningNativeMessage({action:'qiaomuLearningSave',payload:{captureId:'../bad'}},sender)).toMatchObject({status:'failed'});
  expect(handleLearningNativeMessage({action:'qiaomuSubmitClip'},sender)).toBeUndefined();expect(native).not.toHaveBeenCalled();
+});
+it('accepts this extension\'s own quick-note card running inside an ordinary page',async()=>{
+ native.mockResolvedValue({status:'ready',vault:'v'});expect(await handleLearningNativeMessage({action:'qiaomuLearningDailyTarget'},{id:'test-id',url:'https://example.com/page'})).toMatchObject({status:'ready'});
 });
 it('maps old or missing helper responses to an unverified target',async()=>{
  native.mockResolvedValue({ok:false,error:'unknown action'});expect(await handleLearningNativeMessage({action:'qiaomuLearningDailyTarget'},sender)).toMatchObject({status:'unavailable'});

@@ -1,4 +1,4 @@
-// Quick-note card. Non-modal and small: the video and the transcript stay usable while it is open.
+// Quick-note card. Non-modal, anchored bottom-centre: it stays clear of the video above and the chat panel at the side.
 // Buttons are scoped and svg blending reset because the reader theme styles every bare button/svg (see clip-chat.scss).
 .learning-note-entry {
   display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 6px;
@@ -8,23 +8,18 @@
   &:focus-visible { outline: 1px solid var(--text-muted); outline-offset: 2px; }
 }
 .learning-composer {
-  position: fixed; inset: auto 24px 24px auto; margin: 0; z-index: 760; box-sizing: border-box;
-  width: min(380px, calc(100vw - 32px)); max-height: calc(100svh - 96px); overflow-y: auto;
-  padding: 12px 16px 14px; border: 1px solid var(--background-modifier-border, #ddd); border-radius: 12px;
+  position: fixed; inset: auto auto 20px 50%; transform: translateX(-50%); margin: 0; z-index: 760; box-sizing: border-box;
+  width: min(560px, calc(100vw - 32px)); max-height: calc(100svh - 96px); overflow-y: auto;
+  padding: 14px 16px 12px; border: 1px solid var(--background-modifier-border, #ddd); border-radius: 12px;
   background: var(--background-primary, #fff); color: var(--text-normal, #222); font: 13px/1.55 var(--font-ui, system-ui);
   box-shadow: 0 10px 30px rgb(0 0 0 / 16%), 0 1px 3px rgb(0 0 0 / 10%);
   &:not([open]) { display: none; }
   form { margin: 0; }
-  header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
-  .learning-title { display: flex; align-items: center; gap: 8px; min-width: 0; }
-  h2 { margin: 0; font: 600 13px/1.4 var(--font-ui, system-ui); color: var(--text-muted); }
+  header { position: absolute; top: 8px; inset-inline-end: 8px; margin: 0; }
   button { font: inherit; mix-blend-mode: normal; }
   svg { mix-blend-mode: normal !important; }
   button.learning-close:not(.clickable-icon) { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; flex: 0 0 auto; padding: 0; border: 0; border-radius: 6px; background: transparent; box-shadow: none; color: var(--text-faint, #888); cursor: pointer;
     svg { width: 14px; height: 14px; } &:hover { background: var(--background-modifier-hover, rgb(128 128 128 / 14%)); color: var(--text-normal); } }
-  button.learning-time-chip:not(.clickable-icon) { display: inline-flex; align-items: center; gap: 4px; width: auto; height: 22px; padding: 0 8px; border: 0; border-radius: 11px; box-shadow: none; flex: 0 0 auto;
-    background: var(--background-modifier-hover, rgb(128 128 128 / 14%)); color: var(--text-normal); font: 500 11px/1 var(--font-ui, system-ui); font-variant-numeric: tabular-nums; cursor: pointer;
-    svg { width: 9px; height: 9px; fill: currentColor; } &:hover { background: var(--background-modifier-border, rgb(128 128 128 / 24%)); } }
   .learning-field { display: flex; flex-direction: column; gap: 4px; margin-block: 8px; font-size: 12px; font-weight: 500; color: var(--text-muted); }
   // The visible field label would repeat the placeholder; keep it for assistive tech only on the two main fields.
   .learning-main, .learning-quote-field { font-size: 0; margin-block: 0; }
@@ -37,13 +32,23 @@
     &[hidden] { display: none; } .learning-quote-field { width: 100%; }
     textarea { padding: 0; border: 0; border-radius: 0; background: transparent; color: var(--text-muted); font-size: 13px; resize: none; field-sizing: content; max-height: 28svh; } }
   details { margin-block: 8px; summary { color: var(--text-muted); cursor: pointer; font-size: 12px; } &[hidden] { display: none; } }
-  .learning-tools { display: flex; align-items: center; gap: 12px; &:not(:has(button:not([hidden]):not(.learning-add-quote))) { margin-block: 0; } }
-  &:has(.learning-quote:not([hidden])) .learning-add-quote { display: none; }
+  .learning-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 20px; margin-block: 6px 0; }
+  .learning-edit-source { margin-inline-start: -4px; }
+  // Real switches: label, then a small track with a thumb. Dark track = goes into the diary.
+  button.learning-toggle:not(.clickable-icon) { display: inline-flex; align-items: center; gap: 8px; width: auto; height: 24px; flex: 0 0 auto; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; color: var(--text-muted, #666); font-size: 12px; cursor: pointer;
+    &:hover { background: transparent; box-shadow: none; color: var(--text-normal, #222); }
+    .learning-switch { position: relative; width: 28px; height: 16px; flex: 0 0 auto; border-radius: 8px; background: var(--text-normal, #222); transition: background .15s;
+      &::after { content: ''; position: absolute; top: 2px; left: 14px; width: 12px; height: 12px; border-radius: 50%; background: var(--background-primary, #fff); transition: left .15s; } }
+    &.is-off .learning-switch { background: var(--background-modifier-border, #ccc); &::after { left: 2px; } } }
+  &:has(.learning-quote[hidden]) .learning-toggle-quote { display: none; }
+  .learning-quote.is-off { opacity: .45; }
   .learning-more { margin-block: 4px; }
+  .learning-source-details > summary { display: none; }
   button.learning-secondary:not(.clickable-icon) { width: auto; height: auto; padding: 2px 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; color: var(--text-muted); font-size: 12px; cursor: pointer; text-decoration: none; white-space: nowrap;
     &:hover { color: var(--text-normal); background: transparent; box-shadow: none; text-decoration: underline; } }
   footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; }
   .learning-destination { display: flex; align-items: baseline; gap: 8px; min-width: 0; flex: 1 1 auto; }
+  .learning-draft { flex: 0 0 auto; color: var(--text-faint, #888); font-size: 11px; &:empty { display: none; } }
   .learning-target { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-faint, #888); font-size: 11px; &.is-problem { white-space: normal; color: var(--text-muted); } }
   button.learning-primary:not(.clickable-icon) { width: auto; height: 28px; flex: 0 0 auto; padding: 0 14px; border: 0; border-radius: 14px; box-shadow: none; background: var(--text-normal, #222); color: var(--background-primary, #fff); font-size: 13px; font-weight: 500; cursor: pointer;
     &:hover:not(:disabled) { background: var(--text-normal, #222); opacity: .88; box-shadow: none; } }
@@ -52,10 +57,11 @@
   .learning-main textarea:focus-visible, .learning-quote textarea:focus-visible { outline: none; }
   .learning-status { margin: 4px 0 0; overflow-wrap: anywhere; color: var(--text-muted); font-size: 12px; &:empty { display: none; } }
   .learning-highlight-choice { display: block; width: 100%; text-align: left; white-space: pre-wrap; padding: 6px 8px; margin-block: 6px; border: 1px solid var(--background-modifier-border, #ddd); border-radius: 6px; color: inherit; background: transparent; font-size: 12px; cursor: pointer; }
+  .learning-main textarea { padding-inline-end: 28px; }
   [hidden] { display: none !important; }
 }
-html.clip-chat-open .learning-composer { right: calc(var(--clip-chat-width, 0px) + 24px); }
-@media (max-width: 760px) { html.clip-chat-open .learning-composer { right: 16px; } }
+html.clip-chat-open .learning-composer { left: calc((100% - var(--clip-chat-width, 0px)) / 2); }
+@media (max-width: 760px) { html.clip-chat-open .learning-composer { left: 50%; } }
 .learning-selection-menu {
   position: absolute; z-index: 2147483647; gap: 4px; padding: 4px; border: 1px solid var(--background-modifier-border, #ddd); border-radius: 8px; background: var(--background-primary, #fff);
   .obsidian-selection-action { position: static; display: flex; box-shadow: none; border: 0; margin: 0; }

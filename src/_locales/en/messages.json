@@ -1347,6 +1347,18 @@
 	"learningNotesDescription": {
 		"message": "Add a note button and the N key to the reading and video pages. Notes are appended to today's daily note in your vault through the local helper."
 	},
+	"learningIncludeQuoteTitle": {
+		"message": "Include the excerpt in notes"
+	},
+	"learningIncludeQuoteDescription": {
+		"message": "When a note has selected text, write it into the diary as a quote. You can also switch it per note in the note card."
+	},
+	"learningIncludeSourceTitle": {
+		"message": "Include source and time in notes"
+	},
+	"learningIncludeSourceDescription": {
+		"message": "Write the page or video link, and the video time, in the diary entry. You can also switch it per note in the note card."
+	},
 	"youtubePanelReload": {
 		"message": "The extension was updated — reload this page and try again"
 	},

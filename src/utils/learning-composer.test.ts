@@ -2,6 +2,7 @@
 import { beforeEach, afterEach, it, expect, vi } from 'vitest';
 import { mountLearningNotes, learningSelection, learningTimestamp, LearningNotes } from './learning-composer';
 import { createLearningDraft, LearningSource } from './learning-record';
+import { saveSettings } from './storage-utils';
 const target = {status:'ready' as const,vault:'Fixture',date:'2026-10-03',relativePath:'Daily/2026-10-03.md',targetToken:'token'};
 let notes: LearningNotes;
 let source: LearningSource;
@@ -12,7 +13,8 @@ const change=(label:string,text:string)=>{input(label).value=text;input(label).d
 const tick=async()=>{for(let i=0;i<20;i++) await Promise.resolve();};
 const click=(selector:string)=>document.querySelector<HTMLButtonElement>(selector)!.click();
 const select=(selector:string)=>{const node=document.querySelector(selector)!;const range=document.createRange();range.selectNodeContents(node);document.getSelection()!.removeAllRanges();document.getSelection()!.addRange(range);};
-beforeEach(()=>{
+beforeEach(async()=>{
+ await saveSettings({learningIncludeQuote:true,learningIncludeSource:true}).catch(()=>{});
  document.body.innerHTML='<article><p id="selected">Selected only</p><p>Unselected secret body</p><div class="transcript-segment"><span class="timestamp" data-timestamp="95">1:35</span><p id="subtitle">New subtitle</p></div><iframe src="https://www.youtube.com/embed/abcdefghijk?enablejsapi=1"></iframe></article><aside id="outside">Outside</aside>';
  source={title:'Original',url:'https://example.com/article'};stored={};
  services={createLearningDraft,loadLearningDraft:vi.fn(async(s:LearningSource)=>stored[s.url||'thought']||null),persistLearningDraft:vi.fn(async(d:any,s:LearningSource)=>{stored[s.url||'thought']=structuredClone(d);}),getDailyTarget:vi.fn(async()=>target),saveLearningRecord:vi.fn(async(d:any,t:any)=>{delete stored[d.originSource.url];return {...t,status:'saved',captureId:d.captureId};}),dispatchLearningRecord:vi.fn(async()=>({status:'dispatched'}))};
@@ -20,7 +22,7 @@ beforeEach(()=>{
 });
 afterEach(()=>{notes.dispose();document.getSelection()?.removeAllRanges();vi.restoreAllMocks();});
 it('focuses understanding, shows resolved target, accepts quote only and rejects empty',async()=>{
- await notes.open();expect(document.activeElement).toBe(input('我的理解'));expect(document.querySelector('.learning-target')!.textContent).toContain('Daily/2026-10-03.md');expect(document.querySelector<HTMLButtonElement>('.learning-primary')!.disabled).toBe(true);
+ await notes.open();expect(document.activeElement).toBe(input('我的理解'));expect(document.querySelector('.learning-target')!.textContent).toContain('2026-10-03');expect(document.querySelector<HTMLElement>('.learning-target')!.title).toContain('Daily/2026-10-03.md');expect(document.querySelector<HTMLButtonElement>('.learning-primary')!.disabled).toBe(true);
  change('原文摘录','Only quote');expect(document.querySelector<HTMLButtonElement>('.learning-primary')!.disabled).toBe(false);click('.learning-primary');await tick();expect(services.saveLearningRecord).toHaveBeenCalledOnce();expect(services.saveLearningRecord.mock.calls[0][0].reflection).toBe('');expect(document.querySelector<HTMLDialogElement>('dialog')!.open).toBe(false);expect(document.querySelector('.learning-save-notice')!.textContent).toContain('已写入');
 });
 it('waits for a slow close write before immediately restoring without losing text',async()=>{
@@ -54,19 +56,19 @@ it('rejects outside selection and absent time rather than fabricating zero',()=>
  select('#selected');expect(learningSelection(document)).toBe('Selected only');expect(learningTimestamp(document)).toBeUndefined();select('#outside');expect(learningSelection(document)).toBe('');select('#subtitle');expect(learningTimestamp(document)).toBe(95);document.getSelection()!.removeAllRanges();expect(learningTimestamp(document)).toBeUndefined();
 });
 it('guards Ctrl+Enter while resolving a new target and recovers when resolution fails',async()=>{
- await notes.open({quote:'Quote'});let finish!:(v:any)=>void;services.getDailyTarget.mockImplementationOnce(()=>new Promise(r=>finish=r));Array.from(document.querySelectorAll<HTMLButtonElement>('button')).find(b=>b.textContent==='重新确认目标')!.click();change('我的理解','Still editing');input('我的理解').dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',ctrlKey:true,bubbles:true}));await tick();expect(services.saveLearningRecord).not.toHaveBeenCalled();expect(document.querySelector<HTMLButtonElement>('.learning-primary')!.disabled).toBe(true);finish(target);await tick();expect(document.querySelector<HTMLButtonElement>('.learning-primary')!.disabled).toBe(false);
+ await notes.open({quote:'Quote'});let finish!:(v:any)=>void;services.getDailyTarget.mockImplementationOnce(()=>new Promise(r=>finish=r));Array.from(document.querySelectorAll<HTMLButtonElement>('button')).find(b=>b.textContent==='重试')!.click();change('我的理解','Still editing');input('我的理解').dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',ctrlKey:true,bubbles:true}));await tick();expect(services.saveLearningRecord).not.toHaveBeenCalled();expect(document.querySelector<HTMLButtonElement>('.learning-primary')!.disabled).toBe(true);finish(target);await tick();expect(document.querySelector<HTMLButtonElement>('.learning-primary')!.disabled).toBe(false);
 });
 it('clears a subtitle timestamp when explicitly selecting a highlight without time metadata',async()=>{
  source={title:'Video',url:'https://www.youtube.com/watch?v=abcdefghijk'};select('#subtitle');await notes.open({quote:'Subtitle'});expect(input('视频时间（秒）').value).toBe('95');const details=Array.from(document.querySelectorAll('details')).find(d=>d.firstElementChild!.textContent==='从已有高亮选择摘录')!;details.open=true;details.dispatchEvent(new Event('toggle'));click('.learning-highlight-choice');expect(input('视频时间（秒）').value).toBe('');
 });
-it('is a non-modal card with a clickable time chip, an excerpt that can be removed and added back',async()=>{
+it('is a non-modal card with a source line showing the time, an excerpt that can be removed and added back',async()=>{
  source={title:'Video',url:'https://www.youtube.com/watch?v=abcdefghijk'};select('#subtitle');await notes.open({quote:'New subtitle'});
  const dialog=document.querySelector<HTMLDialogElement>('dialog')!;expect(dialog.open).toBe(true);expect(dialog.matches(':modal')).toBe(false);
- const chip=document.querySelector<HTMLButtonElement>('.learning-time-chip')!;expect(chip.hidden).toBe(false);expect(chip.textContent).toBe('1:35');
+ const chip=document.querySelector<HTMLElement>('.learning-toggle-source span:last-child')!;expect(chip.textContent).toBe('youtube.com · 1:35');
  expect(document.querySelector<HTMLElement>('.learning-quote')!.hidden).toBe(false);
- change('视频时间（秒）','125');expect(chip.textContent).toBe('2:05');chip.click();expect(document.querySelector<HTMLDetailsElement>('.learning-more:not([hidden])')!.parentElement).not.toBeNull();
+ change('视频时间（秒）','125');expect(chip.textContent).toBe('youtube.com · 2:05');click('.learning-edit-source');expect(document.querySelector<HTMLDetailsElement>('.learning-source-details')!.open).toBe(true);
  click('.learning-quote .learning-secondary');expect(document.querySelector<HTMLElement>('.learning-quote')!.hidden).toBe(true);expect(input('原文摘录').value).toBe('');
- click('.learning-add-quote');expect(document.querySelector<HTMLElement>('.learning-quote')!.hidden).toBe(false);
+ expect(document.querySelector('.learning-add-quote')).toBeNull();
 });
 it('keeps the card open for a new selection: fills an empty excerpt, otherwise offers it without overwriting',async()=>{
  await notes.open();expect(document.querySelector<HTMLElement>('.learning-quote')!.hidden).toBe(true);
@@ -80,11 +82,26 @@ it('opens on a bare N key outside text fields only, with the highlighted transcr
  const press=(init:KeyboardEventInit,target:EventTarget=document.body)=>target.dispatchEvent(new KeyboardEvent('keydown',{key:'n',bubbles:true,cancelable:true,...init}));
  press({ctrlKey:true});press({metaKey:true});press({shiftKey:true});await tick();expect(dialog().open).toBe(false);
  const field=document.createElement('input');document.body.append(field);press({},field);await tick();expect(dialog().open).toBe(false);
- press({});await tick();expect(dialog().open).toBe(true);expect(input('视频时间（秒）').value).toBe('95');expect(document.querySelector('.learning-time-chip')!.textContent).toBe('1:35');
+ press({});await tick();expect(dialog().open).toBe(true);expect(input('视频时间（秒）').value).toBe('95');expect(document.querySelector('.learning-toggle-source span:last-child')!.textContent).toBe('bilibili.com · 1:35');
  press({},input('我的理解'));await tick();expect(input('我的理解').value).toBe('');
 });
 it('remembers where a timed note was taken so the transcript can show it',async()=>{
  const marks=await import('./learning-marks');const add=vi.spyOn(marks,'addMark').mockResolvedValue();
  source={title:'Video',url:'https://www.youtube.com/watch?v=abcdefghijk'};select('#subtitle');await notes.open({quote:'New subtitle'});change('我的理解','Because');click('.learning-primary');await tick();
  expect(add).toHaveBeenCalledOnce();expect(add.mock.calls[0][0]).toBe(source.url);expect(add.mock.calls[0][1]).toMatchObject({t:95,text:'Because'});
+});
+it('leaves the quote, or the source and time, out of the entry when their switches are off',async()=>{
+ await notes.open({quote:'Quote'});change('我的理解','Mine');const quoteSwitch=document.querySelector<HTMLButtonElement>('.learning-toggle-quote')!,sourceSwitch=document.querySelector<HTMLButtonElement>('.learning-toggle-source')!;
+ expect(quoteSwitch.getAttribute('aria-checked')).toBe('true');quoteSwitch.click();sourceSwitch.click();expect(quoteSwitch.getAttribute('aria-checked')).toBe('false');expect(sourceSwitch.getAttribute('aria-checked')).toBe('false');
+ click('.learning-primary');await tick();const saved=services.saveLearningRecord.mock.calls[0][0];expect(saved.omit).toEqual({quote:true,source:true});expect(input('原文摘录').value).toBe('Quote');
+});
+it('does not allow saving when only an omitted quote is left',async()=>{
+ await notes.open({quote:'Quote'});expect(document.querySelector<HTMLButtonElement>('.learning-primary')!.disabled).toBe(false);click('.learning-toggle-quote');expect(document.querySelector<HTMLButtonElement>('.learning-primary')!.disabled).toBe(true);
+});
+
+it('toggles the edit link between 编辑 and 收起 so it is clear how to leave editing',async()=>{
+ await notes.open();const edit=document.querySelector<HTMLButtonElement>('.learning-edit-source')!;expect(edit.textContent).toBe('编辑');edit.click();expect(edit.textContent).toBe('收起');expect(document.querySelector<HTMLDetailsElement>('.learning-source-details')!.open).toBe(true);edit.click();expect(edit.textContent).toBe('编辑');
+});
+it('says a draft was restored in the footer, briefly',async()=>{
+ stored[source.url!]=createLearningDraft(source,{reflection:'half written'});await notes.open();expect(document.querySelector('.learning-draft')!.textContent).toBe('已恢复草稿');
 });
