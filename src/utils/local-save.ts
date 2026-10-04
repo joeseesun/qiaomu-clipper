@@ -12,7 +12,7 @@ const learningInFlight = new Map<string, Promise<unknown>>();
 const invokeLearningNative = (payload: unknown) => Promise.resolve().then(() => browser.runtime.sendNativeMessage('ai.qiaomu.clipper', payload));
 export function handleLearningNativeMessage(request: unknown, sender: { id?: string; url?: string }): Promise<unknown> | undefined {
     const message = request as { action?: string; vault?: string; url?: string; payload?: { captureId?: string; vault?: string } };
-    if (!['qiaomuLearningDailyTarget', 'qiaomuLearningSave', 'qiaomuLearningDispatch'].includes(message?.action || '')) return;
+    if (!['qiaomuLearningDailyTarget', 'qiaomuLearningSave', 'qiaomuLearningDispatch', 'qiaomuLearningAttach'].includes(message?.action || '')) return;
     // Extension pages and this extension's own content scripts (the quick-note card on ordinary pages) both carry our id.
     // Web pages and other extensions cannot reach this listener with it.
     if (sender.id !== browser.runtime.id) return Promise.resolve({ status: 'failed', error: '日记请求被拒绝，请刷新页面后重试' });
@@ -25,6 +25,16 @@ export function handleLearningNativeMessage(request: unknown, sender: { id?: str
                 .then(() => ({ status: 'dispatched' }))
                 .catch(() => ({ status: 'failed', error: '无法发送到 Obsidian，请保留草稿' }));
         } catch { return Promise.resolve({ status: 'failed', error: '无效的日记 URI' }); }
+    }
+    if (message.action === 'qiaomuLearningAttach') {
+        const attach = (message as { payload?: { mode?: string; name?: string; data?: string; source?: string; names?: unknown; ids?: unknown } }).payload || {};
+        const action = ({ pick: 'attachPick', local: 'attachLocal', bytes: 'attachBytes', discard: 'attachDiscard' } as Record<string, string>)[attach.mode || ''];
+        if (!action) return Promise.resolve({ ok: false, error: '不支持的附件操作' });
+        const names = Array.isArray(attach.names) ? attach.names.slice(0, 20).map(item => ({ name: String((item as { name?: unknown }).name ?? ''), size: Number((item as { size?: unknown }).size) })) : undefined;
+        const ids = Array.isArray(attach.ids) ? attach.ids.filter((id): id is string => typeof id === 'string' && /^[0-9a-f]{32}$/.test(id)) : undefined;
+        return invokeLearningNative({ action, name: attach.name, data: attach.data, source: attach.source === 'clipboard' ? 'clipboard' : 'finder', names, ids })
+            .then(result => (result as { ok?: boolean }).ok !== undefined ? result : { ok: false, error: '请更新本地助手以支持附件' })
+            .catch(() => ({ ok: false, error: '本地助手未连接，无法添加附件' }));
     }
     if (message.action === 'qiaomuLearningDailyTarget') return invokeLearningNative({ action: 'learningDailyTarget', vault: message.vault })
         .then(result => (result as {status?: string}).status ? result : { status: 'unavailable', error: '请安装或更新本地助手以确认日记目标' })

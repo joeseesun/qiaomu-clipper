@@ -1,13 +1,14 @@
-import { createElement, NotebookPen, X } from 'lucide';
+import { createElement, Film, FileText, Image as ImageIcon, Music, NotebookPen, Paperclip, X } from 'lucide';
 import * as records from './learning-record';
 import { clockLabel } from './learning-record';
 import { generalSettings, saveSettings } from './storage-utils';
-import type { LearningSource, LearningRecordDraft, DailyTargetResult } from './learning-record';
+import { addAttachments, discardAttachments, MAX_ATTACHMENTS, pickAttachments } from './learning-record';
+import type { LearningSource, LearningRecordDraft, DailyTargetResult, DraftAttachment, AttachResult } from './learning-record';
 import { bilibiliVideo } from './video-source';
 import { addMark, loadMarks, MARKS_EVENT, renderMarks } from './learning-marks';
 import { youtubeVideoId } from './youtube-url';
 
-type Services = Pick<typeof records, 'createLearningDraft' | 'loadLearningDraft' | 'persistLearningDraft' | 'getDailyTarget' | 'saveLearningRecord' | 'dispatchLearningRecord'>;
+type Services = Pick<typeof records, 'createLearningDraft' | 'loadLearningDraft' | 'persistLearningDraft' | 'getDailyTarget' | 'saveLearningRecord' | 'dispatchLearningRecord'> & Partial<Pick<typeof records, 'addAttachments' | 'pickAttachments' | 'discardAttachments'>>;
 export interface LearningEntry { quote?: string; aiSupplement?: string }
 export interface LearningNotes { button: HTMLButtonElement; open: (entry?: LearningEntry) => Promise<void>; dispose: () => void; updateSource: (getSource: () => LearningSource, getHighlights?: () => string[]) => void }
 const mounts = new WeakMap<Document, LearningNotes>();
@@ -108,7 +109,10 @@ export function mountLearningNotes(options: { doc: Document; getSource: () => Le
   const quoteToggle = toggle('摘录', 'learning-toggle-quote'), sourceToggle = toggle('来源', 'learning-toggle-source'), sourceLabel = sourceToggle.lastElementChild as HTMLElement;
   quoteToggle.title = '关闭后，这条笔记不写入摘录'; sourceToggle.title = '关闭后，这条笔记不写入来源链接和视频时间';
   const editSource = node('button', '编辑', 'learning-secondary learning-edit-source'); editSource.type = 'button'; editSource.title = '修改来源标题、链接和视频时间';
-  const tools = node('div', '', 'learning-tools'); tools.append(quoteToggle, sourceToggle, editSource);
+  const attachButton = node('button', '', 'learning-secondary learning-attach'); attachButton.type = 'button'; attachButton.append(createElement(Paperclip), node('span', '附件'));
+  attachButton.title = '添加图片、视频、压缩包等，保存时复制进 Obsidian 的附件文件夹（也可以直接粘贴或拖入）';
+  const attachList = node('div', '', 'learning-attachments'); attachList.hidden = true;
+  const tools = node('div', '', 'learning-tools'); tools.append(quoteToggle, sourceToggle, editSource, attachButton);
   // Where the note will land: one quiet line, shown in the footer next to the save button.
   const targetLine = node('p', '正在确认今日日记位置…', 'learning-target'); targetLine.setAttribute('role', 'status');
   const footer = node('footer'); const retryTarget = node('button', '重试', 'learning-secondary'); retryTarget.title = '重新确认今日日记位置'; retryTarget.type = 'button';
@@ -119,12 +123,14 @@ export function mountLearningNotes(options: { doc: Document; getSource: () => Le
   const notice = node('div', '', 'learning-save-notice'); notice.hidden = true; notice.setAttribute('role','status'); doc.body.append(notice);
   let noticeTimer: ReturnType<typeof setTimeout> | undefined;
   const notify = (message: string) => { notice.textContent = message; notice.hidden = false; clearTimeout(noticeTimer); noticeTimer = setTimeout(() => {notice.hidden = true;}, 8000); };
-  form.append(header, reflection.wrap, quoteBlock, replaceQuote, aiDetails, tools, highlightDetails, details, uriDetails, status, footer); dialog.append(form); doc.body.append(dialog);
+  form.append(header, reflection.wrap, quoteBlock, replaceQuote, aiDetails, attachList, tools, highlightDetails, details, uriDetails, status, footer); dialog.append(form); doc.body.append(dialog);
   let draft: LearningRecordDraft | undefined, origin: LearningSource | undefined, target: DailyTargetResult = { status: 'unavailable' };
   let pendingQuote = '', pendingTime: number | undefined, busy = false, loading = false, generation = 0, writeQueue = Promise.resolve(), lastTime: number | undefined;
   let timedFrameSrc = '', targetLoading = false, includeQuote = true, includeSource = true;
+  let attachments: DraftAttachment[] = [], attaching = 0;
+  const files = { add: (list: File[], source: 'clipboard' | 'finder') => (service.addAttachments || addAttachments)(list, source), pick: () => (service.pickAttachments || pickAttachments)(), discard: (ids: string[]) => (service.discardAttachments || discardAttachments)(ids) };
   let returnFocus: HTMLElement | null = null;
-  const hasContent = () => Boolean(reflectionInput.value.trim() || (includeQuote && quoteInput.value.trim()) || aiInput.value.trim());
+  const hasContent = () => Boolean(reflectionInput.value.trim() || (includeQuote && quoteInput.value.trim()) || aiInput.value.trim() || attachments.length);
   // "example.com · 6:04": where the note came from, as the label of its switch.
   const updateChip = () => {
     const raw = timeInput.value, seconds = Number(raw); let label = '';
@@ -138,10 +144,43 @@ export function mountLearningNotes(options: { doc: Document; getSource: () => Le
     sourceToggle.hidden = !hasSource; sourceToggle.setAttribute('aria-checked', String(includeSource)); sourceToggle.classList.toggle('is-off', !includeSource);
     details.hidden = !hasSource || !includeSource; editSource.hidden = details.hidden;
   };
-  const updateButtons = () => { paintOptions(); save.disabled = !draft || busy || loading || targetLoading || target.status !== 'ready' || !hasContent(); dispatch.disabled = busy || loading || !hasContent() || !uriVaultInput.value.trim(); };
+  const updateButtons = () => {
+    paintOptions(); save.disabled = !draft || busy || loading || attaching > 0 || targetLoading || target.status !== 'ready' || !hasContent();
+    dispatch.disabled = busy || loading || !hasContent() || attachments.length > 0 || !uriVaultInput.value.trim();
+    // Files are staged by the local helper, so without it there is nowhere to put them.
+    attachButton.hidden = target.status !== 'ready'; attachButton.disabled = busy || loading || attachments.length >= MAX_ATTACHMENTS;
+  };
+  const sizeLabel = (bytes: number) => bytes >= 2 ** 30 ? (bytes / 2 ** 30).toFixed(1) + ' GB' : bytes >= 2 ** 20 ? (bytes / 2 ** 20).toFixed(1) + ' MB' : Math.max(1, Math.round(bytes / 1024)) + ' KB';
+  const kindIcon = { image: ImageIcon, video: Film, audio: Music, pdf: FileText, other: Paperclip };
+  const renderAttachments = () => {
+    attachList.replaceChildren(...attachments.map(item => {
+      const chip = node('div', '', 'learning-attachment'); chip.title = item.name + ' · ' + sizeLabel(item.size);
+      const preview = node('span', '', 'learning-attachment-preview'); const icon = () => preview.replaceChildren(createElement(kindIcon[item.kind] || Paperclip));
+      if (item.thumb) { const image = doc.createElement('img'); image.alt = ''; image.src = item.thumb; image.onerror = icon; preview.append(image); } else icon();
+      const remove = node('button', '', 'learning-attachment-remove'); remove.type = 'button'; remove.title = '移除（还没有复制进库）'; remove.setAttribute('aria-label', '移除附件 ' + item.name); remove.append(createElement(X));
+      remove.onclick = () => { if (busy || loading) return; attachments = attachments.filter(other => other !== item); files.discard([item.id]); renderAttachments(); updateButtons(); void persist(); };
+      chip.append(preview, node('span', item.name, 'learning-attachment-name'), node('span', sizeLabel(item.size), 'learning-attachment-size'), remove); return chip;
+    }));
+    attachList.hidden = !attachments.length;
+  };
+  // Staging can take a moment for a big file, so saving waits for it. A card that was closed meanwhile releases the files.
+  const addFiles = async (job: () => Promise<AttachResult>) => {
+    if (busy || loading || !draft) return;
+    if (target.status !== 'ready') { status.textContent = '连接本地助手后才能添加附件'; return; }
+    const current = generation; attaching++; status.textContent = '正在添加附件…'; updateButtons();
+    try {
+      const result = await job();
+      if (current !== generation) { files.discard(result.items.map(item => item.id)); return; }
+      const room = Math.max(0, MAX_ATTACHMENTS - attachments.length), accepted = result.items.slice(0, room), problems = [...result.errors];
+      files.discard(result.items.slice(room).map(item => item.id)); if (accepted.length < result.items.length) problems.push('最多添加 ' + MAX_ATTACHMENTS + ' 个附件');
+      attachments = [...attachments, ...accepted]; renderAttachments(); void persist();
+      status.textContent = problems.join('；');
+    } catch { if (current === generation) status.textContent = '添加附件失败，请重试'; }
+    finally { attaching--; updateButtons(); }
+  };
   const collect = () => {
     if (!draft) return;
-    draft.reflection = reflectionInput.value; draft.quote = quoteInput.value; draft.aiSupplement = aiInput.value || undefined; draft.omit = { quote: !includeQuote, source: !includeSource };
+    draft.reflection = reflectionInput.value; draft.quote = quoteInput.value; draft.aiSupplement = aiInput.value || undefined; draft.attachments = attachments.length ? attachments.map(item => ({ ...item })) : undefined; draft.omit = { quote: !includeQuote, source: !includeSource };
     draft.source = { title: titleInput.value, url: urlInput.value || undefined, kind: origin?.kind };
     if (timeInput.value !== '') draft.source.timestampSeconds = Number(timeInput.value);
     updateButtons();
@@ -157,6 +196,7 @@ export function mountLearningNotes(options: { doc: Document; getSource: () => Le
     reflectionInput.value = draft.reflection; quoteInput.value = draft.quote; aiInput.value = draft.aiSupplement || '';
     titleInput.value = draft.source.title; urlInput.value = draft.source.url || ''; timeInput.value = draft.source.timestampSeconds === undefined ? '' : String(Math.floor(draft.source.timestampSeconds));
     aiDetails.hidden = !aiInput.value; time.wrap.hidden = draft.source.kind !== 'youtube' && draft.source.kind !== 'bilibili';
+    attachments = draft.attachments?.map(item => ({ ...item })) || []; renderAttachments();
     quoteBlock.hidden = !quoteInput.value.trim(); updateChip(); updateButtons();
   };
   const paintTarget = () => {
@@ -189,7 +229,7 @@ export function mountLearningNotes(options: { doc: Document; getSource: () => Le
     const selectedTime = learningTimestamp(doc);
     includeQuote = generalSettings.learningIncludeQuote !== false; includeSource = generalSettings.learningIncludeSource !== false;
     returnFocus = doc.activeElement as HTMLElement; show(); loading = true; busy = false; status.textContent = ''; draftNote.textContent = ''; pendingQuote = ''; replaceQuote.hidden = true;
-    draft = undefined; origin = { ...getSource() };
+    draft = undefined; attachments = []; renderAttachments(); origin = { ...getSource() };
     target = {status:'unavailable'}; targetLoading = false; targetLine.textContent = '正在确认今日日记位置…';
     for (const input of Array.from(form.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('input,textarea'))) input.value = '';
     details.open = false; paintEdit(); quoteBlock.hidden = true; highlightDetails.open = false; highlightList.replaceChildren(); highlightDetails.hidden = !getHighlights; aiDetails.hidden = true; aiDetails.open = false; uriDetails.hidden = true;
@@ -228,7 +268,7 @@ export function mountLearningNotes(options: { doc: Document; getSource: () => Le
       if (result.target) { target = result.target; paintTarget(); }
       if (result.status === 'saved') {
         if (includeSource && draft.source.timestampSeconds !== undefined && origin?.url) { const text = draft.reflection.trim() || draft.quote.trim() || draft.aiSupplement || ''; await addMark(origin.url, { t: draft.source.timestampSeconds, text, at: draft.createdAt }); doc.dispatchEvent(new CustomEvent(MARKS_EVENT)); }
-        status.textContent = '已写入 ' + result.vault + ' · ' + result.date + (result.error ? '；' + result.error : '');
+        status.textContent = '已写入 ' + result.vault + ' · ' + result.date + (attachments.length ? ' · ' + attachments.length + ' 个附件' : '') + (result.error ? '；' + result.error : '');
         notify(status.textContent);
         // Core clears only the saved capture. A new entry must get a fresh ID.
         draft = undefined; if (typeof dialog.close === 'function') dialog.close(); else dialog.removeAttribute('open'); returnFocus?.focus({ preventScroll: true });
@@ -243,6 +283,19 @@ export function mountLearningNotes(options: { doc: Document; getSource: () => Le
   editSource.onclick = () => { details.open = !details.open; paintEdit(); if (details.open) titleInput.focus(); };
   removeQuote.onclick = () => { if (busy || loading) return; quoteInput.value = ''; quoteBlock.hidden = true; pendingQuote = ''; replaceQuote.hidden = true; void persist(); reflectionInput.focus(); };
   form.addEventListener('submit', event => { event.preventDefault(); void submit(); });
+  attachButton.onclick = () => { void addFiles(() => files.pick()); };
+  // Pasting or dropping files into the card attaches them; plain text pastes are left alone.
+  form.addEventListener('paste', event => {
+    const pasted = Array.from(event.clipboardData?.files || []); if (!pasted.length) return;
+    event.preventDefault(); event.stopPropagation(); void addFiles(() => files.add(pasted, 'clipboard'));
+  });
+  const dragging = (event: DragEvent) => Array.from(event.dataTransfer?.types || []).includes('Files');
+  dialog.addEventListener('dragover', event => { if (!dragging(event)) return; event.preventDefault(); dialog.classList.add('is-dropping'); });
+  dialog.addEventListener('dragleave', event => { if (event.target === dialog) dialog.classList.remove('is-dropping'); });
+  dialog.addEventListener('drop', event => {
+    dialog.classList.remove('is-dropping'); const dropped = Array.from(event.dataTransfer?.files || []); if (!dragging(event)) return;
+    event.preventDefault(); event.stopPropagation(); if (dropped.length) void addFiles(() => files.add(dropped, 'finder'));
+  });
   form.addEventListener('keydown', event => {
     if (event.isComposing) return;
     if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) { event.preventDefault(); event.stopPropagation(); void submit(); }

@@ -1,8 +1,15 @@
 #!/usr/bin/env python3
 """Chrome native host: write Markdown only inside the explicitly configured vault."""
-import datetime, fcntl, hashlib, json, os, re, struct, subprocess, sys, tempfile
+import base64, datetime, fcntl, hashlib, json, os, re, shutil, struct, subprocess, sys, tempfile, time, uuid
 from pathlib import Path
 MAX_BYTES = 4 * 1024 * 1024
+# Attachments: files are staged here when added to the note card and only copied into the vault when the note is saved.
+MAX_ATTACHMENT = 2 * 1024 ** 3
+MAX_STAGE_BYTES = 6 * 1024 * 1024
+MAX_ATTACHMENTS = 20
+STAGE_TTL = 14 * 86400
+MAX_REQUEST = 9 * 1024 * 1024
+KIND_EXTENSIONS = {'image':{'png','jpg','jpeg','gif','webp','svg','avif','bmp'},'video':{'mkv','mov','mp4','ogv','webm'},'audio':{'flac','m4a','mp3','ogg','wav','3gp'},'pdf':{'pdf'}}
 BEHAVIORS = {'create','append-specific','prepend-specific','append-daily','prepend-daily','overwrite'}
 def atomic_json(path, data):
     fd, name = tempfile.mkstemp(dir=path.parent)
@@ -67,6 +74,173 @@ def learning_daily_target(root, vault=''):
     token=hashlib.sha256((str(root)+'\n'+str(target)+'\n'+date).encode()).hexdigest()
     return {'status':'ready','vault':root.name,'date':date,'relativePath':target.relative_to(root).as_posix(),'targetToken':token}
 
+
+# ---- Attachments -------------------------------------------------------------------------------------------------
+# Adding a file only stages a copy under the helper's own folder (a clone on APFS, so even a large video is instant).
+# Saving the note then copies the staged files into the vault's attachment folder BEFORE the diary entry is written,
+# so a failed copy never leaves a link to a file that is not there.
+def attachment_kind(name):
+    ext=Path(name).suffix.lower().lstrip('.')
+    return next((kind for kind,exts in KIND_EXTENSIONS.items() if ext in exts),'other')
+def clean_name(name):
+    name=os.path.basename(str(name or '').replace('\\','/'))
+    name=re.sub(r'[\x00-\x1f\x7f\[\]#^|\\/:*?"<>]','-',name).strip().lstrip('.')
+    path=Path(name); stem=path.stem.strip() or 'attachment'; ext=path.suffix[:16]
+    while len((stem+ext).encode('utf8'))>180 and len(stem)>1: stem=stem[:-1]
+    return stem+ext
+def file_sha(path):
+    digest=hashlib.sha256()
+    with path.open('rb') as f:
+        for chunk in iter(lambda:f.read(1<<20),b''): digest.update(chunk)
+    return digest.hexdigest()
+def clone_or_copy(source,destination):
+    if sys.platform=='darwin' and subprocess.run(['/bin/cp','-c',str(source),str(destination)],capture_output=True).returncode==0: return
+    if os.path.lexists(destination): os.unlink(destination)
+    shutil.copyfile(source,destination)
+def make_thumb(path,kind):
+    if kind!='image' or sys.platform!='darwin' or path.suffix.lower()=='.svg': return None
+    folder=Path(tempfile.mkdtemp()); out=folder/'t.jpg'
+    try:
+        result=subprocess.run(['/usr/bin/sips','-Z','192','-s','format','jpeg',str(path),'--out',str(out)],capture_output=True,timeout=15)
+        if result.returncode or not out.is_file() or out.stat().st_size>80000: return None
+        return 'data:image/jpeg;base64,'+base64.b64encode(out.read_bytes()).decode()
+    except Exception: return None
+    finally: shutil.rmtree(folder,ignore_errors=True)
+def prune_staging(base):
+    folder=base/'staging'; cutoff=time.time()-STAGE_TTL
+    if not folder.is_dir(): return
+    for entry in folder.iterdir():
+        try:
+            if entry.stat().st_mtime<cutoff: shutil.rmtree(entry,ignore_errors=True)
+        except OSError: pass
+def discard_staging(base,ids):
+    for attachment_id in ids:
+        if isinstance(attachment_id,str) and re.fullmatch(r'[0-9a-f]{32}',attachment_id): shutil.rmtree(base/'staging'/attachment_id,ignore_errors=True)
+def stage_file(base,source,name=None):
+    source=Path(source).resolve()
+    if not source.is_file(): raise ValueError('找不到文件：'+source.name)
+    clean=clean_name(name or source.name); size=source.stat().st_size
+    if size==0: raise ValueError(clean+' 是空文件')
+    if size>MAX_ATTACHMENT: raise ValueError(clean+' 超过 2 GB，请手动放入库中')
+    attachment_id=uuid.uuid4().hex; folder=base/'staging'/attachment_id; folder.mkdir(parents=True,mode=0o700)
+    try:
+        data=folder/('data'+Path(clean).suffix.lower()); clone_or_copy(source,data)
+        if data.stat().st_size!=size: raise ValueError(clean+' 在复制时发生变化，请重试')
+        kind=attachment_kind(clean)
+        atomic_json(folder/'meta.json',{'name':clean,'size':size,'sha256':file_sha(data),'file':data.name,'kind':kind})
+        return {'id':attachment_id,'name':clean,'size':size,'kind':kind,'thumb':make_thumb(data,kind),'origName':source.name,'origSize':size}
+    except BaseException:
+        shutil.rmtree(folder,ignore_errors=True); raise
+def run_osascript(script,args=(),language=None):
+    if sys.platform!='darwin': raise ValueError('此系统暂不支持从本机选择附件')
+    command=['/usr/bin/osascript']+(['-l',language] if language else [])+['-e',script,*map(str,args)]
+    return subprocess.run(command,capture_output=True,text=True)
+SEPARATOR='\x1e'
+def pick_files():
+    script='on run argv\nactivate\nset chosen to choose file with prompt (item 1 of argv) with multiple selections allowed\nset out to {}\nrepeat with f in chosen\nset end of out to POSIX path of f\nend repeat\nset AppleScript\'s text item delimiters to (ASCII character 30)\nreturn out as text\nend run'
+    result=run_osascript(script,['请选择要加入笔记的附件'])
+    if result.returncode:
+        if '(-128)' in result.stderr: return None
+        raise ValueError('无法打开文件选择器')
+    return [x for x in result.stdout.rstrip('\n').split(SEPARATOR) if x]
+def clipboard_files():
+    script='ObjC.import("AppKit");function run(){var pb=$.NSPasteboard.generalPasteboard;var opts=$.NSDictionary.dictionaryWithObjectForKey($(true),"NSPasteboardURLReadingFileURLsOnlyKey");var urls=pb.readObjectsForClassesOptions($.NSArray.arrayWithObject($.NSURL),opts);var out=[];if(urls&&urls.count)for(var i=0;i<urls.count;i++)out.push(ObjC.unwrap(urls.objectAtIndex(i).path));return JSON.stringify(out);}'
+    result=run_osascript(script,language='JavaScript')
+    if result.returncode: raise ValueError('无法读取剪贴板里的文件')
+    return json.loads(result.stdout or '[]')
+def finder_files():
+    script='tell application "Finder"\nset sel to selection as alias list\nset out to {}\nrepeat with f in sel\nset end of out to POSIX path of f\nend repeat\nend tell\nset AppleScript\'s text item delimiters to (ASCII character 30)\nreturn out as text'
+    result=run_osascript(script)
+    if result.returncode: raise ValueError('无法读取 Finder 中选中的文件，请在系统设置里允许自动化控制 Finder')
+    return [x for x in result.stdout.rstrip('\n').split(SEPARATOR) if x]
+def attach(message,base):
+    action=message.get('action'); (base/'staging').mkdir(parents=True,exist_ok=True,mode=0o700)
+    if action=='attachDiscard':
+        discard_staging(base,message.get('ids') or []); return {'ok':True}
+    prune_staging(base); items=[]; errors=[]
+    if action=='attachBytes':
+        name=clean_name(message.get('name')); raw=message.get('data')
+        try: data=base64.b64decode(raw,validate=True) if isinstance(raw,str) else b''
+        except ValueError: data=b''
+        if not data or len(data)>MAX_STAGE_BYTES: raise ValueError('文件为空或超过 6 MB，请用“添加附件”选择本机文件')
+        folder=Path(tempfile.mkdtemp(dir=base/'staging',prefix='.in-'))
+        try:
+            temp=folder/'in'; temp.write_bytes(data); items.append(stage_file(base,temp,name))
+        finally: shutil.rmtree(folder,ignore_errors=True)
+        return {'ok':True,'items':items}
+    if action=='attachPick': paths=pick_files()
+    elif action=='attachLocal':
+        paths=clipboard_files() if message.get('source')=='clipboard' else finder_files()
+        wanted=[(str(x.get('name')),x.get('size')) for x in (message.get('names') or []) if isinstance(x,dict)]
+        # Only the files the page actually received: the clipboard or Finder selection may hold others.
+        if wanted: paths=[x for x in paths if any(Path(x).name==n and (s is None or (Path(x).is_file() and Path(x).stat().st_size==s)) for n,s in wanted)]
+    else: raise ValueError('不支持的本地操作')
+    if paths is None: return {'ok':False,'cancelled':True}
+    for path in paths[:MAX_ATTACHMENTS]:
+        try: items.append(stage_file(base,path))
+        except (ValueError,OSError) as error: errors.append(str(error))
+    return {'ok':True,'items':items,'errors':errors}
+def attachment_dir(root,note_dir):
+    config=root/'.obsidian/app.json'
+    try: setting=json.loads(config.read_text()).get('attachmentFolderPath') if config.exists() else None
+    except (ValueError,OSError,AttributeError): setting=None
+    setting=setting.strip() if isinstance(setting,str) else '/'
+    if setting in ('','/'): folder=root
+    elif setting=='.' or setting=='./': folder=note_dir
+    elif setting.startswith('./'): folder=note_dir/setting[2:]
+    else: folder=root/setting.strip('/')
+    folder=Path(os.path.normpath(folder))
+    if not folder.is_relative_to(root) or any(part.startswith('.') for part in folder.relative_to(root).parts): raise ValueError('Obsidian 附件文件夹设置无效，请检查“文件与链接”设置')
+    return folder
+def publish_file(data,final):
+    temp=final.with_name('.qiaomu-'+uuid.uuid4().hex+'.part')
+    try:
+        clone_or_copy(data,temp)
+        if temp.stat().st_size!=data.stat().st_size: raise OSError('复制不完整')
+        fd=os.open(temp,os.O_RDONLY)
+        try: os.fsync(fd)
+        finally: os.close(fd)
+        try: os.link(temp,final)
+        except FileExistsError: return False
+        except OSError:
+            if os.path.lexists(final): return False
+            os.rename(temp,final)
+        return True
+    finally:
+        if os.path.lexists(temp): os.unlink(temp)
+def marker(attachment_id): return '\u27e6att:'+attachment_id+'\u27e7'
+def link_text(relative,name):
+    # A vault-relative path stays unambiguous when the same file name exists elsewhere in the vault.
+    target=relative if not re.search(r'[\[\]#^|]',relative) else name
+    return '![['+target+']]' if attachment_kind(name)!='other' else '[['+target+'|'+name+']]'
+def commit_attachments(root,base,note_dir,ids):
+    """Copy the staged files into the vault. Returns {id: wiki link}. Identical content that is already there is reused."""
+    folder=attachment_dir(root,note_dir); folder.mkdir(parents=True,exist_ok=True)
+    if not folder.resolve().is_relative_to(root): raise ValueError('附件文件夹超出了所选库')
+    links={}; created=[]
+    try:
+        for attachment_id in ids:
+            staged=base/'staging'/attachment_id
+            try: meta=json.loads((staged/'meta.json').read_text()); data=staged/meta['file']; size=meta['size']; sha=meta['sha256']; name=meta['name']
+            except (OSError,ValueError,KeyError): raise ValueError('附件已失效，请移除后重新添加')
+            if not data.is_file() or data.stat().st_size!=size: raise ValueError(name+' 已失效，请移除后重新添加')
+            stem,ext=Path(name).stem,Path(name).suffix
+            candidates=[name,f'{stem}-{sha[:8]}{ext}']+[f'{stem}-{sha[:8]}-{i}{ext}' for i in range(2,50)]
+            for candidate in candidates:
+                path=folder/candidate
+                if os.path.lexists(path):
+                    if path.is_file() and not path.is_symlink() and path.stat().st_size==size and file_sha(path)==sha: break
+                    continue
+                if publish_file(data,path): created.append(path); break
+            else: raise ValueError('无法为 '+name+' 找到可用的附件文件名')
+            links[attachment_id]=link_text(path.relative_to(root).as_posix(),path.name)
+    except BaseException:
+        for path in created:
+            try: os.unlink(path)
+            except OSError: pass
+        raise
+    return links
+
 # Entries carry no marker comments. Whether a capture was written is decided from the receipt journal instead:
 # the receipt stores the diary's hash and length from before the write, so a retry can tell "untouched" (write it)
 # from "original part unchanged and the entry follows it" (already written) without leaving anything in the note.
@@ -80,8 +254,14 @@ def save_learning(message, root, base):
     if not isinstance(content,str) or not content.strip() or len(content.encode('utf8'))>MAX_BYTES: return {'status':'failed','error':'学习记录为空或超过 4 MB'}
     vault=message.get('vault') or ''
     if vault and vault not in {root.name,str(root)}: return {'status':'failed','error':'所选库与本地助手配置不一致'}
+    ids=message.get('attachments') or []
+    if not isinstance(ids,list) or len(ids)>MAX_ATTACHMENTS or len(set(ids))!=len(ids) or any(not isinstance(x,str) or not re.fullmatch(r'[0-9a-f]{32}',x) or marker(x) not in content for x in ids): return {'status':'failed','error':'附件列表无效'}
     digest=hashlib.sha256(content.encode('utf8')).hexdigest()
-    piece='\n\n'+content.rstrip()+'\n'
+    def render(links):
+        text=content
+        for attachment_id,link in links.items(): text=text.replace(marker(attachment_id),link)
+        return '\n\n'+text.rstrip()+'\n'
+    links=None; piece=''
     receipt_file=base/'learning-receipts.json'
     base.mkdir(parents=True,exist_ok=True)
     with (base/'save.lock').open('a') as lock:
@@ -90,6 +270,9 @@ def save_learning(message, root, base):
         if capture_id in receipts:
             previous=receipts[capture_id]
             if previous['digest']!=digest or previous['vault']!=str(root): return {'status':'unconfirmed','error':'此学习记录标识可能已写入其他内容，请先核对，再新建记录'}
+            links=previous.get('links',{})
+            if set(links)!=set(ids): return {'status':'unconfirmed','error':'此学习记录的附件与先前不一致，请先核对，再新建记录'}
+            piece=render(links)
             path=Path(previous['path'])
             if not path.resolve().is_relative_to(root) or path.is_symlink() or (not path.is_file() and (previous.get('state')!='pending' or previous.get('originalExists'))): return {'status':'unconfirmed','error':'先前记录目标已移除或更改，请在 Obsidian 核对'}
             current=path.read_text(encoding='utf8') if path.exists() else ''
@@ -106,6 +289,7 @@ def save_learning(message, root, base):
                 previous['state']='saved'
                 try: atomic_json(receipt_file,receipts)
                 except OSError: return {'status':'unconfirmed','error':'记录已找到但回执未完成，请同记录重试'}
+                discard_staging(base,ids)
                 return {**previous['result'],'duplicate':True}
             # Not found: only write again if the diary is exactly as it was before the interrupted attempt.
             if not pending or sha(current)!=previous.get('originalHash'): return {'status':'unconfirmed','error':'先前目标已被外部修改，请在 Obsidian 核对，未重复追加'}
@@ -115,9 +299,14 @@ def save_learning(message, root, base):
         target=destination(root,'',target_info['relativePath'])
         target.parent.mkdir(parents=True,exist_ok=True)
         if target.is_symlink() or not target.parent.resolve().is_relative_to(root): return {'status':'failed','error':'日记目标路径无效'}
+        if links is None:
+            # Attachments first: if any copy fails nothing has been written to the diary.
+            try: links=commit_attachments(root,base,target.parent,ids)
+            except (ValueError,OSError) as error: return {'status':'failed','error':str(error)}
+            piece=render(links)
         result={'status':'saved','captureId':capture_id,'vault':root.name,'date':target_info['date'],'relativePath':target_info['relativePath']}
         original=target.read_text(encoding='utf8') if target.exists() else ''
-        receipts[capture_id]={'digest':digest,'vault':str(root),'path':str(target),'result':result,'state':'pending','originalHash':sha(original),'originalLength':len(original),'originalExists':target.exists()}
+        receipts[capture_id]={'digest':digest,'vault':str(root),'path':str(target),'result':result,'state':'pending','originalHash':sha(original),'originalLength':len(original),'originalExists':target.exists(),'links':links}
         # Persist the target BEFORE writing, so recovery after midnight still checks the original diary.
         atomic_json(receipt_file,receipts)
         # One O_APPEND write preserves existing/frontmatter and concurrent external appends.
@@ -135,9 +324,10 @@ def save_learning(message, root, base):
             if count!=len(data) or (before.st_dev,before.st_ino)!=(live.st_dev,live.st_ino): return {'status':'unconfirmed','error':'写入期间日记发生变化，请在 Obsidian 核对'}
         finally: os.close(fd)
         if piece not in target.read_text(encoding='utf8'): return {'status':'unconfirmed','error':'无法确认记录仍在日记中，请核对后重试'}
-        receipts[capture_id]={'digest':digest,'vault':str(root),'path':str(target),'result':result,'state':'saved'}
+        receipts[capture_id]={'digest':digest,'vault':str(root),'path':str(target),'result':result,'state':'saved','links':links}
         try: atomic_json(receipt_file,receipts)
         except OSError: return {'status':'unconfirmed','error':'记录可能已写入但回执未完成，请用同一记录重试'}
+        discard_staging(base,ids)
         return result
 
 def handle(message, config, base):
@@ -152,6 +342,7 @@ def handle(message, config, base):
         atomic_json(base/'config.json',updated)
         config.update(updated)
         return {'ok':True,'vault':selected.name,'vaultPath':str(selected)}
+    if message.get('action') in {'attachPick','attachLocal','attachBytes','attachDiscard'}: return attach(message,base)
     root=Path(config['vault']).resolve()
     if not root.is_dir() or not (root/'.obsidian').is_dir(): raise ValueError('配置的 Obsidian 笔记库不存在')
     if message.get('action')=='status': return {'ok':True,'vault':root.name,'vaultPath':str(root)}
@@ -222,7 +413,7 @@ def main():
         header=sys.stdin.buffer.read(4)
         if len(header)!=4: raise ValueError('本地保存请求不完整')
         length=struct.unpack('=I',header)[0]
-        if length>MAX_BYTES+65536: raise ValueError('本地保存请求过大')
+        if length>MAX_REQUEST: raise ValueError('本地保存请求过大')
         body=sys.stdin.buffer.read(length)
         if len(body)!=length: raise ValueError('本地保存请求不完整')
         result=handle(json.loads(body),config,base)

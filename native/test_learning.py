@@ -1,4 +1,4 @@
-import datetime, hashlib, importlib.util, json, os, tempfile, unittest, uuid
+import time, datetime, hashlib, importlib.util, json, os, tempfile, unittest, uuid
 from pathlib import Path
 from unittest.mock import patch
 spec=importlib.util.spec_from_file_location('learning_host',Path(__file__).with_name('host.py'));host=importlib.util.module_from_spec(spec);spec.loader.exec_module(host)
@@ -124,3 +124,68 @@ class LearningDiaryTests(unittest.TestCase):
    with self.assertRaises(PermissionError):self.save(p)
   path.write_text('rewritten by someone else');self.assertEqual(self.save(p)['status'],'unconfirmed');self.assertEqual(path.read_text(),'rewritten by someone else')
   path.write_text('original');self.assertEqual(self.save(p)['status'],'saved');self.assertEqual(path.read_text().count(p['content']),1)
+
+class AttachmentTests(unittest.TestCase):
+ setUp=LearningDiaryTests.setUp;tearDown=LearningDiaryTests.tearDown;configure=LearningDiaryTests.configure;target=LearningDiaryTests.target;payload=LearningDiaryTests.payload;save=LearningDiaryTests.save;path=LearningDiaryTests.path
+ def stage(self,name='shot.png',data=b'PNGDATA'):
+  r=host.handle({'action':'attachBytes','name':name,'data':__import__('base64').b64encode(data).decode()},self.config,self.state);self.assertTrue(r['ok']);return r['items'][0]
+ def entry(self,*items,text='今天的想法'):
+  content=text+''.join('\n\n'+host.marker(i['id']) for i in items)
+  return {**self.payload(content),'attachments':[i['id'] for i in items]}
+ def test_attachment_is_copied_before_the_diary_link_and_staging_is_cleared(self):
+  item=self.stage();p=self.entry(item);r=self.save(p);self.assertEqual(r['status'],'saved')
+  self.assertEqual((self.vault/'shot.png').read_bytes(),b'PNGDATA')  # no attachmentFolderPath: vault root, Obsidian's default
+  text=self.path(r).read_text();self.assertIn('![[shot.png]]',text);self.assertNotIn('⟦',text);self.assertFalse((self.state/'staging'/item['id']).exists())
+ def test_attachment_folder_setting_absolute_and_relative_to_the_note(self):
+  (self.vault/'.obsidian/app.json').write_text(json.dumps({'attachmentFolderPath':'_attachments'}));a=self.stage('a.zip',b'zip');r=self.save(self.entry(a))
+  self.assertEqual((self.vault/'_attachments/a.zip').read_bytes(),b'zip');self.assertIn('[[_attachments/a.zip|a.zip]]',self.path(r).read_text())  # not embedded: it is not previewable
+  (self.vault/'.obsidian/app.json').write_text(json.dumps({'attachmentFolderPath':'./assets'}));b=self.stage('b.mp4',b'video');r=self.save(self.entry(b))
+  self.assertEqual((self.vault/'Daily/assets/b.mp4').read_bytes(),b'video');self.assertIn('![[Daily/assets/b.mp4]]',self.path(r).read_text())
+ def test_same_name_different_content_gets_a_hash_suffix_and_identical_content_is_reused(self):
+  first=self.stage('x.png',b'one');self.save(self.entry(first))
+  same=self.stage('x.png',b'one');self.assertIn('![[x.png]]',self.path(self.save(self.entry(same))).read_text())
+  other=self.stage('x.png',b'two');r=self.save(self.entry(other));self.assertEqual(sorted(p.name for p in self.vault.glob('x*.png')).__len__(),2)
+  self.assertEqual((self.vault/'x.png').read_bytes(),b'one');self.assertRegex(self.path(r).read_text(),r'!\[\[x-[0-9a-f]{8}\.png\]\]')
+ def test_unsafe_attachment_folder_settings_are_refused_and_nothing_is_written(self):
+  for setting in ['../outside','.hidden','./../../outside','/.obsidian/plugins']:
+   (self.vault/'.obsidian/app.json').write_text(json.dumps({'attachmentFolderPath':setting}));item=self.stage();r=self.save(self.entry(item))
+   self.assertEqual(r['status'],'failed');self.assertFalse(list(self.vault.rglob('*.md')));self.assertFalse((self.base/'outside').exists())
+ def test_failed_attachment_copy_writes_no_diary_entry_and_removes_partial_copies(self):
+  a=self.stage('a.png',b'a');b=self.stage('b.png',b'b');original=host.publish_file;calls=0
+  def flaky(data,final):
+   nonlocal calls
+   calls+=1
+   if calls==2:raise OSError('disk full')
+   return original(data,final)
+  with patch.object(host,'publish_file',flaky): r=self.save(self.entry(a,b))
+  self.assertEqual(r['status'],'failed');self.assertFalse((self.vault/'a.png').exists());self.assertFalse(list(self.vault.rglob('*.md')));self.assertTrue((self.state/'staging'/a['id']).exists())
+ def test_expired_staging_blocks_the_save(self):
+  item=self.stage();host.discard_staging(self.state,[item['id']]);r=self.save(self.entry(item));self.assertEqual(r['status'],'failed');self.assertIn('失效',r['error'])
+ def test_retry_after_interrupted_receipt_does_not_duplicate_files_or_entries(self):
+  item=self.stage();p=self.entry(item);original=host.atomic_json;calls=0
+  def failing(path,data):
+   nonlocal calls
+   calls+=1
+   if calls==2:raise OSError('crash')
+   original(path,data)
+  with patch.object(host,'atomic_json',failing): self.assertEqual(self.save(p)['status'],'unconfirmed')
+  r=self.save(p);self.assertTrue(r['duplicate']);self.assertEqual(self.path(r).read_text().count('![[shot.png]]'),1);self.assertEqual(len(list(self.vault.glob('*.png'))),1)
+ def test_markers_and_ids_are_validated(self):
+  item=self.stage();p=self.entry(item)
+  self.assertEqual(self.save({**p,'attachments':[item['id']]*2})['status'],'failed')
+  self.assertEqual(self.save({**p,'attachments':['../../x']})['status'],'failed')
+  self.assertEqual(self.save({**p,'content':'no marker here'})['status'],'failed')
+ def test_staging_handles_names_size_limits_and_discard(self):
+  item=self.stage('we[ir]d#na|me.png');self.assertEqual(item['name'],'we-ir-d-na-me.png');self.assertEqual(item['kind'],'image')
+  with self.assertRaises(ValueError): host.handle({'action':'attachBytes','name':'x','data':''},self.config,self.state)
+  with self.assertRaises(ValueError): host.handle({'action':'attachBytes','name':'x','data':__import__('base64').b64encode(b'0'*(host.MAX_STAGE_BYTES+1)).decode()},self.config,self.state)
+  host.handle({'action':'attachDiscard','ids':[item['id'],'../..']},self.config,self.state);self.assertFalse((self.state/'staging'/item['id']).exists())
+ def test_local_files_are_staged_by_path_filtered_by_what_the_page_received(self):
+  a=self.base/'big movie.mp4';a.write_bytes(b'x'*50);b=self.base/'other.txt';b.write_text('o')
+  with patch.object(host,'clipboard_files',lambda:[str(a),str(b)]):
+   r=host.handle({'action':'attachLocal','source':'clipboard','names':[{'name':'big movie.mp4','size':50}]},self.config,self.state)
+  self.assertEqual([i['origName'] for i in r['items']],['big movie.mp4']);self.assertEqual(r['items'][0]['kind'],'video');self.assertTrue(a.exists())  # copied, the original stays
+  with patch.object(host,'pick_files',lambda:None): self.assertTrue(host.handle({'action':'attachPick'},self.config,self.state)['cancelled'])
+ def test_old_stage_entries_are_pruned(self):
+  item=self.stage();d=self.state/'staging'/item['id'];old=time.time()-host.STAGE_TTL-10;os.utime(d,(old,old));self.stage('new.png',b'n')
+  self.assertFalse(d.exists())
