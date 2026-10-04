@@ -20,17 +20,19 @@ export interface BarHooks {
 	onToggle?: (open: boolean) => void;
 	initialFollow?: boolean;
 	onFollow?: (follow: boolean) => void;
+	// Which site the bar sits in: it takes that site's own colours, corners and type.
+	theme?: 'youtube' | 'bilibili';
 }
 export interface TranscriptBar { element: HTMLElement; setState: (state: BarState, segments?: PanelSegment[]) => void; setOpen: (open: boolean) => void; setTime: (seconds: number, afterSeek?: boolean) => void }
 
-type Tool = 'subtitles' | 'copy' | 'download' | 'study' | 'settings';
-type Extra = 'chevron' | 'search' | 'follow' | 'clear';
+type Tool = 'copy' | 'download' | 'study' | 'settings';
+type Extra = 'chevron' | 'search' | 'follow' | 'clear' | 'check';
 const NS = 'http://www.w3.org/2000/svg';
 const SHAPES: Record<Tool | Extra, Array<[string, Record<string, string>]>> = {
 	search: [['circle', { cx: '11', cy: '11', r: '8' }], ['path', { d: 'm21 21-4.3-4.3' }]],
 	follow: [['line', { x1: '2', x2: '5', y1: '12', y2: '12' }], ['line', { x1: '19', x2: '22', y1: '12', y2: '12' }], ['line', { x1: '12', x2: '12', y1: '2', y2: '5' }], ['line', { x1: '12', x2: '12', y1: '19', y2: '22' }], ['circle', { cx: '12', cy: '12', r: '7' }], ['circle', { cx: '12', cy: '12', r: '3' }]],
+	check: [['path', { d: 'M20 6 9 17l-5-5' }]],
 	clear: [['path', { d: 'M18 6 6 18' }], ['path', { d: 'm6 6 12 12' }]],
-	subtitles: [['rect', { width: '18', height: '14', x: '3', y: '5', rx: '2', ry: '2' }], ['path', { d: 'M7 15h4M15 15h2M7 11h2M13 11h4' }]],
 	copy: [['rect', { width: '14', height: '14', x: '8', y: '8', rx: '2', ry: '2' }], ['path', { d: 'M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2' }]],
 	download: [['path', { d: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4' }], ['polyline', { points: '7 10 12 15 17 10' }], ['line', { x1: '12', x2: '12', y1: '15', y2: '3' }]],
 	study: [['path', { d: 'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z' }], ['path', { d: 'M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z' }]],
@@ -58,9 +60,9 @@ const seconds = (stamp: string) => stamp.split(':').reduce((total, part) => tota
 
 export function buildTranscriptBar(doc: Document, hooks: BarHooks): TranscriptBar {
 	const { strings } = hooks;
-	const element = doc.createElement('div'); element.className = 'qiaomu-yt-bar'; element.dataset.state = 'loading';
+	const element = doc.createElement('div'); element.className = 'qiaomu-yt-bar'; element.dataset.state = 'loading'; element.dataset.theme = hooks.theme || 'youtube';
 	const head = doc.createElement('div'); head.className = 'qiaomu-yt-bar-head';
-	const logo = doc.createElement('span'); logo.className = 'qiaomu-yt-bar-logo'; logo.append(icon(doc, 'study', 18));
+	const logo = doc.createElement('span'); logo.className = 'qiaomu-yt-bar-logo'; logo.append(icon(doc, 'study', 16));
 	const title = doc.createElement('span'); title.className = 'qiaomu-yt-bar-title'; title.textContent = strings.heading;
 	const dot = doc.createElement('span'); dot.className = 'qiaomu-yt-bar-dot'; dot.setAttribute('role', 'img');
 	const tools = doc.createElement('span'); tools.className = 'qiaomu-yt-bar-tools'; tools.setAttribute('role', 'toolbar');
@@ -85,10 +87,13 @@ export function buildTranscriptBar(doc: Document, hooks: BarHooks): TranscriptBa
 	body.append(notice, finder, listWrap);
 	element.append(head, body);
 
-	const flash = (button: HTMLElement, text: string) => {
-		const original = button.title; button.title = text; button.setAttribute('aria-label', text); button.classList.add('is-notice');
-		setTimeout(() => { button.title = original; button.setAttribute('aria-label', original); button.classList.remove('is-notice'); }, 1800);
+	// Feedback you can see: a successful copy turns its icon into a check for a moment; the tooltip says what happened.
+	const flash = (button: HTMLElement, text: string, done = false) => {
+		const original = button.title, shown = button.firstElementChild; button.title = text; button.setAttribute('aria-label', text); button.classList.add('is-notice');
+		if (done && shown) button.replaceChildren(icon(doc, 'check', 16));
+		setTimeout(() => { button.title = original; button.setAttribute('aria-label', original); button.classList.remove('is-notice'); if (done && shown) button.replaceChildren(shown); }, 1800);
 	};
+
 	// YouTube lives in a drag-scrolling layout that can capture the pointer and swallow clicks: keep the press
 	// to ourselves and also act on pointer-up; a real click right after is ignored.
 	const press = (button: HTMLElement, action: () => void) => {
@@ -98,9 +103,11 @@ export function buildTranscriptBar(doc: Document, hooks: BarHooks): TranscriptBa
 		button.addEventListener('pointerup', event => { event.stopPropagation(); if (pressed) { pressed = false; fire(); } });
 		button.addEventListener('click', event => { event.stopPropagation(); fire(); });
 	};
-	const tool = (name: Tool | 'toggle', label: string, action: (button: HTMLButtonElement) => void) => {
+	// Quiet icon buttons for the strip, and one labelled button for the main action.
+	const tool = (name: Tool | 'toggle', label: string, action: (button: HTMLButtonElement) => void, text = '') => {
 		const button = doc.createElement('button'); button.type = 'button'; button.className = `qiaomu-yt-tool qiaomu-yt-tool-${name}`;
-		button.title = label; button.setAttribute('aria-label', label); button.append(icon(doc, name === 'toggle' ? 'chevron' : name));
+		button.title = label; button.setAttribute('aria-label', label);
+		if (text) button.append(doc.createTextNode(text)); else button.append(icon(doc, name === 'toggle' ? 'chevron' : name, name === 'toggle' ? 18 : 16));
 		press(button, () => action(button));
 		return button;
 	};
@@ -214,7 +221,7 @@ export function buildTranscriptBar(doc: Document, hooks: BarHooks): TranscriptBa
 		const row = rows[activeIndex]; if (row && follow && !query) { const top = Math.max(0, row.element.offsetTop - list.offsetTop - list.clientHeight * 0.33); ours = { from: list.scrollTop, to: top, until: Date.now() + 150 }; list.scrollTop = top; }
 		updateHere();
 	};
-	const toggle = tool('toggle', strings.expand, () => setOpen(!open));
+	const toggle = tool('toggle', strings.expand, () => { if (open) setOpen(false); else openAndLoad(); });
 	const paint = () => {
 		if (!open || state !== 'ready') clearProgress();
 		element.dataset.state = state; element.dataset.open = String(open); body.hidden = !open; retryButton.hidden = state !== 'none' || !hooks.retry; notice.hidden = state === 'ready'; finder.hidden = state === 'none' && !segments.length; listWrap.hidden = finder.hidden;
@@ -245,11 +252,12 @@ export function buildTranscriptBar(doc: Document, hooks: BarHooks): TranscriptBa
 	list.addEventListener('scroll', () => { updateHere(); if (!isOurScroll()) touched(); }, { passive: true });
 	list.addEventListener('scrollend', () => { ours.until = 0; });
 
+	// Opening the strip also reads the transcript if it has not arrived yet.
+	const openAndLoad = () => { setOpen(true); if (state !== 'ready') void hooks.getSegments().then(found => { if (found.length) { segments = found; state = 'ready'; rendered = -1; paint(); } }); };
 	tools.append(
-		tool('subtitles', strings.subtitles, () => { setOpen(true); void hooks.getSegments().then(found => { if (found.length) { segments = found; state = 'ready'; rendered = -1; paint(); } }); }),
 		tool('copy', strings.copy, async button => {
 			const value = formatSegments(await hooks.getSegments()); if (!value) { flash(button, strings.empty); return; }
-			try { await navigator.clipboard.writeText(value); flash(button, strings.copied); } catch { flash(button, strings.empty); }
+			try { await navigator.clipboard.writeText(value); flash(button, strings.copied, true); } catch { flash(button, strings.empty); }
 		}),
 		tool('download', strings.download, async button => {
 			const value = formatSegments(await hooks.getSegments()); if (!value) { flash(button, strings.empty); return; }
@@ -257,12 +265,13 @@ export function buildTranscriptBar(doc: Document, hooks: BarHooks): TranscriptBa
 			const link = doc.createElement('a'); link.href = url; link.download = `${safeFileName(hooks.title())}.txt`;
 			doc.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
 		}),
-		tool('study', strings.study, button => { if (hooks.openStudy() === false) flash(button, strings.reload); }),
-		tool('settings', strings.settings, () => hooks.openSettings()),
+		tool('study', strings.study, button => { if (hooks.openStudy() === false) flash(button, strings.reload); }, strings.study),
 		toggle,
 	);
+	// Settings are rarely needed: they sit at the end of the search row, not in the strip.
+	finder.append(tool('settings', strings.settings, () => hooks.openSettings()));
 	// Clicking the empty part of the strip also opens and closes it; the tools handle their own presses.
-	press(head, () => setOpen(!open));
+	press(head, () => { if (open) setOpen(false); else openAndLoad(); });
 	if (hooks.initialOpen) setOpen(true, false); else paint();
 	return { element, setTime, setOpen: next => setOpen(next, false), setState: (next, found) => {
 		// Called on every page change: only touch the DOM when something really changed. Rebuilding the list under
@@ -277,68 +286,82 @@ export function buildTranscriptBar(doc: Document, hooks: BarHooks): TranscriptBa
 export const BAR_STYLE = `
 ::highlight(qiaomu-yt-line){background-color:rgba(6,95,212,.2);color:inherit}
 ytd-engagement-panel-section-list-renderer[data-qiaomu-auto="1"]{display:none!important}
-.qiaomu-yt-bar{box-sizing:border-box;margin-bottom:12px;border:1px solid var(--yt-spec-10-percent-layer,rgba(0,0,0,.12));border-radius:8px;background:var(--yt-spec-base-background,#fff);color:var(--yt-spec-text-primary,#0f0f0f);font:400 14px/20px Roboto,Arial,sans-serif;overflow:hidden}
-.qiaomu-yt-bar-head{display:flex;align-items:center;gap:8px;min-height:48px;padding:0 8px 0 12px;cursor:pointer}
-.qiaomu-yt-bar-logo{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;flex:0 0 auto;border-radius:8px;background:var(--yt-spec-text-primary,#0f0f0f);color:var(--yt-spec-base-background,#fff)}
-.qiaomu-yt-bar-title{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
-.qiaomu-yt-bar-dot{width:8px;height:8px;flex:0 0 auto;border-radius:50%;background:var(--yt-spec-text-disabled,#999)}
-.qiaomu-yt-bar[data-state=ready] .qiaomu-yt-bar-dot{background:#2ba640}
-.qiaomu-yt-bar[data-state=loading] .qiaomu-yt-bar-dot{background:#f0a400;animation:qiaomu-yt-pulse 1.2s ease-in-out infinite}
+/* One component, two skins. Colours, corners and type come from the page it sits in (YouTube's --yt-spec-* tokens, Bilibili's own
+   --text/--bg tokens), so it follows their light and dark themes and looks like part of the page. */
+.qiaomu-yt-bar{--qm-fg:var(--yt-spec-text-primary,#0f0f0f);--qm-fg2:var(--yt-spec-text-secondary,#606060);--qm-bg:var(--yt-spec-base-background,#fff);--qm-line:var(--yt-spec-10-percent-layer,rgba(0,0,0,.1));--qm-hover:var(--yt-spec-badge-chip-background,rgba(0,0,0,.05));--qm-field:var(--yt-spec-badge-chip-background,rgba(0,0,0,.05));--qm-accent:var(--yt-spec-call-to-action,#065fd4);--qm-head:transparent;--qm-card:var(--qm-bg);--qm-frame:1px solid var(--qm-line);--qm-radius:12px;--qm-font:Roboto,Arial,sans-serif;--qm-size:14px;--qm-margin:0 0 12px;--qm-gap:0}
+.qiaomu-yt-bar[data-theme=bilibili]{--qm-fg:var(--text1,#18191c);--qm-fg2:var(--text2,#61666d);--qm-bg:var(--bg1,#fff);--qm-line:var(--line_regular,#e3e5e7);--qm-hover:var(--bg2,#f6f7f8);--qm-field:var(--bg3,#f1f2f3);--qm-accent:var(--brand_blue,#00aeec);--qm-head:var(--bg3,#f1f2f3);--qm-card:transparent;--qm-frame:0 none;--qm-radius:6px;--qm-font:inherit;--qm-size:13px;--qm-margin:12px 0;--qm-gap:6px}
+.qiaomu-yt-bar{box-sizing:border-box;margin:var(--qm-margin);border:var(--qm-frame);border-radius:var(--qm-radius);background:var(--qm-card);color:var(--qm-fg);font:400 var(--qm-size)/20px var(--qm-font);pointer-events:auto;position:relative}
+.qiaomu-yt-bar button{font-family:inherit}
+.qiaomu-yt-bar-head{display:flex;align-items:center;gap:8px;min-height:44px;padding:0 6px 0 14px;border-radius:calc(var(--qm-radius) - 1px);background:var(--qm-head);cursor:pointer}
+.qiaomu-yt-bar[data-theme=bilibili] .qiaomu-yt-bar-head{border-radius:var(--qm-radius)}
+.qiaomu-yt-bar[data-open=true]:not([data-theme=bilibili]) .qiaomu-yt-bar-head{border-end-start-radius:0;border-end-end-radius:0}
+.qiaomu-yt-bar-logo{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;color:var(--qm-fg2)}
+.qiaomu-yt-bar-title{font-size:15px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.qiaomu-yt-bar-dot{width:6px;height:6px;flex:0 0 auto;border-radius:50%;background:var(--qm-fg2);opacity:.45}
+.qiaomu-yt-bar[data-state=ready] .qiaomu-yt-bar-dot{background:#2ba640;opacity:1}
+.qiaomu-yt-bar[data-state=loading] .qiaomu-yt-bar-dot{background:#f0a400;opacity:1;animation:qiaomu-yt-pulse 1.2s ease-in-out infinite}
 @keyframes qiaomu-yt-pulse{50%{opacity:.35}}
-.qiaomu-yt-bar-tools{display:inline-flex;align-items:center;gap:0;margin-inline-start:auto;flex:0 0 auto}
-.qiaomu-yt-tool{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;padding:0;border:0;border-radius:8px;background:transparent;color:var(--yt-spec-text-secondary,#606060);cursor:pointer}
-.qiaomu-yt-tool:hover{background:var(--yt-spec-badge-chip-background,rgba(0,0,0,.05));color:var(--yt-spec-text-primary,#0f0f0f)}
-.qiaomu-yt-tool:focus{outline:none}.qiaomu-yt-tool:focus-visible{outline:2px solid var(--yt-spec-call-to-action,#065fd4);outline-offset:-2px}
-.qiaomu-yt-tool.is-notice{background:var(--yt-spec-badge-chip-background,rgba(0,0,0,.05));color:var(--yt-spec-text-primary,#0f0f0f)}
+.qiaomu-yt-bar-tools{display:inline-flex;align-items:center;gap:2px;margin-inline-start:auto;flex:0 0 auto}
+.qiaomu-yt-tool{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;padding:0;border:0;border-radius:6px;background:transparent;box-shadow:none;color:var(--qm-fg2);cursor:pointer}
+.qiaomu-yt-tool:hover{background:rgba(127,127,127,.16);color:var(--qm-fg)}
+.qiaomu-yt-tool.is-notice{color:var(--qm-accent)}
+.qiaomu-yt-tool:focus{outline:none}.qiaomu-yt-tool:focus-visible{outline:2px solid var(--qm-accent);outline-offset:-2px}
 .qiaomu-yt-tool svg{display:block;pointer-events:none}
+.qiaomu-yt-tool-study{width:auto;margin-inline-start:4px;padding:0 10px;color:var(--qm-fg);font-size:13px;font-weight:500;white-space:nowrap}
+.qiaomu-yt-bar-finder .qiaomu-yt-tool{opacity:.65}.qiaomu-yt-bar-finder .qiaomu-yt-tool:hover{opacity:1}
 .qiaomu-yt-tool-toggle svg{transition:transform .15s}
 .qiaomu-yt-bar[data-open=true] .qiaomu-yt-tool-toggle svg{transform:rotate(180deg)}
-.qiaomu-yt-bar-body{border-top:1px solid var(--yt-spec-10-percent-layer,rgba(0,0,0,.12))}
-.qiaomu-yt-bar-body[hidden]{display:none}
-.qiaomu-yt-bar-notice[hidden]{display:none}
-.qiaomu-yt-bar-notice{display:flex;align-items:center;gap:8px;padding:8px 14px}
-.qiaomu-yt-bar-status{flex:1 1 auto;margin:0;color:var(--yt-spec-text-secondary,#606060);font-size:12px}
-.qiaomu-yt-bar-retry{flex:0 0 auto;height:28px;padding:0 12px;border:0;border-radius:14px;background:var(--yt-spec-text-primary,#0f0f0f);color:var(--yt-spec-base-background,#fff);font:500 13px/28px Roboto,Arial,sans-serif;cursor:pointer}
+.qiaomu-yt-bar-body{padding-top:var(--qm-gap)}
+.qiaomu-yt-bar:not([data-theme=bilibili]) .qiaomu-yt-bar-body{border-top:1px solid var(--qm-line)}
+.qiaomu-yt-bar-body[hidden],.qiaomu-yt-bar-notice[hidden]{display:none}
+.qiaomu-yt-bar-notice{display:flex;align-items:center;gap:8px;padding:10px 14px}
+.qiaomu-yt-bar-status{flex:1 1 auto;margin:0;color:var(--qm-fg2);font-size:12px;line-height:18px}
+.qiaomu-yt-bar-retry{flex:0 0 auto;height:28px;padding:0 10px;border:0;border-radius:6px;background:transparent;box-shadow:none;color:var(--qm-accent);font-size:13px;font-weight:500;line-height:28px;cursor:pointer}
+.qiaomu-yt-bar-retry:hover{background:var(--qm-hover)}
 .qiaomu-yt-bar-retry[hidden],.qiaomu-yt-bar-finder[hidden],.qiaomu-yt-bar-listwrap[hidden]{display:none}
-.qiaomu-yt-bar-finder{display:flex;align-items:center;gap:6px;padding:0 10px 8px}
-.qiaomu-yt-bar-search{display:flex;align-items:center;gap:6px;flex:1 1 auto;min-width:0;height:34px;padding:0 10px;border-radius:17px;background:var(--yt-spec-badge-chip-background,rgba(0,0,0,.05));color:var(--yt-spec-text-secondary,#606060)}
-.qiaomu-yt-bar-search:focus-within{box-shadow:inset 0 0 0 2px var(--yt-spec-call-to-action,#065fd4)}
-.qiaomu-yt-bar-input{flex:1 1 auto;min-width:0;height:100%;padding:0;border:0;outline:0;background:transparent;color:var(--yt-spec-text-primary,#0f0f0f);font:400 14px/20px Roboto,Arial,sans-serif}
+.qiaomu-yt-bar-finder{display:flex;align-items:center;gap:6px;padding:12px 10px 8px 14px}
+.qiaomu-yt-bar-search{display:flex;align-items:center;gap:8px;flex:1 1 auto;min-width:0;height:32px;padding:0 10px;border-radius:8px;background:var(--qm-field);color:var(--qm-fg2)}
+.qiaomu-yt-bar-search:focus-within{box-shadow:inset 0 0 0 1.5px var(--qm-accent)}
+.qiaomu-yt-bar-search svg{flex:0 0 auto}
+.qiaomu-yt-bar-input{flex:1 1 auto;min-width:0;height:100%;padding:0;border:0;outline:0;background:transparent;box-shadow:none;color:var(--qm-fg);font:inherit}
+.qiaomu-yt-bar-input::placeholder{color:var(--qm-fg2);opacity:.8}
 .qiaomu-yt-bar-input::-webkit-search-cancel-button{display:none}
 .qiaomu-yt-bar-count{flex:0 0 auto;font-size:12px;font-variant-numeric:tabular-nums}
-.qiaomu-yt-bar-clear,.qiaomu-yt-bar-follow{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;padding:0;border:0;background:transparent;color:var(--yt-spec-text-secondary,#606060);cursor:pointer}
+.qiaomu-yt-bar-clear,.qiaomu-yt-bar-follow{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;padding:0;border:0;background:transparent;box-shadow:none;color:var(--qm-fg2);cursor:pointer}
 .qiaomu-yt-bar-clear{width:20px;height:20px;border-radius:10px}.qiaomu-yt-bar-clear[hidden]{display:none}
-.qiaomu-yt-bar-follow{width:34px;height:34px;border-radius:17px}
-.qiaomu-yt-bar-follow[aria-pressed=true]{background:var(--yt-spec-text-primary,#0f0f0f);color:var(--yt-spec-base-background,#fff)}
-.qiaomu-yt-bar-clear:hover,.qiaomu-yt-bar-follow[aria-pressed=false]:hover{background:var(--yt-spec-badge-chip-background,rgba(0,0,0,.08));color:var(--yt-spec-text-primary,#0f0f0f)}
-.qiaomu-yt-bar-clear:focus,.qiaomu-yt-bar-follow:focus{outline:none}.qiaomu-yt-bar-clear:focus-visible,.qiaomu-yt-bar-follow:focus-visible{outline:2px solid var(--yt-spec-call-to-action,#065fd4);outline-offset:-2px}
+.qiaomu-yt-bar-follow{width:30px;height:30px;border-radius:6px;opacity:.65}
+.qiaomu-yt-bar-follow[aria-pressed=true]{color:var(--qm-accent);opacity:1}
+.qiaomu-yt-bar-clear:hover,.qiaomu-yt-bar-follow:hover{background:rgba(127,127,127,.16);color:var(--qm-fg);opacity:1}
+.qiaomu-yt-bar-follow[aria-pressed=true]:hover{color:var(--qm-accent)}
+.qiaomu-yt-bar-clear:focus,.qiaomu-yt-bar-follow:focus{outline:none}.qiaomu-yt-bar-clear:focus-visible,.qiaomu-yt-bar-follow:focus-visible{outline:2px solid var(--qm-accent);outline-offset:-2px}
 .qiaomu-yt-bar-clear svg,.qiaomu-yt-bar-follow svg{display:block;pointer-events:none}
 .qiaomu-yt-bar-listwrap{position:relative}
 .qiaomu-yt-bar-lines{position:relative;max-height:min(60vh,520px);overflow-y:auto;padding:0 0 8px;overscroll-behavior:contain}
-.qiaomu-yt-bar-here{position:absolute;inset-inline:0;bottom:10px;margin:0 auto;width:max-content;max-width:90%;padding:0 14px;height:30px;border:0;border-radius:15px;background:var(--yt-spec-text-primary,#0f0f0f);color:var(--yt-spec-base-background,#fff);font:500 13px/30px Roboto,Arial,sans-serif;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.qiaomu-yt-bar-here{position:absolute;inset-inline:0;bottom:12px;margin:0 auto;width:max-content;max-width:90%;padding:0 14px;height:28px;border:1px solid var(--qm-line);border-radius:14px;background:var(--qm-bg);color:var(--qm-fg);font-size:12px;font-weight:500;line-height:26px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.16)}
 .qiaomu-yt-bar-here[hidden]{display:none}
 .qiaomu-yt-bar-mark{padding:0;border-radius:2px;background:rgba(255,208,0,.45);color:inherit}
 /* The current line is marked by type alone: full contrast and weight while the others step back. */
-.qiaomu-yt-bar-lines[data-searching=false]:has(.is-active) .qiaomu-yt-bar-line:not(.is-active) .qiaomu-yt-bar-text{color:var(--yt-spec-text-secondary,#606060)}
-.qiaomu-yt-bar-line.is-active{background:var(--yt-spec-badge-chip-background,rgba(0,0,0,.06))}
+.qiaomu-yt-bar-lines[data-searching=false]:has(.is-active) .qiaomu-yt-bar-line:not(.is-active) .qiaomu-yt-bar-text{color:var(--qm-fg2)}
 .qiaomu-yt-bar-line.is-active .qiaomu-yt-bar-text{font-weight:500}
-.qiaomu-yt-bar-chapter{padding:14px 16px 4px;color:var(--yt-spec-text-primary,#0f0f0f);font:500 16px/22px Roboto,Arial,sans-serif}
-.qiaomu-yt-bar-chapter[hidden]{display:none}
-.qiaomu-yt-bar-line[hidden]{display:none}
-.qiaomu-yt-bar-line{display:flex;align-items:flex-start;gap:12px;width:100%;padding:8px 16px;border:0;border-radius:0;background:transparent;color:inherit;font:400 14px/20px Roboto,Arial,sans-serif;text-align:start;cursor:pointer}
-.qiaomu-yt-bar-line:hover{background:var(--yt-spec-badge-chip-background,rgba(0,0,0,.05))}
-.qiaomu-yt-bar-line:focus{outline:none}.qiaomu-yt-bar-line:focus-visible{outline:2px solid var(--yt-spec-call-to-action,#065fd4);outline-offset:-2px}
-.qiaomu-yt-bar-time{flex:0 0 auto;margin-top:1px;padding:0 6px;border-radius:4px;background:var(--yt-spec-badge-chip-background,rgba(0,0,0,.08));color:var(--yt-spec-text-primary,#0f0f0f);font:500 12px/20px Roboto,Arial,sans-serif;font-variant-numeric:tabular-nums}
-.qiaomu-yt-bar-line.is-active .qiaomu-yt-bar-time{background:var(--yt-spec-call-to-action-secondary,rgba(6,95,212,.14));color:var(--yt-spec-call-to-action,#065fd4)}
+.qiaomu-yt-bar-line.is-active .qiaomu-yt-bar-time{color:var(--qm-accent);font-weight:500}
+.qiaomu-yt-bar-chapter{padding:14px 14px 4px;color:var(--qm-fg);font-size:15px;font-weight:500;line-height:22px}
+.qiaomu-yt-bar-chapter[hidden],.qiaomu-yt-bar-line[hidden]{display:none}
+.qiaomu-yt-bar-line{display:flex;align-items:flex-start;gap:10px;width:100%;padding:7px 14px;border:0;border-radius:0;background:transparent;box-shadow:none;color:inherit;font:inherit;text-align:start;cursor:pointer}
+.qiaomu-yt-bar-line:hover{background:var(--qm-hover)}
+.qiaomu-yt-bar-line:focus{outline:none}.qiaomu-yt-bar-line:focus-visible{outline:2px solid var(--qm-accent);outline-offset:-2px}
+.qiaomu-yt-bar-time{flex:0 0 auto;min-width:3.2em;color:var(--qm-fg2);font-size:12px;font-variant-numeric:tabular-nums}
 .qiaomu-yt-bar-text{min-width:0;overflow-wrap:anywhere}
-.qiaomu-yt-bar-more{margin:6px 8px 0;color:var(--yt-spec-text-secondary,#606060);font-size:12px}
+.qiaomu-yt-bar-more{margin:6px 14px 0;color:var(--qm-fg2);font-size:12px}
 `;
 
-// Keep the bar as the first thing in the right column of the watch page.
-export function syncTranscriptBar(doc: Document, make: () => HTMLElement): HTMLElement | undefined {
-	const column = doc.querySelector<HTMLElement>('ytd-watch-flexy #secondary-inner, #secondary-inner');
+// Keep the bar as the first thing in the right column of the watch page, or right after `afterSelector` inside it.
+export function syncTranscriptBar(doc: Document, make: () => HTMLElement, columnSelector = 'ytd-watch-flexy #secondary-inner, #secondary-inner', afterSelector?: string): HTMLElement | undefined {
+	const column = doc.querySelector<HTMLElement>(columnSelector);
 	if (!column) return undefined;
+	const anchor = afterSelector ? column.querySelector<HTMLElement>(':scope > ' + afterSelector) : null;
 	let bar = column.querySelector<HTMLElement>(':scope > .qiaomu-yt-bar');
-	if (!bar) { bar = make(); column.prepend(bar); } else if (column.firstElementChild !== bar) column.prepend(bar);
+	if (!bar) bar = make();
+	if (anchor) { if (anchor.nextElementSibling !== bar) anchor.after(bar); }
+	else if (column.firstElementChild !== bar) column.prepend(bar);
 	return bar;
 }

@@ -29,7 +29,7 @@ try {
 		const zh = /^zh/i.test(navigator.language);
 		const text = (key: string, zhText: string, enText: string) => api.i18n.getMessage(key) || (zh ? zhText : enText);
 		const strings = {
-			heading: text('youtubePanelCardTitle', '乔木 · 沉浸学习', 'Qiaomu · Study'),
+			heading: text('', '乔木剪藏', 'Qiaomu Clipper'),
 			subtitles: text('youtubeBarSubtitles', '字幕', 'Subtitles'),
 			copy: text('youtubePanelCopy', '复制', 'Copy'),
 			download: text('youtubePanelDownload', '下载', 'Download'),

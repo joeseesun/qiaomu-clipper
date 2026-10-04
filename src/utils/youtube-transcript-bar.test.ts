@@ -13,11 +13,13 @@ const make = (overrides: Partial<BarHooks> = {}) => {
 };
 beforeEach(() => { document.body.innerHTML = ''; vi.restoreAllMocks(); });
 
-it('is one strip with the five tools and a dropdown chevron, closed at first, with a status dot', () => {
+it('is one calm strip: copy, download, one labelled study button and a chevron, closed at first, with a status dot', () => {
 	const { bar, tool } = make();
-	expect(Array.from(bar.element.querySelectorAll('.qiaomu-yt-tool')).map(button => button.className.split(' ')[1])).toEqual(['qiaomu-yt-tool-subtitles', 'qiaomu-yt-tool-copy', 'qiaomu-yt-tool-download', 'qiaomu-yt-tool-study', 'qiaomu-yt-tool-settings', 'qiaomu-yt-tool-toggle']);
+	expect(Array.from(bar.element.querySelectorAll('.qiaomu-yt-bar-head .qiaomu-yt-tool')).map(button => button.className.split(' ')[1])).toEqual(['qiaomu-yt-tool-copy', 'qiaomu-yt-tool-download', 'qiaomu-yt-tool-study', 'qiaomu-yt-tool-toggle']);
+	expect(bar.element.querySelector('.qiaomu-yt-bar-head .qiaomu-yt-tool-settings')).toBeNull(); expect(bar.element.querySelector('.qiaomu-yt-bar-finder .qiaomu-yt-tool-settings')).not.toBeNull(); // settings sit with the search row
+	expect(tool('study').textContent).toBe('Study'); expect(bar.element.dataset.theme).toBe('youtube');
 	expect(bar.element.querySelector('.qiaomu-yt-bar-title')!.textContent).toBe('Qiaomu'); expect(bar.element.dataset.open).toBe('false'); expect(bar.element.querySelector<HTMLElement>('.qiaomu-yt-bar-body')!.hidden).toBe(true);
-	for (const name of ['subtitles', 'copy', 'download', 'study', 'settings']) { expect(tool(name).title).toBeTruthy(); expect(tool(name).getAttribute('aria-label')).toBe(tool(name).title); }
+	for (const name of ['copy', 'download', 'study', 'settings']) { expect(tool(name).title).toBeTruthy(); expect(tool(name).getAttribute('aria-label')).toBe(tool(name).title); }
 	expect(bar.element.querySelector('.qiaomu-yt-bar-dot')!.getAttribute('aria-label')).toBe('Loading');
 });
 
@@ -51,10 +53,10 @@ it('copies and downloads what the page has, and says so when there is nothing', 
 	empty.tool('copy').click(); empty.tool('download').click(); await tick(); expect(write).toHaveBeenCalledTimes(1); expect(empty.tool('copy').title).toBe('Empty');
 });
 
-it('opens study mode and settings, warns when the page is stale, and loads the transcript from the subtitles button', async () => {
+it('opens study mode and settings, warns when the page is stale, and loads the transcript when the strip is opened', async () => {
 	const { hooks, bar, tool } = make({ getSegments: vi.fn(async () => lines) });
 	tool('study').click(); expect(hooks.openStudy).toHaveBeenCalledTimes(1); tool('settings').click(); expect(hooks.openSettings).toHaveBeenCalledTimes(1);
-	tool('subtitles').click(); await tick(); expect(bar.element.dataset.open).toBe('true'); expect(bar.element.dataset.state).toBe('ready'); expect(bar.element.querySelectorAll('.qiaomu-yt-bar-line').length).toBeGreaterThan(0);
+	tool('toggle').click(); await tick(); expect(bar.element.dataset.open).toBe('true'); expect(bar.element.dataset.state).toBe('ready'); expect(bar.element.querySelectorAll('.qiaomu-yt-bar-line').length).toBeGreaterThan(0);
 	document.body.innerHTML = ''; const stale = make({ openStudy: () => false }); stale.tool('study').click(); expect(stale.tool('study').title).toBe('Reload page');
 });
 
@@ -237,4 +239,45 @@ it('marks the phrase being spoken in the current line, moves it with the time, a
 	bar.setTime(25); expect(marked()).toEqual(['Next line']);
 	bar.setOpen(false); expect(highlights.has('qiaomu-yt-line')).toBe(false);
 	delete (window as any).CSS; delete (window as any).Highlight; expect(() => bar.setOpen(true)).not.toThrow();
+});
+
+it('can mount in another site\'s right column and leaves a YouTube-shaped page alone when asked for that column', () => {
+	document.body.innerHTML = '<div class="right-container"><div class="right-container-inner"><div class="up-panel-container">up</div></div></div><div id="secondary-inner"></div>';
+	const build = () => buildTranscriptBar(document, { strings, title: () => 't', getSegments: async () => [], openStudy: () => {}, openSettings: () => {}, seek: () => {} }).element;
+	const column = document.querySelector('.right-container-inner')!;
+	expect(syncTranscriptBar(document, build, '.right-container-inner')).toBe(column.firstElementChild);
+	column.append(column.firstElementChild!); syncTranscriptBar(document, build, '.right-container-inner');
+	expect(column.firstElementChild!.className).toContain('qiaomu-yt-bar'); expect(document.querySelectorAll('.qiaomu-yt-bar')).toHaveLength(1); expect(document.querySelector('#secondary-inner')!.children).toHaveLength(0);
+});
+
+it('can sit right after a given block of the column (under the author) and stays there', () => {
+	document.body.innerHTML = '<div class="right-container-inner"><div class="up-panel-container">up</div><div class="danmaku">danmaku</div></div>';
+	const build = () => buildTranscriptBar(document, { strings, title: () => 't', getSegments: async () => [], openStudy: () => {}, openSettings: () => {}, seek: () => {} }).element;
+	const column = document.querySelector('.right-container-inner')!;
+	const bar = syncTranscriptBar(document, build, '.right-container-inner', '.up-panel-container')!;
+	expect(Array.from(column.children).map(c => c.className.split(' ')[0])).toEqual(['up-panel-container', 'qiaomu-yt-bar', 'danmaku']);
+	column.prepend(document.createElement('section')); syncTranscriptBar(document, build, '.right-container-inner', '.up-panel-container');
+	expect(document.querySelectorAll('.qiaomu-yt-bar')).toHaveLength(1); expect(document.querySelector('.up-panel-container')!.nextElementSibling).toBe(bar);
+	document.querySelector('.up-panel-container')!.remove(); syncTranscriptBar(document, build, '.right-container-inner', '.up-panel-container');
+	expect(column.firstElementChild).toBe(bar); // no author block: falls back to the top of the column
+});
+
+it('shows a check on a successful copy for a moment and then the copy icon again', async () => {
+	vi.useFakeTimers(); try {
+		Object.defineProperty(navigator, 'clipboard', { value: { writeText: vi.fn(async () => {}) }, configurable: true });
+		const { tool } = make(); const button = tool('copy'), before = button.firstElementChild!;
+		button.click(); await vi.advanceTimersByTimeAsync(10);
+		expect(button.classList.contains('is-notice')).toBe(true); expect(button.firstElementChild).not.toBe(before); expect(button.querySelector('path')!.getAttribute('d')).toBe('M20 6 9 17l-5-5');
+		await vi.advanceTimersByTimeAsync(1900); expect(button.firstElementChild).toBe(before); expect(button.classList.contains('is-notice')).toBe(false); expect(button.title).toBe('Copy');
+	} finally { vi.useRealTimers(); }
+});
+
+it('takes the site\'s own skin when asked, and a Bilibili bar says so for the stylesheet', () => {
+	const { bar } = make({ theme: 'bilibili' }); expect(bar.element.dataset.theme).toBe('bilibili');
+});
+
+it('opening the strip from its empty part also reads a transcript that has not arrived', async () => {
+	const { hooks, bar } = make({ getSegments: vi.fn(async () => lines) });
+	bar.element.querySelector<HTMLElement>('.qiaomu-yt-bar-head')!.click(); await tick();
+	expect(hooks.getSegments).toHaveBeenCalled(); expect(bar.element.dataset.state).toBe('ready'); expect(bar.element.querySelectorAll('.qiaomu-yt-bar-line').length).toBeGreaterThan(0);
 });
