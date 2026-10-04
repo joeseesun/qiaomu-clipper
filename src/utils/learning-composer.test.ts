@@ -105,3 +105,39 @@ it('toggles the edit link between 编辑 and 收起 so it is clear how to leave 
 it('says a draft was restored in the footer, briefly',async()=>{
  stored[source.url!]=createLearningDraft(source,{reflection:'half written'});await notes.open();expect(document.querySelector('.learning-draft')!.textContent).toBe('已恢复草稿');
 });
+
+const attached=(id:string,name='shot.png')=>({id:id.repeat(32).slice(0,32),name,size:2048,kind:'image' as const});
+const pasteFiles=(...list:File[])=>{const event=new Event('paste',{bubbles:true,cancelable:true});Object.defineProperty(event,'clipboardData',{value:{files:list}});input('我的理解').dispatchEvent(event);return event;};
+it('pastes a screenshot into the card as an attachment chip, saves it with the note and reports the count',async()=>{
+ services.addAttachments=vi.fn(async()=>({items:[attached('a')],errors:[]}));services.discardAttachments=vi.fn();
+ await notes.open();const event=pasteFiles(new File(['x'],'image.png',{type:'image/png'}));expect(event.defaultPrevented).toBe(true);await tick();
+ expect(services.addAttachments).toHaveBeenCalledWith(expect.any(Array),'clipboard');expect(document.querySelectorAll('.learning-attachment')).toHaveLength(1);expect(document.querySelector('.learning-attachment-name')!.textContent).toBe('shot.png');
+ expect(document.querySelector<HTMLButtonElement>('.learning-primary')!.disabled).toBe(false); // an attachment alone is a note
+ click('.learning-primary');await tick();expect(services.saveLearningRecord.mock.calls[0][0].attachments).toEqual([attached('a')]);expect(document.querySelector('.learning-save-notice')!.textContent).toContain('1 个附件');
+});
+it('leaves a plain text paste alone, and cannot attach without the local helper',async()=>{
+ services.addAttachments=vi.fn(async()=>({items:[attached('a')],errors:[]}));
+ await notes.open();const event=pasteFiles();expect(event.defaultPrevented).toBe(false);expect(services.addAttachments).not.toHaveBeenCalled();
+ notes.dispose();services.getDailyTarget=vi.fn(async()=>({status:'unavailable' as const,error:'no helper'}));
+ notes=mountLearningNotes({doc:document,getSource:()=>source,services});void notes.open();await tick();
+ expect(document.querySelector<HTMLElement>('.learning-attach')!.hidden).toBe(true);
+});
+it('waits for a slow attachment before saving, keeps problems visible and releases a removed file',async()=>{
+ let done!:(r:any)=>void;services.addAttachments=vi.fn(()=>new Promise(resolve=>{done=resolve;}));services.discardAttachments=vi.fn();
+ await notes.open();change('我的理解','text');pasteFiles(new File(['x'],'a.png'));await tick();
+ expect(document.querySelector<HTMLButtonElement>('.learning-primary')!.disabled).toBe(true);
+ done({items:[attached('a')],errors:['big.zip 较大，请用“添加附件”选择']});await tick();
+ expect(document.querySelector<HTMLButtonElement>('.learning-primary')!.disabled).toBe(false);expect(document.querySelector('.learning-status')!.textContent).toContain('big.zip');
+ click('.learning-attachment-remove');expect(services.discardAttachments).toHaveBeenCalledWith([attached('a').id]);expect(document.querySelectorAll('.learning-attachment')).toHaveLength(0);
+});
+it('uses the helper\'s file picker and keeps attachments in the draft across close and reopen',async()=>{
+ services.pickAttachments=vi.fn(async()=>({items:[attached('b','a.zip'),attached('c','b.mp4')],errors:[]}));
+ await notes.open();click('.learning-attach');await tick();expect(document.querySelectorAll('.learning-attachment')).toHaveLength(2);
+ click('[aria-label="关闭并保留草稿"]');await tick();await notes.open();expect(Array.from(document.querySelectorAll('.learning-attachment-name')).map(n=>n.textContent)).toEqual(['a.zip','b.mp4']);
+ expect(document.querySelector<HTMLButtonElement>('.learning-secondary:not(.learning-attach)')).not.toBeNull();
+});
+it('releases files that finish staging after the card was closed', async()=>{
+ let done!:(r:any)=>void;services.addAttachments=vi.fn(()=>new Promise(resolve=>{done=resolve;}));services.discardAttachments=vi.fn();
+ await notes.open();pasteFiles(new File(['x'],'a.png'));await tick();click('[aria-label="关闭并保留草稿"]');await tick();
+ done({items:[attached('a')],errors:[]});await tick();expect(services.discardAttachments).toHaveBeenCalledWith([attached('a').id]);
+});

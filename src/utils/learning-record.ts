@@ -1,8 +1,12 @@
 import browser from './browser-polyfill';
 
 export interface LearningSource { title: string; url?: string; timestampSeconds?: number; kind?: 'web' | 'youtube' | 'bilibili' | 'thought' }
+// A file staged by the local helper. The bytes stay on the machine; the draft only remembers how to show it.
+export interface DraftAttachment { id: string; name: string; size: number; kind: 'image' | 'video' | 'audio' | 'pdf' | 'other'; thumb?: string }
+export const ATTACHMENT_ID = /^[0-9a-f]{32}$/;
+export const MAX_ATTACHMENTS = 20;
 // `omit` keeps the text in the draft but leaves it out of the diary entry (the quote, or the source link and video time).
-export interface LearningRecordDraft { captureId: string; createdAt: string; source: LearningSource; originSource?: LearningSource; reflection: string; quote: string; aiSupplement?: string; omit?: { quote?: boolean; source?: boolean } }
+export interface LearningRecordDraft { captureId: string; createdAt: string; source: LearningSource; originSource?: LearningSource; reflection: string; quote: string; aiSupplement?: string; attachments?: DraftAttachment[]; omit?: { quote?: boolean; source?: boolean } }
 export interface DailyTargetResult { status: 'ready' | 'unavailable' | 'unsupported' | 'invalid'; vault?: string; date?: string; relativePath?: string; targetToken?: string; error?: string }
 export interface LearningSaveResult { status: 'saved' | 'dispatched' | 'unconfirmed' | 'failed' | 'cancelled' | 'target-changed'; captureId: string; vault?: string; date?: string; relativePath?: string; error?: string; duplicate?: boolean; target?: DailyTargetResult }
 
@@ -49,7 +53,9 @@ const TIMED_HOST = /(^|\.)(youtube\.com|youtu\.be|bilibili\.com)$/i;
 export function serializeLearningRecord(draft: LearningRecordDraft): string {
     if (!/^[a-zA-Z0-9-]{8,80}$/.test(draft.captureId)) throw new Error('学习记录标识无效');
     const quoteText = draft.omit?.quote ? '' : draft.quote;
-    if (![draft.reflection, quoteText, draft.aiSupplement || ''].some(value => typeof value === 'string' && value.trim())) throw new Error('请写下理解或加入摘录，不能保存空记录');
+    const attachments = draft.attachments || [];
+    if (attachments.length > MAX_ATTACHMENTS || attachments.some(item => !ATTACHMENT_ID.test(item.id)) || new Set(attachments.map(item => item.id)).size !== attachments.length) throw new Error('附件列表无效');
+    if (![draft.reflection, quoteText, draft.aiSupplement || ''].some(value => typeof value === 'string' && value.trim()) && !attachments.length) throw new Error('请写下理解、加入摘录或附件，不能保存空记录');
     if (typeof draft.reflection !== 'string' || typeof draft.quote !== 'string' || (draft.aiSupplement !== undefined && typeof draft.aiSupplement !== 'string')) throw new Error('学习记录格式无效');
     const created = new Date(draft.createdAt); if (!Number.isFinite(created.getTime())) throw new Error('记录时间无效');
     const clock = `${String(created.getHours()).padStart(2,'0')}:${String(created.getMinutes()).padStart(2,'0')}`;
@@ -72,11 +78,14 @@ export function serializeLearningRecord(draft: LearningRecordDraft): string {
     if (draft.reflection.trim()) blocks.push(draft.reflection.trim());
     if (quoteText.trim()) blocks.push(callout('quote', '原文摘录', quoteText));
     if (draft.aiSupplement?.trim()) blocks.push(callout('info', 'AI 补充（我选择加入）', draft.aiSupplement));
+    // The helper replaces each marker with the wiki link of the copied file once it knows the final file name.
+    for (const item of attachments) blocks.push(attachmentMarker(item.id));
     const content = blocks.join('\n\n');
     if (new TextEncoder().encode(content).length > 4 * 1024 * 1024) throw new Error('记录超过 4 MB，请缩短摘录');
     return content;
 }
-interface LearningAttempt { captureId: string; content: string; vault: string; expectedTargetToken: string; date: string }
+export const attachmentMarker = (id: string) => `\u27e6att:${id}\u27e7`;
+interface LearningAttempt { captureId: string; content: string; vault: string; expectedTargetToken: string; date: string; attachments?: string[] }
 const failed = (draft: LearningRecordDraft, error: unknown): LearningSaveResult => ({ status: 'failed', captureId: draft.captureId, error: error instanceof Error ? error.message : String(error) });
 
 export function saveLearningRecord(draft: LearningRecordDraft, target: DailyTargetResult): Promise<LearningSaveResult> {
@@ -93,7 +102,7 @@ export function saveLearningRecord(draft: LearningRecordDraft, target: DailyTarg
             const current = await getDailyTarget(target.vault);
             if (current.status !== 'ready') return { ...failed(draft, current.error || '无法确认日记目标'), target: current };
             if (current.targetToken !== target.targetToken) return { status: 'target-changed', captureId: draft.captureId, target: current, error: '今日日期或日记设置已变化，请核对新目标后再保存' };
-            attempt = { captureId: draft.captureId, content, vault: target.vault, expectedTargetToken: target.targetToken, date: target.date };
+            attempt = { captureId: draft.captureId, content, vault: target.vault, expectedTargetToken: target.targetToken, date: target.date, ...(draft.attachments?.length ? { attachments: draft.attachments.map(item => item.id) } : {}) };
             await browser.storage.local.set({ [pendingKey(draft.captureId)]: attempt });
         }
         let result: LearningSaveResult;
@@ -107,7 +116,9 @@ export function saveLearningRecord(draft: LearningRecordDraft, target: DailyTarg
             const origin = draft.originSource || draft.source;
             const currentDraft = await loadLearningDraft(origin);
             if (currentDraft?.captureId === draft.captureId && serializeLearningRecord(currentDraft) !== attempt.content) {
-                await persistLearningDraft({ ...currentDraft, captureId: crypto.randomUUID(), createdAt: new Date().toISOString() }, origin);
+                // Files that went into the saved entry were moved into the vault; only newer ones stay with the new draft.
+                const rest = (currentDraft.attachments || []).filter(item => !attempt!.content.includes(item.id));
+                await persistLearningDraft({ ...currentDraft, attachments: rest, captureId: crypto.randomUUID(), createdAt: new Date().toISOString() }, origin);
                 result.error = '提交时的记录已保存；后续编辑已保留为新草稿';
             }
             await clearLearningDraft(origin, draft.captureId);
@@ -127,6 +138,7 @@ export function dispatchLearningRecord(draft: LearningRecordDraft, vault: string
         if (previous) return previous;
         try {
             if (!vault.trim()) throw new Error('请明确选择 Obsidian 库，URI 无法验证日记路径');
+            if (draft.attachments?.length) throw new Error('附件需要本地助手才能复制进库，URI 发送不支持附件');
             const pending = (await browser.storage.local.get(pendingKey(draft.captureId)))[pendingKey(draft.captureId)];
             if (pending) throw new Error('native 写入结果尚未确认，不能重复通过 URI 发送。请用同一记录重试或在 Obsidian 核对');
             const content = serializeLearningRecord(draft); await persistLearningDraft(draft);
@@ -145,4 +157,56 @@ export function dispatchLearningRecord(draft: LearningRecordDraft, vault: string
         } catch (error) { return failed(draft, error); }
     })().finally(() => inFlight.delete(draft.captureId));
     inFlight.set(draft.captureId, job); return job;
+}
+
+// ---- Attachments: staged by the local helper, never held in the page ----
+export interface AttachResult { items: DraftAttachment[]; errors: string[]; cancelled?: boolean }
+// Above this a file is not read into the page at all: the helper copies it from where it already is.
+export const ATTACH_BYTES_LIMIT = 4 * 1024 * 1024;
+type NativeAttach = { ok?: boolean; cancelled?: boolean; error?: string; items?: Array<DraftAttachment & { origName?: string; origSize?: number }>; errors?: string[] };
+const attachNative = async (payload: Record<string, unknown>): Promise<NativeAttach> => {
+	try { return await timed(browser.runtime.sendMessage({ action: 'qiaomuLearningAttach', payload }), 10 * 60 * 1000) as NativeAttach; }
+	catch { return { ok: false, error: '本地助手未连接，无法添加附件' }; }
+};
+const strip = ({ origName: _name, origSize: _size, ...item }: DraftAttachment & { origName?: string; origSize?: number }): DraftAttachment => item;
+const toBase64 = async (file: File): Promise<string> => {
+	const bytes = new Uint8Array(await file.arrayBuffer()); let binary = '';
+	for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+	return btoa(binary);
+};
+const pad = (value: number) => String(value).padStart(2, '0');
+// Browsers call every pasted screenshot "image.png"; give it a name that tells the files apart once it is in the vault.
+export function attachmentName(file: File, index: number, now = new Date()): string {
+	if (!/^image\.\w+$/i.test(file.name) && file.name) return file.name;
+	const ext = (file.type.split('/')[1] || 'png').replace('jpeg', 'jpg').replace(/[^a-z0-9]/gi, '').slice(0, 5) || 'png';
+	return `Pasted image ${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}${index ? '-' + (index + 1) : ''}.${ext}`;
+}
+export async function pickAttachments(): Promise<AttachResult> {
+	const reply = await attachNative({ mode: 'pick' });
+	if (reply.cancelled) return { items: [], errors: [], cancelled: true };
+	if (!reply.ok) return { items: [], errors: [reply.error || '无法添加附件'] };
+	return { items: (reply.items || []).map(strip), errors: reply.errors || [] };
+}
+// Pasted or dropped files. Small ones travel as bytes. A large one is found again by the helper where it lives (the
+// clipboard for a paste, the Finder selection for a drop), because a page is never told a file's path.
+export async function addAttachments(files: File[], source: 'clipboard' | 'finder'): Promise<AttachResult> {
+	const items: DraftAttachment[] = [], errors: string[] = [];
+	const large = files.filter(file => file.size > ATTACH_BYTES_LIMIT);
+	let local: NativeAttach = {};
+	if (large.length) local = await attachNative({ mode: 'local', source, names: large.map(file => ({ name: file.name, size: file.size })) });
+	for (const [index, file] of files.entries()) {
+		if (file.size > ATTACH_BYTES_LIMIT) {
+			const found = local.items?.find(item => item.origName === file.name && item.origSize === file.size);
+			if (found) items.push(strip(found));
+			else errors.push(`${file.name} 较大，请用“添加附件”选择，或在访达里复制后粘贴`);
+			continue;
+		}
+		const reply = await attachNative({ mode: 'bytes', name: attachmentName(file, index), data: await toBase64(file) });
+		if (reply.ok && reply.items?.[0]) items.push(strip(reply.items[0])); else errors.push(reply.error || `${file.name} 添加失败`);
+	}
+	if (local.errors?.length) errors.push(...local.errors);
+	return { items, errors };
+}
+export function discardAttachments(ids: string[]): void {
+	if (ids.length) void attachNative({ mode: 'discard', ids }).catch(() => { /* old staged files are pruned by the helper */ });
 }

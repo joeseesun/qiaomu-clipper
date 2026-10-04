@@ -32,6 +32,17 @@
     &[hidden] { display: none; } .learning-quote-field { width: 100%; }
     textarea { padding: 0; border: 0; border-radius: 0; background: transparent; color: var(--text-muted); font-size: 13px; resize: none; field-sizing: content; max-height: 28svh; } }
   details { margin-block: 8px; summary { color: var(--text-muted); cursor: pointer; font-size: 12px; } &[hidden] { display: none; } }
+  // Files that will be copied into the vault's attachment folder when the note is saved.
+  .learning-attachments { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 2px; &[hidden] { display: none; } }
+  .learning-attachment { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 3px 4px 3px 3px; border: 1px solid var(--background-modifier-border, #ddd); border-radius: 8px; font-size: 12px; color: var(--text-muted, #666); }
+  .learning-attachment-preview { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 28px; height: 28px; overflow: hidden; border-radius: 5px; background: var(--background-secondary, rgb(128 128 128 / 12%));
+    img { width: 100%; height: 100%; object-fit: cover; display: block; } svg { width: 14px; height: 14px; } }
+  .learning-attachment-name { min-width: 0; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-normal, #222); }
+  .learning-attachment-size { flex: 0 0 auto; color: var(--text-faint, #999); font-size: 11px; }
+  button.learning-attachment-remove:not(.clickable-icon) { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 4px; background: transparent; box-shadow: none; color: var(--text-faint, #999); cursor: pointer;
+    svg { width: 12px; height: 12px; } &:hover { background: var(--background-modifier-hover, rgb(128 128 128 / 14%)); color: var(--text-normal); } }
+  &.is-dropping { outline: 2px dashed var(--text-faint, #999); outline-offset: -6px; }
+  button.learning-attach:not(.clickable-icon) { display: inline-flex; align-items: center; gap: 4px; svg { width: 13px; height: 13px; } &[hidden] { display: none; } &:disabled { opacity: .5; cursor: default; } }
   .learning-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 20px; margin-block: 6px 0; }
   .learning-edit-source { margin-inline-start: -4px; }
   // Real switches: label, then a small track with a thumb. Dark track = goes into the diary.

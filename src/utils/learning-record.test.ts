@@ -1,7 +1,7 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 const env = vi.hoisted(() => ({ data: {} as Record<string, unknown>, send: vi.fn() }));
 vi.mock('./browser-polyfill', () => ({default:{runtime:{sendMessage:(...args:unknown[])=>env.send(...args)},storage:{local:{get:async(key:string)=>({[key]:env.data[key]}),set:async(value:Record<string,unknown>)=>Object.assign(env.data,value),remove:async(key:string)=>{delete env.data[key];}}}}}));
-import { createLearningDraft, loadLearningDraft, persistLearningDraft, serializeLearningRecord, getDailyTarget, saveLearningRecord, dispatchLearningRecord } from './learning-record';
+import { createLearningDraft, loadLearningDraft, persistLearningDraft, serializeLearningRecord, getDailyTarget, saveLearningRecord, dispatchLearningRecord, attachmentMarker, attachmentName, addAttachments, pickAttachments, discardAttachments } from './learning-record';
 const source={title:'学习中文🙂',url:'https://example.com/article',kind:'web' as const};
 const target={status:'ready' as const,vault:'test-vault',date:'2026-10-03',relativePath:'Daily/2026-10-03.md',targetToken:'a'.repeat(64)};
 beforeEach(()=>{env.data={};env.send.mockReset();env.send.mockImplementation(async message=>message.action==='qiaomuLearningDailyTarget'?target:message.action==='qiaomuLearningDispatch'?{status:'dispatched'}:{status:'saved',captureId:message.payload?.captureId,vault:'test-vault',date:target.date,relativePath:target.relativePath});});
@@ -108,4 +108,51 @@ it('ignores zero-width padding in a source title and falls back to the host when
  const pad='\u200b\u2060\u200d\ufeff'.repeat(40);
  const a=serializeLearningRecord(createLearningDraft({title:pad+'手册标题',url:'https://example.com/a'},{reflection:'x'})).split('\n')[0];expect(a).toContain('[手册标题]');
  const b=serializeLearningRecord(createLearningDraft({title:pad,url:'https://example.com/a'},{reflection:'x'})).split('\n')[0];expect(b).toContain('[example.com]');
+});
+
+const id1='a'.repeat(32), id2='b'.repeat(32);
+const withFiles=(...ids:string[])=>({...createLearningDraft(source,{reflection:'想法'}),attachments:ids.map(id=>({id,name:id.slice(0,3)+'.png',size:10,kind:'image' as const}))});
+it('lists each attachment as a marker the helper replaces with the real link, and accepts an attachment-only note',()=>{
+ const body=serializeLearningRecord(withFiles(id1,id2));
+ expect(body.endsWith(`想法\n\n${attachmentMarker(id1)}\n\n${attachmentMarker(id2)}`)).toBe(true);
+ expect(serializeLearningRecord({...createLearningDraft({title:'随手记'}),attachments:withFiles(id1).attachments})).toContain(attachmentMarker(id1));
+ expect(()=>serializeLearningRecord(createLearningDraft(source))).toThrow('空记录');
+ expect(()=>serializeLearningRecord(withFiles('../../etc'))).toThrow('附件');expect(()=>serializeLearningRecord(withFiles(id1,id1))).toThrow('附件');
+ expect(()=>serializeLearningRecord(withFiles(...Array.from({length:21},(_,i)=>String(i).padStart(32,'0'))))).toThrow('附件');
+});
+it('sends the attachment ids with the frozen entry, and keeps files added after submitting for the next draft',async()=>{
+ const draft=withFiles(id1);await persistLearningDraft(draft);let finish!:(v:unknown)=>void;
+ env.send.mockImplementation(message=>message.action==='qiaomuLearningSave'?new Promise(resolve=>{finish=()=>resolve({status:'saved',vault:'test-vault',date:'2026-10-03',relativePath:'Daily/2026-10-03.md'});}):Promise.resolve(target));
+ const job=saveLearningRecord(draft,target);for(let i=0;i<30;i++)await Promise.resolve();
+ expect(env.send.mock.calls.find(([m])=>m.action==='qiaomuLearningSave')![0].payload).toMatchObject({attachments:[id1]});
+ await persistLearningDraft({...withFiles(id1,id2),captureId:draft.captureId});finish(undefined);await job;
+ const next=await loadLearningDraft(source);expect(next?.attachments?.map(a=>a.id)).toEqual([id2]);expect(next?.captureId).not.toBe(draft.captureId);
+});
+it('does not send a note with attachments through the URI path',async()=>{
+ const draft=withFiles(id1);await persistLearningDraft(draft);
+ expect(await dispatchLearningRecord(draft,'vault')).toMatchObject({status:'failed',error:expect.stringContaining('附件')});expect(env.send).not.toHaveBeenCalled();
+});
+it('names a pasted screenshot like Obsidian does and leaves real names alone',()=>{
+ const at=new Date(2026,9,4,9,5,7);
+ expect(attachmentName(new File(['x'],'image.png',{type:'image/png'}),0,at)).toBe('Pasted image 20261004-090507.png');
+ expect(attachmentName(new File(['x'],'image.jpeg',{type:'image/jpeg'}),1,at)).toBe('Pasted image 20261004-090507-2.jpg');
+ expect(attachmentName(new File(['x'],'报告.pdf'),0,at)).toBe('报告.pdf');
+});
+it('sends small files as bytes and finds a large one again through the helper instead of reading it',async()=>{
+ const small=new File(['hello'],'note.txt'),big=new File(['x'],'movie.mp4'),stranger=new File(['x'],'other.zip');Object.defineProperty(big,'size',{value:50*1024*1024});Object.defineProperty(stranger,'size',{value:9*1024*1024});
+ env.send.mockImplementation(async message=>{
+  const {mode,name}=message.payload;
+  if(mode==='bytes')return {ok:true,items:[{id:id1,name,size:5,kind:'other'}]};
+  return {ok:true,items:[{id:id2,name:'movie.mp4',size:50*1024*1024,kind:'video',origName:'movie.mp4',origSize:50*1024*1024}]};
+ });
+ const result=await addAttachments([small,big,stranger],'clipboard');
+ expect(result.items.map(i=>i.id)).toEqual([id1,id2]);expect(result.items.every(i=>!('origName' in i))).toBe(true);expect(result.errors).toHaveLength(1);expect(result.errors[0]).toContain('other.zip');
+ const calls=env.send.mock.calls.map(([m])=>m.payload);expect(calls.find(c=>c.mode==='local')).toMatchObject({source:'clipboard',names:[{name:'movie.mp4'},{name:'other.zip'}]});
+ expect(calls.find(c=>c.mode==='bytes')).toMatchObject({name:'note.txt',data:btoa('hello')});expect(JSON.stringify(calls)).not.toContain('"x"');
+ await addAttachments([small],'finder');expect(env.send.mock.calls.filter(([m])=>m.payload.mode==='local')).toHaveLength(1); // a small drop never asks Finder
+});
+it('reports a missing helper and a cancelled picker without throwing',async()=>{
+ env.send.mockRejectedValue(new Error('no helper'));expect(await pickAttachments()).toMatchObject({items:[],errors:[expect.stringContaining('助手')]});
+ env.send.mockResolvedValue({ok:false,cancelled:true});expect(await pickAttachments()).toMatchObject({cancelled:true,items:[]});
+ env.send.mockClear();discardAttachments([]);expect(env.send).not.toHaveBeenCalled();discardAttachments([id1]);expect(env.send.mock.calls[0][0].payload).toEqual({mode:'discard',ids:[id1]});
 });

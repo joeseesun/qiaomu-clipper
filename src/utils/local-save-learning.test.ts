@@ -34,3 +34,19 @@ it('maps synchronous native transport errors to an uncertain save without fallba
  native.mockImplementation(()=>{throw new Error('sync transport error');});
  expect(await handleLearningNativeMessage({action:'qiaomuLearningSave',payload:{captureId:'record-123456',content:'thought'}},sender)).toMatchObject({status:'unconfirmed'});
 });
+
+it('forwards attachment requests to fixed native actions and never lets the page choose a path',async()=>{
+ native.mockResolvedValue({ok:true,items:[]});
+ await handleLearningNativeMessage({action:'qiaomuLearningAttach',payload:{mode:'pick'}},sender);
+ await handleLearningNativeMessage({action:'qiaomuLearningAttach',payload:{mode:'local',source:'clipboard',names:[{name:'a.mp4',size:5}],path:'/etc/passwd'}},sender);
+ await handleLearningNativeMessage({action:'qiaomuLearningAttach',payload:{mode:'discard',ids:['a'.repeat(32),'../x']}},sender);
+ const bodies=native.mock.calls.map(([,body])=>body);
+ expect(bodies.map(b=>b.action)).toEqual(['attachPick','attachLocal','attachDiscard']);expect(bodies[1]).toMatchObject({source:'clipboard',names:[{name:'a.mp4',size:5}]});
+ expect(JSON.stringify(bodies)).not.toContain('passwd');expect(bodies[2].ids).toEqual(['a'.repeat(32)]);
+ expect(await handleLearningNativeMessage({action:'qiaomuLearningAttach',payload:{mode:'rm -rf'}},sender)).toMatchObject({ok:false});
+ expect(await handleLearningNativeMessage({action:'qiaomuLearningAttach',payload:{mode:'pick'}},{id:'other',url:'x'})).toMatchObject({status:'failed'});
+});
+it('says to update the helper when it does not know attachments, and when it is offline',async()=>{
+ native.mockResolvedValue({ok:false,error:'x'});expect(await handleLearningNativeMessage({action:'qiaomuLearningAttach',payload:{mode:'pick'}},sender)).toMatchObject({ok:false});
+ native.mockRejectedValue(new Error('offline'));expect(await handleLearningNativeMessage({action:'qiaomuLearningAttach',payload:{mode:'pick'}},sender)).toMatchObject({ok:false,error:expect.stringContaining('助手')});
+});
