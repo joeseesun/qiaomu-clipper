@@ -1,4 +1,5 @@
 import { Provider } from '../types/types';
+import { openAICompatibleBasePath } from './chat-llm';
 
 export interface ProviderModel {
 	id: string;
@@ -25,7 +26,7 @@ export function modelListRequest(provider: Provider): { url: URL; headers: Recor
 		throw new Error('deployment-models');
 	} else {
 		const anthropic = /\/messages\/?$/.test(url.pathname);
-		url.pathname = url.pathname.replace(/\/(chat\/completions|completions|responses|messages)\/?$/, '').replace(/\/$/, '') + '/models';
+		url.pathname = openAICompatibleBasePath(url.pathname) + '/models';
 		if (anthropic) {
 			kind = 'anthropic';
 			headers['x-api-key'] = provider.apiKey;
