@@ -4,120 +4,39 @@
 
 **中文** | [English](#english)
 
-**一次点击存进 Obsidian，顺手读完、改好，还能直接问 AI。**
+**别让好文章和好视频，停在「收藏过」。**
 
-![阅读页：高亮、AI 对话与选中文字提问同屏](docs/assets/screens/reader-chat.png)
+边读边问 AI，边看视频边记理解，把内容与想法存进 Obsidian。
 
-[快速开始](#快速开始) · [功能巡游](#功能巡游) · [视频学习](#视频沉浸学习与学习笔记) · [快捷键](#三连击快捷键) · [AI](#ai-解读与对话) · [隐私与边界](#隐私与边界) · [反馈](https://github.com/joeseesun/qiaomu-clipper/issues)
+Read, watch, ask AI, and turn what you learn into Obsidian notes.
 
-![version](https://img.shields.io/badge/version-1.10.1-blue) ![license](https://img.shields.io/badge/license-MIT-green) ![platform](https://img.shields.io/badge/Chrome-Manifest%20V3-orange)
+**[安装并体验最新功能](#快速开始)** · [看功能截图](#功能巡游) · [快捷键](#三连击快捷键) · [反馈问题](https://github.com/joeseesun/qiaomu-clipper/issues)
+
+![视频学习：视频与双语字幕并排，统一顶栏支持复制、下载、剪藏与 AI](docs/assets/screens/video-study.png)
+
+![license](https://img.shields.io/badge/license-MIT-green) ![platform](https://img.shields.io/badge/Chrome-Manifest%20V3-orange) ![install](https://img.shields.io/badge/安装方式-源码加载-blue)
 
 </div>
 
-> 基于 [Obsidian Web Clipper](https://github.com/obsidianmd/obsidian-clipper) 独立开发，保留上游 Git 历史与 MIT 许可证。当前是 **Chrome 开发版，尚未上架 Chrome 应用商店**，需要从源码加载（约 2 分钟，见下文）。
+> **当前为 Chrome 开发版，尚未上架应用商店。** 本页介绍当前 `main` 的功能；完整体验请按下方步骤从源码安装。[1.10.0 预览包](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.10.0) 较旧，不包含这里全部新增功能。截图采用实际界面组件与示例数据，视频区域展示封面预览；[截图说明](docs/README-SCREENSHOTS.md)。
 
 ## 它解决什么问题
 
-剪藏网页时，你大概遇到过这些事：
+| 你遇到的痛点 | 直接这样做 | 得到什么 |
+|---|---|---|
+| 收藏一堆文章，还是没读懂 | `aaa` 进入阅读页，划线或选中一段问 AI | 干净正文、局部解释，阅读与提问留在同一页 |
+| 看视频时，播放器和文稿来回切 | YouTube / B 站按 `aaa`，点击字幕时间戳 | 视频与字幕同屏，回到想复习的那句话 |
+| 外语字幕看得慢，找一句话又要拖进度条 | 打开「中文翻译」，搜索字幕关键词 | 原文、中文、时间戳对照，字幕也能复制和下载 |
+| 视频里突然有想法，切去记笔记就忘了 | 按 `N` 打开小卡片，写下「我的理解」 | 带来源与时间点的记录追加到今天的 Obsidian 日记¹ |
+| 每次问 AI 都要重写回答要求 | 对话设置里保存全局指令、常用提示词 | 固定语言和回答方式，字体、字号也按你的习惯来 |
+| 剪藏弹窗太小，整理标题和正文费劲 | `eee` 进入整页编辑器，收起目录腾出空间 | 属性与 Markdown 并排，编辑完直接剪藏 |
+| 保存一篇文章总要反复点按钮 | `qqq` 用默认模板剪藏 | 快速保存到 Obsidian；是否公开分享到 RSS 由开关决定 |
 
-- 点开剪藏面板，一堆属性和选项挤在一个小窗口里，**想改个标题都费劲**。
-- 剪下来的内容**读起来不舒服**，想先看看效果、再决定要不要保存。
-- 文章里有一段没看懂，得**复制出去问 AI**，再把答案粘贴回来。
-- 想**快速保存**，却每次都要走完整个流程。
-
-乔木剪藏把这几步合在了同一个地方：
-
-| 你想做的事 | 在乔木剪藏里怎么做 |
-|---|---|
-| 马上存下来 | 弹窗里一个大按钮「剪藏到 Obsidian」，需要时顺便分享到乔木 RSS |
-| 先看看剪藏效果 | 点「阅读」进入干净的阅读页，字体、配色可调，还能划线 |
-| 改标题、属性、正文 | 点「编辑」进入整页编辑器，属性与 Markdown 并排，空间足够 |
-| 不看全文只想要结论 | 点顶栏魔法棒，**对这篇文章直接提问**，回答可一键加入笔记 |
-| 没看懂某一段 | 选中文字，点「问 AI」，只围绕这一段提问 |
-| 一个键完成动作 | 在网页上**连按 3 次 A / E / Q**：阅读、编辑、直接剪藏（字母可自定义） |
-| 视频太长，想边看边学 | 视频与字幕同屏，时间戳跳转、双语对照，还能围绕字幕问 AI |
-| 想留下自己的收获 | 选段、写想法，把来源与视频时间一起记进今天的 Obsidian 日记 |
-| 每次都按同样格式保存 | 用模板统一属性与正文，按需让已配置的 AI 填写摘要 |
-| 想把好文章分享出去 | 剪藏时选择分享到公开的乔木 RSS，便于其他人订阅阅读 |
-
-## 功能巡游
-
-下面的暖色配图是 **AI 生成的功能概念插画**，用于说明工作流；界面细节请查看各节的可展开截图。视频配图中的“书”是阅读体验的比喻。
-
-### 弹窗：先做最常用的事
-
-![网页剪藏：喜欢这篇，一键收藏到 Obsidian](docs/assets/features/clip-to-obsidian.jpg)
-
-<details>
-<summary>查看弹窗截图</summary>
-
-![弹窗](docs/assets/screens/popup.png)
-
-</details>
-
-阅读、复制、下载、编辑四个快捷动作排在最前；模板、保存位置、RSS 分享是三行同样风格的列表，点开才展开细节；底部是主按钮。模板里写了 AI 提示时，会出现一条安静的状态条，显示模型、用时和完成状态，失败时给出真实原因并可重试。
-
-### 编辑页：属性与正文并排
-
-![Markdown 编辑：先改好，再保存](docs/assets/features/markdown-editor.jpg)
-
-<details>
-<summary>查看编辑页截图</summary>
-
-![编辑页](docs/assets/screens/editor.png)
-
-</details>
-
-整页编辑属性和 Markdown，顶部是统一的操作栏：阅读 / 编辑切换、分享到乔木 RSS、复制、下载、剪藏。向下滚动时顶栏自动收起，向上或鼠标靠近顶部再出现。
-
-### 阅读页：舒服地读，顺手划线
-
-![阅读与划线：读得舒服，记住重点](docs/assets/features/reader-highlights.jpg)
-
-<details>
-<summary>查看阅读页截图</summary>
-
-![阅读页](docs/assets/screens/reader.png)
-
-</details>
-
-- 顶栏标题旁显示来源和**本页划线数量**，不占用正文空间。
-- 字体、字号、行距、配色在顶栏的「Aa」里调整；内置**朱雀仿宋**、宋体、楷体、苹方等中文字体，也可以选用电脑里已安装的字体。
-- 笔记里的 `==文字==` 在阅读页渲染为高亮。
-- 阅读与编辑一键互相切换，编辑过的内容会同步过去。
-- 阅读目录可收起／展开；编辑侧栏也提供正文目录，收起后让正文使用更多空间。
-- YouTube 视频尺寸可用滑杆调整；字幕区域的「中文翻译」开关使用已配置的 AI 模型逐段翻译，保留原文和时间戳。
-
-### AI 对话：围绕这篇文章提问
-
-![文章 AI 对话：没读懂，直接问 AI](docs/assets/features/ai-chat.jpg)
-
-<details>
-<summary>查看 AI 对话截图</summary>
-
-![阅读页中的 AI 对话与选中文字工具条](docs/assets/screens/reader-chat.png)
-
-</details>
-
-点顶栏魔法棒，右侧展开对话面板，正文自动在左侧重新排版，中间的分隔线可以拖动调整宽度。
-
-- 文章全文作为上下文；**选中一段文字**后出现「划线 | 问 AI」小胶囊，只围绕这段提问。
-- 流式输出，Markdown 渲染；每条回答可**复制**或**加入笔记**。
-- **历史对话按文章保存**，下次打开同一篇文章接着聊，也可以从历史列表切换。
-- 对话标题栏的设置按钮可调整字体、字号和自定义指令；保存后用于下一次提问，文章与字幕上下文仍保留。
-- 使用你在设置里配置的模型：OpenAI 兼容接口（含 DeepSeek、Azure、Hugging Face 等）、Anthropic、Google Gemini、Ollama。
-
-### RSS 分享：好文章，一起读
-
-![RSS 分享：好文章，一起读](docs/assets/features/rss-sharing.jpg)
-
-剪藏时勾选「分享到乔木 RSS」，可以同时保存到 Obsidian 和提交到[公开读者提交源](https://rss.qiaomu.ai/feeds/user-submitted.xml)。其他人可以通过 RSS 订阅阅读；本地保存和公开投稿分别显示结果。
-
-**RSS 分享默认勾选，提交内容会公开。** 保存私人内容时请取消勾选；单独预览、编辑或阅读不会触发投稿。
+¹ 写入今天日记需要安装本地助手并启用 Obsidian「日记」核心插件，详见[学习笔记](#学习笔记把自己的理解留下来)。
 
 ## 快速开始
 
-**需要：** Node.js 22+、npm、Chrome。
+**需要：Node.js 22+、npm、Chrome；保存笔记需要 Obsidian。**
 
 ```sh
 git clone https://github.com/joeseesun/qiaomu-clipper.git
@@ -128,89 +47,190 @@ npm run build:chrome
 
 1. 打开 `chrome://extensions`，开启右上角「开发者模式」。
 2. 点「加载已解压的扩展程序」，选择项目里的 `dist` 文件夹。
-3. 打开任意网页，点击工具栏里的回形针图标，开始剪藏。
+3. 打开一篇文章或 YouTube 视频，在非输入框内快速连按 **`aaa`**。
+4. 想问 AI 或翻译字幕：在扩展设置 → **AI 解读**中添加你自己的模型与 API Key。
 
-修改代码后重新 `npm run build:chrome`，在扩展管理页点「重新加载」即可。
+**先试一条完整流程：** 打开视频 → `aaa` → 点时间戳回看 → 按 `N` 写理解。只想读文章和复制字幕，无需配置 AI；写入日记需先装下方助手。
 
 <details>
-<summary><b>想直接写入笔记库，不弹出 Obsidian？</b>（可选的本地保存助手）</summary>
+<summary><b>不想安装 Node.js？也可以先试较旧的 1.10.0 预览包</b></summary>
 
-默认通过 Obsidian URI 保存。如果希望**静默保存**，直接把文件写进笔记库，请安装 [本地助手](native/README.md)（Python 3，macOS / Linux 的 Chrome）。然后在设置 → 通用里选择笔记库根目录，在模板的「保存到文件夹」里选择库内子文件夹。未安装助手时仍可手动填写相对路径。助手同时负责把「学习笔记」追加到今天的日记（升级扩展后请重新运行一次 `native/install.py`）。助手是本仓库里的开源脚本（`native/`），不依赖 Obsidian 提供的任何程序。Windows 暂不支持该助手。
+下载 [Chrome ZIP](https://github.com/joeseesun/qiaomu-clipper/releases/download/1.10.0/qiaomu-clipper-1.10.0-chrome.zip)，解压后在 `chrome://extensions` 中加载解压目录。[发布说明](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.10.0)。它不包含当前 `main` 的全部视频学习、日记和 AI 设置更新，体验本页新功能请使用源码构建。
 
 </details>
 
-## 视频沉浸学习与学习笔记
+<details>
+<summary><b>想静默写入笔记库，或把学习笔记追加到今天日记？</b></summary>
 
-![视频阅读模式：把视频变成一本书](docs/assets/features/video-reading.jpg)
+安装可选的 [本地助手](native/README.md)：需要 Python 3，支持 macOS / Linux 的 Chrome，Windows 暂不支持。普通剪藏默认通过 Obsidian URI 保存；助手可直接写入库内文件。
 
-**YouTube 与 B 站视频页**，在非输入框内快速按 `aaa` 打开学习页：先显示播放器，字幕异步加载（超时可原地重试，不重启播放器）。
+学习笔记的日记追加也由助手完成。升级扩展后，按助手文档重新运行一次 `native/install.py`；在 Obsidian 中启用「日记」核心插件。目前要求纯数字日期格式（如 `YYYY-MM-DD`），不支持日记模板。目标不满足条件时会显示原因并保留草稿。[日记设置与保存说明](docs/LEARNING-DIARY.md)。
 
-- **布局**：页面够宽时左侧视频、右侧字幕分栏，视频固定，字幕独立滚动；窄屏自动上下排列。视频下方可切换 **停靠 / 剧场 / 小窗**（悬浮在页面角落，可拖动吸附、缩放），Chrome 里还有 **浮出窗口**（Document Picture-in-Picture，YouTube）。
-- **字幕**：点击时间戳跳转，YouTube 支持跟随高亮；可复制带时间戳的字幕、下载 TXT、基于字幕与 AI 对话、一键中文翻译（双语对照）。
-- **YouTube 原页**：视频页右栏顶部常驻一条「转写条」——字幕、复制、下载、沉浸学习、设置五个按钮，点箭头展开字幕列表（点时间可跳转），不用点插件图标；并可自动展开 YouTube 自己的转写面板（设置里可关）。
-- **B 站**：播放器是官方嵌入，没有播放 API——点击时间戳会按该秒重新加载并播放，字幕高亮只跟随你点的那一行；字幕需要登录 B 站才会返回（请求在你自己的 B 站标签页里发出）。
+</details>
+
+更新源码后，重新运行 `npm run build:chrome`，并在扩展管理页点「重新加载」。
+
+## 功能巡游
+
+以下暖色配图是 **AI 生成的功能概念插画**，用于说明工作流；可展开查看界面截图。视频配图中的“书”是阅读体验的比喻。完整素材与提示词见[功能插画图集](docs/FEATURE-ILLUSTRATIONS.md)。
+
+### 视频学习：播放器与文稿一起用
+
+![视频阅读：把视频变成一本书](docs/assets/features/video-reading.jpg)
+
+<details>
+<summary>查看视频学习截图</summary>
+
+![视频学习：双语字幕、搜索、可调视频尺寸和位置切换](docs/assets/screens/video-study.png)
+
+</details>
+
+在 **YouTube / B 站视频页按 `aaa`**，先进入学习页并显示播放器，再异步加载字幕。字幕还没准备好时也不用卡在剪藏面板；失败可在原地重试，播放器保留。
+
+- **同一套操作习惯**：延续普通阅读页的顶栏、阅读 / 编辑切换与复制、下载、剪藏流程；视频专属控件放在视频下方。
+- **空间跟着你调整**：宽屏视频与字幕并排，窄屏上下排列；拖动分隔线或尺寸手柄调大小，可切换停靠、剧场、角落小窗。支持的 Chrome 还可把 YouTube 浮出为独立窗口；该动作会重新加载并恢复进度。
+- **文稿可以检索和复用**：搜索关键词，点击时间戳跳转；YouTube 支持播放跟随与当前行高亮。手动浏览原页字幕时暂停自动滚动，之后恢复跟随。字幕可复制、下载 TXT。
+- **双语对照**：打开「中文翻译」，中文出现在非中文原文下方，保留时间戳；关闭可取消未完成请求，失败可重试。需要已配置的 AI 模型，会使用该模型额度。
+- **基于文稿提问**：让 AI 总结观点、解释某一段或给出实践建议。无字幕时明确提示，不能把页面简介当作完整视频文稿。
+
+B 站使用官方嵌入播放器：点击时间戳会按该秒重新加载，高亮只跟随点击行；字幕通常需要登录 B 站。字幕是否可用也取决于视频、站点加载和网络条件。[视频工作区说明](docs/STUDY-WORKSPACE.md)。
 
 ### 双语字幕：英文视频，中文对照
 
-![双语字幕：英文视频，中文对照，保留时间戳](docs/assets/features/bilingual-transcripts.jpg)
+![双语字幕：原文与中文译文保留相同时间戳](docs/assets/features/bilingual-transcripts.jpg)
 
-打开「中文翻译」，使用你配置的 AI 模型逐段翻译；原文、译文与原始时间戳一起保留。可以点击时间戳回到对应片段，也可以复制字幕或下载 TXT。字幕是否可用取决于视频与平台，翻译费用由你的模型服务商计费。
+原文与中文译文对照阅读，保留原始时间戳；读到某一句时，可以点击时间戳回看对应片段。翻译使用你配置的 AI 模型，字幕是否可用取决于视频与平台。
 
-### 学习笔记：边看边记，留下收获
+### YouTube 原页：不打开面板，也能找到字幕入口
 
-![学习笔记：边看边记，把收获存进今天的日记](docs/assets/features/learning-notes.jpg)
+<img src="docs/assets/screens/youtube-transcript-bar.png" alt="YouTube 转写条组件：字幕、复制、下载、沉浸学习、设置与字幕搜索" width="650">
 
-- **学习笔记**：按 `N`、点顶栏笔记图标、选中文字后点「记笔记」，或在 AI 回答上点「加入日记」，在右下角小卡片里写下想法；视频继续播放。笔记以一条紧凑的记录追加到**库里今天的日记**，带来源链接和可点击的视频时间点，保存后字幕行出现小铅笔标记。写入需要 [本地助手](native/README.md)（更新后才支持日记追加），并要求库里启用「日记」核心插件，格式为纯数字日期（如 `YYYY-MM-DD`）、不使用模板；不满足时会明确提示而不会写错日期。详见 [docs/LEARNING-DIARY.md](docs/LEARNING-DIARY.md) 和 [docs/STUDY-WORKSPACE.md](docs/STUDY-WORKSPACE.md)。
+视频页右栏顶部常驻「转写条」：**字幕 / 复制 / 下载 / 沉浸学习 / 设置**。展开即可搜索、看当前播放行或点时间跳转；「沉浸学习」进入完整学习页。可自动打开 YouTube 原生转写面板作为字幕来源，设置里可关闭。上图为转写条组件预览，使用示例字幕。
+
+### 学习笔记：把自己的理解留下来
+
+![学习笔记：边看边记，留下收获](docs/assets/features/learning-notes.jpg)
+
+<details>
+<summary>查看学习笔记截图</summary>
+
+![学习笔记：视频旁打开小卡片，记录我的理解并显示目标日记与时间点](docs/assets/screens/learning-note.png)
+
+</details>
+
+不用切走视频，也不用先建一篇新笔记。按 **`N`** 或点顶栏笔记图标，右下角出现小卡片，把空间留给「我的理解」。
+
+- 选中文字 → **记笔记**；也可从已有高亮选摘录，补充来源与视频时间。
+- AI 回答 → **加入日记**，先进入笔记卡片，继续写自己的理解。
+- 保存前显示今天日记的路径；成功后字幕行出现笔记标记，复习时能找回记录。
+- 关闭卡片会保留草稿；写入失败可修改、重试。**学习笔记不提交到公开 RSS。**
+
+实际写入需要上面的本地助手；截图里的日记路径为演示数据，并未写入真实笔记库。
+
+### AI 对话：理解本文，也按你的习惯回答
+
+![文章 AI 对话：没读懂，直接问 AI](docs/assets/features/ai-chat.jpg)
+
+<details>
+<summary>查看 AI 对话截图</summary>
+
+![文章阅读与 AI 对话：选中一段文字后直接围绕它提问](docs/assets/screens/reader-chat.png)
+
+</details>
+
+点顶栏魔法棒，展开右侧对话面板；全文或选中段落作为上下文，回答流式显示并支持 Markdown。中间分隔线可拖动；对话历史按文章保存，下次打开可继续聊。回答可复制、加入笔记或通过学习卡片加入日记。
+
+<details>
+<summary>查看 AI 对话设置截图</summary>
+
+![AI 对话设置：字体、字号、全局指令与快捷提示词](docs/assets/screens/ai-settings.png)
+
+</details>
+
+标题栏的 **设置按钮**支持：
+
+- 字体跟随阅读页，也可单独设置；字号可调为 **12–28 px**。
+- 保存全局自定义指令，例如「用中文、先结论、引用字幕带时间戳」，可随时关闭。
+- 新增、编辑、隐藏或删除快捷提示词，分别用于整篇文章和选中文字。
+- 保存后用于后续文章、视频提问，原有对话不被重写。
+
+支持 OpenAI 兼容接口、Anthropic、Google Gemini、Ollama 等，由你提供模型和 API Key。模板也可使用 `{{"这篇文章的三点摘要"}}` 自动生成笔记内容；默认不自动运行 AI，可在设置中调整。
+
+### 阅读与编辑：读得舒服，改得方便
+
+![阅读与划线：读得舒服，记住重点](docs/assets/features/reader-highlights.jpg)
+
+<details>
+<summary>查看阅读页截图</summary>
+
+![阅读页：干净正文、中文字体、高亮与来源](docs/assets/screens/reader.png)
+
+</details>
+
+在顶栏 **Aa** 调整字体、字号、行距与配色；内置朱雀仿宋、宋体、楷体、苹方等中文字体，也可选本机字体。正文支持划线与 `==高亮==`，顶栏显示划线数量。
+
+**阅读目录与编辑侧栏都能收起 / 展开，并记住状态**，长文章保留导航，需要空间时让正文铺开。阅读与编辑一键切换，共用顶栏与草稿流程，修改后内容同步。
+
+![Markdown 编辑：先改好，再保存](docs/assets/features/markdown-editor.jpg)
+
+<details>
+<summary>查看编辑页截图</summary>
+
+![整页编辑器：左侧属性，右侧 Markdown 正文](docs/assets/screens/editor.png)
+
+</details>
+
+标题、标签、来源等属性与 Markdown 正文并排编辑，完成后直接复制、下载或剪藏。滚动时顶栏可收起，向上滚动或移到顶部再次出现。
+
+### 弹窗：保存之前，少做几次选择
+
+![网页保存：喜欢这篇，一键收藏](docs/assets/features/clip-to-obsidian.jpg)
+
+<details>
+<summary>查看弹窗截图</summary>
+
+<img src="docs/assets/screens/popup.png" alt="剪藏弹窗：阅读、复制、下载、编辑与一键剪藏" width="520">
+
+</details>
+
+常用动作放在前面：**阅读 / 复制 / 下载 / 编辑**；模板、保存位置与 RSS 分享按需展开。模板需要 AI 时显示处理状态，失败给出原因并允许重试；默认模板与自动匹配规则减少重复选择。
+
+### 模板与 AI 解读：照着模板，自动整理
+
+![模板与 AI 解读：照着模板，自动整理](docs/assets/features/ai-templates.jpg)
+
+用模板统一属性与 Markdown 正文，按网址或页面数据自动匹配；需要摘要时加入 AI 提示变量，由你配置的模型按需生成。模板、模型和 API Key 均可自行设置，默认不自动运行 AI。
+
+### RSS 分享：好文章，一起读
+
+![RSS 分享：好文章，一起读](docs/assets/features/rss-sharing.jpg)
+
+剪藏时勾选「分享到乔木 RSS」，在保存到 Obsidian 的同时提交到[公开读者提交源](https://rss.qiaomu.ai/feeds/user-submitted.xml)，方便其他人订阅。**此选项默认勾选，投稿内容会公开；私人内容请取消勾选。** 本地保存和公开投稿分别显示结果，阅读、编辑与学习笔记的日记保存不会触发投稿。
 
 ## 三连击快捷键
 
 ![三连击快捷键：AAA 阅读、EEE 编辑、QQQ 剪藏](docs/assets/features/triple-key.jpg)
 
-在任意网页上，**快速连按同一个键 3 次**（间隔不超过约 0.6 秒）：
+在非输入框内快速连按同一个键 3 次（相邻按键间隔不超过约 0.6 秒）：
 
 | 默认按键 | 动作 |
 |---|---|
-| `A` `A` `A` | 进入阅读页（带划线数量、AI 对话） |
-| `E` `E` `E` | 打开编辑页 |
-| `Q` `Q` `Q` | 用默认模板直接剪藏 |
+| `aaa` | 网页阅读；YouTube / B 站视频学习 |
+| `eee` | 整页编辑 |
+| `qqq` | 用默认模板直接剪藏 |
+| `N`（学习页） | 打开学习笔记小卡片 |
 
-- 在设置里可以**改成自己喜欢的字母或数字**，留空即关闭该动作；同一个键不能分配给两个动作。
-- 在输入框、文本区里打字时不会触发，带 Ctrl / Cmd / Alt / Shift 的组合也不会触发。
-- 可以**按网站关闭**：设置里填写网站列表，或在剪藏面板的「⋯」菜单里一键对当前网站关闭。
-- `Q` 在 AI 处理失败时不会保存，避免把没替换的 `{{"…"}}` 原样存进笔记。
-- 说明：浏览器自己的页面（如 `chrome://`）不允许扩展运行脚本，快捷键在那里无效。
-
-## AI 解读与对话
-
-![模板与 AI 解读：照着模板，自动整理](docs/assets/features/ai-templates.jpg)
-
-用模板统一标题、标签、属性与正文结构；模板可以按网址或页面数据自动匹配。需要摘要或要点时，再加入 AI 提示变量，由你配置的模型生成。
-
-- **AI 解读（模板里的提示变量）**：在模板里写 `{{"这篇文章的三点摘要"}}`，剪藏时由模型生成并填入属性或正文。需要在设置的「AI 解读」里添加服务商和模型，并填写 API Key。
-- **AI 对话**：见上文，随时围绕当前文章提问，不依赖模板。
-- 默认**不自动运行**，避免无意消耗额度；也可以在设置里开启「打开时自动运行」。
-- 模型和 API Key 完全由你自己配置；乔木剪藏不提供模型账号或免费额度。
-
-## 其他实用设置
-
-| 设置 | 作用 |
-|---|---|
-| 默认模板 | 页面没有匹配的模板规则时使用；三连击剪藏也用它 |
-| 选中文字工具条 | 一键开关「划线 / 问 AI」小胶囊 |
-| 阅读字体 | 内置中文字体，或点击输入框从已安装字体中挑选 |
-| 模板自动选用规则 | 按网址或 schema.org 数据自动选择模板 |
-| 导入 / 导出全部设置 | 备份、迁移到其他设备 |
+三连击的字母或数字可自定义，留空可关闭；可按网站禁用。在输入框中打字或带 Ctrl / Cmd / Alt / Shift 时不触发。浏览器内部页（如 `chrome://`）不允许扩展脚本。直接剪藏的 AI 处理失败时不会保存未替换的提示变量。
 
 ## 隐私与边界
 
-- 剪藏默认保存在你本机的 Obsidian 笔记库。
-- **「分享到乔木 RSS」默认勾选**。勾选后点击剪藏，会**公开提交**网页链接、标题、剪藏正文和封面图到[公开 RSS](https://rss.qiaomu.ai/feeds/user-submitted.xml)。**请不要把私人页面或个人笔记提交到公开源**，不需要时取消勾选。预览与编辑本身不会上传任何内容。
-- AI 解读和 AI 对话会把所需的网页内容发送给你选择的模型服务商，费用按该服务商规则计算。
-- 对话历史只保存在本机浏览器里（最多 40 篇文章、每篇 15 段对话）。
-- RSS 是独立的在线服务，提交可能因服务限制或网络问题失败；本地保存和 RSS 结果分开显示，重试不会重复创建笔记。
-- Firefox / Safari 沿用了上游代码，但乔木相关功能目前只以 Chrome 为验收目标。
+- **「分享到乔木 RSS」默认勾选**：勾选后剪藏会公开提交链接、标题、剪藏正文和封面到[公开源](https://rss.qiaomu.ai/feeds/user-submitted.xml)。私人内容请先关闭开关；阅读、编辑本身不会提交。学习笔记的日记保存独立于这个开关，不提交 RSS。
+- AI 提问、模板解读和字幕翻译会把所需内容发送给你选择的模型服务商；费用由该服务商计算。插件不提供模型账号或免费额度。
+- 对话历史保存在本机浏览器（最多 40 篇文章，每篇 15 段对话）。本地保存与 RSS 结果分开显示，失败可重试。
+- 当前以 **Chrome** 为验收目标。Firefox / Safari 沿用上游代码；Windows 不支持本地助手。
+- 界面截图展示组件与交互，不代表所有视频均有字幕，也不替代真实扩展中的播放、跨窗口恢复、真实 AI 请求与日记写入验收。
 
-详见 [隐私说明](PRIVACY.md) 与 [安全问题反馈](SECURITY.md)。
+[隐私说明](PRIVACY.md) · [安全问题反馈](SECURITY.md) · [提交使用反馈](https://github.com/joeseesun/qiaomu-clipper/issues)
 
 ## 开发与验证
 
@@ -226,7 +246,7 @@ npm run build:chrome          # 构建 dist/
 - `integration/qmreader/`：RSS 接口参考实现与测试，不随扩展 ZIP 打包。
 - [Chrome 应用商店发布准备](docs/CHROME-WEB-STORE.md)：权限、材料、包与验收说明。
 
-README 中的界面截图由构建出的页面样式渲染，示例文章为本项目自拟内容；暖色功能插画由 AI 生成，不是界面截图。完整配图与设计提示词见[功能插画图集](docs/FEATURE-ILLUSTRATIONS.md)。
+暖色功能插画由 AI 生成，不是界面截图；完整素材与提示词见[功能插画图集](docs/FEATURE-ILLUSTRATIONS.md)。界面截图基于生产界面样式或组件渲染，示例文章与字幕用于展示交互。[截图来源与验收边界](docs/README-SCREENSHOTS.md)。
 
 ## 来源与许可证
 
@@ -244,34 +264,17 @@ README 中的界面截图由构建出的页面样式渲染，示例文章为本�
 
 # English
 
-**Qiaomu Clipper — clip the web into Obsidian, read and edit it, and ask AI about it, all from one Chrome extension.**
+**Turn saved articles and watched videos into something you understand — and keep it in Obsidian.**
 
-Save web pages or selected text as Obsidian Markdown notes. Then read the clip in a clean reader, edit its properties and Markdown in a full-page editor, and chat with your own AI model about the article. Optionally share the clip to the public Qiaomu RSS feed.
+Qiaomu Clipper combines web clipping, a clean reader, a full-page Markdown editor, contextual AI chat, and video study. Press `aaa` on YouTube or Bilibili to study with the player and transcript together. Search, seek, copy, download, translate, and take notes without leaving the page.
 
-![Reading page with highlights, AI chat and selection toolbar](docs/assets/screens/reader-chat.png)
+**[Install current features](#quick-start)** · [Screenshots](#功能巡游) · [Report an issue](https://github.com/joeseesun/qiaomu-clipper/issues)
 
-> Independent project based on [Obsidian Web Clipper](https://github.com/obsidianmd/obsidian-clipper) (upstream history and MIT license preserved). This is a **Chrome development build, not yet on the Chrome Web Store**; load it from source (about two minutes).
-
-### What you get
-
-| You want to… | Do this |
-|---|---|
-| Save right now | One big button in the popup: *Clip to Obsidian*; optionally share to Qiaomu RSS |
-| Preview the clip | *Read* opens a clean reader with adjustable fonts and themes, plus highlights |
-| Fix title, properties, body | *Edit* opens a full-page editor: properties beside Markdown |
-| Get the gist | Magic-wand button: ask questions about the article; add answers to the note |
-| Understand one passage | Select text → *Ask AI* quotes just that passage |
-| Skip the mouse | Press **A / E / Q three times** on a page: read, edit, clip (keys are configurable) |
-| Study a video | Read timestamped transcripts beside the player, translate them and ask AI |
-| Keep what you learned | Save selected passages and personal thoughts to today's Obsidian daily note |
-| Use a consistent note format | Match templates by URL or page data, optionally fill fields with AI |
-| Share a useful article | Submit the clip to the public Qiaomu RSS feed when clipping |
-
-The Chinese feature tour above includes ten matching concept illustrations: clipping, reading and highlights, editing, AI chat, video study, bilingual transcripts, learning notes, shortcuts, templates and RSS sharing. These are AI-generated workflow illustrations, not screenshots. See the [illustration gallery](docs/FEATURE-ILLUSTRATIONS.md); rendered interface screenshots remain available in the expandable panels.
+> Chrome development build; not yet on the Chrome Web Store. This README describes current `main`. The downloadable [1.10.0 preview](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.10.0) is older and does not contain all features shown here. Screenshots use production components with sample articles, captions, AI responses and daily-note targets; the video area is a cover preview. See [screenshot provenance](docs/README-SCREENSHOTS.md).
 
 ### Quick start
 
-Requires Node.js 22+, npm and Chrome.
+Requires Node.js 22+, npm, Chrome, and Obsidian to save notes.
 
 ```sh
 git clone https://github.com/joeseesun/qiaomu-clipper.git
@@ -280,37 +283,39 @@ npm ci
 npm run build:chrome
 ```
 
-Open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select the `dist` folder. After code changes, rebuild and click *Reload* on the extension card.
+Open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select `dist`. Open an article or video, then press `aaa` outside an input field. Rebuild and reload the extension after pulling updates.
 
-By default notes are sent through the Obsidian URI flow. For silent saving straight into your vault, install the optional Python 3 helper for macOS / Linux Chrome: see [native/README.md](native/README.md). Windows is not supported by the helper.
+For AI chat or translation, configure your own model and API key in the extension's AI settings. Reading and copying captions do not require AI. To save silently or append learning notes to today's daily note, install the optional Python 3 [local helper](native/README.md) for macOS / Linux Chrome; re-run its installer after upgrading. Daily-note append requires Obsidian's Daily notes plugin with a numeric date format and no template.
 
-### Highlights
+### What you can do
 
-- **Compact popup**: read / copy / download / edit first; template, save location and RSS sharing as one list; a quiet AI status chip that only appears when the template asks for AI, with the real error and a retry on failure.
-- **Editor and reader share one top bar**: read/edit switch, RSS toggle, copy, download, clip. The bar hides while you scroll. The reader shows the source and the number of highlights on the page, renders `==highlight==`, and hosts font settings (built-in Chinese fonts including Zhuque Fangsong, or any installed font).
-- **AI chat side panel**: streaming answers with Markdown, per-article conversation history, a draggable divider, and a selection toolbar (Highlight | Ask AI) that can be turned off. Supports OpenAI-compatible APIs (including DeepSeek, Azure, Hugging Face), Anthropic, Google Gemini and Ollama — bring your own model and API key.
-- **Triple-press shortcuts**: default `A` read, `E` edit, `Q` clip with the default template. Keys are configurable, can be turned off per action and per site, and are ignored while typing. They do not work on browser-internal pages such as `chrome://`.
-- **Default template** setting and template auto-selection rules by URL or schema.org data.
+The Chinese feature tour includes ten matching AI-generated concept illustrations for clipping, reading and highlights, editing, AI chat, video study, bilingual captions, learning notes, shortcuts, templates and RSS sharing. They illustrate workflows, not literal interfaces. Rendered interface screenshots remain in expandable panels; see the [illustration gallery and prompts](docs/FEATURE-ILLUSTRATIONS.md).
+
+| Problem | Feature |
+|---|---|
+| Switch constantly between video and captions | Player and transcript together; responsive layout, draggable size, dock / theater / corner window; supported Chrome also offers a separate YouTube window |
+| Miss a phrase or struggle with foreign captions | Transcript search, timestamp seeking, copy / TXT download, Chinese translation below the original |
+| Lose your own thoughts while watching | Press `N` to write in a small card, with source and video time; append to today's daily note using the helper |
+| Re-type the same AI instructions | Global custom instructions, editable article / selection quick prompts, font choice and 12–28 px chat size |
+| Need a better place to read and edit | Shared top bar, collapsible navigation, Chinese fonts, highlights, side-by-side properties and Markdown |
+| Too many steps to clip | Configurable triple-press shortcuts: `aaa` read / study, `eee` edit, `qqq` clip; site exclusions and typing guards |
+
+Video loads before captions; caption failure can be retried without rebuilding the player. YouTube supports playback-following highlights. Bilibili uses its official embed: timestamp seeking reloads the player and captions highlight the clicked row rather than following playback; captions may require login. Actual availability depends on the video, site and network.
+
+AI answers stream with Markdown; history stays per article, panel width is adjustable, and answers can be copied or added to notes. Supported providers include OpenAI-compatible APIs, Anthropic, Google Gemini and Ollama. Templates can also use `{{"Summarize this article"}}` to generate note content. Bring your own provider; the extension includes no AI account or credits.
 
 ### Privacy and limits
 
-- Clips go to your local Obsidian vault by default.
-- **"Share to Qiaomu RSS" is checked by default.** When checked, clipping **publicly submits** the URL, title, clipped Markdown and cover image to the [public feed](https://rss.qiaomu.ai/feeds/user-submitted.xml). Do not submit private pages or personal notes; uncheck it when not needed. Previewing and editing never upload anything.
-- AI interpretation and chat send the relevant article content to the provider you configure; costs follow that provider. Chat history stays in your browser (up to 40 articles, 15 conversations each).
-- RSS is a separate online service and may fail because of limits or network issues; local saving and RSS results are reported separately.
-- Firefox and Safari code is inherited from upstream; Qiaomu-specific features are validated on Chrome only.
+- **Share to Qiaomu RSS is enabled by default.** When clipping with it on, the URL, title, clipped Markdown and cover image are submitted to a [public feed](https://rss.qiaomu.ai/feeds/user-submitted.xml). Turn it off for private content. Reading and editing do not submit anything. Learning-note daily saves never submit to RSS.
+- AI features send necessary source content and your instructions to the provider you configure, at that provider's cost. Chat history remains in your local browser (up to 40 articles, 15 conversations each).
+- Local saving and RSS submission report results separately. Closing the learning-note card preserves its draft; failed writes can be retried.
+- Chrome is the current target. Firefox / Safari inherit upstream code; the local helper does not support Windows.
+- The screenshots demonstrate interface components, not universal caption availability or completed live playback, AI and vault-write verification.
 
-### Video study and learning notes
+See [Privacy](PRIVACY.md), [Security](SECURITY.md), [video study](docs/STUDY-WORKSPACE.md), and [daily-note setup](docs/LEARNING-DIARY.md).
 
-On YouTube and Bilibili video pages press `aaa` to open the study page: video on the left, transcript on the right (stacked on narrow windows), with dock / theater / floating-window modes, click-to-seek transcripts, copy / download, translation and AI chat. While watching, press `N` (or use the note button or "Take note" on a selection) to write a note in a small card; it is appended to **today's daily note** in your vault with the source link and a clickable video time. This needs the optional [local helper](native/README.md) (re-run `native/install.py` after upgrading) and a vault with the Daily notes plugin using a numeric date format and no template. Bilibili embeds have no player API, so seeking reloads the player and the transcript does not follow playback. See [docs/LEARNING-DIARY.md](docs/LEARNING-DIARY.md).
+### Development and license
 
-### Development
+Run `npm test`, `npx tsc --noEmit`, `python3 -m unittest discover -s native -p 'test_*.py'`, and `npm run build:chrome`.
 
-```sh
-npm test            # unit tests (time zone is pinned in the test config)
-npx tsc --noEmit    # type check
-python3 -m unittest discover -s native -p 'test_*.py'
-npm run build:chrome
-```
-
-Screenshots in this README are rendered from the built page styles with a sample article written for this project. See [privacy](PRIVACY.md), [security reporting](SECURITY.md) and the [MIT license](LICENSE). The bundled font Zhuque Fangsong is under the SIL OFL 1.1 ([license text](src/fonts/ZhuqueFangsong-OFL.txt)). Maintained by [joeseesun](https://github.com/joeseesun).
+Independent [MIT](LICENSE) project based on [Obsidian Web Clipper](https://github.com/obsidianmd/obsidian-clipper), preserving upstream history. Built with [Defuddle](https://github.com/kepano/defuddle) and Lucide; Zhuque Fangsong uses the SIL Open Font License. Maintained by [joeseesun](https://github.com/joeseesun).
