@@ -1353,6 +1353,12 @@
 	"youtubeBarMore": {
 		"message": "更多内容请在沉浸学习里查看"
 	},
+	"studyPinVideo": {
+		"message": "固定视频"
+	},
+	"studyScrollTranscript": {
+		"message": "字幕滚动"
+	},
 	"transcriptSearch": {
 		"message": "搜索字幕"
 	},

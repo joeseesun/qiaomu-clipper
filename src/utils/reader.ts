@@ -844,9 +844,9 @@ export class Reader {
 
 	private static getStickyOffset(): number {
 		const player = document.querySelector('.pin-player') as HTMLElement | null;
-		// Beside the transcript, in theater and in a floating window the video never covers the text.
+		// Beside the transcript, in a floating window, and in theater while not pinned, the video never covers the text.
 		const layout = document.querySelector<HTMLElement>('article[data-yt-layout]')?.dataset.ytLayout;
-		if (layout === 'side' || layout === 'theater' || layout === 'float') return this.barHeight();
+		if (layout === 'side' || layout === 'float' || (layout === 'theater' && !player)) return this.barHeight();
 		if (player) return player.getBoundingClientRect().height + 16;
 		// When pin-player is off, the toggles bar is sticky independently
 		const toggles = document.querySelector('article > .player-toggles') as HTMLElement | null;
@@ -861,7 +861,7 @@ export class Reader {
 	// Where the line being read should rest: a third down the page beside the video, otherwise just below the pinned player.
 	private static getFocusOffset(): number {
 		const layout = document.querySelector<HTMLElement>('article[data-yt-layout]')?.dataset.ytLayout;
-		if (layout === 'side' || layout === 'float' || layout === 'theater') return Math.max(this.barHeight() + 24, window.innerHeight * 0.3);
+		if (layout === 'side' || layout === 'float' || (layout === 'theater' && !document.querySelector('.pin-player'))) return Math.max(this.barHeight() + 24, window.innerHeight * 0.3);
 		return this.getStickyOffset() + 20;
 	}
 

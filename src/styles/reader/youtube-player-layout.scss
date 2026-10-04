@@ -44,8 +44,8 @@ html.youtube-study.obsidian-reader-active:has(.youtube-sized-player) body {
 		}
 		article > .youtube-sized-player { min-width: min(100%, 356px); }
 
-		// Theater: the video is a plain block above the text, not pinned.
-		article[data-yt-layout="theater"] .player-container { position: static; }
+		// Theater: the video is a plain block above the text, and stays put while the transcript scrolls if pinned.
+		article[data-yt-layout="theater"] .player-container:not(.pin-player) { position: static; }
 
 		// Dock beside the transcript: video column pinned on the left, text scrolls on the right.
 		article[data-yt-layout="side"] {
@@ -113,8 +113,8 @@ html.youtube-study.clip-bar-hidden .player-container.pin-player { top: 0; }
 // buttons.scss styles every `button:not(.clickable-icon)`; svg must not be multiplied by the reader theme.
 html.youtube-study {
 	.youtube-mode-bar { display: inline-flex; align-items: center; gap: 2px; padding: 8px 8px 4px 0; line-height: 0; }
-	// Pinning only means something when the video sits above the text.
-	article:not([data-yt-layout="stack"]) .player-toggle[data-toggle="pin"] { display: none; }
+	// Pinning only means something when the video sits above the text (stacked or theater).
+	article:not([data-yt-layout="stack"]):not([data-yt-layout="theater"]) .player-toggle[data-toggle="pin"] { display: none; }
 	.youtube-mode-bar button.youtube-mode-btn:not(.clickable-icon), .youtube-float-chrome button.youtube-mode-btn:not(.clickable-icon) {
 		display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; flex: 0 0 auto; padding: 0;
 		border: 0; border-radius: 6px; background: transparent; box-shadow: none; color: var(--text-faint); cursor: pointer;

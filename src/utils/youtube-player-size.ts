@@ -92,7 +92,7 @@ export function mountPlayerSize(article: HTMLElement): void {
 		doc.documentElement.style.setProperty('--youtube-bar-height', `${barHeight}px`);
 		const width = article.getBoundingClientRect().width;
 		if (!width) return;
-		const maxWidth = maxPlayerWidth(layoutOf(), width, doc.defaultView?.innerHeight || 900, barHeight);
+		const maxWidth = maxPlayerWidth(layoutOf(), width, doc.defaultView?.innerHeight || 900, barHeight, Boolean(article.querySelector('.player-container.pin-player')));
 		// CSS multiplies this by the chosen scale, so the video and its layout column share one number.
 		article.style.setProperty('--youtube-player-max', `${Math.round(maxWidth)}px`);
 		const next = Math.min(100, Math.max(35, Math.ceil(356 / maxWidth * 100)));

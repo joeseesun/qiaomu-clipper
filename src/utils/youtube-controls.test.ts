@@ -37,7 +37,10 @@ it('restores the pin-video and follow-subtitles switches, remembers them through
 	const pin = article.querySelector<HTMLInputElement>('[data-toggle="pin"] input')!, follow = article.querySelector<HTMLInputElement>('[data-toggle="follow"] input')!, container = article.querySelector('.player-container')!;
 	expect(pin.checked).toBe(true); expect(follow.checked).toBe(false); expect(container.classList.contains('pin-player')).toBe(true);
 	pin.checked = false; pin.dispatchEvent(new Event('change')); expect(container.classList.contains('pin-player')).toBe(false);
+	const relayout = vi.fn(); article.addEventListener('youtube-player-layout', relayout);
+	pin.checked = true; pin.dispatchEvent(new Event('change')); expect(relayout).toHaveBeenCalledTimes(1); pin.checked = false; pin.dispatchEvent(new Event('change')); // sizing follows the pin state
 	follow.checked = true; follow.dispatchEvent(new Event('change'));
-	expect(changes).toEqual([['pinPlayer', false], ['autoScroll', true]]);
+	expect(follow.closest('label')!.textContent).toContain('studyScrollTranscript'); expect(pin.closest('label')!.textContent).toContain('studyPinVideo');
+	expect(changes).toEqual([['pinPlayer', false], ['pinPlayer', true], ['pinPlayer', false], ['autoScroll', true]]);
 	vi.unstubAllGlobals();
 });

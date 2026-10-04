@@ -1,5 +1,5 @@
 import { getMessage } from './i18n';
-import { bilibiliEmbedUrl, isBilibiliEmbed, PLAYER_SELECTOR, TRANSCRIPT_SELECTOR } from './video-source';
+import { bilibiliEmbedUrl, isBilibiliEmbed, LAYOUT_EVENT, PLAYER_SELECTOR, TRANSCRIPT_SELECTOR } from './video-source';
 import { sourceTextNodes } from './transcript-format';
 import { mountTranscriptSearch } from './transcript-search';
 
@@ -103,12 +103,13 @@ export function wireTranscript(
 	};
 	// Pin the video while reading (only meaningful when the video sits above the text) and follow the line being
 	// played. The translation switch is added after these, so it stays the last one in the row.
-	const pinToggle = createToggle('pin', getMessage('readerPinPlayer'), pinDefault, on => {
+	const pinToggle = createToggle('pin', getMessage('studyPinVideo'), pinDefault, on => {
 		playerContainer.classList.toggle('pin-player', on);
+		article.dispatchEvent(new CustomEvent(LAYOUT_EVENT)); // a pinned video in theater mode is sized to leave room for the text
 		window.dispatchEvent(new CustomEvent('reader-show-nav'));
 		onSettingChange?.('pinPlayer', on);
 	});
-	const autoScrollToggle = createToggle('follow', getMessage('readerAutoScroll'), autoScrollDefault, on => {
+	const autoScrollToggle = createToggle('follow', getMessage('studyScrollTranscript'), autoScrollDefault, on => {
 		autoScrollEnabled = on;
 		onSettingChange?.('autoScroll', on);
 	});

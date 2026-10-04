@@ -3,6 +3,8 @@ import { youtubeVideoId } from './youtube-url';
 // Players the study layout can drive. YouTube exposes a JS API (time tracking, seeking in place);
 // Bilibili's embed only accepts a start time in its URL, so a jump reloads the player.
 export const PLAYER_SELECTOR = 'iframe[src*="youtube.com/embed/"], iframe[src*="player.bilibili.com/player.html"]';
+// Fired on the article when the video's layout or pin state changes, so sizing can follow.
+export const LAYOUT_EVENT = 'youtube-player-layout';
 export const TRANSCRIPT_SELECTOR = '.transcript:is(.youtube, .bilibili)';
 
 export interface BilibiliVideo { bvid: string; page: number }

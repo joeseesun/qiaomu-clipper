@@ -1353,6 +1353,12 @@
 	"youtubeBarMore": {
 		"message": "Open study mode to read the rest"
 	},
+	"studyPinVideo": {
+		"message": "Pin video"
+	},
+	"studyScrollTranscript": {
+		"message": "Scroll transcript"
+	},
 	"transcriptSearch": {
 		"message": "Search transcript"
 	},

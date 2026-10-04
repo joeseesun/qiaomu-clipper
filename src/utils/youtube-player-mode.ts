@@ -8,7 +8,8 @@ export type PlayerMode = 'dock' | 'theater' | 'float';
 export type PlayerLayout = 'side' | 'stack' | 'theater' | 'float';
 export type FloatCorner = 'br' | 'bl' | 'tr' | 'tl';
 
-export const LAYOUT_EVENT = 'youtube-player-layout';
+import { LAYOUT_EVENT } from './video-source';
+export { LAYOUT_EVENT };
 const SIDE_ENTER = 1000, SIDE_LEAVE = 960; // hysteresis: a new scrollbar must not flip the layout back and forth
 const FLOAT_MIN = 240, FLOAT_MAX = 640, FLOAT_DEFAULT = 360;
 const MODE_KEY = 'qiaomuYouTubePlayerMode', FLOAT_KEY = 'qiaomuYouTubeFloat';
@@ -30,11 +31,12 @@ export function resolveLayout(mode: PlayerMode, articleWidth: number, hasContain
 }
 
 // Widest the video may be at 100%: leave room for the transcript beside it, or for text below it.
-export function maxPlayerWidth(layout: PlayerLayout, width: number, height: number, bar: number): number {
+export function maxPlayerWidth(layout: PlayerLayout, width: number, height: number, bar: number, pinned = false): number {
 	const fit = (h: number) => h * 16 / 9;
 	const full = fit(height - bar - 124);
 	const max = layout === 'side' ? Math.min(width * 0.55, width - 540, full)
 		: layout === 'stack' ? Math.min(full, fit(height * 0.46))
+		: layout === 'theater' && pinned ? Math.min(full, fit(height * 0.55)) // a pinned video must leave room for the text
 		: full;
 	return Math.min(width, Math.max(356, max));
 }
