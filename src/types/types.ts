@@ -77,7 +77,7 @@ export interface Settings {
 	openBehavior: 'popup' | 'embedded' | 'reader';
 	defaultTemplateId?: string;
 	tripleKeyShortcuts?: boolean;
-	tripleKeys?: { read: string; edit: string; clip: string };
+	tripleKeys?: { read: string; edit: string; clip: string; note?: string };
 	tripleKeyBlockedSites?: string[];
 	selectionToolbar?: boolean;
 	youtubePanelActions?: boolean;

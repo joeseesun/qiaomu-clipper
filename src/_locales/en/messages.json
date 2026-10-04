@@ -1221,6 +1221,9 @@
 	"qiaomuActionEditShort": {
 		"message": "Edit"
 	},
+	"qiaomuActionNoteShort": {
+		"message": "Note"
+	},
 	"qiaomuActionReadShort": {
 		"message": "Read"
 	},
@@ -1432,7 +1435,7 @@
 		"message": "Shortcut keys"
 	},
 	"tripleKeyKeysDescription": {
-		"message": "Choose one letter or digit for each action; leave it empty to turn the action off. Defaults: Read A, Edit E, Clip Q."
+		"message": "Choose one letter or digit for each action; leave it empty to turn the action off. Defaults: Read A, Edit E, Clip Q, Note I."
 	},
 	"tripleKeyReset": {
 		"message": "Restore defaults"

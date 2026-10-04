@@ -37,7 +37,8 @@ export function learningTimestamp(doc: Document): number | undefined {
   return video && video.readyState > 0 && Number.isFinite(video.currentTime) ? video.currentTime : undefined;
 }
 
-export function mountLearningNotes(options: { doc: Document; getSource: () => LearningSource; getHighlights?: () => string[]; services?: Services }): LearningNotes {
+// `getTime` supplies the playhead on a plain video page; `singleKey: false` leaves the page's own N key alone.
+export function mountLearningNotes(options: { doc: Document; getSource: () => LearningSource; getHighlights?: () => string[]; getTime?: () => number | undefined; singleKey?: boolean; services?: Services }): LearningNotes {
   const { doc } = options;
   const previous = mounts.get(doc);
   if (previous && doc.querySelector('.learning-composer')) { previous.updateSource(options.getSource, options.getHighlights); return previous; }
@@ -183,7 +184,7 @@ export function mountLearningNotes(options: { doc: Document; getSource: () => Le
     if (youtubeVideoId(origin.url || '') || bilibiliVideo(origin.url || '')) {
       origin.kind = youtubeVideoId(origin.url || '') ? 'youtube' : 'bilibili';
       // Selected line first, then the playhead YouTube reports, then the line that is currently highlighted.
-      origin.timestampSeconds = selectedTime ?? (doc.querySelector<HTMLIFrameElement>('article iframe')?.src === timedFrameSrc ? lastTime : undefined) ?? activeSegmentTime(doc);
+      origin.timestampSeconds = selectedTime ?? (doc.querySelector<HTMLIFrameElement>('article iframe')?.src === timedFrameSrc ? lastTime : undefined) ?? activeSegmentTime(doc) ?? options.getTime?.();
     }
     else origin.kind = origin.url ? 'web' : 'thought';
     const current = ++generation;
@@ -248,7 +249,7 @@ export function mountLearningNotes(options: { doc: Document; getSource: () => Le
     if (event.defaultPrevented || event.isComposing || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey || event.key.toLowerCase() !== 'n') return;
     const target = event.target as HTMLElement | null;
     if (target && (/^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName) || target.isContentEditable || target.closest?.('dialog[open]'))) return;
-    if (!enabled() || !doc.querySelector('article')) return;
+    if (options.singleKey === false || !enabled() || !doc.querySelector('article')) return;
     event.preventDefault(); void open({ quote: learningSelection(doc) });
   };
   doc.addEventListener('keydown', onKey);

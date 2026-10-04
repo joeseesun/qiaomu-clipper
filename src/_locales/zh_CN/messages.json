@@ -1221,6 +1221,9 @@
 	"qiaomuActionEditShort": {
 		"message": "编辑"
 	},
+	"qiaomuActionNoteShort": {
+		"message": "记笔记"
+	},
 	"qiaomuActionReadShort": {
 		"message": "阅读"
 	},
@@ -1432,7 +1435,7 @@
 		"message": "快捷键字母"
 	},
 	"tripleKeyKeysDescription": {
-		"message": "为每个动作指定一个字母或数字，留空表示关闭该动作。默认：阅读 A、编辑 E、剪藏 Q。"
+		"message": "为每个动作指定一个字母或数字，留空表示关闭该动作。默认：阅读 A、编辑 E、剪藏 Q、记笔记 I。"
 	},
 	"tripleKeyReset": {
 		"message": "恢复默认"

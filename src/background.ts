@@ -1174,8 +1174,18 @@ async function updateActionPopup(openBehavior?: Settings['openBehavior']): Promi
 
 let currentOpenBehavior: Settings['openBehavior'] = 'popup';
 
+// The note card lives in the page itself: ask a copy that is already there, otherwise inject it (it opens on load).
+async function openNoteCard(tabId: number): Promise<void> {
+	try { if (await browser.tabs.sendMessage(tabId, { action: 'qiaomuOpenNote' }, { frameId: 0 })) return; } catch { /* not injected yet */ }
+	try {
+		await browser.scripting.insertCSS({ target: { tabId }, files: ['note-card.css'] });
+		await browser.scripting.executeScript({ target: { tabId }, files: ['note-card.js'] });
+	} catch { /* restricted page */ }
+}
+
 // The triple-press commands open the clipper, which runs read / edit / clip once the clip is ready.
 async function runTripleKeyAction(action: string, tabId: number): Promise<void> {
+	if (action === 'note') { await openNoteCard(tabId); return; }
 	if (action !== 'read' && action !== 'edit' && action !== 'clip') return;
 	if (action === 'read') {
 		const tab = await browser.tabs.get(tabId);

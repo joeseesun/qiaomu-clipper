@@ -1221,6 +1221,9 @@
 	"qiaomuActionEditShort": {
 		"message": "編輯"
 	},
+	"qiaomuActionNoteShort": {
+		"message": "記筆記"
+	},
 	"qiaomuActionReadShort": {
 		"message": "閱讀"
 	},
@@ -1432,7 +1435,7 @@
 		"message": "快速鍵字母"
 	},
 	"tripleKeyKeysDescription": {
-		"message": "為每個動作指定一個字母或數字，留空表示關閉該動作。預設：閱讀 A、編輯 E、剪藏 Q。"
+		"message": "為每個動作指定一個字母或數字，留空表示關閉該動作。預設：閱讀 A、編輯 E、剪藏 Q、記筆記 I。"
 	},
 	"tripleKeyReset": {
 		"message": "恢復預設"

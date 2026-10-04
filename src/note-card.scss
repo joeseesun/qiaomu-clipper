@@ -1,0 +1,4 @@
+// Only the quick-note card, for pages that are not the reader. Sit above the page's own layers.
+@import 'styles/learning-composer';
+.learning-composer { z-index: 2147483000; }
+.learning-save-notice { z-index: 2147483000; }
