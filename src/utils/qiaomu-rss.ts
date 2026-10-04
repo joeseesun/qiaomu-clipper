@@ -1,4 +1,5 @@
 import browser from './browser-polyfill';
+import { bilibiliEmbedsToLinks } from './bilibili-embed';
 
 export const QIAOMU_ORIGIN = 'https://rss.qiaomu.ai';
 export interface QiaomuClip { url: string; title: string; markdown: string; image?: string }
@@ -8,7 +9,8 @@ export function validateQiaomuClip(clip: QiaomuClip): QiaomuClip {
 	const url = new URL(clip.url);
 	if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) throw new Error('请剪藏公开网页链接');
 	if (!clip.title.trim() || !clip.markdown.trim() || clip.markdown.length > 500000) throw new Error('剪藏标题或正文无效（正文最多 50 万字符）');
-	return { ...clip, url: url.href };
+	// The site shows clips as text and never runs page HTML, so a video embed travels as a link.
+	return { ...clip, url: url.href, markdown: bilibiliEmbedsToLinks(clip.markdown) };
 }
 
 let devicePromise: Promise<string> | undefined;
