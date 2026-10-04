@@ -66,7 +66,7 @@ AAA 阅读、EEE 编辑、QQQ 剪藏；按键可配置，在输入框内不触�
 
 ![剪藏时分享到公开 RSS](assets/features/rss-sharing.jpg)
 
-剪藏时选择公开投稿到乔木 RSS；默认勾选，私人内容应取消。
+剪藏时选择公开投稿到乔木 RSS；默认关闭，需要时再勾选。
 
 
 ## English
