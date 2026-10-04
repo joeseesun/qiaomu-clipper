@@ -798,6 +798,8 @@ export class Reader {
 
 	private static applyFont(doc: Document, defaultFont: string): void {
 		const css = getFontCss(defaultFont);
+		// Lets the video study layout use the system sans-serif for the transcript until the reader picks a font.
+		doc.documentElement.classList.toggle('reader-custom-font', Boolean(css));
 		if (css) {
 			doc.body.style.setProperty('--font-text', css);
 		} else {

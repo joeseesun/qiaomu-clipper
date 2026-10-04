@@ -90,8 +90,32 @@ export function wireTranscript(
 	transcript.style.position = 'relative';
 	transcript.appendChild(currentPosButton);
 
+	const createToggle = (key: string, label: string, defaultOn: boolean, onChange: (on: boolean) => void) => {
+		const wrapper = doc.createElement('label');
+		wrapper.className = 'player-toggle' + (defaultOn ? ' is-enabled' : ''); wrapper.dataset.toggle = key;
+		const toggle = doc.createElement('div'); toggle.className = 'player-toggle-switch';
+		const input = doc.createElement('input'); input.type = 'checkbox'; input.checked = defaultOn; input.setAttribute('role', 'switch'); input.setAttribute('aria-label', label);
+		toggle.appendChild(input);
+		const text = doc.createElement('span'); text.textContent = label;
+		wrapper.append(text, toggle);
+		input.addEventListener('change', () => { wrapper.classList.toggle('is-enabled', input.checked); onChange(input.checked); });
+		return wrapper;
+	};
+	// Pin the video while reading (only meaningful when the video sits above the text) and follow the line being
+	// played. The translation switch is added after these, so it stays the last one in the row.
+	const pinToggle = createToggle('pin', getMessage('readerPinPlayer'), pinDefault, on => {
+		playerContainer.classList.toggle('pin-player', on);
+		window.dispatchEvent(new CustomEvent('reader-show-nav'));
+		onSettingChange?.('pinPlayer', on);
+	});
+	const autoScrollToggle = createToggle('follow', getMessage('readerAutoScroll'), autoScrollDefault, on => {
+		autoScrollEnabled = on;
+		onSettingChange?.('autoScroll', on);
+	});
+
 	const toggleGroup = doc.createElement('div');
 	toggleGroup.className = 'player-toggle-group is-open';
+	toggleGroup.append(pinToggle, autoScrollToggle);
 
 	toggleBar.appendChild(toggleGroup);
 
