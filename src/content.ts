@@ -5,6 +5,7 @@ import { loadSettings, generalSettings } from './utils/storage-utils';
 import { getDomain } from './utils/string-utils';
 import { extractContentBySelector as extractContentBySelectorShared } from './utils/shared';
 import Defuddle from 'defuddle';
+import { bilibiliCaptionOptions, restoreBilibiliTranscript } from './utils/bilibili-captions';
 import { createMarkdownContent } from 'defuddle/full';
 import { flattenShadowDom } from './utils/flatten-shadow-dom';
 import { serializeChildren } from './utils/dom-utils';
@@ -232,12 +233,12 @@ declare global {
 
 				// Use parseAsync to ensure async variables like {{transcript}} are available.
 				// If it hangs (e.g. another extension has corrupted fetch), fall back to sync parse.
-				const defuddle = new Defuddle(document, { url: document.URL, fetch: withReliableBilibili() });
+				const defuddle = new Defuddle(document, { url: document.URL, fetch: withReliableBilibili(), ...bilibiliCaptionOptions(document.URL) });
 				const parseTimeout = new Promise<never>((_, reject) =>
 					setTimeout(() => reject(new Error('parseAsync timeout')), 8000)
 				);
 				const defuddled = await Promise.race([defuddle.parseAsync(), parseTimeout])
-					.catch(() => defuddle.parse());
+					.catch(() => defuddle.parse()).then(result => restoreBilibiliTranscript(result, document.URL));
 				const extractedContent: { [key: string]: string } = {
 					...defuddled.variables,
 				};

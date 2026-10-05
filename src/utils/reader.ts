@@ -1,4 +1,5 @@
 import Defuddle from 'defuddle/full';
+import { bilibiliCaptionOptions, restoreBilibiliTranscript } from './bilibili-captions';
 import browser from './browser-polyfill';
 import { detectBrowser } from './browser-detection';
 import { flattenShadowDom as flattenShadowDomUtil } from './flatten-shadow-dom';
@@ -904,7 +905,7 @@ export class Reader {
 			return pre;
 		}
 
-		const defuddle = new Defuddle(doc, { url: doc.URL, fetch: withReliableBilibili(async (input, init) => {
+		const proxyFetch: typeof fetch = async (input, init) => {
 			const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
 			const result = await browser.runtime.sendMessage({ action: 'fetchProxy', url, options: {
 				method: init?.method, body: init?.body,
@@ -912,8 +913,9 @@ export class Reader {
 			} }) as { status: number; text: string; error?: string };
 			if (result.error) throw new Error(result.error);
 			return new Response(result.text, { status: result.status });
-		}) });
-		const defuddled = await defuddle.parseAsync();
+		};
+		const defuddle = new Defuddle(doc, { url: doc.URL, fetch: withReliableBilibili(proxyFetch), ...bilibiliCaptionOptions(doc.URL, proxyFetch) });
+		const defuddled = restoreBilibiliTranscript(await defuddle.parseAsync(), doc.URL);
 
 		return {
 			content: defuddled.content,

@@ -73,7 +73,8 @@ try {
 			entry.done = request.then(segments => {
 				// The endpoint can be refused; then read the lines from YouTube's own panel without waiting to be asked.
 				if (!segments.length && enabled) void getSegments(true).catch(() => []);
-				entry.segments = segments; entry.state = segments.length ? 'ready' : 'none'; updateBar(); return segments;
+				if (segments.length) entry.segments = segments;
+				entry.state = entry.segments.length ? 'ready' : 'none'; updateBar(); return segments;
 			});
 			store.set(videoId, entry); return entry;
 		};
@@ -87,7 +88,7 @@ try {
 			}
 			const fromPanel = await readYouTubeTranscriptFromDom(document, open, open ? 12000 : 0);
 			const entry = videoId ? store.get(videoId) : undefined;
-			if (entry && fromPanel.length) { entry.segments = fromPanel; entry.state = 'ready'; updateBar(); if (videoId) void cache?.write(videoId, fromPanel); }
+			if (entry && fromPanel.length) { entry.segments = fromPanel; entry.state = 'ready'; updateBar(); }
 			return fromPanel;
 		};
 
@@ -134,9 +135,8 @@ try {
 			if (weOpenedPanel && transcriptPanelOpen(document) && (lineCount > 0 || Date.now() - openedAt > 6000)) { markAutoOpenedPanel(document, hideNative); weOpenedPanel = false; }
 			else if (!hideNative) markAutoOpenedPanel(document, false);
 			else releaseAutoPanel(document);
-			// Whatever YouTube rendered in its own panel is also a ready transcript for the bar and for study mode.
-			const entry = videoId ? store.get(videoId) : undefined;
-			if (entry && entry.state !== 'ready') { const rendered = readPanelSegments(document); if (rendered.length) { entry.segments = rendered; entry.state = 'ready'; if (videoId) void cache?.write(videoId, rendered); } }
+			// getSegments handles the native fallback and its language selection. Do not cache the panel's
+			// default language while the preferred caption request is still in flight.
 			if (!videoId) { document.querySelector('.qiaomu-yt-bar')?.remove(); bar = undefined; return; }
 			syncTranscriptBar(document, () => {
 				bar = buildTranscriptBar(document, {

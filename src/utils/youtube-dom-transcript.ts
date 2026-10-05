@@ -88,17 +88,33 @@ function selectTranscriptTab(doc: Document): boolean {
 	chip.click(); return true;
 }
 
+// The native panel is our fallback when caption downloads are refused. Its language options are rendered
+// inside the footer, even with the dropdown closed; select only an available Chinese track.
+function selectChineseTranscript(doc: Document): boolean {
+	const footer = transcriptPanel(doc)?.querySelector('ytd-transcript-footer-renderer');
+	const chinese = (value: string) => /chinese|中文|汉语|漢語|普通话|普通話|中国語|중국어/i.test(value);
+	if (!footer || chinese(footer.querySelector('#label-text')?.textContent || '')) return false;
+	const options = Array.from(footer.querySelectorAll<HTMLElement>('a, [role="option"]')).filter(option => chinese(option.textContent || ''));
+	const chosen = options.find(option => !/auto|自动|自動/i.test(option.textContent || '')) || options[0];
+	if (!chosen || chosen.matches('[aria-selected="true"], .iron-selected') || chosen.closest('[aria-selected="true"], .iron-selected')) return false;
+	chosen.click(); return true;
+}
+
 // Keeps going until the lines appear or the time is up. The page may still be building its description when
 // study mode starts, so a missing opener is waited for rather than treated as "no transcript". An opener is
 // clicked once; if the panel is already expanded we only wait, because a second click would close it again.
 export async function readYouTubeTranscriptFromDom(doc: Document, open = true, waitMs = 12000, step = 250): Promise<PanelSegment[]> {
 	let segments = readOpenPanel(doc);
-	if (segments.length || !open) return segments;
+	if (!open) return segments;
+	let languagePicked = selectChineseTranscript(doc);
+	if (segments.length && !languagePicked) return segments;
+	let beforeSwitch = languagePicked ? JSON.stringify(segments) : '';
 	let clicked = false, tabPicked = false;
 	for (let waited = 0; waited <= waitMs; waited += step) {
 		if (!clicked && !isExpanded(doc) && openTranscriptPanel(doc)) clicked = true;
 		await wait(step); segments = readOpenPanel(doc);
-		if (segments.length) return segments;
+		if (!languagePicked && selectChineseTranscript(doc)) { languagePicked = true; beforeSwitch = JSON.stringify(segments); continue; }
+		if (segments.length && (!languagePicked || JSON.stringify(segments) !== beforeSwitch)) return segments;
 		if (isExpanded(doc) && waited >= 1500 && !tabPicked) tabPicked = selectTranscriptTab(doc);
 	}
 	return segments;

@@ -49,12 +49,13 @@ export async function fetchCaptionTracks(videoId: string, doc: Document, request
 	try { const page = await ok(await request(`/watch?v=${encodeURIComponent(videoId)}`, { credentials: 'include' })); return tracksOf(playerFromWatchHtml(await page.text())); } catch { return []; }
 }
 
-// Spoken language first: a hand-made track in the language the automatic one is generated in, then the automatic
-// track, then any hand-made track. Token-gated tracks are left out.
+// Chinese first (manual before automatic), regardless of the page's interface language. Without Chinese,
+// preserve the spoken-language fallback. Token-gated tracks are left out.
 export function pickTrack(tracks: CaptionTrack[]): CaptionTrack | undefined {
 	const usable = tracks.filter(track => !/[?&]exp=xpe\b/.test(track.baseUrl));
 	const automatic = usable.find(track => track.kind === 'asr'), manual = usable.filter(track => track.kind !== 'asr');
-	return (automatic && manual.find(track => track.languageCode === automatic.languageCode)) || automatic || manual[0];
+	const chinese = (track: CaptionTrack) => /^zh(?:[-_]|$)/i.test(track.languageCode);
+	return manual.find(chinese) || usable.find(chinese) || (automatic && manual.find(track => track.languageCode === automatic.languageCode)) || automatic || manual[0];
 }
 
 const decode = (value: string) => value.replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code))).replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCodePoint(parseInt(code, 16))).replace(/&quot;/g, '"').replace(/&apos;|&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
