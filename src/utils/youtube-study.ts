@@ -26,11 +26,17 @@ export function transcriptText(article: HTMLElement): string {
 }
 
 const WHISPER_SOURCE = 'browser-whisper';
-const whisperControls = new WeakMap<HTMLElement, { row: HTMLElement; status: HTMLElement }>();
+const whisperControls = new WeakMap<HTMLElement, { row: HTMLElement; status: HTMLElement; live: HTMLElement }>();
 
 function mountBrowserWhisper(article: HTMLElement, controls: HTMLElement, studyStatus: HTMLElement, existingTranscript?: HTMLElement): void {
 	const previous = whisperControls.get(article);
-	if (previous) { controls.append(previous.row); studyStatus.after(previous.status); return; }
+	if (previous) {
+		controls.append(previous.row);
+		studyStatus.after(previous.status);
+		const anchor = existingTranscript?.isConnected ? existingTranscript : article.querySelector<HTMLElement>(TRANSCRIPT_SELECTOR);
+		if (!previous.live.isConnected) { if (anchor) anchor.after(previous.live); else controls.after(previous.live); }
+		return;
+	}
 	const doc = article.ownerDocument;
 	const status = doc.createElement('span'); status.className = 'youtube-study-status youtube-whisper-status'; status.setAttribute('role', 'status');
 	studyStatus.after(status);
@@ -56,7 +62,7 @@ function mountBrowserWhisper(article: HTMLElement, controls: HTMLElement, studyS
 	controls.append(row);
 	const insertion = existingTranscript?.isConnected ? existingTranscript : article.querySelector<HTMLElement>(TRANSCRIPT_SELECTOR);
 	if (insertion) insertion.after(live); else row.after(live);
-	whisperControls.set(article, { row, status });
+	whisperControls.set(article, { row, status, live });
 
 	let selected: File | undefined;
 	let result: BrowserWhisperResult | undefined;
@@ -261,16 +267,17 @@ export async function mountYouTubeStudy(doc: Document, article: HTMLElement, tit
 	article.dataset.videoPlatform = bilibiliVideo(url) || article.querySelector('iframe[src*="player.bilibili.com"]') ? 'bilibili' : 'youtube';
 	mountPlayerSize(article);
 	mountPlayerMode(article);
-	if (article.querySelector('.youtube-study-feedback')) return;
 	doc.documentElement.classList.add('youtube-study');
 	// No duplicate transcript action row: copy/download/AI live in the shared bar.
-	const feedback = doc.createElement('div'); feedback.className = 'youtube-study-feedback';
-	const status = doc.createElement('span'); status.className = 'youtube-study-status'; status.setAttribute('role', 'status');
-	feedback.append(status);
+	const existingFeedback = article.querySelector<HTMLElement>('.youtube-study-feedback');
+	const feedback = existingFeedback || doc.createElement('div'); feedback.className = 'youtube-study-feedback';
+	const status = feedback.querySelector<HTMLElement>('.youtube-study-status') || doc.createElement('span');
+	status.className = 'youtube-study-status'; status.setAttribute('role', 'status');
+	if (!status.parentElement) feedback.append(status);
 	const text = transcriptText(article);
 	const transcript = article.querySelector<HTMLElement>(TRANSCRIPT_SELECTOR);
 	if (transcript && !transcript.dataset.sourceLanguage) transcript.dataset.sourceLanguage = transcript.getAttribute('data-language') || '';
-	if (transcript) transcript.before(feedback); else article.append(feedback);
+	if (!feedback.isConnected) { if (transcript) transcript.before(feedback); else article.append(feedback); }
 	const toggleGroup = article.querySelector<HTMLElement>('.player-toggle-group');
 	const controls = toggleGroup || feedback;
 	mountBrowserWhisper(article, controls, status, transcript || undefined);

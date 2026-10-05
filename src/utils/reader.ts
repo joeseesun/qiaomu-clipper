@@ -2764,7 +2764,10 @@ export class Reader {
 	// Attach late-arriving subtitles without replacing or restarting the player.
 	static async attachYouTubeTranscript(doc: Document, transcript: HTMLElement, title: string, chat?: {toggle: () => boolean}): Promise<void> {
 		const article = doc.querySelector('article')!;
-		article.querySelector('.youtube-study-feedback, .youtube-study-toolbar')?.remove();
+			// Keep the study feedback and Whisper controls mounted while late native
+			// subtitles are attached. Removing this container used to discard live
+			// recognition output and its actions.
+			article.querySelector('.youtube-study-toolbar')?.remove();
 		article.appendChild(doc.adoptNode(transcript));
 		this.storeOriginalHtml(article);
 		wireTranscript(doc, article, this.settings, {

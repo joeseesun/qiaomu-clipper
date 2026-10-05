@@ -62,6 +62,10 @@ html.clip-bar-hidden.clip-bar-collapse { --clip-bar-height: 0px; }
 	&.is-visible { opacity: 1; transform: translate(-50%, 0); }
 }
 html.qiaomu-preview .metadata { display: none; }
+// The study page is a focused video workspace; keep its reading/editing actions
+// discoverable while subtitles load instead of hiding the bar on the first scroll.
+html.youtube-study .clip-bar.is-hidden { transform: none; }
+html.youtube-study.clip-bar-hidden { --clip-bar-offset: var(--clip-bar-height); }
 html.qiaomu-preview body { padding-top: var(--clip-bar-height); transition: padding-top .2s ease; }
 @media (max-width: 1000px) { .clip-bar .clip-bar-domain { display: none; } }
 @media (max-width: 760px) { .clip-bar { flex-wrap: wrap; height: auto; padding: 8px 12px; .clip-bar-title { flex: 1 0 100%; } } }
