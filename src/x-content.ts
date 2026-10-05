@@ -71,16 +71,16 @@ try {
 		};
 		const remove = () => { host?.remove(); host = undefined; bar = undefined; generation.reset(); postUrl = ''; key = ''; };
 		// Under the media, above the row of reply / repost / like when it can be found, else at the end of the post.
-		const column = (): HTMLElement | undefined => { const side = document.querySelector<HTMLElement>('[data-testid="sidebarColumn"]'); return side && side.getBoundingClientRect().width > 240 ? side : undefined; };
+		// Where in the right column it can go: just above X's own modules (related users, what's happening), which are `aside` blocks listed one
+		// after another. Not next to the search box: that is fixed to the top of the column and covers whatever is inserted beside it.
+		const sideSpot = (): HTMLElement | undefined => {
+			const side = document.querySelector<HTMLElement>('[data-testid="sidebarColumn"]'); if (!side || side.getBoundingClientRect().width < 240) return undefined;
+			const module = side.querySelector<HTMLElement>('aside[role="complementary"]')?.parentElement;
+			return module?.parentElement && module.parentElement !== side && side.contains(module.parentElement) ? module : undefined;
+		};
 		const place = (node: HTMLElement, tweet: HTMLElement): 'side' | 'media' => {
-			const side = column();
-			if (side) {
-				// Below the search box, above X's own modules; or at the top of the column when the search box cannot be found.
-				let block = side.querySelector<HTMLElement>('[role="search"]');
-				while (block?.parentElement && block.parentElement !== side && block.parentElement.children.length < 2) block = block.parentElement;
-				if (block?.parentElement && block.parentElement !== side) { block.parentElement.insertBefore(node, block.nextSibling); return 'side'; }
-				if (side.firstElementChild) { side.firstElementChild.prepend(node); return 'side'; }
-			}
+			const module = sideSpot();
+			if (module) { module.parentElement!.insertBefore(node, module); return 'side'; }
 			const actions = tweet.querySelector<HTMLElement>('[role="group"]');
 			if (actions?.parentElement && tweet.contains(actions.parentElement)) actions.parentElement.insertBefore(node, actions); else tweet.append(node);
 			return 'media';
@@ -92,7 +92,7 @@ try {
 			const url = post(), tweet = mainTweet();
 			if (!url || !tweet || !media()) { if (host && !(url && tweet && host.isConnected)) remove(); return; }
 			// The right column can appear or go away as the window is resized: the bar follows it.
-			if (host?.isConnected && postUrl === url && (where === 'side') === Boolean(column())) return;
+			if (host?.isConnected && postUrl === url && (where === 'side') === Boolean(sideSpot())) return;
 			if (mounting) return; mounting = true;
 			try {
 				if (host) remove();
