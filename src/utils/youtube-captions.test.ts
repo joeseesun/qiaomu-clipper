@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, expect, it, vi } from 'vitest';
-import { apiKeyFromPage, fetchCaptionSegments, fetchCaptionTracks, parseCaptions, pickTrack, playerFromWatchHtml, tracksOf } from './youtube-captions';
+import { apiKeyFromPage, fetchCaptionResult, fetchCaptionSegments, fetchCaptionTracks, parseCaptions, pickTrack, playerFromWatchHtml, trackInfos, tracksOf } from './youtube-captions';
 
 const track = (languageCode: string, kind?: string, extra = '') => ({ baseUrl: `https://www.youtube.com/api/timedtext?v=abc&lang=${languageCode}${kind ? '&kind=asr' : ''}${extra}`, languageCode, ...(kind ? { kind } : {}) });
 const player = (...tracks: unknown[]) => ({ captions: { playerCaptionsTracklistRenderer: { captionTracks: tracks } } });
@@ -47,4 +47,20 @@ it('downloads the chosen track as json3 first, then plain, and returns nothing f
 	expect(await fetchCaptionSegments('abc', document, request as any)).toEqual([{ time: '0:02', text: 'From XML' }]);
 	expect(urls[1]).toContain('&fmt=json3'); expect(urls[1]).not.toContain('srv3'); expect(urls[2]).not.toContain('fmt=');
 	expect(await fetchCaptionSegments('abc', document, (async (url: string) => response(url.includes('/youtubei/') ? player(track('en', undefined, '&exp=xpe')) : '')) as any)).toEqual([]);
+});
+
+const named = (languageCode: string, kind: string | undefined, name: unknown, extra = ''): any => ({ baseUrl: `https://www.youtube.com/api/timedtext?v=x&lang=${languageCode}${kind ? '&kind=' + kind : ''}${extra}`, languageCode, kind, name });
+it('lists every caption track with a readable name, its language and whether YouTube made it from the audio', () => {
+	const infos = trackInfos([named('en', 'asr', { simpleText: 'English (auto-generated)' }), named('zh-Hans', undefined, { runs: [{ text: '中文（简体）' }] }), named('fr', undefined, undefined), named('de', undefined, { simpleText: 'Deutsch' }, '&exp=xpe'), named('en', undefined, { simpleText: 'English' })]);
+	expect(infos.map(i => [i.id, i.label, i.language, i.auto])).toEqual([['en-auto', 'English (auto-generated)', 'en', true], ['zh-Hans', '中文（简体）', 'zh', false], ['fr', 'fr', 'fr', false], ['en', 'English', 'en', false]]); // the token-gated German track is left out
+});
+
+it('reads the spoken language by default and the language the viewer picked when asked', async () => {
+	const tracks = [named('zh-Hans', undefined, { simpleText: '中文' }), named('en', 'asr', { simpleText: 'English (auto)' })];
+	expect(pickTrack(tracks)!.languageCode).toBe('en'); expect(pickTrack(tracks, 'zh')!.languageCode).toBe('zh-Hans'); expect(pickTrack(tracks, 'ko')!.languageCode).toBe('en');
+	const fetched: string[] = [];
+	const request = vi.fn(async (url: any) => { const href = String(url); if (href.includes('/youtubei/v1/player')) return new Response(JSON.stringify({ captions: { playerCaptionsTracklistRenderer: { captionTracks: tracks } } })); fetched.push(href); return new Response(JSON.stringify({ events: [{ tStartMs: 0, segs: [{ utf8: href.includes('lang=zh') ? '你好' : 'Hello' }] }] })); });
+	const fallback = await fetchCaptionResult('x', document, request as any); expect(fallback.selected).toBe('en-auto'); expect(fallback.segments[0].text).toBe('Hello'); expect(fallback.tracks.map(t => t.id)).toEqual(['zh-Hans', 'en-auto']);
+	const chosen = await fetchCaptionResult('x', document, request as any, 'zh'); expect(chosen.selected).toBe('zh-Hans'); expect(chosen.segments[0].text).toBe('你好');
+	expect(fetched.every(url => url.includes('fmt=json3'))).toBe(true);
 });

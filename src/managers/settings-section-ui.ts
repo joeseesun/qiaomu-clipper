@@ -1,9 +1,10 @@
+import browser from '../utils/browser-polyfill';
 import { updateUrl } from '../utils/routing';
 import { generalSettings } from '../utils/storage-utils';
 import { updatePromptContextVisibility } from './interpreter-settings';
 import { initializePropertyTypesManager } from './property-types-manager';
 
-export type SettingsSection = 'general' | 'properties' | 'highlighter' | 'interpreter' | 'reader' | 'templates';
+export type SettingsSection = 'general' | 'clip' | 'learning' | 'video' | 'properties' | 'highlighter' | 'interpreter' | 'reader' | 'templates';
 
 export function showSettingsSection(section: SettingsSection, templateId?: string): void {
 	const sections = document.querySelectorAll('.settings-section');
@@ -70,14 +71,20 @@ export function initializeSidebar(): void {
 	if (sidebar) {
 		sidebar.addEventListener('click', (event) => {
 			const target = event.target as HTMLElement;
+			const link = target.closest('li[data-href]') as HTMLElement | null;
+			// A door to a page of its own (transcribe and study), not a page of settings.
+			if (link?.dataset.href) { void browser.tabs.create({ url: browser.runtime.getURL(link.dataset.href) }); return; }
 			const li = target.closest('li[data-section]') as HTMLElement | null;
 			const section = li?.dataset.section;
 			if (section === 'general'
+				|| section === 'clip'
+				|| section === 'learning'
+				|| section === 'video'
 				|| section === 'properties'
 				|| section === 'highlighter'
 				|| section === 'interpreter'
 				|| section === 'reader') {
-				showSettingsSection(section as 'general' | 'properties' | 'highlighter' | 'interpreter' | 'reader');
+				showSettingsSection(section as 'general' | 'clip' | 'learning' | 'video' | 'properties' | 'highlighter' | 'interpreter' | 'reader');
 			}
 			if (settingsContainer) {
 				settingsContainer.classList.remove('sidebar-open');

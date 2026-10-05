@@ -664,3 +664,5 @@ label {
 	.btn { width: auto; }
 }
 .triple-key-error { color: var(--text-error); &[hidden] { display: none; } }
+
+#asr-settings [hidden] { display: none !important; }

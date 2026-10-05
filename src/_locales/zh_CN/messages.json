@@ -719,6 +719,36 @@
 	"read": {
 		"message": "已阅读"
 	},
+	"navClip": {
+		"message": "剪藏与保存"
+	},
+	"navLearning": {
+		"message": "学习笔记"
+	},
+	"groupSaving": {
+		"message": "保存方式"
+	},
+	"groupSharing": {
+		"message": "分享"
+	},
+	"groupBackup": {
+		"message": "备份与实验"
+	},
+	"headingClip": {
+		"message": "剪藏"
+	},
+	"headingRead": {
+		"message": "阅读与学习"
+	},
+	"headingAI": {
+		"message": "AI"
+	},
+	"navStudyHome": {
+		"message": "转写学习"
+	},
+	"videoSubtitles": {
+		"message": "视频字幕"
+	},
 	"reader": {
 		"message": "阅读模式"
 	},
@@ -1330,13 +1360,13 @@
 		"message": "改写得更简洁"
 	},
 	"youtubeAutoTranscriptTitle": {
-		"message": "自动展开 YouTube 转写文稿"
+		"message": "自动展开 YouTube 转写文稿（仅 YouTube）"
 	},
 	"youtubeAutoTranscriptDescription": {
 		"message": "在视频页自动展开一次 YouTube 的转写文稿面板，让字幕随时可复制、下载和进入学习模式。你关掉后，这个视频不再自动展开。"
 	},
 	"youtubeHideNativeTitle": {
-		"message": "隐藏 YouTube 自带的转写面板"
+		"message": "隐藏 YouTube 自带的转写面板（仅 YouTube）"
 	},
 	"youtubeHideNativeDescription": {
 		"message": "字幕自动展开后，把 YouTube 右栏里的原生面板藏起来，转写条里能看到同样的内容。你自己手动打开的面板不会被隐藏。"
@@ -1432,10 +1462,10 @@
 		"message": "B 站只给已登录的账号提供字幕，请登录后点“重试”"
 	},
 	"youtubePanelActionsTitle": {
-		"message": "YouTube 转写文稿按钮"
+		"message": "在 YouTube 和 B 站显示字幕条"
 	},
 	"youtubePanelActionsDescription": {
-		"message": "在 YouTube 的转写文稿面板里，“章节 / 转写文稿”旁增加“复制”“下载”“沉浸学习”按钮。"
+		"message": "在 YouTube 和 B 站的视频页加上字幕条：跟读字幕、复制、下载、进入沉浸学习，没有字幕时可以生成字幕。"
 	},
 	"youtubePanelCopy": {
 		"message": "复制"

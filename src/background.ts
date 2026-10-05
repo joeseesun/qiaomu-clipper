@@ -8,12 +8,13 @@ import { Settings } from './types/types';
 import { debugLog } from './utils/debug';
 import { incrementStat, loadSettings } from './utils/storage-utils';
 import { enabledChatModels, streamChat } from './utils/chat-llm';
-import { videoKey, videoStudyPath } from './utils/video-source';
+import { audioStudyPath, videoKey, videoStudyPath } from './utils/video-source';
 import { hasStoredHighlights } from './utils/url-utils';
-import { handleLearningNativeMessage } from './utils/local-save';
+import { handleAsrMessage, handleLearningNativeMessage } from './utils/local-save';
 import { enableYouTubeEmbedRule, disableYouTubeEmbedRule } from './utils/youtube-embed-rules';
 
 browser.runtime.onMessage.addListener(handleLearningNativeMessage);
+browser.runtime.onMessage.addListener(handleAsrMessage);
 
 // Accept RSS writes only from our own extension pages, never a website content script.
 const qiaomuInFlight = new Map<string, Promise<unknown>>();
@@ -1197,7 +1198,7 @@ async function runTripleKeyAction(action: string, tabId: number): Promise<void> 
 	if (action !== 'read' && action !== 'edit' && action !== 'clip') return;
 	if (action === 'read') {
 		const tab = await browser.tabs.get(tabId);
-		const path = videoStudyPath(tab.url || '', tabId, tab.title || '');
+		const path = videoStudyPath(tab.url || '', tabId, tab.title || '') || audioStudyPath(tab.url || '', tab.title || '');
 		if (path) {
 			// Open the player immediately; subtitle extraction belongs to the reader.
 			await browser.tabs.create({ url: browser.runtime.getURL(path), openerTabId: tabId });
@@ -1318,7 +1319,7 @@ browser.runtime.onMessage.addListener((raw: unknown, sender) => {
 	const request = raw as { action?: string; sourceTabId?: number; url?: string };
 	if (request?.action !== 'qiaomuStudyTranscript') return;
 	if (sender.id !== browser.runtime.id || !sender.url?.startsWith(browser.runtime.getURL('reader.html'))
-		|| !Number.isInteger(request.sourceTabId) || !request.url || !videoKey(request.url)?.startsWith('youtube:')) return Promise.resolve({ error: '无效的视频来源' });
+		|| !Number.isInteger(request.sourceTabId) || !request.url || !videoKey(request.url)) return Promise.resolve({ error: '无效的视频来源' });
 	return (async () => {
 		try {
 			const tab = await browser.tabs.get(request.sourceTabId!);
