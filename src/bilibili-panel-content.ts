@@ -59,6 +59,7 @@ try {
 		// --- transcript prefetch -------------------------------------------------------------------------------
 		interface Entry { state: BarState; segments: PanelSegment[]; needLogin: boolean; language?: string; done: Promise<PanelSegment[]> }
 		const store = new Map<string, Entry>();
+		const liveStudy = new Map<string, PanelSegment[]>();
 		const currentKey = (): { key: string; bvid: string; page: number } | null => { const video = bilibiliVideo(location.href); return video ? { key: `bilibili:${video.bvid}:${video.page}`, ...video } : null; };
 		const getJson = async (url: string, withCookies: boolean) => (await fetch(url, { credentials: withCookies ? 'include' : 'omit', headers: { Accept: 'application/json' } })).json();
 		const prefetch = (video: { key: string; bvid: string; page: number }): Entry => {
@@ -76,6 +77,11 @@ try {
 		};
 		const getSegments = async (): Promise<PanelSegment[]> => { const video = currentKey(); return video ? prefetch(video).done : []; };
 		api.runtime.onMessage.addListener((request, _sender, respond) => {
+			if (request?.action === 'qiaomuStudyLiveTranscript') {
+				const video = currentKey();
+				if (video && Array.isArray(request.segments)) { if (request.segments.length) liveStudy.set(video.key, request.segments as PanelSegment[]); else liveStudy.delete(video.key); updateBar(); }
+				respond({ ok: Boolean(video) }); return false;
+			}
 			if (request?.action !== 'qiaomuTranscript') return;
 			getSegments().then(segments => {
 				const key = currentKey()?.key, entry = key ? store.get(key) : undefined;
@@ -108,7 +114,8 @@ try {
 		const updateBar = () => {
 			const video = currentKey(), entry = video ? store.get(video.key) : undefined;
 			strings.none = entry?.needLogin ? needLoginMessage : noneMessage;
-			bar?.setState(entry?.state ?? 'loading', entry?.segments);
+			const live = video ? liveStudy.get(video.key) : undefined;
+			bar?.setState(live?.length ? 'ready' : (entry?.state ?? 'loading'), live?.length ? live : entry?.segments);
 		};
 		let frame = 0;
 		const refresh = () => {

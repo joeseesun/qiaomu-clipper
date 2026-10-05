@@ -61,6 +61,7 @@ try {
 		// --- transcript prefetch -------------------------------------------------------------------------------
 		interface Entry { state: BarState; segments: PanelSegment[]; language?: string; source?: 'manual' | 'automatic' | 'cached'; done: Promise<PanelSegment[]> }
 		const store = new Map<string, Entry>();
+		const liveStudy = new Map<string, PanelSegment[]>();
 		const currentVideo = () => location.pathname === '/watch' ? new URL(location.href).searchParams.get('v') : null;
 		// YouTube answers get_transcript with "precondition failed" when it wants a player token (seen in signed-out
 		// sessions). After two such refusals in a row stop asking on this page; the transcript panel still works.
@@ -132,7 +133,8 @@ try {
 		let bar: TranscriptBar | undefined;
 		const updateBar = () => {
 			const videoId = currentVideo(); const entry = videoId ? store.get(videoId) : undefined;
-			bar?.setState(entry?.state ?? 'loading', entry?.segments);
+			const live = videoId ? liveStudy.get(videoId) : undefined;
+			bar?.setState(live?.length ? 'ready' : (entry?.state ?? 'loading'), live?.length ? live : entry?.segments);
 		};
 		let frame = 0;
 		const refresh = () => {
@@ -198,6 +200,11 @@ try {
 
 		// The background asks for the transcript when study mode opens.
 		api.runtime.onMessage.addListener((request, _sender, respond) => {
+			if (request?.action === 'qiaomuStudyLiveTranscript') {
+				const videoId = currentVideo();
+				if (videoId && Array.isArray(request.segments)) { if (request.segments.length) liveStudy.set(videoId, request.segments as PanelSegment[]); else liveStudy.delete(videoId); updateBar(); }
+				respond({ ok: Boolean(videoId) }); return false;
+			}
 			if (request?.action !== 'qiaomuTranscript') return;
 			getSegments(true).then(segments => { const entry = currentVideo() ? store.get(currentVideo()!) : undefined; respond({ html: segments.length ? transcriptHtml(segments, entry?.language) : '', count: segments.length }); }).catch(() => respond({ html: '', count: 0 }));
 			return true;

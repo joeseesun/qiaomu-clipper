@@ -626,6 +626,18 @@ browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime
 			return true;
 		}
 
+		if (typedRequest.action === 'qiaomuStudyLiveTranscript') {
+			const sourceTabId = Number((typedRequest as { sourceTabId?: number }).sourceTabId);
+			const sourceUrl = String((typedRequest as { sourceUrl?: string }).sourceUrl || '');
+			const segments = (typedRequest as { segments?: unknown }).segments;
+			if (!sender.tab?.id || !Number.isInteger(sourceTabId) || !videoKey(sourceUrl) || !Array.isArray(segments)) { sendResponse({ ok: false }); return true; }
+			browser.tabs.get(sourceTabId).then(tab => {
+				if (!tab.url || videoKey(tab.url) !== videoKey(sourceUrl)) return { ok: false };
+				return browser.tabs.sendMessage(sourceTabId, { action: 'qiaomuStudyLiveTranscript', sourceUrl, segments }).then(() => ({ ok: true })).catch(() => ({ ok: false }));
+			}).then(sendResponse, () => sendResponse({ ok: false }));
+			return true;
+		}
+
 		if (typedRequest.action === "getActiveTabAndToggleIframe") {
 			browser.tabs.query({active: true, currentWindow: true}).then(async (tabs) => {
 				const currentTab = tabs[0];

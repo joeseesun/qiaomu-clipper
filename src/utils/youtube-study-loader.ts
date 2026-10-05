@@ -64,6 +64,8 @@ export async function startYouTubeStudy(url: string, sourceTabId: number, initia
 	document.title = title;
 	await Reader.apply(document);
 	const article = document.querySelector('article')!;
+	article.dataset.sourceTabId = String(sourceTabId);
+	article.dataset.sourceVideoUrl = url;
 	const frame = article.querySelector<HTMLIFrameElement>(PLAYER_SELECTOR);
 	if (frame) applyStudyPlayback(frame, url, playback);
 	const shell = mountShell?.();

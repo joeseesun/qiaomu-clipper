@@ -103,6 +103,12 @@ function mountBrowserWhisper(article: HTMLElement, controls: HTMLElement, studyS
 	};
 	const sourceClass = article.dataset.videoPlatform === 'bilibili' ? 'bilibili' : 'youtube';
 	const setStatus = (message: string) => { status.textContent = message; };
+	const publishLive = (segments: PanelSegment[]) => {
+		const sourceTabId = Number(article.dataset.sourceTabId);
+		const sourceUrl = article.dataset.sourceVideoUrl || '';
+		if (!Number.isInteger(sourceTabId) || !sourceUrl || !segments.length) return;
+		void browser.runtime.sendMessage({ action: 'qiaomuStudyLiveTranscript', sourceTabId, sourceUrl, segments }).catch(() => {});
+	};
 	const updateBilingualAction = () => {
 		const active = result && translationsFor(result);
 		bilingualDownload.hidden = !active;
@@ -137,6 +143,7 @@ function mountBrowserWhisper(article: HTMLElement, controls: HTMLElement, studyS
 	const clearPending = () => { pendingResult = undefined; confirm.hidden = true; discard.hidden = true; };
 	const showPending = (next: BrowserWhisperResult) => {
 		pendingResult = next; confirm.hidden = false; discard.hidden = false;
+		publishLive(next.segments);
 		live.replaceChildren(); live.hidden = !next.segments.length;
 		const heading = doc.createElement('h2'); heading.textContent = '实时识别字幕'; live.append(heading);
 		for (const segment of next.segments) {
@@ -282,7 +289,10 @@ function mountBrowserWhisper(article: HTMLElement, controls: HTMLElement, studyS
 			if (sourceParent?.isConnected) sourceParent.insertBefore(sourceTranscript, sourceNextSibling?.isConnected ? sourceNextSibling : null);
 			else article.append(sourceTranscript);
 		}
-		download.hidden = true; copy.hidden = true; bilingualDownload.hidden = true; setStatus('已丢弃本次识别结果');
+		 download.hidden = true; copy.hidden = true; bilingualDownload.hidden = true; setStatus('已丢弃本次识别结果');
+		const sourceTabId = Number(article.dataset.sourceTabId);
+		const sourceUrl = article.dataset.sourceVideoUrl || '';
+		if (Number.isInteger(sourceTabId) && sourceUrl) void browser.runtime.sendMessage({ action: 'qiaomuStudyLiveTranscript', sourceTabId, sourceUrl, segments: [] }).catch(() => {});
 	});
 	stop.addEventListener('click', () => {
 		if (capturing || capture) {
