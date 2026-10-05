@@ -116,6 +116,11 @@ try {
 			strings.none = entry?.needLogin ? needLoginMessage : noneMessage;
 			const live = video ? liveStudy.get(video.key) : undefined;
 			bar?.setState(live?.length ? 'ready' : (entry?.state ?? 'loading'), live?.length ? live : entry?.segments);
+			if (live?.length) {
+				const latest = live[live.length - 1]?.time;
+				const seconds = latest?.split(':').reduce((total, part) => total * 60 + Number(part), 0);
+				if (Number.isFinite(seconds)) bar?.setTime(seconds, true);
+			}
 		};
 		let frame = 0;
 		const refresh = () => {

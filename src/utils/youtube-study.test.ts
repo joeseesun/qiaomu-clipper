@@ -45,6 +45,12 @@ describe('YouTube study transcript', () => {
 		expect(node.querySelector('.youtube-player-resize')).not.toBeNull(); expect(node.querySelector('iframe')).toBe(player);
 		expect(node.querySelector('.youtube-translate-toggle.is-unavailable')).not.toBeNull();
 	});
+	it('keeps the live Whisper preview in the reader column used by dock mode', async () => {
+		const node = article('<div class="player-container"><iframe src="https://www.youtube.com/embed/example"></iframe></div><div class="youtube transcript"><p class="transcript-segment"><strong>0:00</strong>Source</p></div>');
+		await mountYouTubeStudy(document, node, 'Video', 'https://www.youtube.com/watch?v=example');
+		const live = node.querySelector('.youtube-whisper-live');
+		expect(live?.parentElement).toBe(node);
+	});
 	it('disables transcript actions when subtitles are unavailable', async () => {
 		const node = article('<iframe></iframe>');
 		await mountYouTubeStudy(document, node, 'Video', 'https://www.youtube.com/watch?v=example');

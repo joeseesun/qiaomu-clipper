@@ -70,8 +70,12 @@ function mountBrowserWhisper(article: HTMLElement, controls: HTMLElement, studyS
 	const sourceNextSibling = insertion?.nextSibling || undefined;
 	if (insertion) {
 		sourceTranscript = insertion;
-		insertion.replaceWith(live);
-	} else row.after(live);
+		// The dock layout assigns direct article children to the reading column.
+		// A late native transcript can arrive nested in a player wrapper, so move
+		// the live preview out before placing it beside the source transcript.
+		if (insertion.parentElement !== article) article.append(insertion);
+		insertion.after(live);
+	} else article.append(live);
 	whisperControls.set(article, { row, status, live });
 
 	let selected: File | undefined;
