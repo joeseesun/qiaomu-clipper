@@ -2,11 +2,13 @@
 
 Chrome 扩展通过 Native Messaging 按需调用助手，直接保存 Markdown 到指定 Obsidian 库，不使用 obsidian://、剪贴板或网络端口，也不唤起 Obsidian。
 
-安装（macOS / Linux，Chrome / Edge / Brave / Vivaldi / Chromium / Arc）：先在浏览器里装好扩展，然后无需任何参数：
+安装（macOS / Linux / Windows，Chrome / Edge / Brave / Vivaldi / Chromium / Arc）：先在浏览器里装好扩展，然后无需任何参数：
 
 ```sh
 python3 native/install.py
 ```
+
+Windows 上如果没有 `python3` 命令，改用 `python native\install.py` 或 `py -3 native\install.py`。Windows 没有 Native Messaging 的清单目录，安装器会写一个 `host.bat` 启动器，并在 `HKCU\Software\<浏览器厂商>\NativeMessagingHosts\ai.qiaomu.clipper` 注册表项里登记（只写当前用户，不需要管理员权限）。「选择文件夹」用 Tkinter 弹窗；「无字幕视频本机生成字幕」的自动安装目前只在 macOS / Linux 验证过。
 
 安装器会自动找到浏览器里的「乔木剪藏」扩展 ID（商店版与本地加载版都会识别，同时存在则都放行）和 Obsidian 库（读取 Obsidian 的库列表；有多个库时会列出并要求用 `--vault` 指定），为每个检测到的浏览器注册，最后用真实的 Native Messaging 协议自检，输出 JSON，`ok: true` 才算装好。需要 Python 3.9+。
 
