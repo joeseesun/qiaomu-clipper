@@ -304,6 +304,31 @@ article > .player-toggles {
 		&:focus-visible { outline: 1px solid var(--text-muted); outline-offset: 2px; }
 	}
 }
+.youtube-whisper-controls {
+	display: inline-flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-inline-start: 8px;
+	font: 12px/1.5 var(--font-ui);
+	color: var(--text-muted);
+	.youtube-whisper-label { white-space: nowrap; }
+	.youtube-whisper-start, .youtube-whisper-page, .youtube-whisper-stop, .youtube-whisper-retry, .youtube-whisper-confirm, .youtube-whisper-discard, .youtube-whisper-download {
+		min-height: 32px;
+		padding: 5px 10px;
+		border: 1px solid var(--background-modifier-border);
+		border-radius: 6px;
+		background: transparent;
+		color: var(--text-normal);
+		font: inherit;
+		cursor: pointer;
+		&:hover { border-color: var(--text-muted); }
+		&:focus-visible { outline: 1px solid var(--text-muted); outline-offset: 2px; }
+		&:disabled { opacity: .55; cursor: wait; }
+		&[hidden] { display: none; }
+	}
+}
+.youtube-whisper-status:not(:empty) { display: block; margin-top: 4px; }
 .youtube-study .youtube-sized-player { width: var(--youtube-player-width, 100%) !important; height: auto !important; aspect-ratio: 16 / 9; max-height: none !important; display: block; margin-inline: auto; }
 .transcript-segment:has(.transcript-translation) { display: grid; grid-template-columns: var(--timestamp-width) minmax(0, 1fr); column-gap: 1em; row-gap: .4em; }
 .transcript-translation { grid-column: 2; padding-inline: .5em; color: var(--text-muted); overflow-wrap: anywhere; &[hidden] { display: none; } }

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, expect, it, vi } from 'vitest';
-import { formatSegments, readPanelSegments, safeFileName, spokenToSeconds } from './youtube-panel-actions';
+import { formatBilingualSegments, formatSegments, readPanelSegments, safeFileName, spokenToSeconds } from './youtube-panel-actions';
 
 const strings = { copy: 'Copy', download: 'Download', study: 'Study', copied: 'Copied', empty: 'Empty' };
 const modern = `<transcript-segment-view-model><div><div><span>13:47</span></div><span class="yt-core-attributed-string">it is a problem before it becomes a</span></div></transcript-segment-view-model>
@@ -19,6 +19,11 @@ it('reads timestamps and text from both the modern and the classic transcript vi
 });
 
 it('makes safe download names', () => { expect(safeFileName('A/B: C | D - YouTube')).toBe('A B C D'); expect(safeFileName(' - YouTube')).toBe('youtube-transcript'); });
+
+it('formats bilingual downloads with source first and translation second', () => {
+	const lines = [{ time: '0:01', text: 'Hello' }, { time: '0:04', text: 'World', chapter: 'Part' }];
+	expect(formatBilingualSegments(lines, new Map([[0, '你好'], [1, '世界']]))).toBe('[0:01] Hello\n你好\n\n## Part\n[0:04] World\n世界');
+});
 
 it('reads the hidden spoken timestamps as finer timing instead of text: each one opens a shorter line', () => {
 	document.body.innerHTML = `<transcript-segment-view-model>

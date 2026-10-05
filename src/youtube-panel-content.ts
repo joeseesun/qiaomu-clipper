@@ -1,6 +1,6 @@
 import type { PanelSegment } from './utils/youtube-panel-actions';
 import { BAR_STYLE, buildTranscriptBar, syncTranscriptBar, type BarState, type TranscriptBar } from './utils/youtube-transcript-bar';
-import { fetchCaptionResult } from './utils/youtube-captions';
+import { audioLanguageFromDocument, fetchCaptionResult, sameLanguage } from './utils/youtube-captions';
 import { createTranscriptCache } from './utils/youtube-transcript-cache';
 import { markAutoOpenedPanel, openTranscriptPanel, readYouTubeTranscriptFromDom, releaseAutoPanel, resetOpenAttempts, transcriptHtml, transcriptPanelOpen } from './utils/youtube-dom-transcript';
 import { readPanelSegments } from './utils/youtube-panel-actions';
@@ -65,12 +65,14 @@ try {
 		// YouTube answers get_transcript with "precondition failed" when it wants a player token (seen in signed-out
 		// sessions). After two such refusals in a row stop asking on this page; the transcript panel still works.
 		let refusals = 0;
-		const prefetch = (videoId: string): Entry => {
+		const prefetch = (videoId: string, force = false): Entry => {
 			const known = store.get(videoId); if (known) return known;
 			const entry: Entry = { state: 'loading', segments: [], done: Promise.resolve([]) };
 			// A transcript read before is shown at once; otherwise ask YouTube, and keep what comes back.
 			const fresh = (): Promise<{ segments: PanelSegment[]; language?: string }> => refusals >= 2 ? Promise.resolve({ segments: [] as PanelSegment[] }) : fetchCaptionResult(videoId, document).then(result => { refusals = 0; return result; }, () => { refusals++; return { segments: [] as PanelSegment[] }; });
 			const request = (cache ? cache.read(videoId) : Promise.resolve(undefined as { segments: PanelSegment[]; language?: string } | undefined)).then(async cached => {
+				const audioLanguage = audioLanguageFromDocument(document, videoId);
+				if (force || (audioLanguage && cached?.language && !sameLanguage(audioLanguage, cached.language))) cached = undefined;
 				if (cached?.language) return cached;
 				const result = await fresh();
 				if (result.segments.length) { void cache?.write(videoId, result.segments, result.language); return result; }
@@ -111,7 +113,7 @@ try {
 		};
 		const retry = () => {
 			const id = currentVideo(); if (!id) return;
-			store.delete(id); autoOpened.delete(id); resetOpenAttempts(); prefetch(id); updateBar();
+			store.delete(id); autoOpened.delete(id); refusals = 0; resetOpenAttempts(); prefetch(id, true); updateBar();
 		};
 		const openSettings = () => { try { api.runtime.sendMessage({ action: 'openSettings', section: 'general' })?.catch?.(() => {}); } catch { /* extension reloaded */ } };
 		// The page's own player does the seeking (it keeps its controls, buffering and state in step); setting the element's
@@ -155,6 +157,11 @@ try {
 			syncTranscriptBar(document, () => {
 				bar = buildTranscriptBar(document, {
 					strings, title: () => document.title, openStudy, openSettings, retry, seek, getSegments: () => getSegments(true),
+					getTranslations: segments => {
+						const transcript = document.querySelector<HTMLElement>('.youtube.transcript');
+						const cache = transcript?.__qiaomuTranslationCache;
+						return cache && cache.size === segments.length ? cache : undefined;
+					},
 					getTime: () => mainVideo()?.currentTime,
 					initialOpen: wasOpen, onToggle: open => remember(OPEN_KEY, open),
 					initialFollow: stored(FOLLOW_KEY, true), onFollow: follow => remember(FOLLOW_KEY, follow),

@@ -1,4 +1,4 @@
-import { formatSegments, safeFileName, type PanelSegment } from './youtube-panel-actions';
+import { formatBilingualSegments, formatSegments, safeFileName, type PanelSegment } from './youtube-panel-actions';
 import { groupSegments } from './youtube-dom-transcript';
 
 // The transcript bar: one strip at the top of the watch page's right column (like other YouTube helper
@@ -10,6 +10,7 @@ export interface BarHooks {
 	strings: BarStrings;
 	title: () => string;
 	getSegments: () => Promise<PanelSegment[]>;
+	getTranslations?: (segments: PanelSegment[]) => Map<number, string> | undefined;
 	openStudy: () => boolean | void;
 	openSettings: () => void;
 	retry?: () => void;
@@ -22,6 +23,10 @@ export interface BarHooks {
 	onFollow?: (follow: boolean) => void;
 	// Which site the bar sits in: it takes that site's own colours, corners and type.
 	theme?: 'youtube' | 'bilibili';
+}
+
+declare global {
+	interface HTMLElement { __qiaomuTranslationCache?: Map<number, string> }
 }
 export interface TranscriptBar { element: HTMLElement; setState: (state: BarState, segments?: PanelSegment[]) => void; setOpen: (open: boolean) => void; setTime: (seconds: number, afterSeek?: boolean) => void }
 
@@ -260,10 +265,15 @@ export function buildTranscriptBar(doc: Document, hooks: BarHooks): TranscriptBa
 			try { await navigator.clipboard.writeText(value); flash(button, strings.copied, true); } catch { flash(button, strings.empty); }
 		}),
 		tool('download', strings.download, async button => {
-			const value = formatSegments(await hooks.getSegments()); if (!value) { flash(button, strings.empty); return; }
-			const url = URL.createObjectURL(new Blob([`${value}\n`], { type: 'text/plain;charset=utf-8' }));
-			const link = doc.createElement('a'); link.href = url; link.download = `${safeFileName(hooks.title())}.txt`;
-			doc.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+			const segments = await hooks.getSegments(); const value = formatSegments(segments); if (!value) { flash(button, strings.empty); return; }
+			const translations = hooks.getTranslations?.(segments);
+			const menu = doc.createElement('div'); menu.className = 'qiaomu-yt-download-menu'; menu.setAttribute('role', 'menu');
+			const save = (text: string, suffix: string) => { const url = URL.createObjectURL(new Blob([`${text}\n`], { type: 'text/plain;charset=utf-8' })); const link = doc.createElement('a'); link.href = url; link.download = `${safeFileName(hooks.title())}${suffix}.txt`; doc.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000); menu.remove(); };
+			// Preserve the established one-click action: the icon always downloads the original transcript.
+			save(value, '');
+			const more = doc.createElement('button'); more.type = 'button'; more.textContent = '选择字幕格式'; more.setAttribute('role', 'menuitem'); more.onclick = () => menu.hidden = false; menu.append(more);
+			const bilingual = doc.createElement('button'); bilingual.type = 'button'; bilingual.textContent = translations && translations.size === segments.length ? '下载双语字幕' : '双语字幕（先完成翻译）'; bilingual.setAttribute('role', 'menuitem'); bilingual.disabled = !translations || translations.size !== segments.length; bilingual.onclick = () => translations && save(formatBilingualSegments(segments, translations), '-bilingual'); menu.append(bilingual);
+			menu.hidden = true; button.after(menu); const close = (event: Event) => { if (!menu.contains(event.target as Node) && event.target !== button) { menu.remove(); doc.removeEventListener('pointerdown', close); } }; doc.addEventListener('pointerdown', close);
 		}),
 		tool('study', strings.study, button => { if (hooks.openStudy() === false) flash(button, strings.reload); }, strings.study),
 		toggle,

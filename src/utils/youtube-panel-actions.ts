@@ -19,6 +19,11 @@ const rowsIn = (root: ParentNode): HTMLElement[] => {
 // `chapter` is the title of a chapter that begins at this line (YouTube shows it as a heading above the row).
 export interface PanelSegment { time: string; text: string; chapter?: string }
 
+/** A download-ready bilingual transcript. Translation is deliberately optional so
+ * callers can keep the original export compatible while disabling incomplete
+ * bilingual exports until every cue has been confirmed. */
+export interface PanelTranslation { text: string; chapter?: string }
+
 // Works for both the current "modern" transcript view and the classic renderer: take the first
 // line that looks like a timestamp, the remaining visible lines are the caption text.
 // YouTube puts a spoken version of every timestamp into each row for screen readers ("1分钟43秒钟"), several times
@@ -83,6 +88,9 @@ export function readPanelSegments(root: ParentNode): PanelSegment[] {
 }
 
 export const formatSegments = (segments: PanelSegment[]): string => segments.map(({ time, text, chapter }) => `${chapter ? `\n## ${chapter}\n` : ''}[${time}] ${text}`).join('\n').trim();
+
+export const formatBilingualSegments = (segments: PanelSegment[], translations: Map<number, string>): string =>
+	segments.map((segment, index) => `${segment.chapter ? `\n## ${segment.chapter}\n` : ''}[${segment.time}] ${segment.text}\n${translations.get(index) || ''}`.trimEnd()).join('\n').trim();
 
 export const safeFileName = (title: string): string =>
 	(title.replace(/\s*-\s*YouTube$/, '').replace(/[\\/:*?"<>|\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 100)) || 'youtube-transcript';

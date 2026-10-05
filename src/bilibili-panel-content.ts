@@ -127,6 +127,11 @@ try {
 			syncTranscriptBar(document, () => {
 				bar = buildTranscriptBar(document, {
 					strings, title, openStudy, openSettings, retry, seek, getSegments,
+					getTranslations: segments => {
+						const transcript = document.querySelector<HTMLElement>('.bilibili.transcript');
+						const cache = transcript?.__qiaomuTranslationCache;
+						return cache && cache.size === segments.length ? cache : undefined;
+					},
 					getTime: () => mainVideo()?.currentTime,
 					initialOpen: stored(OPEN_KEY, false), onToggle: open => remember(OPEN_KEY, open),
 					initialFollow: stored(FOLLOW_KEY, true), onFollow: follow => remember(FOLLOW_KEY, follow), theme: 'bilibili',
