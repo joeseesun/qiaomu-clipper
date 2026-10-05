@@ -2407,6 +2407,16 @@ export class Reader {
 			});
 
 			if ((isYouTube || isBilibili) && !Reader.onEdit) await mountYouTubeStudy(doc, article, title || doc.title, doc.URL);
+			if ((isYouTube || isBilibili) && !Reader.onEdit) {
+				doc.addEventListener('qiaomu-reader-rewire-transcript', () => {
+					wireTranscript(doc, article, this.settings, {
+						getStickyOffset: () => this.getStickyOffset(),
+						getFocusOffset: () => this.getFocusOffset(),
+						scrollTo: y => this.scrollTo(y),
+						programmaticScroll: () => this.programmaticScroll,
+					}, (key, value) => { (this.settings as any)[key] = value; void this.saveSettings(); });
+				}, { once: true });
+			}
 
 			if (extractorType) {
 				doc.documentElement.setAttribute('data-reader-extractor', extractorType);

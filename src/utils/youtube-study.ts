@@ -227,6 +227,11 @@ function mountBrowserWhisper(article: HTMLElement, controls: HTMLElement, studyS
 	confirm.addEventListener('click', () => {
 		if (!pendingResult) return;
 		replaceTranscript(pendingResult); result = pendingResult; clearPending();
+		article.querySelector('.youtube-translate-toggle.is-unavailable')?.remove();
+		mountTranslation(article, controls, status);
+		// The confirmed transcript is a new DOM node; re-run the reader wiring so
+		// follow-scroll, timestamp seeking, and active-line highlighting attach to it.
+		doc.dispatchEvent(new CustomEvent('qiaomu-reader-rewire-transcript'));
 		doc.dispatchEvent(new CustomEvent('qiaomu-transcript-state', { detail: { ready: true } }));
 		setStatus(`已确认字幕：${result.segments.length} 段`);
 	});
@@ -286,10 +291,8 @@ export async function mountYouTubeStudy(doc: Document, article: HTMLElement, tit
 	doc.dispatchEvent(new CustomEvent('qiaomu-transcript-state', { detail: { ready: Boolean(text) } }));
 	let chat: ReturnType<typeof mountClipChat> | undefined = existingChat;
 	await loadSettings();
-	if (text) mountTranslation(article, controls, status);
-	else status.textContent = article.dataset.videoPlatform === 'bilibili'
-		? '未获取到字幕：可以用浏览器 Whisper 转录页面音频，确认后再复制、下载、剪藏和翻译。'
-		: '未获取到字幕：可以用浏览器 Whisper 转录页面音频，确认后再复制、下载、剪藏和翻译。';
+	mountTranslation(article, controls, status);
+	if (!text) status.textContent = '未获取到字幕：可以用浏览器 Whisper 转录页面音频，确认后再复制、下载、剪藏和翻译。';
 	if (existingChat) return;
 	chat = mountClipChat({
 		onLearningRecord: quote => { void learningNotes(doc)?.open({quote}); },

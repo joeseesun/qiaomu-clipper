@@ -133,14 +133,31 @@ async function translateBatch(
 export function mountTranslation(article: HTMLElement, toolbar: HTMLElement, status: HTMLElement): void {
 	if (article.querySelector('.youtube-translate-toggle')) return;
 	const segments = Array.from(article.querySelectorAll<HTMLElement>(`${TRANSCRIPT_SELECTOR} .transcript-segment`));
-	if (!segments.length) return;
+	const doc = article.ownerDocument;
+	if (!segments.length) {
+		const label = doc.createElement('label');
+		label.className = 'player-toggle youtube-translate-toggle is-unavailable';
+		label.title = '确认字幕后可翻译';
+		const caption = doc.createElement('span');
+		caption.textContent = getMessage('qiaomuTranslate') || getMessage('qiaomuTranslateChinese');
+		const input = doc.createElement('input');
+		input.type = 'checkbox';
+		input.disabled = true;
+		input.setAttribute('role', 'switch');
+		input.setAttribute('aria-label', caption.textContent);
+		const track = doc.createElement('span');
+		track.className = 'player-toggle-switch';
+		track.append(input);
+		label.append(caption, track);
+		toolbar.append(label);
+		return;
+	}
 	const texts = segments.map(segment => {
 		const clone = segment.cloneNode(true) as HTMLElement;
 		clone.querySelectorAll('strong, .transcript-translation').forEach(node => node.remove());
 		return clone.textContent?.replace(/^\s*·\s*/, '').trim() || '';
 	});
 	const batches = translationBatches(texts);
-	const doc = article.ownerDocument;
 	const label = doc.createElement('label'); label.className = 'player-toggle youtube-translate-toggle';
 	label.title = getMessage('qiaomuTranslationService');
 	label.addEventListener('mousedown', event => { if (!doc.getSelection()?.isCollapsed) event.preventDefault(); });

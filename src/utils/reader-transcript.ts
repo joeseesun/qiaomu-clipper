@@ -55,7 +55,8 @@ export function wireTranscript(
 	onSettingChange?: (key: keyof TranscriptSettings, value: boolean) => void
 ): void {
 	const transcript = article.querySelector(TRANSCRIPT_SELECTOR) as HTMLElement | null;
-	if (!transcript || transcript.dataset.readerWired === 'true') return;
+	const alreadyWired = article.dataset.readerControlsWired === 'true';
+	if (alreadyWired && (!transcript || transcript.dataset.readerWired === 'true')) return;
 
 	const iframe = article.querySelector(PLAYER_SELECTOR) as HTMLIFrameElement | null;
 	const bilibili = !!iframe && isBilibiliEmbed(iframe.src);
@@ -65,7 +66,8 @@ export function wireTranscript(
 	const playerEl = (videoWrapper || iframe || thumbnailLink) as HTMLElement | null;
 	if (!playerEl) return;
 
-	transcript.dataset.readerWired = 'true';
+	if (transcript) transcript.dataset.readerWired = 'true';
+	article.dataset.readerControlsWired = 'true';
 	// Reuse a pre-existing container when subtitles arrive after the live player.
 	const playerContainer = playerEl.closest<HTMLElement>('.player-container') || doc.createElement('div');
 	const pinDefault = settings.pinPlayer;
@@ -82,14 +84,15 @@ export function wireTranscript(
 
 	const toggleBar = doc.createElement('div');
 	toggleBar.className = 'player-toggles';
+	const existingToggleBar = playerContainer.querySelector<HTMLElement>(':scope > .player-toggles');
+	if (existingToggleBar) existingToggleBar.remove();
 
 	// Floating "current position" button — appended to body,
 	// shown only when the active segment is scrolled out of view
 	const currentPosButton = doc.createElement('button');
 	currentPosButton.className = 'player-current-pos';
 	currentPosButton.textContent = getMessage('readerCurrentPosition');
-	transcript.style.position = 'relative';
-	transcript.appendChild(currentPosButton);
+	if (transcript) { transcript.style.position = 'relative'; transcript.appendChild(currentPosButton); }
 
 	const createToggle = (key: string, label: string, defaultOn: boolean, onChange: (on: boolean) => void) => {
 		const wrapper = doc.createElement('label');
@@ -143,7 +146,7 @@ export function wireTranscript(
 	}
 
 	// Build a sorted list of segments with their start times
-	const segments = Array.from(transcript.querySelectorAll('.transcript-segment')) as HTMLElement[];
+	const segments = transcript ? Array.from(transcript.querySelectorAll('.transcript-segment')) as HTMLElement[] : [];
 	segments.forEach(seg => {
 		// Pull the timestamp out into its own element
 		// and wrap remaining text in a span
@@ -172,6 +175,7 @@ export function wireTranscript(
 			maxWidth = Math.max(maxWidth, strong.getBoundingClientRect().width);
 		}
 	});
+	if (!transcript) return;
 	transcript.style.setProperty('--timestamp-width', Math.ceil(maxWidth) + 'px');
 
 	const segmentTimes = segments.map(seg => {

@@ -43,7 +43,7 @@ describe('YouTube study transcript', () => {
 		const node = article('<iframe src="https://www.youtube.com/embed/dbqweBCynuI"></iframe>'); const player = node.querySelector('iframe');
 		await mountYouTubeStudy(document,node,'Video','https://www.youtube.com/watch?v=dbqweBCynuI');
 		expect(node.querySelector('.youtube-player-resize')).not.toBeNull(); expect(node.querySelector('iframe')).toBe(player);
-		expect(node.querySelector('.youtube-translate-toggle')).toBeNull();
+		expect(node.querySelector('.youtube-translate-toggle.is-unavailable')).not.toBeNull();
 	});
 	it('disables transcript actions when subtitles are unavailable', async () => {
 		const node = article('<iframe></iframe>');
@@ -66,6 +66,8 @@ describe('YouTube study transcript', () => {
 		expect(node.querySelector<HTMLButtonElement>('.youtube-whisper-confirm')?.hidden).toBe(false);
 		node.querySelector<HTMLButtonElement>('.youtube-whisper-confirm')!.click();
 		expect(node.querySelector('.transcript[data-source="browser-whisper"] .transcript-segment-text')?.textContent).toBe('Local caption');
+		expect(node.querySelector('.youtube-translate-toggle.is-unavailable')).toBeNull();
+		expect(node.querySelector('.youtube-translate-toggle')).not.toBeNull();
 		expect(transcriptText(node)).toBe('[0:01] Local caption');
 		expect(choose.textContent).toBe('重新选择音频');
 	});
