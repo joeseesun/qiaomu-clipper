@@ -11,10 +11,12 @@ import { createLanguagePicker } from './language-picker';
 import { transcribeBrowserAudio, loadBrowserWhisper, chunksToPanelSegments, formatSrt, type BrowserWhisperResult } from './browser-whisper';
 import { canCapturePageAudio, capturePageAudio, type CapturedAudioWindow } from './page-audio-capture';
 import { translationLanguages } from './translation-languages';
+import { copyToClipboard } from './clipboard-utils';
+import { formatBilingualSegments, formatSegments, safeFileName, type PanelSegment } from './youtube-panel-actions';
 
 // Read only transcript segments, excluding chapter headings and reader controls.
 export function transcriptText(article: HTMLElement): string {
-	const selectors = `${TRANSCRIPT_SELECTOR}:not([data-source="${WHISPER_SOURCE}"]) .transcript-segment, .youtube-whisper-live .transcript-segment`;
+	const selectors = `${TRANSCRIPT_SELECTOR} .transcript-segment, .youtube-whisper-live .transcript-segment`;
 	return Array.from(article.querySelectorAll(selectors)).map(segment => {
 		const timestamp = segment.querySelector('strong')?.textContent?.trim() || '';
 		const clone = segment.cloneNode(true) as HTMLElement;
@@ -43,14 +45,16 @@ function mountBrowserWhisper(article: HTMLElement, controls: HTMLElement, studyS
 	const row = doc.createElement('span'); row.className = 'youtube-whisper-controls';
 	const label = doc.createElement('span'); label.className = 'youtube-whisper-label'; label.textContent = '浏览器 Whisper';
 	const picker = createLanguagePicker(doc, {
-		options: [{ code: 'auto', label: '自动检测' }, ...translationLanguages],
-		value: 'auto', ariaLabel: '转录语言',
+		options: [{ code: 'auto', label: '自动检测' }, { code: 'zh-CN', label: '中文（普通话）' }, ...translationLanguages.filter(language => language.code !== 'zh-CN')],
+		value: /^zh(?:-|$)/i.test(navigator.language) ? 'zh-CN' : 'auto', ariaLabel: '转录语言',
 	});
 	const choose = doc.createElement('button'); choose.type = 'button'; choose.className = 'youtube-whisper-start'; choose.textContent = '选择音频并自动转录';
 	choose.title = '在浏览器本地运行 Whisper 转录音频'; choose.setAttribute('aria-label', choose.title);
 	const input = doc.createElement('input'); input.type = 'file'; input.accept = 'audio/*,video/*'; input.hidden = true; input.tabIndex = -1;
 	const retry = doc.createElement('button'); retry.type = 'button'; retry.className = 'youtube-whisper-retry'; retry.textContent = '重试'; retry.hidden = true;
 	const download = doc.createElement('button'); download.type = 'button'; download.className = 'youtube-whisper-download'; download.textContent = '下载 SRT'; download.hidden = true;
+	const copy = doc.createElement('button'); copy.type = 'button'; copy.className = 'youtube-whisper-copy'; copy.textContent = '复制字幕'; copy.hidden = true;
+	const bilingualDownload = doc.createElement('button'); bilingualDownload.type = 'button'; bilingualDownload.className = 'youtube-whisper-download-bilingual'; bilingualDownload.textContent = '下载双语'; bilingualDownload.hidden = true;
 	const confirm = doc.createElement('button'); confirm.type = 'button'; confirm.className = 'youtube-whisper-confirm'; confirm.textContent = '确认字幕'; confirm.hidden = true;
 	const discard = doc.createElement('button'); discard.type = 'button'; discard.className = 'youtube-whisper-discard'; discard.textContent = '丢弃'; discard.hidden = true;
 	const live = doc.createElement('div'); live.className = 'youtube-whisper-live transcript'; live.setAttribute('aria-live', 'polite'); live.hidden = true;
@@ -58,10 +62,16 @@ function mountBrowserWhisper(article: HTMLElement, controls: HTMLElement, studyS
 	page.title = '选择当前学习页标签页并共享声音，从播放位置开始转录';
 	page.hidden = !canCapturePageAudio();
 	const stop = doc.createElement('button'); stop.type = 'button'; stop.className = 'youtube-whisper-stop'; stop.textContent = '停止'; stop.hidden = true;
-	row.append(label, picker.element, page, choose, stop, retry, confirm, discard, download, input);
+	row.append(label, picker.element, page, choose, stop, retry, confirm, discard, copy, download, bilingualDownload, input);
 	controls.append(row);
 	const insertion = existingTranscript?.isConnected ? existingTranscript : article.querySelector<HTMLElement>(TRANSCRIPT_SELECTOR);
-	if (insertion) insertion.after(live); else row.after(live);
+	let sourceTranscript: HTMLElement | undefined;
+	const sourceParent = insertion?.parentNode || undefined;
+	const sourceNextSibling = insertion?.nextSibling || undefined;
+	if (insertion) {
+		sourceTranscript = insertion;
+		insertion.replaceWith(live);
+	} else row.after(live);
 	whisperControls.set(article, { row, status, live });
 
 	let selected: File | undefined;
@@ -75,6 +85,17 @@ function mountBrowserWhisper(article: HTMLElement, controls: HTMLElement, studyS
 	let loaded: Awaited<ReturnType<typeof loadBrowserWhisper>> | undefined;
 	let language: string | undefined;
 	let pendingResult: BrowserWhisperResult | undefined;
+	const translationsFor = (source: BrowserWhisperResult): Map<number, string> | undefined => {
+		const transcript = article.querySelector<HTMLElement>(`${TRANSCRIPT_SELECTOR}[data-source="${WHISPER_SOURCE}"]`);
+		const cache = transcript?.__qiaomuTranslationCache;
+		if (!cache || cache.size !== source.segments.length) return undefined;
+		return new Map(source.segments.map((_segment, index) => [index, cache.get(index) || '']));
+	};
+	const exportSegments = (source: BrowserWhisperResult): PanelSegment[] => source.segments;
+	const saveText = (text: string, suffix: string, extension = 'txt') => {
+		const url = URL.createObjectURL(new Blob([`${text}\n`], { type: 'text/plain;charset=utf-8' }));
+		const link = doc.createElement('a'); link.href = url; link.download = `${safeFileName(doc.title || 'browser-whisper')}${suffix}.${extension}`; doc.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+	};
 	const setBusy = (value: boolean) => {
 		busy = value; choose.disabled = value; page.disabled = value;
 		picker.select.disabled = value; picker.button.disabled = value; picker.close();
@@ -82,13 +103,19 @@ function mountBrowserWhisper(article: HTMLElement, controls: HTMLElement, studyS
 	};
 	const sourceClass = article.dataset.videoPlatform === 'bilibili' ? 'bilibili' : 'youtube';
 	const setStatus = (message: string) => { status.textContent = message; };
+	const updateBilingualAction = () => {
+		const active = result && translationsFor(result);
+		bilingualDownload.hidden = !active;
+		bilingualDownload.disabled = !active;
+	};
 	const replaceTranscript = (next: BrowserWhisperResult) => {
 		let local = article.querySelector<HTMLElement>(`${TRANSCRIPT_SELECTOR}[data-source="${WHISPER_SOURCE}"]`);
 		if (!local) {
 			local = doc.createElement('div'); local.className = `${sourceClass} transcript`; local.dataset.source = WHISPER_SOURCE;
 			const heading = doc.createElement('h2'); heading.textContent = '浏览器 Whisper 转录'; local.append(heading);
-			const anchor = existingTranscript?.isConnected ? existingTranscript : article.querySelector<HTMLElement>(TRANSCRIPT_SELECTOR);
-			if (anchor) anchor.after(local); else article.append(local);
+			if (live.isConnected) live.replaceWith(local);
+			else if (sourceTranscript?.isConnected) sourceTranscript.replaceWith(local);
+			else article.append(local);
 		} else {
 			local.querySelectorAll('.transcript-segment').forEach(node => node.remove());
 		}
@@ -102,6 +129,10 @@ function mountBrowserWhisper(article: HTMLElement, controls: HTMLElement, studyS
 			const text = doc.createElement('span'); text.className = 'transcript-segment-text'; text.textContent = segment.text;
 			line.append(strong, text); local.append(line);
 		}
+		local.__qiaomuTranslationCache = new Map<number, string>();
+		copy.hidden = false;
+		download.hidden = false;
+		bilingualDownload.hidden = true;
 	};
 	const clearPending = () => { pendingResult = undefined; confirm.hidden = true; discard.hidden = true; };
 	const showPending = (next: BrowserWhisperResult) => {
@@ -114,6 +145,9 @@ function mountBrowserWhisper(article: HTMLElement, controls: HTMLElement, studyS
 			const text = doc.createElement('span'); text.className = 'transcript-segment-text'; text.textContent = segment.text;
 			line.append(time, text); live.append(line);
 		}
+		copy.hidden = true;
+		download.hidden = false;
+		bilingualDownload.hidden = true;
 		setStatus(`已识别 ${next.segments.length} 段，确认后可复制、下载、剪藏和翻译`);
 	};
 	const renderCaptured = (next: BrowserWhisperResult, window: CapturedAudioWindow) => {
@@ -226,16 +260,30 @@ function mountBrowserWhisper(article: HTMLElement, controls: HTMLElement, studyS
 	});
 	confirm.addEventListener('click', () => {
 		if (!pendingResult) return;
-		replaceTranscript(pendingResult); result = pendingResult; clearPending();
+		replaceTranscript(pendingResult); result = pendingResult; clearPending(); live.replaceChildren(); live.hidden = true;
 		article.querySelector('.youtube-translate-toggle.is-unavailable')?.remove();
 		mountTranslation(article, controls, status);
+		updateBilingualAction();
 		// The confirmed transcript is a new DOM node; re-run the reader wiring so
 		// follow-scroll, timestamp seeking, and active-line highlighting attach to it.
 		doc.dispatchEvent(new CustomEvent('qiaomu-reader-rewire-transcript'));
 		doc.dispatchEvent(new CustomEvent('qiaomu-transcript-state', { detail: { ready: true } }));
 		setStatus(`已确认字幕：${result.segments.length} 段`);
 	});
-	discard.addEventListener('click', () => { clearPending(); result = undefined; live.replaceChildren(); live.hidden = true; const local = article.querySelector<HTMLElement>(`${TRANSCRIPT_SELECTOR}[data-source="${WHISPER_SOURCE}"]`); local?.remove(); download.hidden = true; setStatus('已丢弃本次识别结果'); });
+	copy.addEventListener('click', async () => {
+		if (!result) return;
+		const bilingual = translationsFor(result);
+		await copyToClipboard(bilingual ? formatBilingualSegments(exportSegments(result), bilingual) : formatSegments(exportSegments(result)));
+	});
+	discard.addEventListener('click', () => {
+		clearPending(); result = undefined; live.replaceChildren(); live.hidden = true;
+		const local = article.querySelector<HTMLElement>(`${TRANSCRIPT_SELECTOR}[data-source="${WHISPER_SOURCE}"]`); local?.remove();
+		if (sourceTranscript && !sourceTranscript.isConnected) {
+			if (sourceParent?.isConnected) sourceParent.insertBefore(sourceTranscript, sourceNextSibling?.isConnected ? sourceNextSibling : null);
+			else article.append(sourceTranscript);
+		}
+		download.hidden = true; copy.hidden = true; bilingualDownload.hidden = true; setStatus('已丢弃本次识别结果');
+	});
 	stop.addEventListener('click', () => {
 		if (capturing || capture) {
 			capturing = false;
@@ -256,8 +304,12 @@ function mountBrowserWhisper(article: HTMLElement, controls: HTMLElement, studyS
 	});
 	download.addEventListener('click', () => {
 		if (!result) return;
-		const url = URL.createObjectURL(new Blob([formatSrt(result.chunks)], { type: 'application/x-subrip;charset=utf-8' }));
-		const link = doc.createElement('a'); link.href = url; link.download = 'browser-whisper.srt'; doc.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+		saveText(formatSrt(result.chunks), '', 'srt');
+	});
+	bilingualDownload.addEventListener('click', () => {
+		if (!result) return;
+		const translations = translationsFor(result); if (!translations) return;
+		saveText(formatBilingualSegments(exportSegments(result), translations), '-bilingual');
 	});
 	const dispose = () => {
 		++generation; controller?.abort(); capture?.stop(); queue = []; picker.destroy(); observer.disconnect(); live.remove();
@@ -266,6 +318,7 @@ function mountBrowserWhisper(article: HTMLElement, controls: HTMLElement, studyS
 	const observer = new MutationObserver(() => { if (!article.isConnected) dispose(); });
 	observer.observe(doc.documentElement, { childList: true, subtree: true });
 	doc.defaultView?.addEventListener('pagehide', dispose, { once: true });
+	article.addEventListener('qiaomu-translation-state', () => updateBilingualAction());
 }
 
 export async function mountYouTubeStudy(doc: Document, article: HTMLElement, title: string, url: string, existingChat?: { toggle: () => boolean }): Promise<void> {

@@ -68,6 +68,8 @@ describe('YouTube study transcript', () => {
 		expect(node.querySelector('.transcript[data-source="browser-whisper"] .transcript-segment-text')?.textContent).toBe('Local caption');
 		expect(node.querySelector('.youtube-translate-toggle.is-unavailable')).toBeNull();
 		expect(node.querySelector('.youtube-translate-toggle')).not.toBeNull();
+		expect(node.querySelector('.youtube-whisper-copy')).not.toBeNull();
+		expect(node.querySelector('.youtube-whisper-download-bilingual')).not.toBeNull();
 		expect(transcriptText(node)).toBe('[0:01] Local caption');
 		expect(choose.textContent).toBe('重新选择音频');
 	});

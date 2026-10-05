@@ -2406,7 +2406,6 @@ export class Reader {
 				this.saveSettings();
 			});
 
-			if ((isYouTube || isBilibili) && !Reader.onEdit) await mountYouTubeStudy(doc, article, title || doc.title, doc.URL);
 			if ((isYouTube || isBilibili) && !Reader.onEdit) {
 				doc.addEventListener('qiaomu-reader-rewire-transcript', () => {
 					wireTranscript(doc, article, this.settings, {
@@ -2416,6 +2415,7 @@ export class Reader {
 						programmaticScroll: () => this.programmaticScroll,
 					}, (key, value) => { (this.settings as any)[key] = value; void this.saveSettings(); });
 				}, { once: true });
+				await mountYouTubeStudy(doc, article, title || doc.title, doc.URL);
 			}
 
 			if (extractorType) {

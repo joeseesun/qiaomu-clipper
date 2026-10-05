@@ -288,7 +288,10 @@ export function mountTranslation(article: HTMLElement, toolbar: HTMLElement, sta
 				for (const [id, text] of await translateBatch(pending, request, (id, text) => cache.set(id, text))) cache.set(id, text);
 				render(); progress();
 			}
-			if (current === generation) status.textContent = getMessage('qiaomuTranslationDone');
+			if (current === generation) {
+				status.textContent = getMessage('qiaomuTranslationDone');
+				article.dispatchEvent(new CustomEvent('qiaomu-translation-state', { detail: { ready: cache.size === parts.length } }));
+			}
 		} catch (error) {
 			if (current !== generation) return;
 			status.textContent = abort.signal.aborted ? getMessage('qiaomuTranslationTimeout') : `${getMessage('qiaomuTranslationError')} ${error instanceof Error ? error.message : ''}`;
@@ -299,12 +302,12 @@ export function mountTranslation(article: HTMLElement, toolbar: HTMLElement, sta
 		label.classList.toggle('is-enabled', input.checked);
 		render();
 		if (input.checked) void translate();
-		else { ++generation; controller?.abort(); controller = undefined; retry.hidden = true; status.textContent = ''; }
+		else { ++generation; controller?.abort(); controller = undefined; retry.hidden = true; status.textContent = ''; article.dispatchEvent(new CustomEvent('qiaomu-translation-state', { detail: { ready: false } })); }
 	};
 	target.onchange = () => {
 		try { localStorage.setItem(TRANSLATION_TARGET_KEY, target.value); } catch { /* storage unavailable */ }
 		void Promise.resolve(storageUtils.saveSettings?.({ translationTargetLanguage: target.value })).catch(() => {});
-		++generation; controller?.abort(); input.checked = false; render(); cache.clear();
+		++generation; controller?.abort(); input.checked = false; render(); cache.clear(); article.dispatchEvent(new CustomEvent('qiaomu-translation-state', { detail: { ready: false } }));
 		input.checked = true; label.classList.add('is-enabled'); void translate();
 	};
 	retry.onclick = () => { if (input.checked) void translate(); };
