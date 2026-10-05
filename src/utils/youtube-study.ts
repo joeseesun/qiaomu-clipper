@@ -200,13 +200,13 @@ function mountBrowserWhisper(article: HTMLElement, controls: HTMLElement, studyS
 		// Request capture before any await to preserve the click's user activation.
 		void capturePageAudio(article, {
 			signal: controller.signal,
-			onWindow: window => {
-				if (current !== generation) return;
-				queue.push(window); void drain();
-				if (queue.length >= 2) {
-					capturing = false; capture?.stop(); capture = undefined;
-					setStatus('识别暂时跟不上播放，已停止取音；正在处理已收集的音频');
-				}
+				onWindow: window => {
+					if (current !== generation) return;
+					queue.push(window); void drain();
+					// Keep the capture session alive when Whisper is slower than
+					// playback. Drop the oldest unprocessed window instead of
+					// stopping the shared tab stream and forcing a manual restart.
+					if (queue.length > 3) { queue.splice(0, queue.length - 3); setStatus('识别稍有延迟，继续收听页面音频…'); }
 			},
 			onStatus: message => { if (current === generation && !draining && !captureFailed) setStatus(message); },
 			onStop: () => {

@@ -1,6 +1,7 @@
 import { createElement, Columns2, PanelLeft, RectangleHorizontal, PictureInPicture2, ExternalLink } from 'lucide';
 import { getLocalStorage, setLocalStorage } from './storage-utils';
 import { documentPipSupported, openDocumentPip, trackPlayback } from './youtube-pip';
+import { PLAYER_SELECTOR } from './video-source';
 
 // dock: video beside the transcript (stacked on narrow pages); theater: full-width video above
 // the text; float: a small window pinned to a corner of the page.
@@ -85,7 +86,11 @@ export function mountPlayerMode(article: HTMLElement): void {
 	const playerEl = () => article.querySelector<HTMLElement>('.youtube-sized-player');
 	const layoutOf = () => article.dataset.ytLayout as PlayerLayout | undefined;
 	const mountUi = () => {
-		const host = container(); if (!host) return;
+		// The reader can render the iframe before late subtitles create the
+		// player container. Keep the mode controls discoverable in that window;
+		// the mutation observer below adopts them into the real container later.
+		const player = playerEl() || article.querySelector<HTMLElement>(PLAYER_SELECTOR) || article.querySelector<HTMLElement>('.reader-video-wrapper');
+		const host = container() || player?.parentElement || (player ? article : undefined); if (!host) return;
 		if (bar.parentElement !== host) host.append(bar);
 		if (chrome.parentElement !== host) host.append(chrome);
 	};

@@ -136,7 +136,11 @@ export async function capturePageAudio(article: HTMLElement, options: {
 			const status = playback?.playing ? '正在收听页面音频…' : playback ? '播放器已暂停，等待继续播放…' : '正在等待播放器时间…';
 			if (lastStatus !== status) { lastStatus = status; options.onStatus(status); }
 			if (!playback && performance.now() - lastClockAt > 15000) {
-				stop(); options.onStatus('无法读取播放器进度，请重新加载扩展并刷新学习页后重试'); return;
+				// Keep the capture alive across iframe reloads, seeks and short
+				// player stalls. The next valid clock sample can resume mapping;
+				// only an ended capture track or explicit stop tears it down.
+				if (lastStatus !== '正在等待播放器时间…') { lastStatus = '正在等待播放器时间…'; options.onStatus(lastStatus); }
+				windows!.flush(); return;
 			}
 			// The worklet packet ends near "now"; map its beginning to media time.
 			windows!.push(event.data, playback && { ...playback, time: playback.time - event.data.length / context!.sampleRate * playback.rate });
