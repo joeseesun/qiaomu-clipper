@@ -43,6 +43,7 @@ module.exports = (env, argv) => {
 			'triple-key': './src/triple-key-content.ts',
 			'youtube-panel': './src/youtube-panel-content.ts',
 			'bilibili-panel': './src/bilibili-panel-content.ts',
+			'video-clock': './src/video-clock-content.ts',
 			'note-card': ['./src/note-card-content.ts', './src/note-card.scss'],
 			popup: './src/core/popup.ts',
 			settings: './src/core/settings.ts',
@@ -159,6 +160,9 @@ module.exports = (env, argv) => {
 					{ from: "src/icons", to: "icons", globOptions: { ignore: ["**/*.ts"] } },
 					{ from: "node_modules/webextension-polyfill/dist/browser-polyfill.min.js", to: "browser-polyfill.min.js" },
 					{ from: "src/flatten-shadow-dom.js", to: "flatten-shadow-dom.js" },
+					{ from: "src/audio-capture-worklet.js", to: "audio-capture-worklet.js" },
+					{ from: "node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.asyncify.mjs", to: "whisper/[name][ext]", info: { minimized: true } },
+					{ from: "node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.asyncify.wasm", to: "whisper/[name][ext]" },
 					{ from: "src/fonts", to: "fonts" },
 					{
 						from: 'src/_locales',

@@ -41,6 +41,7 @@ const VIEWPORT = 'width=device-width, initial-scale=1, maximum-scale=1';
 import { ReaderSettings } from '../types/types';
 import { wireTranscript } from './reader-transcript';
 import { mountYouTubeStudy, restoreYouTubePlayer } from './youtube-study';
+import { readerScriptPolicy } from './reader-security';
 import { mountSidebarToggle } from './sidebar-toggle';
 import { mountLearningNotes, learningSelection, learningNotes } from './learning-composer';
 import { withReliableBilibili } from './bilibili-captions';
@@ -1461,10 +1462,11 @@ export class Reader {
 				doc.body.parentNode?.replaceChild(newBody, doc.body);
 			}
 
-			// Block inline event handlers and dynamic scripts
+			// Keep source scripts blocked; extension pages need their packaged
+			// audio worklet, model runtime modules and WebAssembly.
 			const meta = doc.createElement('meta');
 			meta.httpEquiv = 'Content-Security-Policy';
-			meta.content = "script-src 'none'; object-src 'none';";
+			meta.content = readerScriptPolicy(doc.defaultView?.location.protocol || '');
 			doc.head.appendChild(meta);
 		} catch (e) {
 			console.log('Reader', 'Error during script cleanup:', e);
