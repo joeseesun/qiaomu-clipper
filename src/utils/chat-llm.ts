@@ -14,6 +14,22 @@ interface StreamOptions {
 
 type Kind = 'anthropic' | 'gemini' | 'ollama' | 'openai';
 
+export function normalizeOpenAIChatEndpoint(raw: string): string {
+	const url = new URL(raw.trim());
+	const pathname = url.pathname.replace(/\/+$/, '');
+	if (/\/(?:chat\/completions|responses|messages|completions)$/.test(pathname)) {
+		url.pathname = pathname;
+		return url.href;
+	}
+	const base = pathname && pathname !== '/' ? pathname : '/v1';
+	url.pathname = `${base}/chat/completions`;
+	return url.href;
+}
+
+export function openAICompatibleBasePath(pathname: string): string {
+	return pathname.replace(/\/+$/, '').replace(/\/(?:chat\/completions|responses|messages|completions)$/, '');
+}
+
 const kindOf = (provider: Provider): Kind => {
 	const name = provider.name.toLowerCase();
 	if (provider.baseUrl.includes('generativelanguage.googleapis.com')) return 'gemini';
@@ -53,6 +69,7 @@ function buildRequest(provider: Provider, model: ModelConfig, system: string, me
 				headers['api-key'] = provider.apiKey;
 				body = { messages: withSystem, max_completion_tokens: 8000, stream: true };
 			} else {
+				url = normalizeOpenAIChatEndpoint(provider.baseUrl);
 				if (name.includes('hugging')) url = provider.baseUrl.replace('{model-id}', model.providerModelId);
 				if (provider.apiKey) headers['Authorization'] = `Bearer ${provider.apiKey}`;
 				body = { model: model.providerModelId, messages: withSystem, stream: true, ...(name.includes('deepseek') ? { thinking: { type: 'disabled' } } : {}) };

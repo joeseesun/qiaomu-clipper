@@ -17,7 +17,7 @@ describe('provider model discovery', () => {
 		expect(modelListRequest({ ...provider, baseUrl: 'https://api.deepseek.com/v1/chat/completions' }).url.href).toBe('https://api.deepseek.com/v1/models');
 	});
 	it('supports root and responses endpoints without changing the gateway prefix', () => {
-		for (const path of ['/v1', '/v1/', '/v1/responses']) expect(modelListRequest({ ...provider, baseUrl: `https://gateway.example${path}` }).url.pathname).toBe('/v1/models');
+		for (const path of ['/v1', '/v1/', '/v1/responses', '/v1/chat/completions']) expect(modelListRequest({ ...provider, baseUrl: `https://gateway.example${path}` }).url.pathname).toBe('/v1/models');
 	});
 	it('returns only installed Ollama models without requiring a key', async () => {
 		vi.mocked(fetch).mockResolvedValue(reply({ models: [{ name: 'local:latest', model: 'local:latest' }] }));
