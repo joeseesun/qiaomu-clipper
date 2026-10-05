@@ -14,6 +14,7 @@ import { getMessage, setupLanguageAndDirection } from '../utils/i18n';
 import { debounce } from '../utils/debounce';
 import { initializeAsrSettings } from './asr-settings';
 import { initializeStudySitesSettings } from './study-sites-settings';
+import { initializeStudyHome } from './study-home-settings';
 import browser from '../utils/browser-polyfill';
 import { createUsageChart, aggregateUsageData, UsageMetric } from '../utils/charts';
 import { getClipHistory } from '../utils/storage-utils';
@@ -187,6 +188,7 @@ export function initializeGeneralSettings(): void {
 		setShortcutInstructions();
 		void initializeAsrSettings();
 		void initializeStudySitesSettings();
+		void initializeStudyHome();
 		initializeAutoSave();
 		initializeResetDefaultTemplateButton();
 		initializeExportImportAllSettingsButtons();

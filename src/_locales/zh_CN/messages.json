@@ -746,6 +746,15 @@
 	"navStudyHome": {
 		"message": "转写学习"
 	},
+	"navAsr": {
+		"message": "语音识别"
+	},
+	"navVideoSites": {
+		"message": "字幕条与网站"
+	},
+	"headingLearn": {
+		"message": "学习"
+	},
 	"videoSubtitles": {
 		"message": "视频字幕"
 	},

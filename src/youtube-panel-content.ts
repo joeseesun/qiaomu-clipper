@@ -119,7 +119,8 @@ try {
 		// "Generate subtitles" for a video that has none: runs in the local helper; the lines land in the same entry the bar reads.
 		const idOf = (key: string) => key.replace(/^youtube:/, '');
 		const generation = createBarGeneration({
-			openSettings: () => openSettings(),
+			// "Add a cloud service" leads to the speech recognition page of the settings.
+			openSettings: () => { try { void api.runtime.sendMessage({ action: 'openSettings', section: 'asr' }); } catch { /* extension reloaded */ } },
 			videoKey: () => { const id = currentVideo(); return id ? `youtube:${id}` : null; }, bar: () => bar,
 			apply: (key, lines, done) => { const entry = store.get(idOf(key)); if (entry) { entry.segments = lines; entry.generated = true; entry.state = done ? 'ready' : 'generating'; updateBar(); } },
 			revert: key => { const entry = store.get(idOf(key)); if (entry) { entry.segments = []; entry.generated = false; entry.state = 'none'; updateBar(); } },

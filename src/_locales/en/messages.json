@@ -746,6 +746,15 @@
 	"navStudyHome": {
 		"message": "Transcribe and study"
 	},
+	"navAsr": {
+		"message": "Speech recognition"
+	},
+	"navVideoSites": {
+		"message": "Transcript bar and sites"
+	},
+	"headingLearn": {
+		"message": "Learning"
+	},
 	"videoSubtitles": {
 		"message": "Video subtitles"
 	},

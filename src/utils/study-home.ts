@@ -55,6 +55,9 @@ const ago = (at: number): string => { const minutes = Math.round((Date.now() - a
 
 const STYLE = `
 .qiaomu-home{max-width:680px;margin:0 auto;padding:72px 24px 96px;color:var(--text-normal,#222);font-family:inherit}
+.qiaomu-home.is-embedded{max-width:none;padding:0 0 56px}
+.qiaomu-home.is-embedded p.lead{margin-bottom:22px}
+.qiaomu-home.is-embedded h2:first-child{margin-top:8px}
 .qiaomu-home h1{margin:0 0 8px;font-size:30px;line-height:1.25;font-weight:700}
 .qiaomu-home p.lead{margin:0 0 28px;color:var(--text-muted,#666);font-size:15px;line-height:1.7}
 .qiaomu-home-form{display:flex;gap:8px}
@@ -165,12 +168,14 @@ function paintShows(doc: Document, root: HTMLElement, actions: { open: (path: st
 	}
 }
 
-export async function showStudyHome(doc: Document, actions: { open: (path: string) => void; openFile: (file: File) => void }): Promise<void> {
-	doc.body.replaceChildren();
+// Draws the page into `root` (the study page of the settings, which has the menu beside it), or into the whole document when none is given.
+// Returns what to call to look again at what was studied and which sites are on.
+export async function showStudyHome(doc: Document, actions: { open: (path: string) => void; openFile: (file: File) => void }, root?: HTMLElement): Promise<() => Promise<void>> {
+	const embedded = Boolean(root); const host = root ?? doc.body; host.replaceChildren();
 	if (!doc.getElementById('qiaomu-home-style')) { const style = doc.createElement('style'); style.id = 'qiaomu-home-style'; style.textContent = STYLE; doc.head.append(style); }
-	doc.title = '转写学习';
+	if (!embedded) doc.title = '转写学习';
 	const make = <K extends keyof HTMLElementTagNameMap>(tag: K, className = '', text = ''): HTMLElementTagNameMap[K] => { const item = doc.createElement(tag); if (className) item.className = className; if (text) item.textContent = text; return item; };
-	const page = make('main', 'qiaomu-home');
+	const page = make('main', 'qiaomu-home' + (embedded ? ' is-embedded' : ''));
 	let sites = await loadStudySites();
 	const form = make('form', 'qiaomu-home-form'), input = make('input'), go = make('button', 'qiaomu-home-go', '开始'); go.type = 'submit'; go.disabled = true;
 	input.type = 'text'; input.placeholder = '粘贴 YouTube、B 站、小宇宙或其他音视频网站的链接…'; input.autocomplete = 'off'; input.spellcheck = false; input.setAttribute('aria-label', '视频或播客链接');
@@ -190,9 +195,10 @@ export async function showStudyHome(doc: Document, actions: { open: (path: strin
 	const take = (picked: File | undefined) => { if (!picked) return; if (!AUDIO_FILE.test(picked.name)) { hint.textContent = '这个文件类型不支持'; hint.classList.add('is-error'); return; } actions.openFile(picked); };
 	drop.addEventListener('click', () => file.click()); drop.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); file.click(); } });
 	file.addEventListener('change', () => take(file.files?.[0]));
-	for (const type of ['dragenter', 'dragover']) doc.addEventListener(type, event => { event.preventDefault(); drop.classList.add('is-over'); });
-	doc.addEventListener('dragleave', event => { if (!(event as DragEvent).relatedTarget) drop.classList.remove('is-over'); });
-	doc.addEventListener('drop', event => { event.preventDefault(); drop.classList.remove('is-over'); take((event as DragEvent).dataTransfer?.files?.[0]); });
+	// Dropping works on the drop area only: a file dropped anywhere else on a settings page should not be taken.
+	for (const type of ['dragenter', 'dragover']) drop.addEventListener(type, event => { event.preventDefault(); drop.classList.add('is-over'); });
+	drop.addEventListener('dragleave', () => drop.classList.remove('is-over'));
+	drop.addEventListener('drop', event => { event.preventDefault(); drop.classList.remove('is-over'); take((event as DragEvent).dataTransfer?.files?.[0]); });
 	const recent = make('section'); 
 	const paintRecent = (items: StudyRecent[]) => {
 		recent.replaceChildren(); if (!items.length) return;
@@ -209,7 +215,8 @@ export async function showStudyHome(doc: Document, actions: { open: (path: strin
 	};
 	const shows = make('section', 'qiaomu-home-shows');
 	paintShows(doc, shows, actions);
-	page.append(make('h1', '', '转写学习'), make('p', 'lead', '粘贴视频或播客的链接，或选一个本地文件。没有字幕就自动转写成带时间的字幕，再进入沉浸学习：字幕跟着播放滚动，可以划线、提问、记笔记。'), form, hint, make('div', 'qiaomu-home-or', '或'), drop, recent, shows);
-	doc.body.append(page); input.focus();
+	page.append(...(embedded ? [] : [make('h1', '', '转写学习')]), make('p', 'lead', '粘贴视频或播客的链接，或选一个本地文件。没有字幕就自动转写成带时间的字幕，再进入沉浸学习：字幕跟着播放滚动，可以划线、提问、记笔记。'), form, hint, make('div', 'qiaomu-home-or', '或'), drop, recent, shows);
+	host.append(page); if (!embedded) input.focus();
 	paintRecent(await loadRecents());
+	return async () => { sites = await loadStudySites(); react(); paintRecent(await loadRecents()); };
 }

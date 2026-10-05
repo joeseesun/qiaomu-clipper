@@ -585,7 +585,7 @@ function setupEventListeners(tabId: number) {
 async function initializeUI() {
 	setupCompactPopup();
 	// Paste a video or podcast link, or choose a file, to transcribe and study.
-	document.getElementById('open-study-home')?.addEventListener('click', event => { event.preventDefault(); void browser.tabs.create({ url: browser.runtime.getURL('reader.html') }).then(() => window.close()); });
+	document.getElementById('open-study-home')?.addEventListener('click', event => { event.preventDefault(); void browser.tabs.create({ url: browser.runtime.getURL('settings.html?section=study') }).then(() => window.close()); });
 	const clipButton = document.getElementById('clip-btn');
 	if (clipButton) {
 		clipButton.focus();
