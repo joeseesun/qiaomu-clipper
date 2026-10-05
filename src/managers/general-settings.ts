@@ -19,6 +19,7 @@ import dayjs from 'dayjs';
 import weekOfYear from 'dayjs/plugin/weekOfYear';
 import { showModal, hideModal } from '../utils/modal-utils';
 import { LocalSaveResult } from '../utils/local-save';
+import { describeHelperFailure, nativeHelperRepairPrompt } from '../utils/native-helper-prompt';
 import { DEFAULT_TRIPLE_KEYS, TRIPLE_COMMANDS, TripleCommand, normalizeTripleKeys, normalizeSites } from '../utils/triple-key';
 
 dayjs.extend(weekOfYear);
@@ -289,6 +290,14 @@ async function initializeLocalVaultSettings(): Promise<void> {
 	const status = document.getElementById('local-vault-status');
 	if (!input || !button || !status) return;
 	let edited = false;
+	let failure: string | undefined;
+	const help = document.getElementById('local-helper-help');
+	const copy = document.getElementById('local-helper-copy') as HTMLButtonElement | null;
+	const offline = (message: string, reason?: string) => { failure = reason; status.textContent = message; if (help) help.hidden = false; };
+	copy?.addEventListener('click', async () => {
+		try { await navigator.clipboard.writeText(nativeHelperRepairPrompt(browser.runtime.id, failure)); copy.textContent = '已复制，去发给 AI 助手（Codex、Claude Code 等）'; }
+		catch { copy.textContent = '复制失败，请点“查看安装说明”'; }
+	});
 	input.addEventListener('input', () => { edited = true; });
 	choose?.addEventListener('click', async () => {
 		choose.disabled = true;
@@ -300,7 +309,7 @@ async function initializeLocalVaultSettings(): Promise<void> {
 			if (!result?.ok || !result.vaultPath) { status.textContent = result?.error || '文件夹选择失败'; return; }
 			input.value = result.vaultPath;
 			status.textContent = `已选择 ${result.vault}，点击“保存库地址”生效。`;
-		} catch { status.textContent = '本地保存助手未连接，请先安装或更新助手'; }
+		} catch { offline('本地保存助手未连接，请先安装或更新助手'); }
 		finally { choose.disabled = false; button.disabled = false; }
 	});
 	const configure = async () => {
@@ -325,7 +334,7 @@ async function initializeLocalVaultSettings(): Promise<void> {
 			input.value = result.vaultPath;
 			status.textContent = `已保存：${result.vaultPath}。重新打开剪藏弹窗即可使用，失败的笔记可点击“重试本地保存”。`;
 		} catch {
-			status.textContent = '本地保存助手未连接，请先安装或更新助手';
+			offline('本地保存助手未连接，请先安装或更新助手');
 		} finally { button.disabled = false; if (choose) choose.disabled = false; }
 	};
 	button.addEventListener('click', configure);
@@ -334,8 +343,8 @@ async function initializeLocalVaultSettings(): Promise<void> {
 		const result = await browser.runtime.sendMessage({ action: 'qiaomuLocalStatus' }) as LocalSaveResult;
 		if (edited) return;
 		if (result?.ok && result.vaultPath) { input.value = result.vaultPath; status.textContent = `当前保存到：${result.vaultPath}`; }
-		else { status.textContent = '本地保存助手未连接。安装助手后可在这里切换笔记库地址。'; }
-	} catch { if (!edited) status.textContent = '本地保存助手未连接。安装助手后可在这里切换笔记库地址。'; }
+		else { offline(`${describeHelperFailure(result?.reason)}安装后可在这里切换笔记库地址。`, result?.reason); }
+	} catch { if (!edited) offline('本地保存助手未连接。安装助手后可在这里切换笔记库地址。'); }
 }
 
 function initializeVaultInput(): void {
