@@ -719,6 +719,36 @@
 	"read": {
 		"message": "已閱讀"
 	},
+	"navClip": {
+		"message": "剪藏與儲存"
+	},
+	"navLearning": {
+		"message": "學習筆記"
+	},
+	"groupSaving": {
+		"message": "儲存方式"
+	},
+	"groupSharing": {
+		"message": "分享"
+	},
+	"groupBackup": {
+		"message": "備份與實驗"
+	},
+	"headingClip": {
+		"message": "剪藏"
+	},
+	"headingRead": {
+		"message": "閱讀與學習"
+	},
+	"headingAI": {
+		"message": "AI"
+	},
+	"navStudyHome": {
+		"message": "轉寫學習"
+	},
+	"videoSubtitles": {
+		"message": "影片字幕"
+	},
 	"reader": {
 		"message": "閱讀器"
 	},
@@ -1330,13 +1360,13 @@
 		"message": "改寫得更簡潔"
 	},
 	"youtubeAutoTranscriptTitle": {
-		"message": "自動展開 YouTube 轉寫文稿"
+		"message": "自動展開 YouTube 轉寫文稿（僅 YouTube）"
 	},
 	"youtubeAutoTranscriptDescription": {
 		"message": "在影片頁自動展開一次 YouTube 的轉寫文稿面板，讓字幕隨時可複製、下載並進入學習模式。你關掉後，這個影片不再自動展開。"
 	},
 	"youtubeHideNativeTitle": {
-		"message": "隱藏 YouTube 內建的轉寫面板"
+		"message": "隱藏 YouTube 內建的轉寫面板（僅 YouTube）"
 	},
 	"youtubeHideNativeDescription": {
 		"message": "字幕自動展開後，把 YouTube 右欄裡的原生面板藏起來，轉寫條裡能看到同樣的內容。你自己手動開啟的面板不會被隱藏。"
@@ -1420,10 +1450,10 @@
 		"message": "B 站只提供字幕給已登入的帳號，請登入後點「重試」"
 	},
 	"youtubePanelActionsTitle": {
-		"message": "YouTube 轉寫文稿按鈕"
+		"message": "在 YouTube 和 B 站顯示字幕條"
 	},
 	"youtubePanelActionsDescription": {
-		"message": "在 YouTube 的轉寫文稿面板裡，「章節 / 轉寫文稿」旁新增「複製」「下載」「沉浸學習」按鈕。"
+		"message": "在 YouTube 和 B 站的影片頁加上字幕條：跟讀字幕、複製、下載、進入沉浸學習，沒有字幕時可以生成字幕。"
 	},
 	"youtubePanelCopy": {
 		"message": "複製"

@@ -62,3 +62,13 @@ it('opens study mode for a playlist page on the plain video page, so the subtitl
 	expect(path).toContain('study=bilibili'); expect(decodeURIComponent(path)).toContain('url=https://www.bilibili.com/video/BV1XJCzYyEcp/&sourceTab=7');
 	expect(decodeURIComponent(videoStudyPath('https://www.bilibili.com/list/watchlater?bvid=BV1XJCzYyEcp&p=3', 7)!)).toContain('url=https://www.bilibili.com/video/BV1XJCzYyEcp/?p=3');
 });
+
+it('recognises a Xiaoyuzhou episode page and builds its study address', async () => {
+	const { xiaoyuzhouEpisode, audioKey, audioStudyPath, LOCAL_AUDIO_STUDY_PATH } = await import('./video-source');
+	const id = '6a97f287f03e74ee6b03ea5b';
+	expect(xiaoyuzhouEpisode(`https://www.xiaoyuzhoufm.com/episode/${id}`)).toBe(id); expect(xiaoyuzhouEpisode(`https://xiaoyuzhoufm.com/episode/${id}/`)).toBe(id);
+	for (const bad of ['https://www.xiaoyuzhoufm.com/podcast/626b46ea9cbbf0451cf5a962', `http://www.xiaoyuzhoufm.com/episode/${id}`, `https://xiaoyuzhoufm.com.evil.example/episode/${id}`, 'https://www.xiaoyuzhoufm.com/episode/short', 'nope']) expect(xiaoyuzhouEpisode(bad)).toBeNull();
+	expect(audioKey(`https://www.xiaoyuzhoufm.com/episode/${id}`)).toBe(`xiaoyuzhou:${id}`);
+	expect(audioStudyPath(`https://www.xiaoyuzhoufm.com/episode/${id}`, '标题')).toBe(`reader.html?study=audio&url=${encodeURIComponent(`https://www.xiaoyuzhoufm.com/episode/${id}`)}&title=${encodeURIComponent('标题')}`);
+	expect(audioStudyPath('https://example.com/')).toBeNull(); expect(LOCAL_AUDIO_STUDY_PATH).toBe('reader.html?study=file');
+});

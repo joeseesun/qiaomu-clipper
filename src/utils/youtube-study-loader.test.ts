@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-const state = vi.hoisted(() => ({ parse: vi.fn(), fetch: vi.fn(), ready: vi.fn() }));
+const state = vi.hoisted(() => ({ parse: vi.fn(), fetch: vi.fn(), ready: vi.fn(), store: {} as Record<string, unknown> }));
 vi.mock('defuddle', () => ({ default: class { parseAsync() { return state.parse(); } } }));
 vi.mock('./highlighter', () => ({ setPageTitle: vi.fn(), setPageUrl: vi.fn() }));
-vi.mock('./browser-polyfill', () => ({ default: { runtime: { sendMessage: (...args: unknown[]) => state.fetch(...args) } } }));
+vi.mock('./browser-polyfill', () => ({ default: { runtime: { sendMessage: (...args: unknown[]) => state.fetch(...args) }, storage: { local: { get: async (key: string) => ({ [key]: state.store[key] }), set: async (value: Record<string, unknown>) => { Object.assign(state.store, JSON.parse(JSON.stringify(value))); }, remove: async (key: string) => { delete state.store[key]; } } } } }));
 vi.mock('./reader', () => ({ Reader: {
 	isReaderPage: false, preExtractedContent: null,
 	apply: vi.fn(async () => { document.body.innerHTML = '<main><h1>Video</h1><article><iframe src="https://www.youtube.com/embed/dbqweBCynuI"></iframe><div class="youtube-study-toolbar"><span class="youtube-study-status"></span></div></article></main><button id="qiaomu-reader-clip"></button>'; }),
@@ -16,7 +16,7 @@ import { youtubeStudyPath } from './youtube-url';
 const url = 'https://www.youtube.com/watch?v=dbqweBCynuI';
 const result = { content: '<div class="youtube transcript"><p class="transcript-segment">Actual subtitle</p></div>', title: 'Video' };
 const flush = async () => { for (let i = 0; i < 15; i++) await Promise.resolve(); };
-beforeEach(() => { vi.clearAllMocks(); document.body.innerHTML = ''; state.fetch.mockImplementation(async (message: { action: string }) => message.action === 'qiaomuStudyTranscript' ? {} : { html: '<html><body>source</body></html>' }); });
+beforeEach(() => { vi.clearAllMocks(); state.store = {}; document.body.innerHTML = ''; state.fetch.mockImplementation(async (message: { action: string }) => message.action === 'qiaomuStudyTranscript' ? {} : { html: '<html><body>source</body></html>' }); });
 afterEach(() => vi.useRealTimers());
 
 it('opens a source-linked study route without needing extracted content', () => {
@@ -141,4 +141,62 @@ it('falls back to the full extraction when the tab has no prefetched transcript'
 	await startYouTubeStudy(url, 42, 'Video', state.ready); await flush();
 	expect(state.fetch.mock.calls.some(([message]) => message?.action === 'qiaomuStudyLiveExtract')).toBe(true);
 	expect(Reader.attachYouTubeTranscript).toHaveBeenCalledOnce();
+});
+
+const KEY = 'youtube:dbqweBCynuI';
+const emptyEverywhere = () => state.fetch.mockImplementation(async (message: { action: string }) => message.action === 'qiaomuStudyTranscript' ? { html: '', count: 0 } : message.action === 'qiaomuStudyLiveExtract' ? { content: '<p>Description only</p>', title: 'Video' } : { html: '<html><body>source</body></html>' });
+const generationButtons = () => Array.from(document.querySelectorAll<HTMLButtonElement>('.qiaomu-yt-gen-button'));
+
+it('offers to generate subtitles when the platform has none, checks the helper, asks first, then attaches what it generates', async () => {
+	vi.spyOn(navigator, 'language', 'get').mockReturnValue('zh-CN');
+	vi.useFakeTimers(); emptyEverywhere(); state.parse.mockResolvedValue({ content: '<p>Description only</p>', title: 'Video' });
+	const asr: Array<Record<string, unknown>> = [];
+	const base = state.fetch.getMockImplementation()!;
+	state.fetch.mockImplementation(async (message: { action: string; payload?: Record<string, unknown> }) => {
+		if (message.action !== 'qiaomuAsr') return base(message);
+		asr.push(message.payload!);
+		if (message.payload!.mode === 'status') return { ok: true, ready: true, missing: [], hints: [], engine: 'mlx', modelDownloadNeeded: false };
+		return { ok: true, id: 'c'.repeat(32), videoKey: KEY, state: 'completed', stage: 'done', progress: 100, language: 'zh', segmentCount: 2, next: 2, segments: [{ start: 0, end: 2, text: '第一句' }, { start: 65, end: 67, text: '第二句' }] };
+	});
+	await startYouTubeStudy(url, 42, 'Video', state.ready); await vi.advanceTimersByTimeAsync(3000);
+	expect(Reader.attachYouTubeTranscript).not.toHaveBeenCalled(); expect(generationButtons().map(b => b.textContent)).toEqual(['生成字幕']);
+	generationButtons()[0].click(); await vi.advanceTimersByTimeAsync(50);
+	expect(asr).toEqual([{ mode: 'status', videoKey: KEY }]); expect(Array.from(document.querySelectorAll('.qiaomu-dlg-btn')).map(b => b.textContent)).toEqual(['取消', '生成字幕']); // nothing starts until the viewer agrees
+	document.querySelector<HTMLElement>('.qiaomu-dlg-btn.is-primary')!.click(); await vi.advanceTimersByTimeAsync(2500);
+	expect(asr[1]).toMatchObject({ mode: 'start', videoKey: KEY });
+	expect(Reader.attachYouTubeTranscript).toHaveBeenCalledOnce();
+	const attached = (Reader.attachYouTubeTranscript as any).mock.calls[0][1] as HTMLElement;
+	expect(Array.from(attached.querySelectorAll('.transcript-segment')).map(n => n.textContent)).toEqual(expect.arrayContaining([expect.stringContaining('第一句'), expect.stringContaining('第二句')]));
+	expect(Object.keys(state.store)).toContain('qiaomuTranscript2:generated:' + KEY); // kept for the next visit
+	expect(document.querySelector('.qiaomu-yt-gen')!.textContent).toContain('字幕由「本机识别」生成');
+	expect(document.querySelector<HTMLElement>('.youtube-study-status')!.textContent).toBe('');
+});
+
+it('tells the viewer what is missing when the helper cannot generate, and never starts a job', async () => {
+	vi.spyOn(navigator, 'language', 'get').mockReturnValue('zh-CN');
+	vi.useFakeTimers(); emptyEverywhere(); state.parse.mockResolvedValue({ content: '<p>d</p>', title: 'Video' });
+	const base = state.fetch.getMockImplementation()!; const started = vi.fn();
+	state.fetch.mockImplementation(async (message: { action: string; payload?: { mode?: string } }) => message.action !== 'qiaomuAsr' ? base(message) : message.payload!.mode === 'status' ? { ok: true, ready: false, missing: ['yt-dlp'], hints: ['brew install yt-dlp ffmpeg'], engine: null, modelDownloadNeeded: false } : (started(), { ok: false, error: 'x' }));
+	await startYouTubeStudy(url, 42, 'Video', state.ready); await vi.advanceTimersByTimeAsync(3000);
+	generationButtons()[0].click(); await vi.advanceTimersByTimeAsync(50);
+	expect(document.querySelector('.qiaomu-yt-gen-code')!.textContent).toBe('brew install yt-dlp ffmpeg'); expect(started).not.toHaveBeenCalled();
+});
+
+it('uses a transcript generated earlier when the platform still has none, without offering again', async () => {
+	vi.spyOn(navigator, 'language', 'get').mockReturnValue('zh-CN');
+	vi.useFakeTimers(); emptyEverywhere(); state.parse.mockResolvedValue({ content: '<p>d</p>', title: 'Video' });
+	state.store['qiaomuTranscript2:generated:' + KEY] = { segments: [{ time: '0:05', text: '之前生成的' }], at: Date.now() };
+	await startYouTubeStudy(url, 42, 'Video', state.ready); await vi.advanceTimersByTimeAsync(3000);
+	expect(Reader.attachYouTubeTranscript).toHaveBeenCalledOnce();
+	expect(((Reader.attachYouTubeTranscript as any).mock.calls[0][1] as HTMLElement).textContent).toContain('之前生成的');
+	expect(generationButtons().filter(b => b.textContent === '生成字幕')).toHaveLength(0);
+});
+
+it('asks the Bilibili page for its transcript too, so a generated one shows up in study mode', async () => {
+	const prefetched = '<div class="youtube transcript"><p class="transcript-segment">B站字幕行</p></div>';
+	state.fetch.mockImplementation(async (message: { action: string }) => message.action === 'qiaomuStudyTranscript' ? { html: prefetched, count: 1 } : { html: '<html><body>source</body></html>' });
+	state.parse.mockResolvedValue({ content: '<p>Description</p>', title: 'Video' });
+	await startYouTubeStudy('https://www.bilibili.com/video/BV1hM4m1U7rA/?p=20', 42, 'Video', state.ready); await flush();
+	expect(Reader.attachYouTubeTranscript).toHaveBeenCalledOnce();
+	expect(state.fetch.mock.calls.some(([message]) => message?.action === 'qiaomuStudyLiveExtract')).toBe(false);
 });

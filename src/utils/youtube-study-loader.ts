@@ -8,6 +8,12 @@ import { youtubeVideoId } from './youtube-url';
 import { TRANSCRIPT_SELECTOR } from './video-source';
 import { setPageTitle, setPageUrl } from './highlighter';
 import { withReliableBilibili } from './bilibili-captions';
+import { transcriptHtml } from './youtube-dom-transcript';
+import { createTranscriptCache } from './youtube-transcript-cache';
+import { toLines } from './subtitle-generation';
+import { createBarGeneration } from './bar-generation';
+import { buildGenerationPanel, GENERATION_STYLE, type GenUi } from './subtitle-generation-panel';
+import { generationStrings } from './subtitle-generation-strings';
 
 export async function withTranscriptDeadline<T>(extract: (signal: AbortSignal) => Promise<T>, timeoutMs = 35000): Promise<T> {
 	const controller = new AbortController();
@@ -58,9 +64,28 @@ export async function startYouTubeStudy(url: string, sourceTabId: number, initia
 	let loading = false;
 	let loaded = false;
 
+	// Videos without subtitles: offer to generate them on this computer (the helper does the work; see subtitle-generation.ts).
+	const key = videoKey(url)!;
+	const store = (browser as { storage?: { local?: Parameters<typeof createTranscriptCache>[0] } }).storage?.local;
+	const genCache = store ? createTranscriptCache(store) : undefined;
+	const text = (id: string, zh: string, en: string) => { try { return browser.i18n.getMessage(id) || (/^zh/i.test(navigator.language) ? zh : en); } catch { return /^zh/i.test(navigator.language) ? zh : en; } };
+	if (!document.getElementById('qiaomu-gen-style')) { const style = document.createElement('style'); style.id = 'qiaomu-gen-style'; style.textContent = GENERATION_STYLE; document.head.append(style); }
+	let attachGenerated: (lines: ReturnType<typeof toLines>) => Promise<void> = async () => {};
+	// The same flow as the transcript bar on the video page: one press starts it once an engine or service is chosen.
+	const generation = createBarGeneration({
+		videoKey: () => key, bar: () => ({ setGeneration: (ui: GenUi | null) => panel.show(ui ?? { kind: 'offer' }) }) as never,
+		apply: (_key, lines, done) => { if (done) void attachGenerated(lines); },
+		revert: () => { panel.show({ kind: 'offer' }); },
+		save: (k, lines) => { void genCache?.write(`generated:${k}`, lines); },
+		openSettings: () => { window.open(browser.runtime.getURL('settings.html?section=video'), '_blank'); },
+	});
+	const panel = buildGenerationPanel(document, generationStrings(text), generation.actions);
+	retry.after(panel.element);
+
 	async function load() {
 		if (loading || loaded) return;
 		loading = true; retry.hidden = true; status.textContent = '正在加载字幕… 视频可以先播放';
+		if (!generation.active) panel.show(null);
 		// The first attempt often only warms the page up (YouTube builds its transcript lazily), so one quiet
 		// second attempt happens before the user is asked to press retry.
 		const once = async () => {
@@ -113,7 +138,7 @@ export async function startYouTubeStudy(url: string, sourceTabId: number, initia
 				Object.defineProperty(doc, 'URL', { value: url, configurable: true });
 				return await new Defuddle(doc, { url, fetch: withReliableBilibili(proxyFetch) }).parseAsync();
 				};
-				if (youtubeVideoId(url)) {
+				if (youtubeVideoId(url) || bilibiliVideo(url)) {
 					const fast = await fromPrefetch().catch(() => undefined);
 					if (fast && hasTranscript(fast)) return fast;
 				}
@@ -128,12 +153,15 @@ export async function startYouTubeStudy(url: string, sourceTabId: number, initia
 			const heading = document.querySelector('main h1'); if (heading) heading.textContent = nextTitle;
 			await onReady(result);
 			if (!transcript || !transcriptText(content)) {
+				// Nothing from the platform: a transcript generated on this computer earlier is used instead.
+				const made = await genCache?.read(`generated:${key}`);
+				if (made) { await attachGenerated(made); panel.show({ kind: 'generated' }); return; }
 				shell?.ready();
 				if (clip) clip.disabled = false;
 				throw new Error('暂未获取到字幕，视频可能没有字幕或尚未加载完成，请重试');
 			}
 			await Reader.attachYouTubeTranscript(document, transcript, nextTitle, shell?.chat);
-			loaded = true;
+			loaded = true; panel.show(null);
 			shell?.ready();
 			if (clip) clip.disabled = false;
 		};
@@ -146,9 +174,16 @@ export async function startYouTubeStudy(url: string, sourceTabId: number, initia
 				try { await once(); } catch (second) { throw second ?? first; }
 			}
 		} catch (error) {
-			if (article.isConnected) { status.textContent = error instanceof Error ? error.message : '字幕加载失败，请重试'; retry.hidden = false; }
+			if (article.isConnected) { status.textContent = error instanceof Error ? error.message : '字幕加载失败，请重试'; retry.hidden = false; if (!generation.active && panel.kind() === null) panel.show({ kind: 'offer' }); }
 		} finally { loading = false; }
 	}
+	// A generated transcript goes into the page the same way as one from the platform.
+	attachGenerated = async lines => {
+		const holder = document.createElement('div'); holder.innerHTML = DOMPurify.sanitize(transcriptHtml(lines));
+		const transcript = holder.querySelector<HTMLElement>(TRANSCRIPT_SELECTOR); if (!transcript || loaded) return;
+		await Reader.attachYouTubeTranscript(document, transcript, document.title, shell?.chat);
+		loaded = true; status.textContent = ''; retry.hidden = true; shell?.ready(); if (clip) clip.disabled = false;
+	};
 	retry.addEventListener('click', () => { void load(); });
 	// Do not await subtitles: the caller and player remain usable immediately.
 	void load();

@@ -394,16 +394,29 @@ export function wireTranscript(
 			}
 		});
 	} else if (iframe && bilibili) {
-		// Bilibili's embed has no player API and reports no time: a jump reloads it at the requested
-		// second, the transcript marks the clicked line itself, and a scrub drag is coalesced into one reload.
-		let pending: ReturnType<typeof setTimeout> | undefined;
+		// Bilibili's embed has no player API. When this extension's script inside the embed answers (bilibili-embed-content.ts), it
+		// reports the time and takes a seek, so the transcript follows playback and a jump does not reload the player. Until it
+		// answers (or where it cannot run), a jump reloads the embed at the requested second and the transcript marks the clicked
+		// line itself; a scrub drag is coalesced into one reload.
+		let pending: ReturnType<typeof setTimeout> | undefined, bridged = false;
+		const onBridge = (e: MessageEvent) => {
+			if (e.source !== iframe.contentWindow) return;
+			const data = e.data as { qiaomuPlayer?: string; time?: unknown; paused?: unknown } | null;
+			if (data?.qiaomuPlayer !== 'time' || typeof data.time !== 'number') return;
+			bridged = true; iframePlaying = data.paused === false; updateActiveSegment(data.time);
+		};
+		window.addEventListener('message', onBridge);
+		const post = (message: Record<string, unknown>) => iframe.contentWindow?.postMessage({ qiaomuPlayer: message.qiaomuPlayer, ...message }, 'https://player.bilibili.com');
 		seekTo = (seconds: number) => {
-			const target = Math.max(0, Math.floor(seconds));
-			updateActiveSegment(target);
+			const target = Math.max(0, seconds);
+			if (bridged) { updateActiveSegment(target); post({ qiaomuPlayer: 'seek', time: target, play: true }); return; }
+			const whole = Math.floor(target);
+			updateActiveSegment(whole);
 			clearTimeout(pending);
 			pending = setTimeout(() => {
+				if (bridged) { post({ qiaomuPlayer: 'seek', time: target, play: true }); return; }
 				const url = new URL(iframe.src);
-				url.searchParams.set('t', String(target)); url.searchParams.set('autoplay', '1');
+				url.searchParams.set('t', String(whole)); url.searchParams.set('autoplay', '1');
 				iframe.src = url.toString();
 			}, 250);
 		};
@@ -452,6 +465,8 @@ export function wireTranscript(
 	const togglePlayPause = () => {
 		if (videoEl) {
 			videoEl.paused ? videoEl.play() : videoEl.pause();
+		} else if (iframe?.contentWindow && bilibili) {
+			iframe.contentWindow.postMessage({ qiaomuPlayer: 'toggle' }, 'https://player.bilibili.com');
 		} else if (iframe?.contentWindow && !bilibili) {
 			iframe.contentWindow.postMessage(JSON.stringify({
 				event: 'command',
