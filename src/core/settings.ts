@@ -40,7 +40,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 	// Apply section from URL params immediately to avoid flash (DOM only, no side effects)
 	const { section: initialSection, focus: initialFocus } = getUrlParameters();
-	const targetSection = (initialSection === 'general' || initialSection === 'interpreter' || initialSection === 'properties' || initialSection === 'highlighter' || initialSection === 'reader') ? initialSection : 'general';
+	const targetSection = (initialSection === 'general' || initialSection === 'interpreter' || initialSection === 'properties' || initialSection === 'highlighter' || initialSection === 'reader' || initialSection === 'templates') ? initialSection : 'general';
 	document.querySelectorAll('.settings-section').forEach(s => s.classList.remove('active'));
 	document.querySelectorAll('#sidebar li[data-section]').forEach(i => i.classList.remove('active'));
 	document.getElementById(`${targetSection}-section`)?.classList.add('active');
@@ -207,11 +207,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 		const { section, templateId, focus } = getUrlParameters();
 
 		if (section === 'general' || section === 'interpreter' || section === 'properties' || section === 'highlighter' || section === 'reader') {
-			showSettingsSection(section, undefined, focus || undefined);
+			showSettingsSection(section, undefined, focus || undefined, { replace: true });
+		} else if (section === 'templates') {
+			const template = templateId ? findTemplateById(templateId) : null;
+			if (template) showTemplateEditor(template, { updateRoute: false });
+			else showSettingsSection('properties', undefined, undefined, { replace: true });
 		} else if (templateId) {
 			const template = findTemplateById(templateId);
 			if (template) {
-				showTemplateEditor(template);
+				showTemplateEditor(template, { updateRoute: false });
 			} else {
 				console.error(`Template with id ${templateId} not found`);
 				showSettingsSection('general');
@@ -220,6 +224,32 @@ document.addEventListener('DOMContentLoaded', async () => {
 			showSettingsSection('general');
 		}
 	}
+
+	document.addEventListener('qiaomu-template-route', event => {
+		const templateId = (event as CustomEvent<{ templateId?: string }>).detail?.templateId;
+		const template = templateId ? findTemplateById(templateId) : templates[0];
+		if (template) showTemplateEditor(template);
+		else showSettingsSection('templates');
+	});
+
+	document.addEventListener('qiaomu-settings-route', event => {
+		const detail = (event as CustomEvent<{ section?: string; templateId?: string | null; focus?: string | null }>).detail;
+		if (detail.section !== 'templates') return;
+		const template = detail.templateId ? findTemplateById(detail.templateId) : null;
+		if (template) showTemplateEditor(template, { updateRoute: false });
+	});
+
+	document.addEventListener('qiaomu-settings-save-state', event => {
+		const state = (event as CustomEvent<'saving' | 'saved' | 'error'>).detail;
+		const messageKey = state === 'saving' ? 'settingsSaving' : state === 'error' ? 'settingsSaveFailed' : 'settingsSaved';
+		const message = state === 'saving' ? 'Saving' : state === 'error' ? 'Save failed' : 'Saved';
+		document.querySelectorAll<HTMLElement>('.settings-save-status').forEach(status => {
+			status.dataset.state = state;
+			status.dataset.i18n = messageKey;
+			status.textContent = message;
+		});
+		void translatePage();
+	});
 
 	function copyCurrentTemplateToClipboard(): void {
 		const editingTemplateIndex = getEditingTemplateIndex();

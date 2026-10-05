@@ -967,11 +967,13 @@ async function showModelModal(model: ModelConfig, index?: number) {
 			}
 
 			const status = document.createElement('div');
-			status.className = 'setting-item-description';
+			status.className = 'provider-model-status';
 			status.setAttribute('role', 'status');
+			status.dataset.state = 'loading';
 			status.textContent = getMessage('providerModelsLoading');
 			const select = document.createElement('select');
 			select.id = 'provider-model-select';
+			select.className = 'settings-choice-select';
 			select.setAttribute('aria-label', getMessage('providerModels'));
 			const custom = document.createElement('option');
 			custom.value = '';
@@ -1000,7 +1002,8 @@ async function showModelModal(model: ModelConfig, index?: number) {
 				}
 				select.disabled = false;
 				select.value = available.some(m => m.id === providerModelIdInput.value) ? providerModelIdInput.value : '';
-				status.textContent = available.length ? '' : getMessage('providerModelsEmpty');
+				status.dataset.state = available.length ? 'ready' : 'empty';
+				status.textContent = available.length ? `${available.length} ${getMessage('providerModelsReady')}` : getMessage('providerModelsEmpty');
 				providerModelIdInput.oninput = () => {
 					select.value = available.some(m => m.id === providerModelIdInput.value) ? providerModelIdInput.value : '';
 				};
@@ -1013,6 +1016,7 @@ async function showModelModal(model: ModelConfig, index?: number) {
 				if (version !== requestVersion) return;
 				select.disabled = false;
 				const reason = error instanceof Error ? error.message : '';
+				status.dataset.state = 'error';
 				status.textContent = getMessage(reason === 'missing-api-key' ? 'providerModelsMissingKey' : reason === 'deployment-models' ? 'providerModelsDeployment' : 'providerModelsFailed');
 			}
 		};
@@ -1026,10 +1030,9 @@ async function showModelModal(model: ModelConfig, index?: number) {
 			nameInput.value = model.name;
 			providerModelIdInput.value = model.providerModelId || '';
 		} else {
-			if (sortedProviders.length > 0) {
-				// Maybe default to first provider? Or leave blank? Let's leave blank for now.
-				// providerSelect.value = sortedProviders[0].id; 
-				// updateModelOptions();
+			if (sortedProviders.length === 1) {
+				providerSelect.value = sortedProviders[0].id;
+				void updateModelOptions();
 			} else {
 				console.warn("No providers configured. Cannot add models.");
 				// Consider disabling the confirm button or showing a message.

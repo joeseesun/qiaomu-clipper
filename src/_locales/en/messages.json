@@ -1104,6 +1104,9 @@
 	"providerModelsLoading": {
 		"message": "Fetching provider models…"
 	},
+	"providerModelsReady": {
+		"message": "models available"
+	},
 	"providerModelsRefresh": {
 		"message": "Refresh model list"
 	},
@@ -1558,9 +1561,14 @@
 		"message": "Translate subtitles"
 	},
 	"settingsBasics": { "message": "Basics" },
+	"settingsClipping": { "message": "Clipping & behavior" },
 	"settingsReading": { "message": "Reading" },
 	"settingsAi": { "message": "AI & translation" },
 	"settingsContent": { "message": "Content" },
+	"settingsOnThisPage": { "message": "On this page" },
+	"settingsSaving": { "message": "Saving" },
+	"settingsSaved": { "message": "Saved" },
+	"settingsSaveFailed": { "message": "Save failed" },
 	"qiaomuProvidersModels": { "message": "Providers & models" },
 	"qiaomuNotConfigured": { "message": "Not configured" },
 	"qiaomuProviderUnknown": { "message": "Unknown provider" },

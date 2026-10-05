@@ -640,6 +640,10 @@ export class Reader {
 		// Assemble everything
 		const typographyGroup = doc.createElement('div');
 		typographyGroup.className = 'obsidian-reader-settings-typography-group';
+		const typographyLabel = doc.createElement('div');
+		typographyLabel.className = 'obsidian-reader-settings-section-label';
+		typographyLabel.textContent = getMessage('readerTypography');
+		typographyGroup.appendChild(typographyLabel);
 		typographyGroup.appendChild(fontGroup);
 		typographyGroup.appendChild(widthGroup);
 		typographyGroup.appendChild(lineHeightGroup);
@@ -651,6 +655,10 @@ export class Reader {
 
 		const dropdownGroup = doc.createElement('div');
 		dropdownGroup.className = 'obsidian-reader-settings-dropdown-group';
+		const appearanceLabel = doc.createElement('div');
+		appearanceLabel.className = 'obsidian-reader-settings-section-label';
+		appearanceLabel.textContent = getMessage('readerThemeSection');
+		dropdownGroup.appendChild(appearanceLabel);
 		dropdownGroup.appendChild(themeModeWrapper);
 		dropdownGroup.appendChild(themeWrapper);
 		dropdownGroup.appendChild(fontWrapper);

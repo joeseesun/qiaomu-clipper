@@ -1104,6 +1104,9 @@
 	"providerModelsLoading": {
 		"message": "正在获取模型列表…"
 	},
+	"providerModelsReady": {
+		"message": "个模型可用"
+	},
 	"providerModelsRefresh": {
 		"message": "刷新模型列表"
 	},
@@ -1558,9 +1561,14 @@
 		"message": "翻译字幕"
 	},
 	"settingsBasics": { "message": "基础" },
+	"settingsClipping": { "message": "剪藏与行为" },
 	"settingsReading": { "message": "阅读" },
 	"settingsAi": { "message": "AI 与翻译" },
 	"settingsContent": { "message": "内容" },
+	"settingsOnThisPage": { "message": "本页内容" },
+	"settingsSaving": { "message": "正在保存" },
+	"settingsSaved": { "message": "已保存" },
+	"settingsSaveFailed": { "message": "保存失败" },
 	"qiaomuProvidersModels": { "message": "服务商与模型" },
 	"qiaomuNotConfigured": { "message": "未配置" },
 	"qiaomuProviderUnknown": { "message": "未知服务商" },

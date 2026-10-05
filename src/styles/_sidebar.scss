@@ -121,13 +121,18 @@
 	.sidebar {
 		width: 100%;
 		max-width: 100%;
-		display: none;
-		position: absolute;
-		top: 3rem;
+		display: block;
+		position: fixed;
+		top: auto;
 		left: 0;
 		right: 0;
 		bottom: 0;
-		z-index: 10;
+		max-height: min(75vh, 520px);
+		z-index: 20;
+		transform: translateY(105%);
+		transition: transform 220ms cubic-bezier(0.32, 0.72, 0, 1);
+		border-inline-end: 0;
+		border-top: 1px solid var(--background-modifier-border);
 		ul li {
 			padding: 0.5rem 0.625rem; 
 		}
@@ -136,9 +141,18 @@
 		display: block;
 	}
 
-	.sidebar-open .sidebar {
+	.sidebar-open .sidebar { transform: translateY(0); }
+	#sidebar-scrim {
 		display: block;
+		position: fixed;
+		inset: 0;
+		z-index: 19;
+		background: rgba(0, 0, 0, 0.28);
+		opacity: 0;
+		pointer-events: none;
+		transition: opacity 180ms ease;
 	}
+	.sidebar-open #sidebar-scrim { opacity: 1; pointer-events: auto; }
 
 	.sidebar-open .hamburger-menu {
 		-webkit-tap-highlight-color: transparent;
@@ -158,4 +172,9 @@
 		}
 	}
 
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.sidebar { transition: none; }
+	#sidebar-scrim { transition: none; }
 }

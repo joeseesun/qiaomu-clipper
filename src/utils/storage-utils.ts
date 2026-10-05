@@ -1,6 +1,7 @@
 import browser from './browser-polyfill';
 import { Settings, ModelConfig, PropertyType, HistoryEntry, Provider, Rating } from '../types/types';
 import { debugLog } from './debug';
+import { dispatchSettingsSaveState } from './settings-save-status';
 
 export type { Settings, ModelConfig, PropertyType, HistoryEntry, Provider, Rating };
 
@@ -257,11 +258,13 @@ export async function loadSettings(): Promise<Settings> {
 }
 
 export async function saveSettings(settings?: Partial<Settings>): Promise<void> {
+	dispatchSettingsSaveState('saving');
 	if (settings) {
 		generalSettings = { ...generalSettings, ...settings };
 	}
 
-	await browser.storage.sync.set({
+	try {
+		await browser.storage.sync.set({
 		vaults: generalSettings.vaults,
 		general_settings: {
 			showMoreActionsButton: generalSettings.showMoreActionsButton,
@@ -316,7 +319,12 @@ export async function saveSettings(settings?: Partial<Settings>): Promise<void> 
 			customCss: generalSettings.readerSettings.customCss
 		},
 		stats: generalSettings.stats
-	});
+		});
+		dispatchSettingsSaveState('saved');
+	} catch (error) {
+		dispatchSettingsSaveState('error');
+		throw error;
+	}
 }
 
 export async function setLegacyMode(enabled: boolean): Promise<void> {

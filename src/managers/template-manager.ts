@@ -1,5 +1,6 @@
 import { Template, Property, PropertyType } from '../types/types';
 import { compressToUTF16, decompressFromUTF16 } from 'lz-string';
+import { dispatchSettingsSaveState } from '../utils/settings-save-status';
 import browser from '../utils/browser-polyfill';
 import { generalSettings } from '../utils/storage-utils';
 import { addPropertyType } from './property-types-manager';
@@ -69,6 +70,7 @@ export async function loadTemplates(): Promise<Template[]> {
 }
 
 export async function saveTemplateSettings(): Promise<string[]> {
+	dispatchSettingsSaveState('saving');
 	const templateIds = templates.map(t => t.id);
 	const warnings: string[] = [];
 	const templateChunks: { [key: string]: string[] } = {};
@@ -88,9 +90,11 @@ export async function saveTemplateSettings(): Promise<string[]> {
 
 	try {
 		await browser.storage.sync.set({ ...templateChunks, [TEMPLATE_LIST_KEY]: templateIds });
+		dispatchSettingsSaveState('saved');
 		console.log('Template settings saved');
 		return warnings;
 	} catch (error) {
+		dispatchSettingsSaveState('error');
 		console.error('Error saving templates:', error);
 		throw error;
 	}
