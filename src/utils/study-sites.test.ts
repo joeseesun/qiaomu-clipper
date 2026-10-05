@@ -20,3 +20,12 @@ it('knows which site an address belongs to, subdomains included, and never match
 	expect(siteOf('https://vimeo.com/123')!.id).toBe('vimeo'); expect(siteOf('https://player.vimeo.com/video/1')!.id).toBe('vimeo'); expect(siteOf('https://www.youtube.com/watch?v=x')!.id).toBe('youtube'); expect(siteOf('https://music.163.com/song?id=1')!.id).toBe('netease'); expect(siteOf('https://x.com/a/status/1')!.id).toBe('x');
 	for (const none of ['https://notvimeo.com/1', 'https://vimeo.com.evil.example/1', 'https://example.com', 'ftp://vimeo.com', 'nope']) expect(siteOf(none), none).toBeUndefined();
 });
+
+it('finds the post an X address is about, and nothing else on X', async () => {
+	const { xStatus } = await import('./study-sites');
+	expect(xStatus('https://x.com/jack/status/20')).toBeNull(); // too short to be a real post id
+	expect(xStatus('https://x.com/jack/status/1790000000000000000?s=20&t=abc')).toBe('https://x.com/jack/status/1790000000000000000');
+	expect(xStatus('https://twitter.com/jack/status/1790000000000000000/video/1')).toBe('https://x.com/jack/status/1790000000000000000'); expect(xStatus('https://mobile.twitter.com/jack/status/1790000000000000000')).toBe('https://x.com/jack/status/1790000000000000000');
+	expect(xStatus('https://x.com/i/status/1790000000000000000')).toBe('https://x.com/i/status/1790000000000000000');
+	for (const none of ['https://x.com/home', 'https://x.com/jack', 'https://x.com/jack/status/abc', 'https://x.com.evil.example/jack/status/1790000000000000000', 'http://x.com/jack/status/1790000000000000000', 'https://example.com/jack/status/1790000000000000000', 'nope']) expect(xStatus(none), none).toBeNull();
+});

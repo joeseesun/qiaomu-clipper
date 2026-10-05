@@ -13,10 +13,13 @@ import { TRANSCRIPT_SELECTOR } from './video-source';
 import { createReaderSourceDraft } from './reader-source-draft';
 import { mountReaderPreviewShell } from './reader-preview-shell';
 import type { PanelSegment } from './youtube-panel-actions';
-import { parsePodcastPage, type PodcastEpisode } from './podcast-page';
+import { durationText, parsePodcastPage, plainToHtml, type PodcastEpisode } from './podcast-page';
+import { xStatus } from './study-sites';
 import { mountAudioControls } from './audio-controls';
 import { recordStudy } from './study-home';
+import { reloadPage } from './page-reload';
 import { fetchFeed, rssKey, webKey } from './podcast-feed';
+import { isVideoFile, mountMediaStudyPlayer } from './media-study-player';
 
 // Study mode for audio: a podcast episode, or a file the viewer chose. The same page as for a video: the player on top, the
 // transcript following it, notes and questions beside it. The transcript is made by the same subtitle generation as for videos
@@ -59,7 +62,9 @@ html.qiaomu-audio-page .player-container{box-shadow:0 0 0 1px var(--background-m
 html.qiaomu-audio-page .player-container{position:sticky;top:var(--qa-top);z-index:20;border-top:0}
 html.qiaomu-audio-page .player-container .reader-video-wrapper.is-audio{padding:0;background:none;box-shadow:none;border-radius:0;margin:0}
 html.qiaomu-audio-page .reader-video-wrapper.is-audio{aspect-ratio:auto;height:auto;overflow:visible}
-html.qiaomu-audio-page .reader-video-wrapper.is-audio video{display:none!important}
+html.qiaomu-audio-page .reader-video-wrapper.is-audio:not(.has-picture) video{display:none!important}
+html.qiaomu-audio-page .reader-video-wrapper.has-picture video.reader-video-player{display:block!important;width:100%!important;height:auto!important;max-height:min(56vh,520px);aspect-ratio:16/9;object-fit:contain;margin:0 0 16px;border-radius:14px;background:#000;cursor:pointer}
+.qiaomu-post-text{margin:0 0 20px;font-size:16px;line-height:1.7}.qiaomu-post-text p{margin:0 0 10px}.qiaomu-post-text a{overflow-wrap:anywhere}
 html.qiaomu-audio-page .player-container .player-toggles{background:transparent}
 html.qiaomu-audio-page .player-container .player-toggles[hidden]{display:none}
 html.qiaomu-audio-page .qa-tools .player-toggle-group{display:flex;align-items:center;gap:6px 18px;margin-inline-start:14px;background:transparent}
@@ -113,7 +118,7 @@ article[data-audio-tab=transcript] .qiaomu-shownotes{display:none}
 
 export async function startAudioStudy(options: AudioStudyOptions): Promise<void> {
 	const initialTitle = options.title || (options.kind === 'file' ? '本地音频学习' : '播客学习');
-	const url = options.url || FILE_PAGE_URL;
+	const url = options.webUrl || options.url || FILE_PAGE_URL;
 	const session = await createReaderSourceDraft(url, initialTitle);
 	Reader.onEdit = () => {};
 	Object.defineProperty(document, 'URL', { value: url, configurable: true });
@@ -132,13 +137,13 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 	const holder = document.createElement('div'); holder.className = 'qiaomu-audio-study';
 	const status = document.createElement('p'); status.className = 'youtube-study-status qiaomu-audio-status'; status.setAttribute('role', 'status');
 	article.prepend(holder); holder.append(status);
-	let key = options.key || '', title = initialTitle, attached = false;
+	let sourceHtml = '';
+	let key = options.key || '', title = initialTitle, attached = false, remade = false; // `remade`: this transcript replaces one already on the page
 
 	// The player: an <audio> would do, but the transcript wiring follows a <video class="reader-video-player">, which plays audio too.
-	const showPlayer = (src: string): HTMLVideoElement => {
-		const wrapper = document.createElement('div'); wrapper.className = 'reader-video-wrapper is-audio';
-		const player = document.createElement('video'); player.className = 'reader-video-player'; player.controls = true; player.preload = 'metadata'; player.src = src;
-		wrapper.append(player, mountAudioControls(document, player, { play: text('audioPlay', '播放', 'Play'), pause: text('audioPause', '暂停', 'Pause'), back: text('audioBack', '后退 15 秒', 'Back 15 s'), forward: text('audioForward', '前进 30 秒', 'Forward 30 s'), speed: text('audioSpeed', '播放速度', 'Playback speed'), seek: text('audioSeek', '播放进度', 'Position') })); holder.before(wrapper);
+	const showPlayer = (src: string, picture?: { poster?: string }): HTMLVideoElement => {
+		const player = mountMediaStudyPlayer(article, holder, src, Boolean(picture), picture?.poster);
+		if (!picture) player.parentElement!.append(mountAudioControls(document, player, { play: text('audioPlay', '播放', 'Play'), pause: text('audioPause', '暂停', 'Pause'), back: text('audioBack', '后退 15 秒', 'Back 15 s'), forward: text('audioForward', '前进 30 秒', 'Forward 30 s'), speed: text('audioSpeed', '播放速度', 'Playback speed'), seek: text('audioSeek', '播放进度', 'Position') }));
 		return player;
 	};
 	const attach = async (lines: PanelSegment[]) => {
@@ -149,16 +154,18 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 		await Reader.attachYouTubeTranscript(document, transcript, title, shell.chat);
 		// The reader puts its switches (follow playback, translate) in a bar of their own under the player; here they belong in the one row of controls.
 		const group = article.querySelector<HTMLElement>('.player-container .player-toggle-group'), tools = article.querySelector<HTMLElement>('.player-container .qa-tools');
-		if (group && tools) { tools.insertBefore(group, tools.querySelector('.qa-speed')); article.querySelector('.player-container .player-toggles')?.setAttribute('hidden', ''); }
-		await session.populate({ content: transcriptHtml(lines), title }).catch(() => {});
+		if (article.dataset.audioStudy === 'true' && group && tools) { tools.insertBefore(group, tools.querySelector('.qa-speed')); article.querySelector('.player-container .player-toggles')?.setAttribute('hidden', ''); }
+		await session.populate({ content: sourceHtml + transcriptHtml(lines), title }).catch(() => {});
 		shell.refresh(); shell.setPending(false);
 	};
 	const generation = createBarGeneration({
 		videoKey: () => key || null,
 		bar: () => ({ setGeneration: (ui: GenUi | null) => panel.show(ui ?? { kind: 'offer' }) }) as never,
-		apply: (_key, lines, done) => { if (done) void attach(lines); },
+		apply: (_key, lines, done) => { if (done) { remade = attached; void attach(lines); } },
 		revert: () => { panel.show({ kind: 'offer' }); },
-		save: (k, lines) => { void cache.write(`generated:${k}`, lines); },
+		// A transcript made again (another model) replaces the one on the page. The page's transcript is wired once, so it is read again from the
+		// saved copy by loading the page again, once the copy is written.
+		save: (k, lines) => { void cache.write(`generated:${k}`, lines).then(() => { if (remade) { status.textContent = text('audioRefreshing', '新的文字稿已生成，正在刷新…', 'The new transcript is ready — refreshing…'); reloadPage(); } }); },
 		openSettings: () => { window.open(browser.runtime.getURL('settings.html?section=asr'), '_blank'); },
 	});
 	const panel = buildGenerationPanel(document, generationStrings(text), generation.actions);
@@ -167,28 +174,31 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 	const begin = async () => {
 		const made = await cache.read(`generated:${key}`);
 		if (made?.length) { await attach(made); panel.show({ kind: 'generated' }); return; }
-		status.textContent = text('audioStudyNone', '这段音频还没有字幕。生成后，字幕会跟着播放滚动。', 'There are no subtitles for this audio yet. Once made, the lines follow playback.');
+		status.textContent = text('audioStudyNone', '这段内容还没有字幕。生成后，字幕会跟着播放滚动。', 'There are no subtitles for this media yet. Once made, the lines follow playback.');
 		generation.actions.request();
 	};
 
 	// An episode with a cover, a show, a date and show notes: from a Xiaoyuzhou page or from an RSS feed.
-	const present = async (episode: { title: string; show: string; cover?: string; date?: string; minutes?: number; audio: string; notesHtml: string }) => {
+	// `post`: a short text that belongs with the media (a post's words), shown under the heading rather than behind a tab.
+	const present = async (episode: { title: string; show: string; cover?: string; date?: string; seconds?: number; audio: string; picture?: boolean; notesHtml: string; notesLabel?: string; post?: string }) => {
 		title = episode.title || initialTitle; document.title = title; setPageTitle(title);
 		const heading = document.querySelector('main h1'); if (heading) heading.textContent = title;
 		// The show, the date and the length, with the cover: what the listener knows the episode by.
 		const hero = document.createElement('div'); hero.className = 'qiaomu-audio-hero';
-		if (episode.cover) { const cover = document.createElement('img'); cover.src = episode.cover; cover.alt = ''; cover.referrerPolicy = 'no-referrer'; hero.append(cover); }
+		// A picture that does not load leaves no empty square behind.
+		if (episode.cover && !episode.picture) { const cover = document.createElement('img'); cover.src = episode.cover; cover.alt = ''; cover.referrerPolicy = 'no-referrer'; cover.addEventListener('error', () => cover.remove()); hero.append(cover); }
 		const about = document.createElement('div'); const show = document.createElement('b'); show.textContent = episode.show || '播客'; about.append(show);
-		const facts = [episode.date?.slice(0, 10), episode.minutes ? `${episode.minutes} 分钟` : ''].filter(Boolean).join(' · '); if (facts) { const line = document.createElement('span'); line.textContent = facts; about.append(line); }
+		const facts = [episode.date?.slice(0, 10), durationText(episode.seconds)].filter(Boolean).join(' · '); if (facts) { const line = document.createElement('span'); line.textContent = facts; about.append(line); }
 		hero.append(about); holder.before(hero);
-		const player = episode.audio ? showPlayer(episode.audio) : undefined;
+		if (episode.post) { const post = document.createElement('div'); post.className = 'qiaomu-post-text'; post.innerHTML = DOMPurify.sanitize(episode.post); sourceHtml = post.outerHTML; holder.before(post); }
+		const player = episode.audio ? showPlayer(episode.audio, episode.picture ? { poster: episode.cover } : undefined) : undefined;
 		// The show notes next to the transcript: tabs, so neither pushes the other off the screen.
 		if (episode.notesHtml) {
 			const tabs = document.createElement('div'); tabs.className = 'qiaomu-audio-tabs'; tabs.setAttribute('role', 'tablist');
 			const notes = document.createElement('section'); notes.className = 'qiaomu-shownotes'; notes.innerHTML = episode.notesHtml;
 			notes.addEventListener('click', event => { const mark = (event.target as HTMLElement).closest<HTMLElement>('a.qiaomu-seek'); if (!mark) return; event.preventDefault(); if (!player) return; player.currentTime = Number(mark.dataset.time); void player.play().catch(() => {}); });
 			const choose = (tab: 'transcript' | 'notes') => { article.dataset.audioTab = tab; tabs.querySelectorAll<HTMLElement>('button').forEach(button => button.setAttribute('aria-selected', String(button.dataset.tab === tab))); };
-			for (const [tab, label] of [['transcript', text('audioTabTranscript', '文字稿', 'Transcript')], ['notes', text('audioTabNotes', '节目简介', 'Show notes')]] as const) {
+			for (const [tab, label] of [['transcript', text('audioTabTranscript', '文字稿', 'Transcript')], ['notes', episode.notesLabel ?? text('audioTabNotes', '节目简介', 'Show notes')]] as const) {
 				const button = document.createElement('button'); button.type = 'button'; button.className = 'qiaomu-audio-tab'; button.dataset.tab = tab; button.setAttribute('role', 'tab'); button.textContent = label; button.addEventListener('click', () => choose(tab)); tabs.append(button);
 			}
 			holder.before(tabs); holder.after(notes); choose('transcript');
@@ -199,7 +209,7 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 		try { episode = await fetchEpisode(url); } catch (error) { status.textContent = error instanceof Error ? error.message : '读取节目失败'; return; }
 		if (!key) { status.textContent = '无效的节目链接'; return; }
 		void recordStudy({ url, title: episode.title });
-		await present(episode); await begin(); return;
+		await present({ ...episode, seconds: episode.minutes ? episode.minutes * 60 : undefined }); await begin(); return;
 	}
 	if (options.kind === 'web') {
 		const address = options.webUrl ?? '';
@@ -212,7 +222,9 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 		}
 		key = await webKey(address); registerWebSource(key, address);
 		void recordStudy({ url: address, title: info.title, path: `reader.html?study=web&url=${encodeURIComponent(address)}`, kind: 'web' });
-		await present({ title: info.title, show: info.author || info.site, cover: info.thumbnail ?? undefined, minutes: info.seconds ? Math.round(info.seconds / 60) : undefined, audio: info.mediaUrl ?? '', notesHtml: '' });
+		// A post on X says something of its own: its words stay with the media. A long description of another site waits behind a tab.
+		const words = (info.description ?? '').trim(), isPost = Boolean(xStatus(address)), short = isPost || words.length <= 400;
+		await present({ title: info.title, show: info.author || info.site, cover: info.thumbnail ?? undefined, date: info.date ?? undefined, seconds: info.seconds ?? undefined, audio: info.mediaUrl ?? '', picture: info.video && Boolean(info.mediaUrl), ...(words && short ? { post: plainToHtml(words) } : {}), ...(words && !short ? { notesHtml: plainToHtml(words), notesLabel: text('audioTabAbout', '简介', 'Description') } : { notesHtml: '' }) });
 		if (!info.mediaUrl) { const note = document.createElement('p'); note.className = 'qiaomu-shows-note'; note.append(document.createTextNode('这个网站没有给出可以直接播放的声音，所以这里不提供播放器；字幕照常生成，对照时请在原页面播放：')); const link = document.createElement('a'); link.href = address; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = '打开原页面'; note.append(link); holder.before(note); }
 		await begin(); return;
 	}
@@ -223,7 +235,7 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 			if (!found) { status.textContent = '订阅源里没有找到这一集（可能已经太旧）。可以在小宇宙或播客 App 里打开它的链接。'; return; }
 			key = await rssKey(options.feed, options.guid); registerFeedEpisode(key, options.feed, options.guid);
 			void recordStudy({ path: `reader.html?study=feed&feed=${encodeURIComponent(options.feed)}&guid=${encodeURIComponent(options.guid)}`, title: found.title, kind: 'podcast', url: options.feed + '#' + options.guid });
-			await present({ title: found.title, show: feed.show, cover: feed.cover, date: found.date, minutes: found.seconds ? Math.round(found.seconds / 60) : undefined, audio: found.audio, notesHtml: found.notesHtml });
+			await present({ title: found.title, show: feed.show, cover: feed.cover, date: found.date, seconds: found.seconds, audio: found.audio, notesHtml: found.notesHtml });
 		} catch (error) { status.textContent = error instanceof Error ? error.message : '读取节目失败'; return; }
 		await begin(); return;
 	}
@@ -239,7 +251,7 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 		if (!AUDIO_FILE.test(file.name)) { hint.textContent = text('audioBadType', '这个文件类型不支持。', 'This file type is not supported.'); return; }
 		chooser.hidden = true; title = file.name.replace(/\.[^.]+$/, '') || initialTitle; document.title = title; setPageTitle(title);
 		const heading = document.querySelector('main h1'); if (heading) heading.textContent = title;
-		showPlayer(URL.createObjectURL(file));
+		showPlayer(URL.createObjectURL(file), isVideoFile(file) ? {} : undefined);
 		status.textContent = text('audioSending', '正在把文件交给本机助手…', 'Handing the file to the local helper…');
 		const sent = await asrUpload(file, fraction => { status.textContent = `${text('audioSending', '正在把文件交给本机助手…', 'Handing the file to the local helper…')} ${Math.round(fraction * 100)}%`; });
 		if (!sent.ok) {

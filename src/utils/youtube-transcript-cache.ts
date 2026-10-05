@@ -6,7 +6,7 @@ import type { PanelSegment } from './youtube-panel-actions';
 export interface CacheStorage { get(keys: string | string[]): Promise<Record<string, any>>; set(items: Record<string, unknown>): Promise<void>; remove(keys: string | string[]): Promise<void> }
 // v2: transcripts are cached per subtitle language the viewer chose, and the default language changed (the spoken one, not Chinese).
 const INDEX = 'qiaomuTranscriptIndex2', prefix = 'qiaomuTranscript2:';
-const VALID_KEY = /^(?:[\w-]{11}|bilibili:BV[0-9A-Za-z]{10}:\d{1,4}|generated:(?:youtube:[\w-]{11}|bilibili:BV[0-9A-Za-z]{10}:\d{1,4}|xiaoyuzhou:[0-9a-f]{24}|file:[0-9a-f]{32}|rss:[0-9a-f]{12}:[0-9a-f]{16}))(?:#[a-z]{2,8})?$/;
+const VALID_KEY = /^(?:[\w-]{11}|bilibili:BV[0-9A-Za-z]{10}:\d{1,4}|generated:(?:youtube:[\w-]{11}|bilibili:BV[0-9A-Za-z]{10}:\d{1,4}|xiaoyuzhou:[0-9a-f]{24}|file:[0-9a-f]{32}|rss:[0-9a-f]{12}:[0-9a-f]{16}|web:[0-9a-f]{12}))(?:#[a-z]{2,8})?$/;
 export const CACHE_LIMIT = 30, MAX_BYTES = 800_000;
 
 const valid = (value: unknown): value is PanelSegment[] => Array.isArray(value) && value.length > 0 && value.every(line => typeof line?.time === 'string' && typeof line?.text === 'string');

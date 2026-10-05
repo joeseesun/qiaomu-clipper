@@ -19,7 +19,7 @@ export async function initializeStudySitesSettings(): Promise<void> {
 	const save = (next: StudySites) => { sites = cleanStudySites(next); pending = pending.then(() => saveStudySites(sites)); };
 	const paint = () => {
 		list.replaceChildren(
-			...STUDY_SITES.map(site => row(site.id, site.name, site.note, isSiteOn(sites, site.id), on => save({ ...sites, off: on ? sites.off.filter(id => id !== site.id) : [...sites.off, site.id] }))),
+			...STUDY_SITES.map(site => row(site.id, site.name, site.note ?? '媒体详情页字幕条、沉浸学习；读取取决于网站和登录状态', isSiteOn(sites, site.id), on => save({ ...sites, off: on ? sites.off.filter(id => id !== site.id) : [...sites.off, site.id] }))),
 			row('other', '其他网站', '粘贴任何其他网站的链接时，可以选择按音视频学习（用 yt-dlp 试着读取，不保证每个网站都行）', sites.other, on => save({ ...sites, other: on })),
 		);
 	};

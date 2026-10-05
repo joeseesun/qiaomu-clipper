@@ -38,7 +38,7 @@ const ask = async <T>(payload: Record<string, unknown>): Promise<AsrReply<T>> =>
 export const asrStatus = (videoKey?: string) => ask<AsrStatus>({ mode: 'status', ...(videoKey ? { videoKey } : {}) });
 export const asrStart = (videoKey: string, language = 'auto', force = false, cookies?: CookieBrowser) => ask<AsrJob>({ mode: 'start', videoKey, language, force, ...(cookies ? { cookies } : {}), ...(feedRefs.has(videoKey) ? { rss: feedRefs.get(videoKey) } : {}), ...(webRefs.has(videoKey) ? { web: webRefs.get(videoKey) } : {}) });
 // What yt-dlp can tell about an address: whether it can read it, what it is, and a plain media address when the site gives one.
-export interface WebInfo { ok: true; title: string; author: string; seconds: number | null; thumbnail: string | null; site: string; mediaUrl: string | null; video: boolean }
+export interface WebInfo { ok: true; title: string; author: string; seconds: number | null; thumbnail: string | null; site: string; mediaUrl: string | null; video: boolean; description?: string; date?: string | null }
 export const asrProbe = (url: string) => ask<WebInfo>({ mode: 'probe', url });
 export const asrPoll = (jobId: string, since: number) => ask<AsrJob>({ mode: 'poll', jobId, since });
 // Pick how subtitles are made (saved as the default): a local engine, or one of the saved cloud services.

@@ -194,3 +194,12 @@ it('lets only the extension\'s own pages start or probe an address on another si
  await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'probe',url}},sender);expect(native.mock.calls[0][1]).toEqual({action:'asrProbe',url});
  await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'start',videoKey:KEY,web:{url}}},sender);expect(native.mock.calls[1][1]).toMatchObject({action:'asrStart',videoKey:KEY,web:{url}});
 });
+
+it('lets a post on X start a job for its own address from the bar on that post, and for no other address',async()=>{
+ native.mockReset();native.mockResolvedValue({ok:true});const post='https://x.com/jack/status/1790000000000000000',other='https://x.com/jack/status/1790000000000000001',KEY='web:'+'a'.repeat(12);
+ const onPost={id:'test-id',url:post+'?s=20'},onHome={id:'test-id',url:'https://x.com/home'},elsewhere={id:'test-id',url:'https://example.com/a'};
+ await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'start',videoKey:KEY,web:{url:post}}},onPost);expect(native.mock.calls[0][1]).toMatchObject({action:'asrStart',videoKey:KEY,web:{url:post}});
+ native.mockClear();for(const [page,url] of [[onPost,other],[onHome,post],[elsewhere,post],[elsewhere,'https://example.com/a'],[onPost,'http://x.com/jack/status/1790000000000000000']] as const) expect(await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'start',videoKey:KEY,web:{url}}},page)).toMatchObject({error:'bad-request'});
+ expect(native).not.toHaveBeenCalled();
+ expect(await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'probe',url:post}},onPost)).toMatchObject({error:'refused'}); // the bar needs no probe, and a page may not use it
+});

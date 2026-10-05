@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 const state = vi.hoisted(() => ({ parse: vi.fn(), fetch: vi.fn(), ready: vi.fn(), store: {} as Record<string, unknown> }));
 vi.mock('defuddle', () => ({ default: class { parseAsync() { return state.parse(); } } }));
+vi.mock('./page-reload', () => ({ reloadPage: vi.fn() }));
 vi.mock('./highlighter', () => ({ setPageTitle: vi.fn(), setPageUrl: vi.fn() }));
 vi.mock('./browser-polyfill', () => ({ default: { runtime: { sendMessage: (...args: unknown[]) => state.fetch(...args) }, storage: { local: { get: async (key: string) => ({ [key]: state.store[key] }), set: async (value: Record<string, unknown>) => { Object.assign(state.store, JSON.parse(JSON.stringify(value))); }, remove: async (key: string) => { delete state.store[key]; } } } } }));
 vi.mock('./reader', () => ({ Reader: {
@@ -12,6 +13,7 @@ vi.mock('./reader', () => ({ Reader: {
 vi.mock('./youtube-study', () => ({ mountYouTubeStudy:vi.fn(), transcriptText: (node: HTMLElement) => node.querySelector('.transcript-segment')?.textContent || '' }));
 import { firstWithTranscript, startYouTubeStudy, withTranscriptDeadline } from './youtube-study-loader';
 import { Reader } from './reader';
+import { reloadPage } from './page-reload';
 import { youtubeStudyPath } from './youtube-url';
 const url = 'https://www.youtube.com/watch?v=dbqweBCynuI';
 const result = { content: '<div class="youtube transcript"><p class="transcript-segment">Actual subtitle</p></div>', title: 'Video' };
@@ -170,6 +172,18 @@ it('offers to generate subtitles when the platform has none, checks the helper, 
 	expect(Object.keys(state.store)).toContain('qiaomuTranscript2:generated:' + KEY); // kept for the next visit
 	expect(document.querySelector('.qiaomu-yt-gen')!.textContent).toContain('字幕由「本机识别」生成');
 	expect(document.querySelector<HTMLElement>('.youtube-study-status')!.textContent).toBe('');
+	// Made again with another model: the new lines are saved and the page is loaded again, since its transcript is wired once.
+	expect(reloadPage).not.toHaveBeenCalled(); asr.length = 0;
+	state.fetch.mockImplementation(async (message: { action: string; payload?: Record<string, unknown> }) => {
+		if (message.action !== 'qiaomuAsr') return base(message);
+		asr.push(message.payload!); if (message.payload!.mode === 'status') return { ok: true, ready: true, missing: [], hints: [], engine: 'mlx', modelDownloadNeeded: false, local: [] };
+		return { ok: true, id: 'd'.repeat(32), videoKey: KEY, state: 'completed', stage: 'done', progress: 100, language: 'zh', segmentCount: 1, next: 1, segments: [{ start: 0, end: 2, text: '换了模型的新句子' }] };
+	});
+	Array.from(document.querySelectorAll<HTMLButtonElement>('.qiaomu-yt-gen-button')).find(b => b.textContent === '换模型生成文字稿')!.click(); await vi.advanceTimersByTimeAsync(50);
+	document.querySelector<HTMLElement>('.qiaomu-dlg-btn.is-primary')!.click(); await vi.advanceTimersByTimeAsync(2500);
+	expect(asr.find(m => m.mode === 'start')).toMatchObject({ mode: 'start', videoKey: KEY, force: true }); // asked for again, not read from the helper's cache
+	expect(JSON.stringify(state.store['qiaomuTranscript2:generated:' + KEY])).toContain('换了模型的新句子'); expect(reloadPage).toHaveBeenCalledTimes(1);
+	expect(Reader.attachYouTubeTranscript).toHaveBeenCalledOnce(); // not attached a second time
 });
 
 it('tells the viewer what is missing when the helper cannot generate, and never starts a job', async () => {

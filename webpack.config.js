@@ -45,6 +45,7 @@ module.exports = (env, argv) => {
 			'bilibili-panel': './src/bilibili-panel-content.ts',
 			'bilibili-embed': './src/bilibili-embed-content.ts',
 			'xiaoyuzhou-panel': './src/xiaoyuzhou-content.ts',
+			'web-panel': './src/web-content.ts',
 			'note-card': ['./src/note-card-content.ts', './src/note-card.scss'],
 			popup: './src/core/popup.ts',
 			settings: './src/core/settings.ts',

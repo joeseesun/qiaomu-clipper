@@ -14,7 +14,7 @@ beforeEach(async () => { state.store = {}; state.create.mockReset(); state.put.m
 
 it('draws the study page inside the settings page, beside the menu, without taking over the document', () => {
 	expect(document.querySelector('#study-home .qiaomu-home.is-embedded')).not.toBeNull(); expect(document.querySelector('#study-home h1')).toBeNull(); // the settings page has its own heading
-	expect(document.querySelector('#study-home')!.textContent).toContain('推荐播客'); expect(document.querySelector('#study-home')!.textContent).toContain('选择本地音频或视频文件'); expect(document.title).not.toBe('转写学习');
+	expect(document.querySelector('#study-home')!.textContent).toContain('推荐播客'); expect(document.querySelector('#study-home')!.textContent).toContain('选择本地文件'); expect(document.title).not.toBe('转写学习');
 });
 
 it('opens a study in a tab of its own, and keeps the settings page where it is', () => {

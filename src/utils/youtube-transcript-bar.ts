@@ -23,7 +23,7 @@ export interface BarHooks {
 	initialFollow?: boolean;
 	onFollow?: (follow: boolean) => void;
 	// Which site the bar sits in: it takes that site's own colours, corners and type.
-	theme?: 'youtube' | 'bilibili' | 'podcast';
+	theme?: 'youtube' | 'bilibili' | 'podcast' | 'x';
 	// The subtitle languages the video offers; the viewer picks which one the bar shows.
 	onLanguage?: (id: string) => void;
 	// Offers "generate subtitles" when the video has none. The bar draws it; the page's script runs the job.
@@ -310,6 +310,7 @@ ytd-engagement-panel-section-list-renderer[data-qiaomu-auto="1"]{display:none!im
    --text/--bg tokens), so it follows their light and dark themes and looks like part of the page. */
 .qiaomu-yt-bar{--qm-fg:var(--yt-spec-text-primary,#0f0f0f);--qm-fg2:var(--yt-spec-text-secondary,#606060);--qm-bg:var(--yt-spec-base-background,#fff);--qm-line:var(--yt-spec-10-percent-layer,rgba(0,0,0,.1));--qm-hover:var(--yt-spec-badge-chip-background,rgba(0,0,0,.05));--qm-field:var(--yt-spec-badge-chip-background,rgba(0,0,0,.05));--qm-accent:var(--yt-spec-call-to-action,#065fd4);--qm-head:transparent;--qm-card:var(--qm-bg);--qm-frame:1px solid var(--qm-line);--qm-radius:12px;--qm-font:Roboto,Arial,sans-serif;--qm-size:14px;--qm-margin:0 0 12px;--qm-gap:0}
 .qiaomu-yt-bar[data-theme=bilibili]{--qm-fg:var(--text1,#18191c);--qm-fg2:var(--text2,#61666d);--qm-bg:var(--bg1,#fff);--qm-line:var(--line_regular,#e3e5e7);--qm-hover:var(--bg2,#f6f7f8);--qm-field:var(--bg3,#f1f2f3);--qm-accent:var(--brand_blue,#00aeec);--qm-head:var(--bg3,#f1f2f3);--qm-card:transparent;--qm-frame:0 none;--qm-radius:6px;--qm-font:inherit;--qm-size:13px;--qm-margin:12px 0;--qm-gap:6px}
+.qiaomu-yt-bar[data-theme=x]{--qm-fg:#0f1419;--qm-fg2:#536471;--qm-bg:#fff;--qm-line:#eff3f4;--qm-hover:rgba(15,20,25,.08);--qm-field:rgba(15,20,25,.06);--qm-accent:#1d9bf0;--qm-head:transparent;--qm-card:transparent;--qm-frame:1px solid var(--qm-line);--qm-radius:16px;--qm-font:TwitterChirp,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;--qm-size:15px;--qm-margin:12px 0 4px;--qm-gap:6px}
 .qiaomu-yt-bar[data-theme=podcast]{--qm-fg:#1f1f1f;--qm-fg2:#737373;--qm-bg:#fff;--qm-line:rgba(0,0,0,.08);--qm-hover:rgba(0,0,0,.05);--qm-field:rgba(0,0,0,.05);--qm-accent:#1f1f1f;--qm-head:transparent;--qm-card:#fff;--qm-frame:1px solid var(--qm-line);--qm-radius:14px;--qm-font:inherit;--qm-size:14px;--qm-margin:16px 0;--qm-gap:6px}
 @media (prefers-color-scheme:dark){.qiaomu-yt-bar[data-theme=podcast]{--qm-fg:#ececec;--qm-fg2:#9a9a9a;--qm-bg:#1c1c1e;--qm-line:rgba(255,255,255,.12);--qm-hover:rgba(255,255,255,.08);--qm-field:rgba(255,255,255,.08);--qm-accent:#ececec;--qm-card:#1c1c1e}}
 .qiaomu-yt-bar{box-sizing:border-box;margin:var(--qm-margin);border:var(--qm-frame);border-radius:var(--qm-radius);background:var(--qm-card);color:var(--qm-fg);font:400 var(--qm-size)/20px var(--qm-font);pointer-events:auto;position:relative}

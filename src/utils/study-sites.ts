@@ -8,7 +8,7 @@ export const STUDY_SITES: StudySite[] = [
 	{ id: 'bilibili', name: '哔哩哔哩', hosts: ['bilibili.com', 'b23.tv'], builtin: true, note: '字幕条、沉浸学习' },
 	{ id: 'xiaoyuzhou', name: '小宇宙', hosts: ['xiaoyuzhoufm.com'], builtin: true, note: '字幕条、沉浸学习' },
 	{ id: 'vimeo', name: 'Vimeo', hosts: ['vimeo.com'] },
-	{ id: 'x', name: 'X（Twitter）', hosts: ['x.com', 'twitter.com'] },
+	{ id: 'x', name: 'X（Twitter）', hosts: ['x.com', 'twitter.com'], note: '帖子里的视频或音频：字幕条，按 A 三次进入学习' },
 	{ id: 'tiktok', name: 'TikTok', hosts: ['tiktok.com'] },
 	{ id: 'douyin', name: '抖音', hosts: ['douyin.com'], note: '多数需要登录状态' },
 	{ id: 'instagram', name: 'Instagram', hosts: ['instagram.com'], note: '多数需要登录状态' },
@@ -41,6 +41,15 @@ export async function saveStudySites(sites: StudySites): Promise<StudySites> {
 }
 export const isSiteOn = (sites: StudySites, id: string): boolean => !sites.off.includes(id);
 export const STUDY_SITES_KEY = KEY;
+
+// A post on X: the address of the post itself (a video or audio in it is what gets studied), without the query or the photo/video suffix.
+export function xStatus(address: string): string | null {
+	try {
+		const url = new URL(address); if (url.protocol !== 'https:' || !['x.com', 'www.x.com', 'twitter.com', 'www.twitter.com', 'mobile.twitter.com'].includes(url.hostname.toLowerCase())) return null;
+		const match = url.pathname.match(/^\/(?:([A-Za-z0-9_]{1,15})|i)\/status\/(\d{5,25})(?:\/|$)/); if (!match) return null;
+		return `https://x.com/${match[1] ?? 'i'}/status/${match[2]}`;
+	} catch { return null; }
+}
 
 // The site an address belongs to (by host name, subdomains included).
 export function siteOf(address: string): StudySite | undefined {

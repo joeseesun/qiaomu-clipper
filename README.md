@@ -18,7 +18,7 @@ Read, watch, ask AI, and turn what you learn into Obsidian notes.
 
 </div>
 
-> **当前为 Chrome 开发版，尚未上架应用商店。** 本页介绍当前 `main` 的功能；完整体验请按下方步骤从源码安装。不想装 Node.js？可直接下载 [1.11.1 预览包](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.11.1)（与当前 `main` 一致）；更早的版本（如 1.10.0）没有视频字幕工具栏；B 站视频页的字幕工具栏从 1.11.0 起提供。截图采用实际界面组件与示例数据，视频区域展示封面预览；[截图说明](docs/README-SCREENSHOTS.md)。
+> **当前为 Chrome 开发版，尚未上架应用商店。** 本页介绍当前 `main` 的功能；完整体验请按下方步骤从源码安装。不想装 Node.js？可直接下载 [1.13.0 预览包](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.13.0)（与当前 `main` 一致）；更早的版本（如 1.10.0）没有视频字幕工具栏；B 站视频页的字幕工具栏从 1.11.0 起提供。截图采用实际界面组件与示例数据，视频区域展示封面预览；[截图说明](docs/README-SCREENSHOTS.md)。
 
 ## 它解决什么问题
 
@@ -53,20 +53,22 @@ npm run build:chrome
 **先试一条完整流程：** 打开视频 → `aaa` → 点时间戳回看 → 按 `N` 写理解。只想读文章和复制字幕，无需配置 AI；写入日记需先装下方助手。
 
 <details>
-<summary><b>不想安装 Node.js？直接下载 1.11.1 预览包</b></summary>
+<summary><b>不想安装 Node.js？直接下载 1.13.0 预览包</b></summary>
 
-下载 [Chrome ZIP](https://github.com/joeseesun/qiaomu-clipper/releases/download/1.11.1/qiaomu-clipper-1.11.1-chrome.zip)，解压后在 `chrome://extensions` 开启「开发者模式」，点「加载已解压的扩展程序」选择解压目录。[发布说明](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.11.1)。**装好后请刷新已打开的 YouTube 页面**，字幕工具栏才会出现；请勿使用 1.10.0 及更早版本，它们没有视频字幕工具栏。**装好后请刷新已打开的 B 站页面**；B 站只给已登录账号提供字幕。
+下载 [Chrome ZIP](https://github.com/joeseesun/qiaomu-clipper/releases/download/1.13.0/qiaomu-clipper-1.13.0-chrome.zip)，解压后在 `chrome://extensions` 开启「开发者模式」，点「加载已解压的扩展程序」选择解压目录。[发布说明](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.13.0)。**装好后请刷新已打开的 YouTube 页面**，字幕工具栏才会出现；请勿使用 1.10.0 及更早版本，它们没有视频字幕工具栏。**装好后请刷新已打开的 B 站页面**；B 站只给已登录账号提供字幕。
 
 </details>
 
 <details>
 <summary><b>想静默写入笔记库，或把学习笔记追加到今天日记？</b></summary>
 
-安装可选的 [本地助手](native/README.md)：需要 Python 3.9+，支持 macOS / Linux 的 Chrome 系浏览器（Chrome / Edge / Brave / Arc 等），Windows 暂不支持。先装好扩展，再在仓库里运行（无需任何参数，自动识别扩展 ID 和 Obsidian 库）：
+安装可选的 [本地助手](native/README.md)：需要 Python 3.9+，支持 macOS / Linux 的 Chrome 系浏览器（Chrome / Edge / Brave / Arc 等），也提供 Windows 安装支持（尚待真机验证）。先装好扩展，再在仓库里运行（无需任何参数，自动识别扩展 ID 和 Obsidian 库）：
 
 ```sh
 python3 native/install.py
 ```
+
+**升级到 1.13.0 必须同时更新本地助手**：仅重载扩展不会更新助手。请使用 1.13.0 源码重新运行 `python3 native/install.py`（Windows 使用 `python native\install.py`），再刷新阅读页；旧助手可能导致 X 阅读页缺少帖子正文和视频播放器。
 
 输出 `"ok": true` 即安装成功，然后在 `chrome://extensions` 重新加载扩展。遇到「本地保存助手未连接」，运行 `python3 native/install.py --check` 诊断。
 
@@ -76,7 +78,11 @@ python3 native/install.py
 
 学习笔记的日记追加也由助手完成。升级扩展后，按助手文档重新运行一次 `native/install.py`；在 Obsidian 中启用「日记」核心插件。目前要求纯数字日期格式（如 `YYYY-MM-DD`），不支持日记模板。目标不满足条件时会显示原因并保留草稿。[日记设置与保存说明](docs/LEARNING-DIARY.md)。
 
-**音频转写与学习**：播客、录音、会议、课程音频，用同一套转写（本机引擎或云端服务）变成带时间的字幕，再进入沉浸学习，字幕随播放滚动。小宇宙节目页（`xiaoyuzhoufm.com/episode/…`）右下角会出现字幕条，可以直接生成；另有一个「转写学习」入口（设置侧栏，或弹窗右上角「⋯」菜单）：粘贴 YouTube、B 站、小宇宙或其他音视频网站（Vimeo、X、TikTok、SoundCloud、微博、喜马拉雅等，凡是 yt-dlp 能读的都可以试，成功与否取决于网站和登录状态）的链接，或选一个本地音频/视频文件，或从「推荐播客」里挑（点开一个节目，弹层里列出最近几集）（中文：张小珺、42章经、半拿铁、晚点聊、Next Token｜词元之外；海外 AI：Latent Space、Dwarkesh Podcast、No Priors、Training Data、The Cognitive Revolution，都从各自的公开 RSS 读最新几集，一键进入学习）（mp3、m4a、wav、flac、mp4 等，只交给本机助手，不上传），就能转写并进入学习；学过的内容列在「最近学习」里。B 站视频在沉浸学习里现在也能让字幕跟随播放（扩展会读取内嵌播放器的播放时间）。
+**音频转写与学习**：播客、录音、会议、课程音频，用同一套转写（本机引擎或云端服务）变成带时间的字幕，再进入沉浸学习，字幕随播放滚动。小宇宙节目页（`xiaoyuzhoufm.com/episode/…`）右下角会出现字幕条，可以直接生成；另有一个「转写学习」入口（设置侧栏，或弹窗右上角「⋯」菜单）：粘贴 YouTube、B 站、小宇宙、X 或其他音视频网站（Vimeo、X、TikTok、SoundCloud、微博、喜马拉雅等，凡是 yt-dlp 能读的都可以试，成功与否取决于网站和登录状态）的链接，或选一个本地音频/视频文件，或从「推荐播客」里挑（点开一个节目，弹层里列出最近几集）（中文：张小珺、42章经、半拿铁、晚点聊、Next Token｜词元之外；海外 AI：Latent Space、Dwarkesh Podcast、No Priors、Training Data、The Cognitive Revolution，都从各自的公开 RSS 读最新几集，一键进入学习）（mp3、m4a、wav、flac、mp4 等，只交给本机助手，不上传），就能转写并进入学习；学过的内容列在「最近学习」里。B 站视频在沉浸学习里现在也能让字幕跟随播放（扩展会读取内嵌播放器的播放时间）。
+
+**各站媒体页字幕条与学习模式**：在「支持的网站」中开启后，抖音、TikTok、Vimeo、Instagram、Facebook、Reddit、Twitch 录播/片段、Dailymotion、SoundCloud、Bandcamp、niconico、微博、喜马拉雅、网易云音乐、TED、Apple 播客的媒体详情页提供字幕条和「沉浸学习」，也可按 `aaa` 进入。X 保留右侧栏字幕条；其他站点使用默认收起的悬浮字幕条。信息流中只有能定位到当前媒体详情链接时才显示，切换条目会切换字幕缓存。无字幕内容可点「生成字幕」。
+
+学习模式按媒体类型显示：视频使用与 B 站相同的停靠、剧场、小窗和尺寸调整布局，支持浏览器原生画中画及视频控制；音频保留音频播放器布局。本地视频文件也使用视频布局。帖子正文与字幕一起进入剪藏及 AI 上下文。各站是否能提取媒体仍取决于网站、登录状态和可播放地址；直播、DRM、只有流式地址的内容不保证可播放。部分内嵌播放器的原页时间控制不可用，可进入学习模式对照字幕播放。新增站点尚待逐站真实浏览器验收，自动测试通过不代表所有网站都能播放。
 
 **无字幕视频：本机生成字幕（可选，macOS）**：YouTube / B 站视频没有字幕时，字幕条里会出现「生成字幕」。助手会下载这条视频的音频，用本机语音识别模型识别，字幕边生成边出现，完成后可复制、下载、进入沉浸学习，结果缓存在本机。音频只在本机处理，任务结束即删除，不上传。不用手动装工具：选了还没安装的引擎时，助手会自动下载安装（Whisper、Qwen3-ASR、faster-whisper，约 1.3–1.7 GB，界面会先写明大小、显示进度、可取消，也能在设置里卸载；Apple 芯片用 MLX 版，其他电脑用 faster-whisper）；已经用 Homebrew 装过的也会直接用。在 Apple M5 Pro 上，41 分钟的中文课程从下载到出完字幕约 1 分钟。YouTube 常要求登录状态才允许下载音频，此时会先询问，经你同意才读取浏览器登录信息。也可以在设置 → 常规 → 「无字幕视频：生成字幕」里保存多个云端服务并切换（已用真实 key 试过：硅基流动 Qwen3-ASR、豆包语音极速版、智谱 GLM、阶跃星辰、小米 MiMo；Groq / OpenAI 按公开接口接入，未实测；也可填本机上的 OpenAI 兼容识别服务）。云端模式下音频会上传给所选服务并按其规则计费，界面会在上传前写明；41 分钟的课程用豆包约 20 秒出完字幕。
 
@@ -244,7 +250,7 @@ B 站使用官方嵌入播放器：点击时间戳会按该秒重新加载，高
 - **「分享到乔木 RSS」默认关闭**：勾选后剪藏会公开提交链接、标题、剪藏正文和封面到[公开源](https://rss.qiaomu.ai/feeds/user-submitted.xml)。阅读、编辑本身不会提交。学习笔记的日记保存独立于这个开关，不提交 RSS。
 - AI 提问、模板解读和字幕翻译会把所需内容发送给你选择的模型服务商；费用由该服务商计算。插件不提供模型账号或免费额度。
 - 对话历史保存在本机浏览器（最多 40 篇文章，每篇 15 段对话）。本地保存与 RSS 结果分开显示，失败可重试。
-- 当前以 **Chrome** 为验收目标。Firefox / Safari 沿用上游代码；Windows 不支持本地助手。
+- 当前以 **Chrome** 为验收目标。Firefox / Safari 沿用上游代码；Windows 助手已通过自动测试，尚待真机验证。
 - 界面截图展示组件与交互，不代表所有视频均有字幕，也不替代真实扩展中的播放、跨窗口恢复、真实 AI 请求与日记写入验收。
 
 [隐私说明](PRIVACY.md) · [安全问题反馈](SECURITY.md) · [提交使用反馈](https://github.com/joeseesun/qiaomu-clipper/issues)
@@ -259,7 +265,7 @@ npm run build:chrome          # 构建 dist/
 ```
 
 - `src/`：弹窗、阅读页、编辑页、AI 对话、设置与后台脚本。
-- `native/`：静默保存助手及安装器，Windows 暂不支持。
+- `native/`：静默保存助手及安装器，包含 Windows 支持（尚待真机验证）。
 - `integration/qmreader/`：RSS 接口参考实现与测试，不随扩展 ZIP 打包。
 - [Chrome 应用商店发布准备](docs/CHROME-WEB-STORE.md)：权限、材料、包与验收说明。
 
@@ -287,7 +293,7 @@ Qiaomu Clipper combines web clipping, a clean reader, a full-page Markdown edito
 
 **[Install current features](#quick-start)** · [Screenshots](#功能巡游) · [Report an issue](https://github.com/joeseesun/qiaomu-clipper/issues)
 
-> Chrome development build; not yet on the Chrome Web Store. This README describes current `main`. The downloadable [1.11.1 preview](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.11.1) matches current `main` (no Node.js needed; refresh open YouTube tabs after installing). Earlier releases such as 1.10.0 lack the video transcript bar (Bilibili's arrives in 1.11.0; Bilibili only serves subtitles to signed-in accounts). Screenshots use production components with sample articles, captions, AI responses and daily-note targets; the video area is a cover preview. See [screenshot provenance](docs/README-SCREENSHOTS.md).
+> Chrome development build; not yet on the Chrome Web Store. This README describes current `main`. The downloadable [1.13.0 preview](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.13.0) matches current `main` (no Node.js needed; refresh open YouTube tabs after installing). Earlier releases such as 1.10.0 lack the video transcript bar (Bilibili's arrives in 1.11.0; Bilibili only serves subtitles to signed-in accounts). Screenshots use production components with sample articles, captions, AI responses and daily-note targets; the video area is a cover preview. See [screenshot provenance](docs/README-SCREENSHOTS.md).
 
 ### Quick start
 
@@ -302,9 +308,11 @@ npm run build:chrome
 
 Open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select `dist`. Open an article or video, then press `aaa` outside an input field. Rebuild and reload the extension after pulling updates.
 
-For AI chat or translation, configure your own model and API key in the extension's AI settings. Reading and copying captions do not require AI. To save silently or append learning notes to today's daily note, install the optional Python 3 [local helper](native/README.md) for macOS / Linux Chrome; run `python3 native/install.py` (no arguments; it detects the extension ID and vault) and re-run it after upgrading; `--check` diagnoses a "helper not connected" error, and an AI agent can run the same command for you. Daily-note append requires Obsidian's Daily notes plugin with a numeric date format and no template.
+For AI chat or translation, configure your own model and API key in the extension's AI settings. Reading and copying captions do not require AI. To save silently or append learning notes to today's daily note, install the optional Python 3 [local helper](native/README.md) for macOS / Linux Chrome; run `python3 native/install.py` (no arguments; it detects the extension ID and vault) and re-run it from the 1.13.0 source after upgrading (Windows: `python native\install.py`); reloading the extension alone leaves the helper unchanged and may leave X study pages without post text or a video player; `--check` diagnoses a "helper not connected" error, and an AI agent can run the same command for you. Daily-note append requires Obsidian's Daily notes plugin with a numeric date format and no template.
 
 Audio transcription and study: podcasts, recordings, meetings and course audio go through the same transcription (a local engine or a cloud service) and become timed subtitles you can study, following playback. Xiaoyuzhou episode pages get the transcript bar at the bottom right; or open "Transcribe and study" (the settings sidebar, or the ⋯ menu in the popup): paste a YouTube, Bilibili, Xiaoyuzhou or other audio/video site link (anything yt-dlp can read may work, depending on the site and login), choose a local audio/video file, or pick from the suggested podcasts (five Chinese shows and five overseas AI shows, read from their public RSS feeds, one press to study the newest episodes) (it is only handed to the local helper, never uploaded); what you studied is listed under Recent. On Bilibili, study mode now also follows playback (the extension reads the embedded player's time).
+
+Supported media detail pages now share a transcript bar and Study entry, including Douyin, TikTok and the other sites listed in settings. X keeps its sidebar card; other sites use a collapsed floating bar. Native video study uses the same dock, theater, floating and resize layout as Bilibili, with browser-native picture-in-picture; audio keeps its audio layout. Local video files also use the video layout. Site extraction depends on login, media availability and network conditions; live streams, DRM and stream-only media are not guaranteed. Some embedded source players cannot be controlled by timestamps; use the study player instead. Newly added sites still require individual real-browser validation.
 
 Videos without subtitles (optional, macOS): the transcript bar offers "Generate subtitles". The local helper downloads the audio with yt-dlp and transcribes it on this Mac with Whisper (nothing to install by hand: when you pick an engine that is not installed yet, the helper installs it in a private folder, with the size and progress shown and a cancel button; Whisper and Qwen3-ASR via MLX on Apple silicon, faster-whisper elsewhere; about 1.3–1.7 GB; it can be uninstalled in the settings). Lines appear as they are produced, the result is cached locally, and the audio is deleted when the job ends; nothing is uploaded. YouTube often requires a signed-in browser to download audio; you are asked before the browser login is borrowed. `python3 native/install.py --check` lists what is missing. Instead of a local engine you can save several cloud recognition services in the settings and switch between them (tried with real keys: SiliconFlow Qwen3-ASR, Doubao, Zhipu GLM, StepFun, Xiaomi MiMo; Groq and OpenAI follow their public API but were not tried; a local OpenAI-compatible server also works). With a cloud service the audio is uploaded to it and billed by it; the interface says so before anything starts.
 
@@ -330,7 +338,7 @@ AI answers stream with Markdown; history stays per article, panel width is adjus
 - **Share to Qiaomu RSS is enabled by default.** When clipping with it on, the URL, title, clipped Markdown and cover image are submitted to a [public feed](https://rss.qiaomu.ai/feeds/user-submitted.xml). Turn it off for private content. Reading and editing do not submit anything. Learning-note daily saves never submit to RSS.
 - AI features send necessary source content and your instructions to the provider you configure, at that provider's cost. Chat history remains in your local browser (up to 40 articles, 15 conversations each).
 - Local saving and RSS submission report results separately. Closing the learning-note card preserves its draft; failed writes can be retried.
-- Chrome is the current target. Firefox / Safari inherit upstream code; the local helper does not support Windows.
+- Chrome is the current target. Firefox / Safari inherit upstream code; Windows helper support is covered by automated tests; real-device validation is pending.
 - The screenshots demonstrate interface components, not universal caption availability or completed live playback, AI and vault-write verification.
 
 See [Privacy](PRIVACY.md), [Security](SECURITY.md), [video study](docs/STUDY-WORKSPACE.md), and [daily-note setup](docs/LEARNING-DIARY.md).
