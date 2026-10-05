@@ -25,6 +25,7 @@ it('bounds requests and rejects missing, duplicate or unknown segment identifier
 	expect(()=>parseTranslation('[{"id":0,"text":"甲"}]',batch)).toThrow();
 	expect(()=>parseTranslation('[{"id":0,"text":"甲"},{"id":0,"text":"乙"}]',batch)).toThrow();
 	expect(parseTranslation('```json\n[{"id":1,"text":"乙"},{"id":0,"text":"甲"}]\n```',batch).get(0)).toBe('甲');
+	expect(parseTranslation('{"translations":[{"id":"1","text":"乙"},{"index":0,"text":"甲"}]}',batch).get(1)).toBe('乙');
 });
 
 it('preserves source and timestamps, renders plain text, and reuses translated paragraphs after toggling',async()=>{
@@ -54,6 +55,20 @@ it('retries only failed batches while preserving completed paragraphs',async()=>
 	const retry=article.querySelector<HTMLButtonElement>('.youtube-translation-retry')!;expect(retry.hidden).toBe(false);retry.click();await flush();
 	expect(article.querySelectorAll('.transcript-translation')).toHaveLength(10);
 	expect(JSON.parse(state.stream.mock.calls[2][0].messages[0].content)).toHaveLength(2);
+});
+
+it('splits an incomplete provider response and keeps the translation run recoverable', async () => {
+	state.stream
+		.mockImplementationOnce(async options => {
+			const [{ id, text }] = JSON.parse(options.messages[0].content) as Array<{ id: number; text: string }>;
+			return JSON.stringify([{ id, text: `中文 ${text}` }]);
+		})
+		.mockImplementation(async options => response(options));
+	const { article, input } = setup(['First sentence.', 'Second sentence.']);
+	input.click(); await flush();
+	expect(state.stream).toHaveBeenCalledTimes(3);
+	expect(article.querySelectorAll('.transcript-translation')).toHaveLength(2);
+	expect(article.querySelector('[role="status"]')!.textContent).toBe('qiaomuTranslationDone');
 });
 
 it('keeps Chinese source unchanged and explains missing model configuration',async()=>{

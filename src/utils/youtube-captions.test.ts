@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, expect, it, vi } from 'vitest';
-import { apiKeyFromPage, fetchCaptionSegments, fetchCaptionTracks, parseCaptions, pickTrack, playerFromWatchHtml, tracksOf } from './youtube-captions';
+import { apiKeyFromPage, audioLanguageFromDocument, audioLanguageOf, fetchCaptionResult, fetchCaptionSegments, fetchCaptionTracks, parseCaptions, pickTrack, playerFromWatchHtml, sameLanguage, tracksOf } from './youtube-captions';
 
 const track = (languageCode: string, kind?: string, extra = '') => ({ baseUrl: `https://www.youtube.com/api/timedtext?v=abc&lang=${languageCode}${kind ? '&kind=asr' : ''}${extra}`, languageCode, ...(kind ? { kind } : {}) });
 const player = (...tracks: unknown[]) => ({ captions: { playerCaptionsTracklistRenderer: { captionTracks: tracks } } });
@@ -29,10 +29,61 @@ it('falls back to the player response embedded in the watch page when every clie
 it('picks the spoken language, prefers a hand-made track in it, and never a token-gated one', () => {
 	expect(pickTrack([track('fr'), track('en'), track('en', 'asr')])!.languageCode).toBe('en');
 	expect(pickTrack([track('fr'), track('en', 'asr')])!.kind).toBe('asr'); // no hand-made track in the spoken language
+	expect(pickTrack([track('en'), track('fr', 'asr')])!.languageCode).toBe('fr');
+	expect(pickTrack([track('fr'), track('en'), track('fr', 'asr')])!.languageCode).toBe('fr');
 	expect(pickTrack([track('fr'), track('es')])!.languageCode).toBe('fr');
 	expect(pickTrack([track('ar'), track('en')])!.languageCode).toBe('en');
+	expect(pickTrack([track('ar', 'asr'), track('en', 'asr')], 'en-US')!.languageCode).toBe('en');
+	expect(pickTrack([track('ar', 'asr'), track('en', 'asr')])!.languageCode).toBe('en');
+	expect(pickTrack([track('ar', 'asr'), track('en', 'asr')], 'ar')!.languageCode).toBe('ar');
+	expect(pickTrack([track('zh-CN', 'asr'), track('zh-TW', 'asr')], 'zh-TW')!.languageCode).toBe('zh-TW');
+	expect(sameLanguage('en-US', 'en')).toBe(true);
+	expect(sameLanguage('ar', 'en')).toBe(false);
 	expect(pickTrack([track('en', undefined, '&exp=xpe'), track('en', 'asr', '&exp=xpe')])).toBeUndefined();
 	expect(pickTrack([track('en', undefined, '&exp=xpe'), track('fr')])!.languageCode).toBe('fr'); expect(pickTrack([])).toBeUndefined();
+});
+
+it('uses the video audio language when the first automatic caption is a different language', async () => {
+	const captions = player(track('ar', 'asr'), track('en', 'asr'));
+	const request = vi.fn(async (url: string) => url.includes('/youtubei/')
+		? response({ ...captions, videoDetails: { defaultAudioLanguage: 'en' } })
+		: response({ events: [{ tStartMs: 1200, segs: [{ utf8: 'English audio' }] }] }));
+	const result = await fetchCaptionResult('abc', document, request as any);
+	expect(result).toEqual({ segments: [{ time: '0:01', text: 'English audio' }], language: 'en' });
+	expect(request.mock.calls[1][0]).toContain('lang=en');
+});
+
+it('uses the current watch player language when the mobile response omits it', async () => {
+	const current = { ...player(), videoDetails: { videoId: 'abc', defaultAudioLanguage: 'en-US' } };
+	document.head.innerHTML += `<script>var ytInitialPlayerResponse = ${JSON.stringify(current)};</script>`;
+	expect(audioLanguageFromDocument(document, 'abc')).toBe('en-US');
+	expect(audioLanguageFromDocument(document, 'other-video')).toBeUndefined();
+	expect(audioLanguageOf({ microformat: { playerMicroformatRenderer: { defaultAudioLanguage: 'fr' } } })).toBe('fr');
+	const request = vi.fn(async (url: string) => url.includes('/youtubei/')
+		? response(player(track('ar', 'asr'), track('en', 'asr')))
+		: response({ events: [{ tStartMs: 0, segs: [{ utf8: 'Hello' }] }] }));
+	expect((await fetchCaptionResult('abc', document, request as any)).language).toBe('en');
+});
+
+it('reads default audio metadata on multi-language auto-dubbed videos without videoDetails language', async () => {
+	const current = player(track('ar', 'asr'), track('en', 'asr'), track('fr', 'asr'));
+	Object.assign(current.captions.playerCaptionsTracklistRenderer, {
+		audioTracks: [
+			{ audioTrackId: 'ar.10', defaultCaptionTrackIndex: 1 },
+			{ audioTrackId: 'en-US.4', defaultCaptionTrackIndex: 1 },
+		],
+		defaultAudioTrackIndex: 1,
+	});
+	expect(audioLanguageOf(current)).toBe('en-US');
+	document.head.innerHTML += `<script>var ytInitialPlayerResponse = ${JSON.stringify(current)};</script>`;
+	const request = vi.fn(async (url: string) => url.includes('/youtubei/')
+		? response(player(track('ar', 'asr'), track('en', 'asr')))
+		: response({ events: [{ tStartMs: 0, segs: [{ utf8: 'Original English audio' }] }] }));
+	expect((await fetchCaptionResult('abc', document, request as any)).language).toBe('en');
+	expect(audioLanguageOf({ streamingData: { adaptiveFormats: [
+		{ audioTrack: { id: 'ar.10', audioIsDefault: false } },
+		{ audioTrack: { id: 'fr-FR.4', audioIsDefault: true } },
+	] } })).toBe('fr-FR');
 });
 
 it('parses json3, the classic XML and the srv3 XML, decoding entities and dropping markup', () => {
