@@ -20,7 +20,7 @@ import { setPageUrl, setPageTitle, updatePageDomainSettings, getHighlights, repo
 import { throttle } from '../utils/throttle';
 import { loadSettings, generalSettings } from '../utils/storage-utils';
 import Defuddle from 'defuddle';
-import { withReliableBilibili } from '../utils/bilibili-captions';
+import { bilibiliCaptionOptions, restoreBilibiliTranscript, withReliableBilibili } from '../utils/bilibili-captions';
 
 type MessageListener = (request: any, sender: any, sendResponse: (response?: any) => void) => true | undefined;
 let readerPageMessageListener: MessageListener | null = null;
@@ -75,8 +75,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 		const parsedDoc = parser.parseFromString(html, 'text/html');
 		Object.defineProperty(parsedDoc, 'URL', { value: url, configurable: true });
 
-		const defuddle = new Defuddle(parsedDoc, { url, fetch: withReliableBilibili(proxyFetchAsResponse) });
-		const result = await defuddle.parseAsync();
+		const defuddle = new Defuddle(parsedDoc, { url, fetch: withReliableBilibili(proxyFetchAsResponse), ...bilibiliCaptionOptions(url, proxyFetchAsResponse) });
+		const result = restoreBilibiliTranscript(await defuddle.parseAsync(), url);
 
 		if (!result.content) {
 			throw new Error('Could not extract article content');
@@ -247,8 +247,8 @@ async function loadArticle(newUrl: string) {
 		const parsedDoc = parser.parseFromString(html, 'text/html');
 		Object.defineProperty(parsedDoc, 'URL', { value: newUrl, configurable: true });
 
-		const defuddle = new Defuddle(parsedDoc, { url: newUrl, fetch: withReliableBilibili(proxyFetchAsResponse) });
-		const result = await defuddle.parseAsync();
+		const defuddle = new Defuddle(parsedDoc, { url: newUrl, fetch: withReliableBilibili(proxyFetchAsResponse), ...bilibiliCaptionOptions(newUrl, proxyFetchAsResponse) });
+		const result = restoreBilibiliTranscript(await defuddle.parseAsync(), newUrl);
 
 		if (!result.content) {
 			throw new Error('Could not extract article content');

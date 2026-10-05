@@ -34,6 +34,23 @@ it('picks the spoken language, prefers a hand-made track in it, and never a toke
 	expect(pickTrack([track('en', undefined, '&exp=xpe'), track('fr')])!.languageCode).toBe('fr'); expect(pickTrack([])).toBeUndefined();
 });
 
+it.each(['zh', 'zh-CN', 'zh-TW', 'zh-Hans', 'zh-Hant', 'ZH_hans'])('prefers an available %s caption over the spoken language', language => {
+	expect(pickTrack([track('en'), track('en', 'asr'), track(language)])?.languageCode).toBe(language);
+});
+
+it('prefers manual Chinese captions, including traditional Chinese, over automatic captions', () => {
+	expect(pickTrack([track('en'), track('zh-Hans', 'asr'), track('zh-Hant')])?.languageCode).toBe('zh-Hant');
+	expect(pickTrack([track('en'), track('zh', 'asr')])?.languageCode).toBe('zh');
+	expect(pickTrack([track('zh-Hans', undefined, '&exp=xpe'), track('zh-Hant'), track('en', 'asr')])?.languageCode).toBe('zh-Hant');
+	expect(pickTrack([track('zh', undefined, '&exp=xpe'), track('en', 'asr')])?.languageCode).toBe('en');
+});
+
+it('downloads Chinese captions even on an English page', async () => {
+	document.documentElement.lang = 'en';
+	const request = vi.fn(async (url: string) => url.includes('/youtubei/') ? response(player(track('en', 'asr'), track('zh-Hans'))) : response({ events: [{ tStartMs: 0, segs: [{ utf8: url.includes('lang=zh-Hans') ? '中文字幕' : 'English captions' }] }] }));
+	expect(await fetchCaptionSegments('abc', document, request as any)).toEqual([{ time: '0:00', text: '中文字幕' }]);
+});
+
 it('parses json3, the classic XML and the srv3 XML, decoding entities and dropping markup', () => {
 	expect(parseCaptions(JSON.stringify({ events: [{ tStartMs: 1200, segs: [{ utf8: 'Hello ' }, { utf8: 'there' }] }, { tStartMs: 3723000, segs: [{ utf8: '\n' }] }, { tStartMs: 5000, segs: [{ utf8: 'Next &amp; last' }] }] }))).toEqual([{ time: '0:01', text: 'Hello there' }, { time: '0:05', text: 'Next & last' }]);
 	expect(parseCaptions('<?xml version="1.0"?><transcript><text start="1.5" dur="2">It&#39;s &quot;fine&quot; &amp; <i>ok</i></text><text start="3725" dur="1">Later</text></transcript>')).toEqual([{ time: '0:01', text: 'It\'s "fine" & ok' }, { time: '1:02:05', text: 'Later' }]);

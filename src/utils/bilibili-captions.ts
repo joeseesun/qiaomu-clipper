@@ -1,3 +1,5 @@
+import type { DefuddleOptions } from 'defuddle';
+import { bilibiliVideo } from './video-source';
 import type { PanelSegment } from './youtube-panel-actions';
 
 // Subtitles of a Bilibili video, read from the viewer's own page (their login and site context are real there).
@@ -14,12 +16,12 @@ export const stampOf = (seconds: number): string => {
 	return (h ? `${h}:${String(m).padStart(2, '0')}` : String(m)) + ':' + String(s).padStart(2, '0');
 };
 
-// A human subtitle beats an AI one; then Simplified Chinese, other Chinese, English, the rest.
+// Prefer Chinese first, then human tracks within that language group.
 const languageRank = (code: string): number => { const lan = code.toLowerCase().replace(/_/g, '-'); return /^(ai-)?zh-(cn|hans)$/.test(lan) || lan === 'zh' || lan === 'ai-zh' ? 0 : lan.startsWith('zh') || lan.startsWith('ai-zh') ? 1 : /^(ai-)?en/.test(lan) ? 2 : 3; };
 export function pickTrack(tracks: Track[]): Track | undefined {
 	const usable = tracks.filter(track => typeof track.subtitle_url === 'string' && track.subtitle_url);
 	const ai = (track: Track) => track.is_ai_subtitle || /^ai-/i.test(track.lan || '') || /自动|ai/i.test(track.lan_doc || '') ? 1 : 0;
-	return usable.map((track, index) => ({ track, index })).sort((a, b) => ai(a.track) - ai(b.track) || languageRank(a.track.lan || '') - languageRank(b.track.lan || '') || (a.track.id ?? Infinity) - (b.track.id ?? Infinity) || a.index - b.index)[0]?.track;
+	return usable.map((track, index) => ({ track, index })).sort((a, b) => Number(languageRank(a.track.lan || '') > 1) - Number(languageRank(b.track.lan || '') > 1) || ai(a.track) - ai(b.track) || languageRank(a.track.lan || '') - languageRank(b.track.lan || '') || (a.track.id ?? Infinity) - (b.track.id ?? Infinity) || a.index - b.index)[0]?.track;
 }
 
 // The subtitle file is public and lives on Bilibili's own hosts; anything else is not fetched.
@@ -75,4 +77,69 @@ export function withReliableBilibili(base: FetchLike = (input, init) => fetch(in
 		}
 		return response;
 	};
+}
+
+
+type PreferredTrack = { lan?: string; lang?: string; language?: string; lan_doc?: string; is_ai_subtitle?: boolean; ai_type?: number; subtitle_url?: string; subtitleUrl?: string; url?: string };
+const languageOf = (track: PreferredTrack) => String(track.lan ?? track.lang ?? track.language ?? '').trim().replace(/_/g, '-').toLowerCase();
+const automatic = (track: PreferredTrack) => track.is_ai_subtitle === true || (track.ai_type ?? 0) > 0 || /^ai-/.test(languageOf(track)) || /auto|自动|自動|\bai\b/i.test(track.lan_doc || '');
+const usable = (track: PreferredTrack) => {
+	try {
+		const href = String(track.subtitle_url ?? track.subtitleUrl ?? track.url ?? '').trim();
+		const target = new URL(href.startsWith('//') ? `https:${href}` : href);
+		return target.protocol === 'https:' && /\.(hdslb|bilibili)\.com$/i.test(target.hostname);
+	} catch { return false; }
+};
+
+// Defuddle sorts manual tracks ahead of languages and does not recognize Bilibili's `ai-zh` as Chinese.
+// Give it the preferred available Chinese track, while retaining its normal fallback when none exists.
+export function bilibiliCaptionOptions(url: string, request: typeof fetch = (...args) => fetch(...args)): DefuddleOptions {
+	if (!bilibiliVideo(url)) return {};
+	const reliableRequest = withReliableBilibili(request);
+	return {
+		language: 'zh', // Defuddle's transcript cache includes this preference in its key.
+		fetch: async (input, init) => {
+			const response = await reliableRequest(input, init);
+			const href = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+			let target: URL;
+			try { target = new URL(href); } catch { return response; }
+			if (!response.ok || target.hostname !== 'api.bilibili.com' || !/^\/x\/player\/(?:wbi\/)?v2\/?$/.test(target.pathname)) return response;
+			try {
+				const body = await response.clone().json();
+				const subtitle = body?.data?.subtitle;
+				if (body?.code !== 0 || !subtitle) return response;
+				const key = ['subtitles', 'list', 'tracks'].find(key => Array.isArray(subtitle[key]));
+				if (!key) return response;
+				const chinese = (subtitle[key] as PreferredTrack[]).filter(track => track && /^(?:ai-)?zh(?:-|$)/.test(languageOf(track)) && usable(track));
+				const chosen = chinese.find(track => !automatic(track)) || chinese[0];
+				if (!chosen) return response;
+				subtitle[key] = [chosen];
+				return new Response(JSON.stringify(body), { status: response.status, headers: { 'content-type': 'application/json' } });
+			} catch { return response; }
+		},
+	};
+}
+
+// Defuddle 0.19.4 strips transcript classes and timestamp attributes while sanitizing extractor HTML.
+// Restore only the generated Bilibili transcript so the study page can recognize and wire its lines.
+export function restoreBilibiliTranscript<T extends { content: string; variables?: Record<string, string> }>(result: T, url: string): T {
+	if (!bilibiliVideo(url) || !result.variables?.transcript) return result;
+	const doc = new DOMParser().parseFromString(result.content, 'text/html');
+	if (doc.querySelector('.bilibili.transcript .transcript-segment .timestamp[data-timestamp]')) return result;
+	const heading = Array.from(doc.querySelectorAll('h2')).find(node => node.textContent?.trim() === 'Transcript');
+	const container = heading?.parentElement;
+	if (!container || container === doc.body) return result;
+	let count = 0;
+	for (const line of Array.from(container.children)) {
+		if (line.tagName !== 'P') continue;
+		const timestamp = line.querySelector('strong span') || line.querySelector('strong');
+		const stamp = timestamp?.textContent?.trim() || '';
+		if (!timestamp || !/^\d+(?::\d{2}){1,2}$/.test(stamp)) continue;
+		line.classList.add('transcript-segment'); timestamp.classList.add('timestamp');
+		timestamp.setAttribute('data-timestamp', String(stamp.split(':').reduce((seconds, part) => seconds * 60 + Number(part), 0)));
+		count++;
+	}
+	if (!count) return result;
+	container.classList.add('bilibili', 'transcript');
+	return { ...result, content: doc.body.innerHTML };
 }

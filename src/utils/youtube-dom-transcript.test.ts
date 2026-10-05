@@ -13,6 +13,40 @@ it('reads the lines YouTube already rendered without touching the page', async (
 	expect(click).not.toHaveBeenCalled();
 });
 
+it('switches the native fallback to an available Chinese track and waits for its rows', async () => {
+	vi.useFakeTimers();
+	document.body.innerHTML = panel(rows + '<ytd-transcript-footer-renderer><div id="label-text">English</div><a id="automatic">Chinese (auto-generated)</a><a id="chinese"><span role="option">Chinese (Traditional)</span></a></ytd-transcript-footer-renderer>');
+	const auto = vi.fn(); document.getElementById('automatic')!.addEventListener('click', auto);
+	document.getElementById('chinese')!.addEventListener('click', () => {
+		setTimeout(() => { document.querySelector('#segments-container')!.innerHTML = rows.replace('Hello &amp; welcome', '你好，欢迎').replace('Later &lt;b&gt;line', '下一行'); }, 750);
+	});
+	const pending = readYouTubeTranscriptFromDom(document, true, 2000);
+	await vi.advanceTimersByTimeAsync(1000);
+	expect(await pending).toEqual([{ time: '0:05', text: '你好，欢迎' }, { time: '1:02:03', text: '下一行' }]);
+	expect(auto).not.toHaveBeenCalled();
+});
+
+it('leaves an already selected Chinese native track alone', async () => {
+	document.body.innerHTML = panel(rows + '<ytd-transcript-footer-renderer><div id="label-text">中文（简体）</div><a id="chinese">中文（简体）</a></ytd-transcript-footer-renderer>');
+	const click = vi.fn(); document.getElementById('chinese')!.addEventListener('click', click);
+	expect(await readYouTubeTranscriptFromDom(document)).toHaveLength(2);
+	expect(click).not.toHaveBeenCalled();
+});
+
+it('waits for Chinese rows when the language menu appears after opening the panel', async () => {
+	vi.useFakeTimers();
+	document.body.innerHTML = '<button aria-label="Show transcript" id="open">open</button>';
+	document.getElementById('open')!.addEventListener('click', () => {
+		document.body.insertAdjacentHTML('beforeend', panel(rows + '<ytd-transcript-footer-renderer><div id="label-text">English</div><a id="chinese">中文</a></ytd-transcript-footer-renderer>'));
+		document.getElementById('chinese')!.addEventListener('click', () => {
+			setTimeout(() => { document.querySelector('#segments-container')!.innerHTML = rows.replace('Hello &amp; welcome', '中文内容'); }, 500);
+		});
+	});
+	const pending = readYouTubeTranscriptFromDom(document, true, 2000);
+	await vi.advanceTimersByTimeAsync(1000);
+	expect((await pending)[0].text).toBe('中文内容');
+});
+
 it('opens the transcript panel when it is closed, finds the opener in any language, and gives up quietly', async () => {
 	document.body.innerHTML = '<button id="open" aria-label="显示转写文稿">x</button><button aria-label="关闭转写文稿">x</button>';
 	document.getElementById('open')!.addEventListener('click', () => { document.body.insertAdjacentHTML('beforeend', panel(rows)); });

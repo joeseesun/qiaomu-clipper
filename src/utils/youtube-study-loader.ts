@@ -1,4 +1,5 @@
 import Defuddle from 'defuddle';
+import { bilibiliCaptionOptions, restoreBilibiliTranscript } from './bilibili-captions';
 import DOMPurify from 'dompurify';
 import browser from './browser-polyfill';
 import { Reader } from './reader';
@@ -111,7 +112,7 @@ export async function startYouTubeStudy(url: string, sourceTabId: number, initia
 				if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
 				const doc = new DOMParser().parseFromString(html, 'text/html');
 				Object.defineProperty(doc, 'URL', { value: url, configurable: true });
-				return await new Defuddle(doc, { url, fetch: withReliableBilibili(proxyFetch) }).parseAsync();
+				return restoreBilibiliTranscript(await new Defuddle(doc, { url, fetch: withReliableBilibili(proxyFetch), ...bilibiliCaptionOptions(url, proxyFetch) }).parseAsync(), url);
 				};
 				if (youtubeVideoId(url)) {
 					const fast = await fromPrefetch().catch(() => undefined);

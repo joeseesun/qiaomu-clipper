@@ -26,11 +26,11 @@ it('falls back to the older player endpoint and fails clearly when nothing answe
 	await expect(fetchBilibiliCaptions('BV1xx411c7mD', 1, async url => url.includes('view') ? view : { code: -1 })).rejects.toThrow('字幕列表');
 });
 
-it('prefers a human subtitle over an AI one, then Simplified Chinese, then English', () => {
+it('prefers Chinese, then human subtitles within Chinese, then other languages', () => {
 	const ai = track({ lan: 'ai-zh', lan_doc: '中文（自动生成）', is_ai_subtitle: true, id: 1, subtitle_url: '//x.hdslb.com/ai.json' });
 	const en = track({ lan: 'en', id: 3, subtitle_url: '//x.hdslb.com/en.json' }), cn = track({ id: 2, subtitle_url: '//x.hdslb.com/cn.json' });
 	expect(pickTrack([ai, en, cn])?.subtitle_url).toContain('cn.json');
-	expect(pickTrack([ai, en])?.subtitle_url).toContain('en.json');
+	expect(pickTrack([ai, en])?.subtitle_url).toContain('ai.json');
 	expect(pickTrack([ai])?.subtitle_url).toContain('ai.json');
 	expect(pickTrack([{ lan: 'zh-CN' }])).toBeUndefined();
 });

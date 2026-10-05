@@ -7,6 +7,14 @@ const lines = [{ time: '0:05', text: 'Hello' }, { time: '0:09', text: 'there', c
 const id = (n: number) => `video${String(n).padStart(6, '0')}`;
 beforeEach(() => { data = {}; });
 
+it('ignores transcripts cached before Chinese-first selection was introduced', async () => {
+	data['qiaomuTranscript:abcdefghijk'] = { segments: lines, at: Date.now() };
+	const cache = createTranscriptCache(storage);
+	expect(await cache.read('abcdefghijk')).toBeUndefined();
+	await cache.write('abcdefghijk', [{ time: '0:05', text: '中文字幕' }]);
+	expect(await cache.read('abcdefghijk')).toEqual([{ time: '0:05', text: '中文字幕' }]);
+});
+
 it('keeps a transcript per video and returns it as written, chapters included', async () => {
 	const cache = createTranscriptCache(storage); expect(await cache.read('abcdefghijk')).toBeUndefined();
 	await cache.write('abcdefghijk', lines); expect(await cache.read('abcdefghijk')).toEqual(lines); expect(await cache.read('zzzzzzzzzzz')).toBeUndefined();
