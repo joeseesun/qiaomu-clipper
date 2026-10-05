@@ -16,14 +16,14 @@ it('never stores an empty, malformed or oversized transcript, or a made-up id', 
 	const cache = createTranscriptCache(storage);
 	await cache.write('abcdefghijk', []); await cache.write('abcdefghijk', [{ time: 5, text: 'x' }] as any); await cache.write('bad id', lines);
 	await cache.write('abcdefghijk', [{ time: '0:01', text: 'x'.repeat(MAX_BYTES) }]); expect(Object.keys(data)).toEqual([]);
-	data['qiaomuTranscript:abcdefghijk'] = { segments: 'corrupt' }; expect(await cache.read('abcdefghijk')).toBeUndefined();
+	data['qiaomuTranscript2:abcdefghijk'] = { segments: 'corrupt' }; expect(await cache.read('abcdefghijk')).toBeUndefined();
 });
 
 it('keeps only the newest transcripts and refreshes a video that is written again', async () => {
 	const cache = createTranscriptCache(storage);
 	for (let n = 0; n < CACHE_LIMIT + 5; n++) await cache.write(id(n), lines);
-	expect(await cache.read(id(0))).toBeUndefined(); expect(await cache.read(id(CACHE_LIMIT + 4))).toEqual(lines); expect(data.qiaomuTranscriptIndex).toHaveLength(CACHE_LIMIT);
-	await cache.write(id(10), lines); expect(data.qiaomuTranscriptIndex[0].id).toBe(id(10)); expect(data.qiaomuTranscriptIndex.filter((entry: any) => entry.id === id(10))).toHaveLength(1);
+	expect(await cache.read(id(0))).toBeUndefined(); expect(await cache.read(id(CACHE_LIMIT + 4))).toEqual(lines); expect(data.qiaomuTranscriptIndex2).toHaveLength(CACHE_LIMIT);
+	await cache.write(id(10), lines); expect(data.qiaomuTranscriptIndex2[0].id).toBe(id(10)); expect(data.qiaomuTranscriptIndex2.filter((entry: any) => entry.id === id(10))).toHaveLength(1);
 });
 
 it('survives a storage that fails', async () => {
@@ -35,5 +35,13 @@ it('keeps a Bilibili transcript under its own video-and-part key, and nothing un
 	data = {}; const cache = createTranscriptCache(storage);
 	await cache.write('bilibili:BV1GJ411x7h7:2', lines); expect(await cache.read('bilibili:BV1GJ411x7h7:2')).toEqual(lines);
 	await cache.write('bilibili:../../x:1', lines); await cache.write('bilibili:BV1GJ411x7h7:', lines); await cache.write('BV1GJ411x7h7', lines);
-	expect(Object.keys(data).filter(key => key.startsWith('qiaomuTranscript:'))).toEqual(['qiaomuTranscript:bilibili:BV1GJ411x7h7:2']);
+	expect(Object.keys(data).filter(key => key.startsWith('qiaomuTranscript2:'))).toEqual(['qiaomuTranscript2:bilibili:BV1GJ411x7h7:2']);
+});
+
+it('keeps a transcript per subtitle language the viewer chose, next to the default one, and rejects a malformed language', async () => {
+	data = {}; const cache = createTranscriptCache(storage); const other = [{ time: '0:01', text: '中文' }];
+	await cache.write('abcdefghijk', lines); await cache.write('abcdefghijk#zh', other); await cache.write('bilibili:BV1GJ411x7h7:2#en', lines); await cache.write('generated:youtube:abcdefghijk#ja', lines);
+	expect(await cache.read('abcdefghijk')).toEqual(lines); expect(await cache.read('abcdefghijk#zh')).toEqual(other); expect(await cache.read('bilibili:BV1GJ411x7h7:2#en')).toEqual(lines);
+	await cache.write('abcdefghijk#ZH', lines); await cache.write('abcdefghijk#zh-CN', lines); await cache.write('abcdefghijk#', lines); await cache.write('abcdefghijk#../x', lines);
+	expect(Object.keys(data).filter(key => key.startsWith('qiaomuTranscript2:')).sort()).toEqual(['qiaomuTranscript2:abcdefghijk', 'qiaomuTranscript2:abcdefghijk#zh', 'qiaomuTranscript2:bilibili:BV1GJ411x7h7:2#en', 'qiaomuTranscript2:generated:youtube:abcdefghijk#ja']);
 });

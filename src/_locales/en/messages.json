@@ -719,6 +719,36 @@
 	"read": {
 		"message": "Read"
 	},
+	"navClip": {
+		"message": "Clipping and saving"
+	},
+	"navLearning": {
+		"message": "Learning notes"
+	},
+	"groupSaving": {
+		"message": "Saving"
+	},
+	"groupSharing": {
+		"message": "Sharing"
+	},
+	"groupBackup": {
+		"message": "Backup and labs"
+	},
+	"headingClip": {
+		"message": "Clipping"
+	},
+	"headingRead": {
+		"message": "Reading and learning"
+	},
+	"headingAI": {
+		"message": "AI"
+	},
+	"navStudyHome": {
+		"message": "Transcribe and study"
+	},
+	"videoSubtitles": {
+		"message": "Video subtitles"
+	},
 	"reader": {
 		"message": "Reader"
 	},
@@ -1330,13 +1360,13 @@
 		"message": "Rewrite more concisely"
 	},
 	"youtubeAutoTranscriptTitle": {
-		"message": "Open the YouTube transcript automatically"
+		"message": "Open the YouTube transcript automatically (YouTube only)"
 	},
 	"youtubeAutoTranscriptDescription": {
 		"message": "On a video page, expand YouTube's transcript panel once so the transcript is ready for copying, downloading and study mode. Close it and it stays closed for that video."
 	},
 	"youtubeHideNativeTitle": {
-		"message": "Hide YouTube's own transcript panel"
+		"message": "Hide YouTube's own transcript panel (YouTube only)"
 	},
 	"youtubeHideNativeDescription": {
 		"message": "When the transcript opens automatically, hide YouTube's panel in the right column. The transcript bar shows the same lines. A panel you open yourself is never hidden."
@@ -1432,10 +1462,10 @@
 		"message": "Bilibili only provides subtitles to signed-in accounts. Sign in, then press Retry"
 	},
 	"youtubePanelActionsTitle": {
-		"message": "YouTube transcript buttons"
+		"message": "Transcript bar on YouTube and Bilibili"
 	},
 	"youtubePanelActionsDescription": {
-		"message": "On YouTube, add Copy, Download and Study buttons next to the Chapters / Transcript tabs of the transcript panel."
+		"message": "Add the transcript bar to video pages on YouTube and Bilibili: read along, copy, download, open study mode, and generate subtitles when a video has none."
 	},
 	"youtubePanelCopy": {
 		"message": "Copy"

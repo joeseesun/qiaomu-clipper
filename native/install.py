@@ -100,6 +100,8 @@ def main():
     if sys.platform=='win32':
         # Chrome on Windows can't run a .py directly; it launches this wrapper, which forwards the origin argument.
         host=BASE/'host.bat';host.write_text(f'@echo off\r\n"{sys.executable}" "{script}" %*\r\n',encoding='utf8')
+    # Subtitle generation (yt-dlp + ffmpeg + Whisper) lives next to the host; the host imports it from its own folder.
+    for module in ('asr.py','asr_cloud.py','asr_engines.py','asr_runner.py','asr_context.py'): (BASE/module).write_text(Path(__file__).with_name(module).read_text(encoding='utf8'),encoding='utf8');(BASE/module).chmod(0o600)
     origins=[f'chrome-extension://{i}/' for i in ids]
     config=BASE/'config.json';config.write_text(json.dumps({'vault':str(vault),'origins':origins},ensure_ascii=False,indent=2),encoding='utf8');config.chmod(0o600)
     manifest={'name':NAME,'description':'Save clipped Markdown silently to the configured Obsidian vault','path':str(host),'type':'stdio','allowed_origins':origins}
@@ -114,6 +116,15 @@ def main():
     test=self_test(host,origins[0])
     if not test.get('ok'): fail('助手已安装，但自检未通过：'+str(test.get('error')),'按错误信息处理（例如库路径失效），再重新运行安装',host=str(host))
     print(json.dumps({'ok':True,'host':str(host),'vault':str(vault),'extensionIds':ids,'registeredFor':written,'selfTest':test,'next':'在浏览器扩展管理页重新加载「乔木剪藏」，再重新打开剪藏弹窗；无需重启浏览器'},ensure_ascii=False,indent=2))
+def self_asr(host,origin):
+    """Ask the installed host which of yt-dlp / ffmpeg / a Whisper engine are present (optional: only 生成字幕 needs them)."""
+    body=json.dumps({'action':'asrStatus'}).encode()
+    try:
+        r=subprocess.run([str(host),origin],input=struct.pack('=I',len(body))+body,capture_output=True,timeout=20,env={'PATH':'/usr/bin:/bin'})
+        n=struct.unpack('=I',r.stdout[:4])[0] if len(r.stdout)>=4 else 0
+        answer=json.loads(r.stdout[4:4+n]) if n else {}
+        return {k:answer.get(k) for k in ('ready','missing','hints','engine','modelDownloadNeeded')} if answer.get('ok') else {'ready':False,'error':answer.get('error','host produced no reply')}
+    except Exception as e: return {'ready':False,'error':str(e)[:200]}
 def check(detected):
     report={'python':sys.executable,'extension':{b:ids for b,(_,ids) in detected.items()}}
     host=BASE/('host.bat' if sys.platform=='win32' else 'host.py');cfg=BASE/'config.json'
@@ -126,7 +137,9 @@ def check(detected):
         for i in ids:
             if f'chrome-extension://{i}/' not in allowed: problems.append(f'{label}：扩展 ID {i} 不在允许列表（商店版与本地加载版 ID 不同）')
     if not detected: problems.append('没有在任何浏览器里找到「乔木剪藏」扩展')
+    if not (BASE/'asr.py').is_file(): problems.append('缺少 asr.py（无字幕视频的「生成字幕」不可用）；重新运行 python3 native/install.py')
     test=self_test(host,origins[0]) if origins else {'ok':False,'error':'config 缺少扩展来源'}
     if not test.get('ok'): problems.append('助手自检失败：'+str(test.get('error')))
-    print(json.dumps({'ok':not problems,'problems':problems,'selfTest':test,**report,'hint':'重新运行 python3 native/install.py 通常即可修复' if problems else '助手正常；若扩展仍提示未连接，请在扩展管理页重新加载扩展'},ensure_ascii=False,indent=2));sys.exit(1 if problems else 0)
+    asr_status=self_asr(host,origins[0]) if origins else None
+    print(json.dumps({'ok':not problems,'problems':problems,'selfTest':test,'subtitleGeneration':asr_status,**report,'hint':'重新运行 python3 native/install.py 通常即可修复' if problems else '助手正常；若扩展仍提示未连接，请在扩展管理页重新加载扩展'},ensure_ascii=False,indent=2));sys.exit(1 if problems else 0)
 main()

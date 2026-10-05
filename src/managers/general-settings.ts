@@ -12,6 +12,8 @@ import { Settings, Template } from '../types/types';
 import { exportHighlights, importHighlights } from './highlights-manager';
 import { getMessage, setupLanguageAndDirection } from '../utils/i18n';
 import { debounce } from '../utils/debounce';
+import { initializeAsrSettings } from './asr-settings';
+import { initializeStudySitesSettings } from './study-sites-settings';
 import browser from '../utils/browser-polyfill';
 import { createUsageChart, aggregateUsageData, UsageMetric } from '../utils/charts';
 import { getClipHistory } from '../utils/storage-utils';
@@ -23,13 +25,6 @@ import { describeHelperFailure, nativeHelperRepairPrompt } from '../utils/native
 import { DEFAULT_TRIPLE_KEYS, TRIPLE_COMMANDS, TripleCommand, normalizeTripleKeys, normalizeSites } from '../utils/triple-key';
 
 dayjs.extend(weekOfYear);
-
-const STORE_URLS = {
-	chrome: 'https://chromewebstore.google.com/detail/obsidian-web-clipper/cnjifjpddelmedmihgijeibhnjfabmlf',
-	firefox: 'https://addons.mozilla.org/en-US/firefox/addon/web-clipper-obsidian/',
-	safari: 'https://apps.apple.com/us/app/obsidian-web-clipper/id6720708363',
-	edge: 'https://microsoftedge.microsoft.com/addons/detail/obsidian-web-clipper/eigdjhmgnaaeaonimdklocfekkaanfme'
-};
 
 export function updateVaultList(): void {
 	const vaultList = document.getElementById('vault-list') as HTMLUListElement;
@@ -178,42 +173,6 @@ export function initializeGeneralSettings(): void {
 		// Add version check initialization
 		await initializeVersionDisplay();
 
-		// Get clip history and ratings
-		const history = await getClipHistory();
-		const totalClips = history.filter(entry => entry.action !== 'readerMode').length;
-		const existingRatings = await getLocalStorage('ratings') || [];
-
-		// Show rating section only total clips >= 20 and no previous ratings
-		const rateExtensionSection = document.getElementById('rate-extension');
-		if (rateExtensionSection && totalClips >= 20 && existingRatings.length === 0) {
-			rateExtensionSection.classList.remove('is-hidden');
-		}
-
-		if (totalClips >= 20 && existingRatings.length === 0) {
-			const starRating = document.querySelector('.star-rating');
-			if (starRating) {
-				const stars = starRating.querySelectorAll('.star');
-				stars.forEach(star => {
-					star.addEventListener('click', async () => {
-						const rating = parseInt(star.getAttribute('data-rating') || '0');
-						stars.forEach(s => {
-							if (parseInt(s.getAttribute('data-rating') || '0') <= rating) {
-								s.classList.add('is-active');
-							} else {
-								s.classList.remove('is-active');
-							}
-						});
-						await handleRating(rating);
-						
-						// Hide the rating section after rating
-						if (rateExtensionSection) {
-							rateExtensionSection.style.display = 'none';
-						}
-					});
-				});
-			}
-		}
-
 		updateVaultList();
 		initializeShowMoreActionsToggle();
 		initializeBetaFeaturesToggle();
@@ -226,6 +185,8 @@ export function initializeGeneralSettings(): void {
 		initializeKeyboardShortcuts();
 		initializeToggles();
 		setShortcutInstructions();
+		void initializeAsrSettings();
+		void initializeStudySitesSettings();
 		initializeAutoSave();
 		initializeResetDefaultTemplateButton();
 		initializeExportImportAllSettingsButtons();
@@ -233,22 +194,17 @@ export function initializeGeneralSettings(): void {
 		initializeExportHighlightsButton();
 		initializeSaveBehaviorDropdown();
 		await initializeUsageChart();
-
-		// Initialize feedback modal close button
-		const feedbackModal = document.getElementById('feedback-modal');
-		const feedbackCloseBtn = feedbackModal?.querySelector('.feedback-close-btn');
-		if (feedbackCloseBtn) {
-			feedbackCloseBtn.addEventListener('click', () => hideModal(feedbackModal));
-		}
 	});
 }
 
 function initializeAutoSave(): void {
-	const generalSettingsForm = document.getElementById('general-settings-form');
-	if (generalSettingsForm) {
+	// The settings are spread over several pages of the menu; each page's form saves the same way.
+	for (const id of ['general-settings-form', 'clip-settings-form', 'learning-settings-form', 'video-settings-form']) {
+		const form = document.getElementById(id);
+		if (!form) continue;
 		// Listen for both input and change events
-		generalSettingsForm.addEventListener('input', debounce(saveSettingsFromForm, 500));
-		generalSettingsForm.addEventListener('change', debounce(saveSettingsFromForm, 500));
+		form.addEventListener('input', debounce(saveSettingsFromForm, 500));
+		form.addEventListener('change', debounce(saveSettingsFromForm, 500));
 	}
 }
 
@@ -619,52 +575,6 @@ async function initializeUsageChart(): Promise<void> {
 	metricSelect.addEventListener('change', updateChart);
 	periodSelect.addEventListener('change', updateChart);
 	aggregationSelect.addEventListener('change', updateChart);
-}
-
-async function handleRating(rating: number) {
-	// Get existing ratings from storage
-	const existingRatings = await getLocalStorage('ratings') || [];
-	
-	// Add new rating
-	const newRating = {
-		rating,
-		date: new Date().toISOString()
-	};
-	
-	// Update both storage and generalSettings
-	const updatedRatings = [...existingRatings, newRating];
-	generalSettings.ratings = updatedRatings;
-	
-	// Save to storage
-	await setLocalStorage('ratings', updatedRatings);
-	await saveSettings();
-
-	if (rating >= 4) {
-		// Redirect to appropriate store
-		const browser = await detectBrowser();
-		let storeUrl = STORE_URLS.chrome; // Default to Chrome store
-
-		switch (browser) {
-			case 'firefox':
-			case 'firefox-mobile':
-				storeUrl = STORE_URLS.firefox;
-				break;
-			case 'safari':
-			case 'mobile-safari':
-			case 'ipad-os':
-				storeUrl = STORE_URLS.safari;
-				break;
-			case 'edge':
-				storeUrl = STORE_URLS.edge;
-				break;
-		}
-
-		window.open(storeUrl, '_blank');
-	} else {
-		// Show feedback modal for ratings < 4
-		const modal = document.getElementById('feedback-modal');
-		showModal(modal);
-	}
 }
 
 function initializeSettingDropdown(

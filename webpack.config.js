@@ -43,6 +43,8 @@ module.exports = (env, argv) => {
 			'triple-key': './src/triple-key-content.ts',
 			'youtube-panel': './src/youtube-panel-content.ts',
 			'bilibili-panel': './src/bilibili-panel-content.ts',
+			'bilibili-embed': './src/bilibili-embed-content.ts',
+			'xiaoyuzhou-panel': './src/xiaoyuzhou-content.ts',
 			'note-card': ['./src/note-card-content.ts', './src/note-card.scss'],
 			popup: './src/core/popup.ts',
 			settings: './src/core/settings.ts',
