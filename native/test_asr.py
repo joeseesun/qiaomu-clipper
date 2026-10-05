@@ -45,7 +45,9 @@ class AsrTests(unittest.TestCase):
  def test_status_reports_tools_engine_and_install_hints(self):
   s=asr.handle({'action':'asrStatus'},self.base);self.assertTrue(s['ready']);self.assertEqual(s['engine'],'mlx');self.assertFalse(s['modelDownloadNeeded'])
   with patch.dict(os.environ,{'QIAOMU_TOOL_DIRS':''}),patch.object(asr,'TOOL_DIRS',[]),patch.dict(os.environ,{'PATH':'/nonexistent'}):
-   s=asr.status();self.assertFalse(s['ready']);self.assertEqual(set(s['missing']),{'yt-dlp','ffmpeg','whisper'});self.assertTrue(any('brew install' in h for h in s['hints']))
+   s=asr.status();self.assertFalse(s['ready']);self.assertEqual(set(s['missing']),{'yt-dlp','ffmpeg','whisper'});self.assertTrue(s['hints'])
+  with patch.object(asr.sys,'platform','darwin'):self.assertTrue(any('brew install' in h for h in asr.status()['hints']))  # the Homebrew hint is for macOS; other systems get a plain instruction
+  with patch.object(asr.sys,'platform','linux'):self.assertFalse(any('brew' in h for h in asr.status()['hints']))
  def test_full_pipeline_streams_segments_drops_invented_lines_and_caches_the_result(self):
   started=self.run_job();self.assertIn(started['state'],('queued','downloading'));job=started['id']
   done=self.work(job)
