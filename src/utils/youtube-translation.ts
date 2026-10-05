@@ -25,15 +25,59 @@ export function translationBatches(texts: string[]): TranslationPart[][] {
 	if (batch.length) batches.push(batch); return batches;
 }
 
+/** Extract the first complete JSON array from a provider response.
+ *
+ * Some OpenAI-compatible providers append a short explanation or wrap the
+ * JSON in Markdown despite the prompt asking for JSON only. Scanning for a
+ * balanced array keeps that harmless formatting from making an otherwise
+ * valid translation unusable, while still letting the schema checks below
+ * reject incomplete or malformed responses.
+ */
+export function extractJsonArray(answer: string): unknown[] {
+	const source = answer.replace(/^\uFEFF/, '').trim();
+	for (let start = source.indexOf('['); start >= 0; start = source.indexOf('[', start + 1)) {
+		let depth = 0;
+		let inString = false;
+		let escaped = false;
+		for (let index = start; index < source.length; index++) {
+			const character = source[index];
+			if (inString) {
+				if (escaped) escaped = false;
+				else if (character === '\\') escaped = true;
+				else if (character === '"') inString = false;
+				continue;
+			}
+			if (character === '"') { inString = true; continue; }
+			if (character === '[') depth++;
+			else if (character === ']') {
+				depth--;
+				if (depth !== 0) continue;
+				try {
+					const parsed: unknown = JSON.parse(source.slice(start, index + 1));
+					if (Array.isArray(parsed)) return parsed;
+				} catch {
+					// Try a later opening bracket. This handles explanatory text that
+					// contains an unrelated bracket before the actual response.
+				}
+				break;
+			}
+		}
+	}
+	throw new Error(getMessage('qiaomuTranslationInvalid'));
+}
+
 export function parseTranslation(answer: string, batch: TranslationPart[]): Map<number, string> {
-	const data: unknown = JSON.parse(answer.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, ''));
+	const data = extractJsonArray(answer);
 	if (!Array.isArray(data) || data.length !== batch.length) throw new Error(getMessage('qiaomuTranslationInvalid'));
 	const output = new Map<number, string>();
 	for (const item of data) {
-		if (!item || typeof item.id !== 'number' || !batch.some(part => part.id === item.id) || output.has(item.id) || typeof item.text !== 'string' || (!item.text.trim() && withoutMusicCues(batch.find(part => part.id === item.id)!.text))) throw new Error(getMessage('qiaomuTranslationInvalid'));
-		const translated = translationParagraphs(item.text).join('\n\n');
-		if (!translated && withoutMusicCues(batch.find(part => part.id === item.id)!.text)) throw new Error(getMessage('qiaomuTranslationInvalid'));
-		output.set(item.id, translated);
+		const candidate = item && typeof item === 'object' ? item as { id?: unknown; text?: unknown } : undefined;
+		const id = candidate?.id;
+		const text = candidate?.text;
+		if (typeof id !== 'number' || !batch.some(part => part.id === id) || output.has(id) || typeof text !== 'string' || (!text.trim() && withoutMusicCues(batch.find(part => part.id === id)!.text))) throw new Error(getMessage('qiaomuTranslationInvalid'));
+		const translated = translationParagraphs(text).join('\n\n');
+		if (!translated && withoutMusicCues(batch.find(part => part.id === id)!.text)) throw new Error(getMessage('qiaomuTranslationInvalid'));
+		output.set(id, translated);
 	}
 	return output;
 }
@@ -53,8 +97,19 @@ export function mountTranslation(article: HTMLElement, toolbar: HTMLElement, sta
 	label.title = getMessage('qiaomuTranslationService');
 	label.addEventListener('mousedown', event => { if (!doc.getSelection()?.isCollapsed) event.preventDefault(); });
 	const caption = doc.createElement('span'); caption.textContent = getMessage('qiaomuTranslate') || getMessage('qiaomuTranslateChinese');
+	const picker = doc.createElement('span'); picker.className = 'youtube-translation-picker';
 	const target = doc.createElement('select'); target.className = 'youtube-translation-target'; target.setAttribute('aria-label', 'Translation target language');
+	target.setAttribute('aria-hidden', 'true');
 	translationLanguages.forEach(item => { const option = doc.createElement('option'); option.value = item.code; option.textContent = item.label; target.append(option); });
+	const pickerButton = doc.createElement('button'); pickerButton.type = 'button'; pickerButton.className = 'youtube-translation-picker-trigger'; pickerButton.setAttribute('aria-haspopup', 'listbox'); pickerButton.setAttribute('aria-expanded', 'false');
+	const pickerValue = doc.createElement('span'); pickerValue.className = 'youtube-translation-picker-value'; pickerButton.append(pickerValue);
+	const pickerMenu = doc.createElement('span'); pickerMenu.className = 'youtube-translation-picker-menu'; pickerMenu.setAttribute('role', 'listbox'); pickerMenu.hidden = true;
+	const pickerOptions = new Map<string, HTMLButtonElement>();
+	translationLanguages.forEach(item => {
+		const option = doc.createElement('button'); option.type = 'button'; option.className = 'youtube-translation-picker-option'; option.dataset.value = item.code; option.textContent = item.label;
+		option.setAttribute('role', 'option'); option.tabIndex = -1; pickerOptions.set(item.code, option); pickerMenu.append(option);
+	});
+	picker.append(target, pickerButton, pickerMenu);
 	const transcript = article.querySelector<HTMLElement>('.youtube.transcript, .bilibili.transcript');
 	const sourceLanguage = transcript?.dataset.sourceLanguage || detectTranscriptLanguage(texts.join(' '));
 	const savedTarget = (() => { try { return localStorage.getItem(TRANSLATION_TARGET_KEY); } catch { return null; } })();
@@ -62,7 +117,49 @@ export function mountTranslation(article: HTMLElement, toolbar: HTMLElement, sta
 		try { return (storageUtils as unknown as { generalSettings?: { translationTargetLanguage?: string; translationModel?: string; providers?: Array<{ id: string; name: string }> } }).generalSettings; }
 		catch { return undefined; }
 	};
-	target.value = validTargetLanguage(currentSettings()?.translationTargetLanguage || savedTarget);
+	const syncPicker = () => {
+		const selected = translationLanguages.find(item => item.code === target.value) || translationLanguages[0];
+		pickerValue.textContent = selected.label;
+		pickerButton.setAttribute('aria-label', `Translation target language: ${selected.label}`);
+		pickerOptions.forEach((option, code) => {
+			const active = code === selected.code;
+			option.setAttribute('aria-selected', String(active));
+			option.tabIndex = active ? 0 : -1;
+			option.classList.toggle('is-selected', active);
+		});
+	};
+	const closePicker = (restoreFocus = false) => {
+		picker.classList.remove('is-open'); pickerMenu.hidden = true; pickerButton.setAttribute('aria-expanded', 'false');
+		if (restoreFocus) pickerButton.focus();
+	};
+	const openPicker = (focusSelected = false) => {
+		picker.classList.add('is-open'); pickerMenu.hidden = false; pickerButton.setAttribute('aria-expanded', 'true');
+		if (focusSelected) pickerOptions.get(target.value)?.focus();
+	};
+	const chooseLanguage = (code: string) => {
+		if (!translationLanguages.some(item => item.code === code)) return;
+		const changed = target.value !== code;
+		target.value = code; syncPicker(); closePicker();
+		if (changed) target.dispatchEvent(new Event('change', { bubbles: true }));
+	};
+	target.value = validTargetLanguage(currentSettings()?.translationTargetLanguage || savedTarget); syncPicker();
+	pickerButton.addEventListener('click', () => pickerMenu.hidden ? openPicker() : closePicker());
+	pickerButton.addEventListener('keydown', event => {
+		if (event.key === 'Enter' || event.key === ' ' || event.key === 'ArrowDown') { event.preventDefault(); openPicker(true); }
+		else if (event.key === 'Escape') closePicker();
+	});
+	pickerOptions.forEach(option => {
+		option.addEventListener('click', () => chooseLanguage(option.dataset.value || ''));
+		option.addEventListener('keydown', event => {
+			const options = Array.from(pickerOptions.values()); const index = options.indexOf(option);
+			if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+				event.preventDefault(); options[(index + (event.key === 'ArrowDown' ? 1 : -1) + options.length) % options.length]?.focus();
+			} else if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); chooseLanguage(option.dataset.value || ''); }
+			else if (event.key === 'Escape') { event.preventDefault(); closePicker(true); }
+		});
+	});
+	doc.addEventListener('pointerdown', event => { if (!picker.contains(event.target as Node)) closePicker(); });
+	target.addEventListener('change', syncPicker);
 	const sourceLabel = doc.createElement('span'); sourceLabel.className = 'youtube-translation-source';
 	sourceLabel.textContent = `${languageLabel(sourceLanguage)}${transcript?.dataset.sourceLanguage ? '' : ' (?)'} →`;
 	sourceLabel.title = transcript?.dataset.sourceLanguage ? getMessage('qiaomuCaptionTrackLanguage') : getMessage('qiaomuCaptionLanguageUncertain');
@@ -70,7 +167,7 @@ export function mountTranslation(article: HTMLElement, toolbar: HTMLElement, sta
 	const input = doc.createElement('input'); input.type = 'checkbox'; input.setAttribute('role', 'switch'); input.setAttribute('aria-label', caption.textContent);
 	track.append(input); label.append(caption, track);
 	const retry = doc.createElement('button'); retry.type = 'button'; retry.className = 'youtube-translation-retry'; retry.textContent = getMessage('qiaomuTranslationRetry'); retry.hidden = true;
-	toolbar.append(sourceLabel, target, label); status.after(retry);
+	toolbar.append(sourceLabel, picker, label); status.after(retry);
 	let controller: AbortController | undefined; let generation = 0;
 	const cache = new Map<number, string>();
 	const parts = batches.flat();
