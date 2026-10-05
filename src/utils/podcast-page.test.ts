@@ -31,3 +31,13 @@ it('reads clock-like times only: not decimals, scores or longer numbers', () => 
 	expect(Array.from(root.querySelectorAll<HTMLElement>('a')).map(a => a.textContent)).toEqual(['7:05']);
 	expect(stampSeconds(undefined, '7', '05')).toBe(425); expect(stampSeconds('1', '02', '03')).toBe(3723); expect(cleanNotes('<p>x</p>')).toBe('<p>x</p>');
 });
+
+it('turns a plain description into paragraphs, links and jumpable times, escaping everything else', async () => {
+	const { plainToHtml, durationText } = await import('./podcast-page');
+	const html = plainToHtml('Introducing <b>x</b> & more\nsecond line\n\nSee https://huggingface.co/interfaze-ai/interfaze-1-lite-with-a-very-long-path/files for 12:30 details');
+	const holder = document.createElement('div'); holder.innerHTML = html;
+	expect(holder.querySelectorAll('p')).toHaveLength(2); expect(holder.querySelector('p')!.innerHTML).toBe('Introducing &lt;b&gt;x&lt;/b&gt; &amp; more<br>second line'); expect(holder.querySelector('b')).toBeNull();
+	const link = holder.querySelector<HTMLAnchorElement>('a[href^="https://huggingface"]')!; expect(link.textContent!.endsWith('…')).toBe(true); expect(link.target).toBe('_blank'); expect(link.rel).toContain('noopener'); expect(holder.querySelector<HTMLElement>('a.qiaomu-seek')!.dataset.time).toBe('750');
+	expect(plainToHtml('')).toBe(''); expect(plainToHtml('<script>x()</script>')).not.toContain('<script');
+	expect([0, NaN, 45, 115, 599, 600, 3000, 3600, 9258].map(durationText)).toEqual(['', '', '45 秒', '1:55', '9:59', '10 分钟', '50 分钟', '1 小时 0 分钟', '2 小时 34 分钟']);
+});

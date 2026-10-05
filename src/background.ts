@@ -9,6 +9,7 @@ import { debugLog } from './utils/debug';
 import { incrementStat, loadSettings } from './utils/storage-utils';
 import { enabledChatModels, streamChat } from './utils/chat-llm';
 import { audioStudyPath, videoKey, videoStudyPath } from './utils/video-source';
+import { isSiteOn, loadStudySites, xStatus } from './utils/study-sites';
 import { hasStoredHighlights } from './utils/url-utils';
 import { handleAsrMessage, handleLearningNativeMessage } from './utils/local-save';
 import { enableYouTubeEmbedRule, disableYouTubeEmbedRule } from './utils/youtube-embed-rules';
@@ -1192,13 +1193,23 @@ async function openNoteCard(tabId: number, quote?: string): Promise<void> {
 	} catch { /* restricted page */ }
 }
 
+// A post on X that holds a video or audio is studied like any other: the post's address goes to the study page, which reads it
+// with yt-dlp. A post without media stays an ordinary page for the reader.
+async function xStudyPath(url: string, tabId: number): Promise<string | null> {
+	const post = xStatus(url); if (!post || !isSiteOn(await loadStudySites(), 'x')) return null;
+	try {
+		const [result] = await browser.scripting.executeScript({ target: { tabId }, func: () => Boolean(document.querySelector('article video, article audio, [data-testid="videoPlayer"]')) });
+		return result?.result ? `reader.html?study=web&url=${encodeURIComponent(post)}` : null;
+	} catch { return null; }
+}
+
 // The triple-press commands open the clipper, which runs read / edit / clip once the clip is ready.
 async function runTripleKeyAction(action: string, tabId: number): Promise<void> {
 	if (action === 'note') { await openNoteCard(tabId); return; }
 	if (action !== 'read' && action !== 'edit' && action !== 'clip') return;
 	if (action === 'read') {
 		const tab = await browser.tabs.get(tabId);
-		const path = videoStudyPath(tab.url || '', tabId, tab.title || '') || audioStudyPath(tab.url || '', tab.title || '');
+		const path = videoStudyPath(tab.url || '', tabId, tab.title || '') || audioStudyPath(tab.url || '', tab.title || '') || await xStudyPath(tab.url || '', tabId);
 		if (path) {
 			// Open the player immediately; subtitle extraction belongs to the reader.
 			await browser.tabs.create({ url: browser.runtime.getURL(path), openerTabId: tabId });

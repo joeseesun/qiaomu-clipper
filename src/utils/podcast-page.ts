@@ -43,6 +43,20 @@ export function markTimestamps(root: HTMLElement): void {
 	}
 }
 
+// A post's or a video's description is plain text: keep its paragraphs, make the addresses links, and let the times be jumped to.
+export function plainToHtml(text: string): string {
+	const escape = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+	const paragraphs = String(text ?? '').replace(/\r/g, '').split(/\n{2,}/).map(block => block.trim()).filter(Boolean);
+	const html = paragraphs.map(block => '<p>' + escape(block).replace(/\n/g, '<br>').replace(/https?:\/\/[^\s<]+/g, link => { const shown = link.length > 48 ? link.slice(0, 47) + '…' : link; return `<a href="${link}">${shown}</a>`; }) + '</p>').join('');
+	return cleanNotes(html);
+}
+export function durationText(seconds?: number): string {
+	if (!seconds || !Number.isFinite(seconds) || seconds < 1) return '';
+	if (seconds < 60) return `${Math.round(seconds)} 秒`;
+	if (seconds < 600) return `${Math.floor(seconds / 60)}:${String(Math.round(seconds % 60)).padStart(2, '0')}`;
+	return seconds >= 3600 ? `${Math.floor(seconds / 3600)} 小时 ${Math.round((seconds % 3600) / 60)} 分钟` : `${Math.round(seconds / 60)} 分钟`;
+}
+
 export function parsePodcastPage(html: string): PodcastEpisode {
 	const doc = new DOMParser().parseFromString(html, 'text/html');
 	const meta = (property: string) => doc.querySelector(`meta[property="${property}"]`)?.getAttribute('content') || undefined;

@@ -1,5 +1,6 @@
 import browser from './browser-polyfill';
 import { Template } from '../types/types';
+import { xStatus } from './study-sites';
 import { activeProfile, choosePatch, cloudConfig, effectiveFor, isConfigured, isHttpsOrLocal, isLocalService, loadAsrSettings, platformOf, profileLabel, saveAsrSettings, LOCAL_ENGINE_IDS, type AsrSettings } from './asr-settings';
 export interface LocalSavePayload { requestId: string; content: string; name: string; folder: string; vault: string; behavior: Template['behavior'] }
 export interface LocalSaveResult { ok: boolean; reason?: string; error?: string; cancelled?: boolean; vault?: string; vaultPath?: string; path?: string; relativePath?: string; folder?: string }
@@ -79,7 +80,9 @@ export function handleAsrMessage(request: unknown, sender: { id?: string; url?: 
         // Any other site: its address comes with the request, from the extension's own pages only, and must be https.
         if (payload.videoKey!.startsWith('web:')) {
             const ref = payload.web;
-            if (!sender.url?.startsWith(browser.runtime.getURL('')) || !ref || typeof ref.url !== 'string' || ref.url.length > 1500 || !/^https:\/\//.test(ref.url)) return Promise.resolve({ ok: false, error: 'bad-request' });
+            // A page may also transcribe itself: a post on X, from the bar on that post, for the post's own address and no other.
+            const own = Boolean(ref && typeof ref.url === 'string' && xStatus(sender.url || '') && xStatus(ref.url) === xStatus(sender.url || ''));
+            if (!(sender.url?.startsWith(browser.runtime.getURL('')) || own) || !ref || typeof ref.url !== 'string' || ref.url.length > 1500 || !/^https:\/\//.test(ref.url)) return Promise.resolve({ ok: false, error: 'bad-request' });
             body.web = { url: ref.url };
         }
         Object.assign(body, { videoKey: payload.videoKey, language: payload.language || 'auto', force: payload.force === true, ...(payload.cookies ? { cookies: payload.cookies } : {}) });

@@ -33,7 +33,7 @@ it('keeps what was studied, newest first, once each, at most twenty, and ignores
 
 const open = vi.fn(), openFile = vi.fn();
 const home = async () => { open.mockReset(); openFile.mockReset(); await showStudyHome(document, { open, openFile }); };
-const input = () => document.querySelector<HTMLInputElement>('.qiaomu-home-form input')!, go = () => document.querySelector<HTMLButtonElement>('.qiaomu-home-go')!, hint = () => document.querySelector('.qiaomu-home-hint')!.textContent;
+const input = () => document.querySelector<HTMLInputElement>('.qiaomu-home-form input')!, go = () => document.querySelector<HTMLButtonElement>('.qiaomu-home-go')!, hint = () => document.querySelector('.qiaomu-home-hint > span')!.textContent;
 const type = (value: string) => { input().value = value; input().dispatchEvent(new Event('input')); };
 
 it('recognises what was pasted as it is typed, and opens it for study when started', async () => {
@@ -49,7 +49,7 @@ it('takes a chosen or dropped audio or video file, and refuses other kinds', asy
 	await home(); const files = document.querySelector<HTMLInputElement>('input[type=file]')!; const set = (file: File) => { Object.defineProperty(files, 'files', { value: [file], configurable: true }); files.dispatchEvent(new Event('change')); };
 	set(new File(['x'], 'notes.pdf')); expect(openFile).not.toHaveBeenCalled(); expect(hint()).toContain('不支持');
 	const talk = new File(['x'], 'talk.m4a'); set(talk); expect(openFile).toHaveBeenCalledWith(talk);
-	const dropped = new File(['x'], 'meeting.mp4'), event = new Event('drop', { cancelable: true }); Object.defineProperty(event, 'dataTransfer', { value: { files: [dropped] } }); document.dispatchEvent(event); expect(openFile).toHaveBeenLastCalledWith(dropped);
+	const dropped = new File(['x'], 'meeting.mp4'), event = new Event('drop', { cancelable: true }); Object.defineProperty(event, 'dataTransfer', { value: { files: [dropped] } }); document.querySelector('.qiaomu-home-hero')!.dispatchEvent(event); expect(openFile).toHaveBeenLastCalledWith(dropped);
 });
 
 it('lists what was studied before, opens it on a click, and removes an item without opening it', async () => {

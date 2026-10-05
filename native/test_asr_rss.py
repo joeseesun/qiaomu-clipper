@@ -65,11 +65,11 @@ class WebTests(unittest.TestCase):
             for p in patchers: p.stop()
 
     def test_probe_says_what_an_address_is_or_why_it_cannot_be_read(self):
-        ok = json.dumps({'title': 'T', 'uploader': 'U', 'duration': 61.5, 'thumbnail': 'https://i.example.com/t.jpg', 'extractor_key': 'Vimeo', 'url': 'https://cdn.example.com/a.mp4', 'protocol': 'https', 'ext': 'mp4', 'vcodec': 'avc1'})
+        ok = json.dumps({'title': 'T', 'uploader': 'U', 'duration': 61.5, 'thumbnail': 'https://i.example.com/t.jpg', 'extractor_key': 'Vimeo', 'description': 'The words of the post', 'upload_date': '20261006', 'url': 'https://cdn.example.com/a.mp4', 'protocol': 'https', 'ext': 'mp4', 'vcodec': 'avc1', 'acodec': 'mp4a', 'height': 480})
         run = lambda code, out='', err='': type('R', (), {'returncode': code, 'stdout': out, 'stderr': err})()
         with patch.object(asr, 'find_tool', lambda name: '/usr/bin/true'), patch.object(asr, 'public_https', lambda url: url.startswith('https://') and not url.startswith('https://127.')):
             with patch('subprocess.run', lambda *a, **k: run(0, ok)): info = asr.probe({'url': 'https://vimeo.com/1'})
-            self.assertEqual((info['title'], info['author'], info['seconds'], info['site'], info['video']), ('T', 'U', 61.5, 'Vimeo', True)); self.assertEqual(info['mediaUrl'], 'https://cdn.example.com/a.mp4')
+            self.assertEqual((info['title'], info['author'], info['seconds'], info['site'], info['video']), ('T', 'U', 61.5, 'Vimeo', True)); self.assertEqual(info['mediaUrl'], 'https://cdn.example.com/a.mp4'); self.assertEqual((info['description'], info['date']), ('The words of the post', '2026-10-06'))
             hls = json.loads(ok); hls['protocol'] = 'm3u8_native'
             with patch('subprocess.run', lambda *a, **k: run(0, json.dumps(hls))): self.assertIsNone(asr.probe({'url': 'https://vimeo.com/1'})['mediaUrl'])  # a stream the page cannot play
             with patch('subprocess.run', lambda *a, **k: run(1, '', 'ERROR: Unsupported URL: https://x')): self.assertEqual(asr.probe({'url': 'https://x.example.com/p'})['error'], 'unsupported')
@@ -77,3 +77,19 @@ class WebTests(unittest.TestCase):
             with self.assertRaises(ValueError): asr.probe({'url': 'https://127.0.0.1/x'})
             with self.assertRaises(ValueError): asr.probe({'url': 'http://x.example.com/p'})
         with patch.object(asr, 'find_tool', lambda name: None): self.assertEqual(asr.probe({'url': 'https://vimeo.com/1'})['error'], 'missing')
+
+    def test_probe_picks_a_plain_file_with_the_picture_when_a_site_offers_streams_and_files(self):
+        run = lambda out: type('R', (), {'returncode': 0, 'stdout': out, 'stderr': ''})()
+        formats = [{'format_id': 'hls-audio', 'url': 'https://v.example.com/a.m3u8', 'protocol': 'm3u8_native', 'ext': 'mp4', 'vcodec': 'none'},
+                   {'format_id': 'http-256', 'url': 'https://v.example.com/256.mp4', 'protocol': 'https', 'ext': 'mp4', 'height': 256, 'vcodec': 'avc1', 'acodec': 'mp4a'},
+                   {'format_id': 'http-832', 'url': 'https://v.example.com/832.mp4', 'protocol': 'https', 'ext': 'mp4', 'height': 480, 'vcodec': 'avc1', 'acodec': 'mp4a'},
+                   {'format_id': 'http-2176', 'url': 'https://v.example.com/2176.mp4', 'protocol': 'https', 'ext': 'mp4', 'height': 1080, 'vcodec': 'avc1', 'acodec': 'mp4a'},
+                   {'format_id': 'cookie', 'url': 'https://v.example.com/c.mp4', 'protocol': 'https', 'ext': 'mp4', 'height': 720, 'vcodec': 'avc1', 'acodec': 'mp4a', 'http_headers': {'Cookie': 'x'}}]
+        base = {'title': 'T', 'url': 'https://v.example.com/a.m3u8', 'protocol': 'm3u8_native', 'ext': 'mp4', 'vcodec': 'none'}
+        with patch.object(asr, 'find_tool', lambda name: '/usr/bin/true'), patch.object(asr, 'public_https', lambda url: url.startswith('https://')):
+            with patch('subprocess.run', lambda *a, **k: run(json.dumps({**base, 'formats': formats}))): info = asr.probe({'url': 'https://x.com/a/status/1'})
+            self.assertEqual((info['mediaUrl'], info['video']), ('https://v.example.com/832.mp4', True))  # the largest picture up to 720 lines, never the stream, never one that needs a cookie
+            only_sound = [{'format_id': 's', 'url': 'https://v.example.com/s.m4a', 'protocol': 'https', 'ext': 'm4a', 'vcodec': 'none', 'abr': 128}]
+            with patch('subprocess.run', lambda *a, **k: run(json.dumps({**base, 'formats': only_sound}))): info = asr.probe({'url': 'https://x.com/a/status/1'})
+            self.assertEqual((info['mediaUrl'], info['video']), ('https://v.example.com/s.m4a', False))
+            with patch('subprocess.run', lambda *a, **k: run(json.dumps({**base, 'formats': formats[:1]}))): self.assertIsNone(asr.probe({'url': 'https://x.com/a/status/1'})['mediaUrl'])

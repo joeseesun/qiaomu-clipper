@@ -11,6 +11,7 @@ import { withReliableBilibili } from './bilibili-captions';
 import { transcriptHtml } from './youtube-dom-transcript';
 import { createTranscriptCache } from './youtube-transcript-cache';
 import { toLines } from './subtitle-generation';
+import { reloadPage } from './page-reload';
 import { createBarGeneration } from './bar-generation';
 import { buildGenerationPanel, GENERATION_STYLE, type GenUi } from './subtitle-generation-panel';
 import { generationStrings } from './subtitle-generation-strings';
@@ -62,7 +63,7 @@ export async function startYouTubeStudy(url: string, sourceTabId: number, initia
 	retry.setAttribute('aria-label', '重新加载字幕');
 	status.after(retry);
 	let loading = false;
-	let loaded = false;
+	let loaded = false, remade = false; // `remade`: the generated transcript replaces one already on the page
 
 	// Videos without subtitles: offer to generate them on this computer (the helper does the work; see subtitle-generation.ts).
 	const key = videoKey(url)!;
@@ -74,9 +75,10 @@ export async function startYouTubeStudy(url: string, sourceTabId: number, initia
 	// The same flow as the transcript bar on the video page: one press starts it once an engine or service is chosen.
 	const generation = createBarGeneration({
 		videoKey: () => key, bar: () => ({ setGeneration: (ui: GenUi | null) => panel.show(ui ?? { kind: 'offer' }) }) as never,
-		apply: (_key, lines, done) => { if (done) void attachGenerated(lines); },
+		apply: (_key, lines, done) => { if (done) { remade = loaded; void attachGenerated(lines); } },
 		revert: () => { panel.show({ kind: 'offer' }); },
-		save: (k, lines) => { void genCache?.write(`generated:${k}`, lines); },
+		// Made again with another model: the page's transcript is wired once, so it is read again from the saved copy by loading the page again.
+		save: (k, lines) => { void Promise.resolve(genCache?.write(`generated:${k}`, lines)).then(() => { if (remade) { status.textContent = '新的文字稿已生成，正在刷新…'; reloadPage(); } }); },
 		openSettings: () => { window.open(browser.runtime.getURL('settings.html?section=asr'), '_blank'); },
 	});
 	const panel = buildGenerationPanel(document, generationStrings(text), generation.actions);

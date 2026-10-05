@@ -30,3 +30,10 @@ it('names buttons after the result, and keeps technical wording out of the butto
 	expect(strings).not.toMatch(/上传音频并/);
 	expect(strings).toMatch(/regenerate: text\('[^']+', '换模型生成文字稿'/);
 });
+
+it('styles the study page\'s buttons where they really are: the dialog is appended to the body, outside the page\'s own container', () => {
+	const css = source('./study-home.ts');
+	expect(css).toContain('html .qiaomu-modal button.qiaomu-home-study:not(.qh-x)'); expect(css).toContain('html .qiaomu-modal button.qiaomu-home-x:not(.qh-x)');
+	for (const unscoped of ['\n.qiaomu-home-x{', '\n.qiaomu-home-study{', '\n.qiaomu-home-go{']) expect(css).not.toContain(unscoped); // would lose to the app's global button rules
+	expect(css).toMatch(/\.qiaomu-home svg\{mix-blend-mode:normal!important/);
+});
