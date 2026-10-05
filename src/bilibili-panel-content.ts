@@ -109,7 +109,7 @@ try {
 		const getSegments = async (): Promise<PanelSegment[]> => { const video = currentKey(); if (!video) return []; const entry = prefetch(video); return entry.generated && entry.segments.length ? entry.segments : entry.done; };
 		// "Generate subtitles" for a video that has none: runs in the local helper; the lines land in the same entry the bar reads.
 		const generation = createBarGeneration({
-			openSettings: () => openSettings(),
+			openSettings: () => { try { void api.runtime.sendMessage({ action: 'openSettings', section: 'asr' }); } catch { /* extension reloaded */ } },
 			videoKey: () => currentKey()?.key ?? null, bar: () => bar,
 			apply: (key, lines, done) => { const entry = store.get(key); if (entry) { if (!entry.generated && !entry.backup && entry.segments.length) entry.backup = entry.segments; entry.segments = lines; entry.generated = true; entry.state = done ? 'ready' : 'generating'; updateBar(); } },
 			revert: key => { const entry = store.get(key); if (entry) { entry.segments = entry.backup ?? []; entry.generated = false; entry.state = entry.segments.length ? 'ready' : 'none'; updateBar(); } },

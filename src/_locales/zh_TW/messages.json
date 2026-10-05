@@ -746,6 +746,15 @@
 	"navStudyHome": {
 		"message": "轉寫學習"
 	},
+	"navAsr": {
+		"message": "語音辨識"
+	},
+	"navVideoSites": {
+		"message": "字幕條與網站"
+	},
+	"headingLearn": {
+		"message": "學習"
+	},
 	"videoSubtitles": {
 		"message": "影片字幕"
 	},

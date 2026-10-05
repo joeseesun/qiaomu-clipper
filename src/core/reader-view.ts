@@ -2,7 +2,8 @@ import { loadClipPreview } from '../utils/clip-preview';
 import { mountYouTubeStudy } from '../utils/youtube-study';
 import { startYouTubeStudy } from '../utils/youtube-study-loader';
 import { startAudioStudy } from '../utils/audio-study';
-import { recordStudy, showStudyHome } from '../utils/study-home';
+import { recordStudy } from '../utils/study-home';
+import { takeHandedFile } from '../utils/file-handoff';
 import { audioKey } from '../utils/video-source';
 import { PLAYER_SELECTOR } from '../utils/video-source';
 import { mountReaderPreviewShell } from '../utils/reader-preview-shell';
@@ -38,7 +39,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 	let url = params.get('url');
 
 	// Audio: a file chosen on this page, or a podcast episode.
-	if (params.get('study') === 'file') { await startAudioStudy({ kind: 'file', title: params.get('title') || '' }); return; }
+	if (params.get('study') === 'file') { const file = await takeHandedFile(params.get('token') || ''); await startAudioStudy({ kind: 'file', title: params.get('title') || '', ...(file ? { file } : {}) }); return; }
 	if (params.get('study') === 'web' && url) { await startAudioStudy({ kind: 'web', webUrl: url, title: params.get('title') || '' }); return; }
 	if (params.get('study') === 'feed' && params.get('feed') && params.get('guid')) { await startAudioStudy({ kind: 'feed', feed: params.get('feed')!, guid: params.get('guid')!, title: params.get('title') || '' }); return; }
 	if (params.get('study') === 'audio' && url) {
@@ -47,11 +48,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 	}
 
 	if (!url) {
-		// No address: the front door of study mode (paste a link, choose a file, open what was studied before).
-		await showStudyHome(document, {
-			open: path => { location.assign(browser.runtime.getURL(path)); },
-			openFile: file => { document.body.replaceChildren(); void startAudioStudy({ kind: 'file', file }); },
-		});
+		// No address: the front door of study mode now lives in the settings, with the menu beside it.
+		location.replace(browser.runtime.getURL('settings.html?section=study'));
 		return;
 	}
 

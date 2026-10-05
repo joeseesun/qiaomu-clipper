@@ -159,7 +159,7 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 		apply: (_key, lines, done) => { if (done) void attach(lines); },
 		revert: () => { panel.show({ kind: 'offer' }); },
 		save: (k, lines) => { void cache.write(`generated:${k}`, lines); },
-		openSettings: () => { window.open(browser.runtime.getURL('settings.html?section=video'), '_blank'); },
+		openSettings: () => { window.open(browser.runtime.getURL('settings.html?section=asr'), '_blank'); },
 	});
 	const panel = buildGenerationPanel(document, generationStrings(text), generation.actions);
 	holder.append(panel.element);

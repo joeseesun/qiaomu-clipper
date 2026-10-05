@@ -77,7 +77,7 @@ export async function startYouTubeStudy(url: string, sourceTabId: number, initia
 		apply: (_key, lines, done) => { if (done) void attachGenerated(lines); },
 		revert: () => { panel.show({ kind: 'offer' }); },
 		save: (k, lines) => { void genCache?.write(`generated:${k}`, lines); },
-		openSettings: () => { window.open(browser.runtime.getURL('settings.html?section=video'), '_blank'); },
+		openSettings: () => { window.open(browser.runtime.getURL('settings.html?section=asr'), '_blank'); },
 	});
 	const panel = buildGenerationPanel(document, generationStrings(text), generation.actions);
 	retry.after(panel.element);

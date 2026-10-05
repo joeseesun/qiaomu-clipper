@@ -18,15 +18,16 @@
 					</div>
 					<ul>
 						<li data-section="general"><div class="nav-item-icon"><i data-lucide="settings"></i></div><span data-i18n="general">General</span></li>
+						<li class="sidebar-heading" data-i18n="headingLearn">Learning</li>
+						<li data-section="study"><div class="nav-item-icon"><i data-lucide="headphones"></i></div><span data-i18n="navStudyHome">Transcribe and study</span></li>
+						<li data-section="asr"><div class="nav-item-icon"><i data-lucide="audio-lines"></i></div><span data-i18n="navAsr">Speech recognition</span></li>
+						<li data-section="video"><div class="nav-item-icon"><i data-lucide="captions"></i></div><span data-i18n="navVideoSites">Transcript bar and sites</span></li>
+						<li data-section="reader"><div class="nav-item-icon"><i data-lucide="book-open"></i></div><span data-i18n="reader">Reader</span></li>
+						<li data-section="learning"><div class="nav-item-icon"><i data-lucide="notebook-pen"></i></div><span data-i18n="navLearning">Learning notes</span></li>
 						<li class="sidebar-heading" data-i18n="headingClip">Clipping</li>
 						<li data-section="clip"><div class="nav-item-icon"><i data-lucide="paperclip"></i></div><span data-i18n="navClip">Clipping and saving</span></li>
 						<li data-section="highlighter"><div class="nav-item-icon"><i data-lucide="highlighter"></i></div><span data-i18n="highlighter">Highlighter</span></li>
 						<li data-section="properties"><div class="nav-item-icon"><i data-lucide="archive"></i></div><span data-i18n="properties">Properties</span></li>
-						<li class="sidebar-heading" data-i18n="headingRead">Reading and learning</li>
-						<li data-section="reader"><div class="nav-item-icon"><i data-lucide="book-open"></i></div><span data-i18n="reader">Reader</span></li>
-						<li data-section="video"><div class="nav-item-icon"><i data-lucide="captions"></i></div><span data-i18n="videoSubtitles">Video subtitles</span></li>
-						<li data-href="reader.html"><div class="nav-item-icon"><i data-lucide="headphones"></i></div><span data-i18n="navStudyHome">Transcribe and study</span></li>
-						<li data-section="learning"><div class="nav-item-icon"><i data-lucide="notebook-pen"></i></div><span data-i18n="navLearning">Learning notes</span></li>
 						<li class="sidebar-heading" data-i18n="headingAI">AI</li>
 						<li data-section="interpreter"><div class="nav-item-icon"><i data-lucide="sparkles"></i></div><span data-i18n="interpreter">Interpreter</span></li>
 						<li class="sidebar-heading" data-i18n="templatesHeading">Templates</li>
@@ -397,7 +398,7 @@
 
 					<div id="video-section" class="settings-section">
 						<div class="settings-section-header">
-							<h2 data-i18n="videoSubtitles">Video subtitles</h2>
+							<h2 data-i18n="navVideoSites">Transcript bar and sites</h2>
 						</div>
 						<form id="video-settings-form">
 							<div class="setting-group" id="video-bar-settings">
@@ -451,6 +452,21 @@
 									<div id="study-sites-list"></div>
 								</div>
 							</div>
+						</form>
+					</div>
+
+					<div id="study-section" class="settings-section">
+						<div class="settings-section-header">
+							<h2 data-i18n="navStudyHome">Transcribe and study</h2>
+						</div>
+						<div id="study-home"></div>
+					</div>
+
+					<div id="asr-section" class="settings-section">
+						<div class="settings-section-header">
+							<h2 data-i18n="navAsr">Speech recognition</h2>
+						</div>
+						<form id="asr-settings-form">
 							<div class="setting-group" id="asr-settings">
 								<div class="setting-item setting-item-heading"><h3>语音识别</h3></div>
 								<div class="setting-items">
