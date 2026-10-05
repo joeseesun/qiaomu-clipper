@@ -93,3 +93,6 @@ class WebTests(unittest.TestCase):
             with patch('subprocess.run', lambda *a, **k: run(json.dumps({**base, 'formats': only_sound}))): info = asr.probe({'url': 'https://x.com/a/status/1'})
             self.assertEqual((info['mediaUrl'], info['video']), ('https://v.example.com/s.m4a', False))
             with patch('subprocess.run', lambda *a, **k: run(json.dumps({**base, 'formats': formats[:1]}))): self.assertIsNone(asr.probe({'url': 'https://x.com/a/status/1'})['mediaUrl'])
+            for videos in ([formats[3]], [{**formats[2], 'height': None}]):
+                with patch('subprocess.run', lambda *a, **k: run(json.dumps({**base, 'formats': videos}))): self.assertTrue(asr.probe({'url': 'https://x.com/a/status/1'})['video'])
+            with patch('subprocess.run', lambda *a, **k: run(json.dumps({**base, 'formats': [{**formats[2], 'acodec': 'none'}]}))): self.assertIsNone(asr.probe({'url': 'https://x.com/a/status/1'})['mediaUrl'])

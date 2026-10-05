@@ -9,7 +9,8 @@ import { debugLog } from './utils/debug';
 import { incrementStat, loadSettings } from './utils/storage-utils';
 import { enabledChatModels, streamChat } from './utils/chat-llm';
 import { audioStudyPath, videoKey, videoStudyPath } from './utils/video-source';
-import { isSiteOn, loadStudySites, xStatus } from './utils/study-sites';
+import { isSiteOn, loadStudySites, siteOf } from './utils/study-sites';
+import { isMediaItemAddress, webMediaAddress } from './utils/web-media-page';
 import { hasStoredHighlights } from './utils/url-utils';
 import { handleAsrMessage, handleLearningNativeMessage } from './utils/local-save';
 import { enableYouTubeEmbedRule, disableYouTubeEmbedRule } from './utils/youtube-embed-rules';
@@ -1193,13 +1194,15 @@ async function openNoteCard(tabId: number, quote?: string): Promise<void> {
 	} catch { /* restricted page */ }
 }
 
-// A post on X that holds a video or audio is studied like any other: the post's address goes to the study page, which reads it
-// with yt-dlp. A post without media stays an ordinary page for the reader.
-async function xStudyPath(url: string, tabId: number): Promise<string | null> {
-	const post = xStatus(url); if (!post || !isSiteOn(await loadStudySites(), 'x')) return null;
+// Supported media detail pages share the native study player. A feed adapter supplies the currently playing item address.
+async function webStudyPath(url: string, tabId: number): Promise<string | null> {
+	const site = siteOf(url); if (!site || site.builtin || !isSiteOn(await loadStudySites(), site.id)) return null;
+	let post = webMediaAddress(url);
+	try { const source = await browser.tabs.sendMessage(tabId, { action: 'qiaomuWebMediaSource' }) as { url?: unknown } | undefined; if (typeof source?.url === 'string' && siteOf(source.url)?.id === site.id) post = webMediaAddress(source.url); } catch { /* adapter not loaded */ }
+	if (!post) return null;
 	try {
-		const [result] = await browser.scripting.executeScript({ target: { tabId }, func: () => Boolean(document.querySelector('article video, article audio, [data-testid="videoPlayer"]')) });
-		return result?.result ? `reader.html?study=web&url=${encodeURIComponent(post)}` : null;
+		const [result] = await browser.scripting.executeScript({ target: { tabId }, func: () => Boolean(document.querySelector('video, audio, iframe[src*="player.vimeo.com"], iframe[src*="player.twitch.tv"], iframe[src*="dailymotion.com"], [data-testid="videoPlayer"], meta[property="og:video"], meta[property="og:video:url"], meta[property="og:audio"]')) });
+		return result?.result || isMediaItemAddress(post) ? `reader.html?study=web&url=${encodeURIComponent(post)}` : null;
 	} catch { return null; }
 }
 
@@ -1209,7 +1212,7 @@ async function runTripleKeyAction(action: string, tabId: number): Promise<void> 
 	if (action !== 'read' && action !== 'edit' && action !== 'clip') return;
 	if (action === 'read') {
 		const tab = await browser.tabs.get(tabId);
-		const path = videoStudyPath(tab.url || '', tabId, tab.title || '') || audioStudyPath(tab.url || '', tab.title || '') || await xStudyPath(tab.url || '', tabId);
+		const path = videoStudyPath(tab.url || '', tabId, tab.title || '') || audioStudyPath(tab.url || '', tab.title || '') || await webStudyPath(tab.url || '', tabId);
 		if (path) {
 			// Open the player immediately; subtitle extraction belongs to the reader.
 			await browser.tabs.create({ url: browser.runtime.getURL(path), openerTabId: tabId });

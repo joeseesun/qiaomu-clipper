@@ -5,19 +5,20 @@ import { createBarGeneration } from './utils/bar-generation';
 import { generationStrings } from './utils/subtitle-generation-strings';
 import { registerWebSource } from './utils/asr-client';
 import { webKey } from './utils/podcast-feed';
-import { xStatus } from './utils/study-sites';
+import { siteOf } from './utils/study-sites';
+import { activeWebMedia, currentWebMediaAddress, declaredWebMediaAddress } from './utils/web-media-page';
 
-// Runs on X. On the page of a post that holds a video or audio, the transcript bar sits right under the media, in the post's own
+// Shared transcript bar for supported media detail pages. On X, on the page of a post that holds a video or audio, the transcript bar sits right under the media, in the post's own
 // colours and type: in the right column where X shows its own modules (search, what's happening), or under the media when there is no
 // right column (a narrow window). It offers to make subtitles for it (the local helper reads the post with yt-dlp), then shows them following
 // playback, and opens study mode. Posts without media get nothing, and neither does the timeline.
-declare global { interface Window { qiaomuXLoaded?: boolean } }
+declare global { interface Window { qiaomuWebLoaded?: boolean } }
 
 try {
-	if (!window.qiaomuXLoaded) {
-		window.qiaomuXLoaded = true;
+	if (!window.qiaomuWebLoaded) {
+		window.qiaomuWebLoaded = true;
 		type Api = {
-			runtime: { sendMessage(message: unknown): Promise<unknown> | undefined };
+			runtime: { sendMessage(message: unknown): Promise<unknown> | undefined; onMessage: { addListener(listener: (message: { action?: string }, sender: unknown, reply: (value: unknown) => void) => void): void } };
 			i18n: { getMessage(key: string): string };
 			storage: { local?: { get(keys: string | string[]): Promise<Record<string, any>>; set(items: Record<string, unknown>): Promise<void>; remove(keys: string | string[]): Promise<void> }; sync?: { get(key: string): Promise<Record<string, any>> }; onChanged: { addListener(listener: (changes: Record<string, { newValue?: any }>, area: string) => void): void } };
 		};
@@ -35,20 +36,23 @@ try {
 			followOff: text('youtubeBarFollowOff', '字幕跟随播放：关（点击开启）', 'Not following — click to follow playback'), here: text('youtubeBarHere', '回到当前位置', 'Back to current line'), language: text('subtitleLanguage', '字幕语言', 'Subtitle language'),
 		};
 		const cache = api.storage.local ? createTranscriptCache(api.storage.local) : undefined;
-		let panelOn = true, siteOn = true; // the viewer can switch this off (the bar setting, or the site in "supported sites")
+		let panelOn = false, siteOn = false; // the viewer can switch this off (the bar setting, or the site in "supported sites")
 		let lines: PanelSegment[] = [], state: 'loading' | 'ready' | 'none' | 'generating' = 'loading', bar: TranscriptBar | undefined, host: HTMLElement | undefined, postUrl = '', key = '';
 
 		// The post this page is about, and its first video or audio.
-		const post = () => xStatus(location.href);
-		const mainTweet = () => document.querySelector<HTMLElement>('main article[data-testid="tweet"]') ?? document.querySelector<HTMLElement>('article');
-		const media = () => mainTweet()?.querySelector<HTMLMediaElement>('video, audio') ?? undefined;
+		const isX = siteOf(location.href)?.id === 'x';
+		const post = () => { const player = media(); return player ? currentWebMediaAddress(document, player, location.href) : declaredWebMediaAddress(document, location.href); };
+		const mainTweet = () => isX ? document.querySelector<HTMLElement>('main article[data-testid="tweet"]') ?? document.querySelector<HTMLElement>('article') : document.body;
+		const media = () => isX ? mainTweet()?.querySelector<HTMLMediaElement>('video, audio') ?? undefined : activeWebMedia(document);
+		api.runtime.onMessage.addListener((message, _sender, reply) => { if (message.action === 'qiaomuWebMediaSource') reply({ url: post() }); });
 		const tweetText = () => (mainTweet()?.querySelector('[data-testid="tweetText"]')?.textContent || document.title).replace(/\s+/g, ' ').trim().slice(0, 120);
 
 		// The colours of the page it sits in: X has a light, a dim and a dark theme, and none of them is ours to choose.
 		const paint = (element: HTMLElement, where: 'side' | 'media') => {
 			const parts = getComputedStyle(document.body).backgroundColor.match(/\d+(\.\d+)?/g)?.map(Number) ?? [255, 255, 255], dark = (parts[0] * 299 + parts[1] * 587 + parts[2] * 114) / 1000 < 140;
 			const set = (name: string, value: string) => element.style.setProperty(name, value);
-			set('--qm-bg', getComputedStyle(document.body).backgroundColor);
+			set('--qm-bg', dark ? '#16181c' : '#fff');
+			if (!isX) { set('--qm-card', dark ? '#16181c' : '#fff'); set('--qm-margin', '0'); }
 			if (dark) { set('--qm-fg', '#e7e9ea'); set('--qm-fg2', '#71767b'); set('--qm-line', '#2f3336'); set('--qm-hover', 'rgba(231,233,234,.1)'); set('--qm-field', 'rgba(231,233,234,.08)'); }
 			// In the right column it is a card like X's own: a tint of its own, no outline. Under the media it keeps the outline.
 			if (where === 'side') { const black = parts[0] + parts[1] + parts[2] < 60; set('--qm-card', dark ? (black ? 'rgb(22,24,28)' : 'rgb(30,39,50)') : 'rgb(247,249,249)'); set('--qm-frame', '0 none'); set('--qm-margin', '0 0 16px'); }
@@ -74,11 +78,13 @@ try {
 		// Where in the right column it can go: just above X's own modules (related users, what's happening), which are `aside` blocks listed one
 		// after another. Not next to the search box: that is fixed to the top of the column and covers whatever is inserted beside it.
 		const sideSpot = (): HTMLElement | undefined => {
+			if (!isX) return undefined;
 			const side = document.querySelector<HTMLElement>('[data-testid="sidebarColumn"]'); if (!side || side.getBoundingClientRect().width < 240) return undefined;
 			const module = side.querySelector<HTMLElement>('aside[role="complementary"]')?.parentElement;
 			return module?.parentElement && module.parentElement !== side && side.contains(module.parentElement) ? module : undefined;
 		};
 		const place = (node: HTMLElement, tweet: HTMLElement): 'side' | 'media' => {
+			if (!isX) { document.body.append(node); return 'media'; }
 			const module = sideSpot();
 			if (module) { module.parentElement!.insertBefore(node, module); return 'side'; }
 			const actions = tweet.querySelector<HTMLElement>('[role="group"]');
@@ -90,7 +96,7 @@ try {
 		const mount = async () => {
 			if (!(panelOn && siteOn)) { if (host) remove(); return; }
 			const url = post(), tweet = mainTweet();
-			if (!url || !tweet || !media()) { if (host && !(url && tweet && host.isConnected)) remove(); return; }
+			if (!url || !tweet) { if (host) remove(); return; }
 			// The right column can appear or go away as the window is resized: the bar follows it.
 			if (host?.isConnected && postUrl === url && (where === 'side') === Boolean(sideSpot())) return;
 			if (mounting) return; mounting = true;
@@ -98,13 +104,13 @@ try {
 				if (host) remove();
 				const nextKey = await webKey(url); if (post() !== url) return;
 				postUrl = url; key = nextKey; registerWebSource(key, url);
-				const style = document.createElement('style'); style.textContent = BAR_STYLE + '.qiaomu-x{display:block;width:100%}';
-				host = document.createElement('div'); host.className = 'qiaomu-x'; host.append(style);
+				const style = document.createElement('style'); style.textContent = BAR_STYLE + '.qiaomu-x{display:block;width:100%}.qiaomu-web-bar{position:fixed;right:16px;bottom:16px;width:min(350px,calc(100vw - 32px));z-index:2147483600}.qiaomu-web-bar .qiaomu-yt-bar{max-height:calc(100vh - 48px)}.qiaomu-web-bar .qiaomu-yt-bar-lines{max-height:min(52vh,calc(100vh - 230px));}';
+				host = document.createElement('div'); host.className = isX ? 'qiaomu-x' : 'qiaomu-web-bar'; host.append(style);
 				bar = buildTranscriptBar(document, {
 					strings, title: tweetText, openStudy: () => { try { void api.runtime.sendMessage({ action: 'qiaomuTripleKey', command: 'read' }); return true; } catch { return false; } },
 					openSettings: () => { try { void api.runtime.sendMessage({ action: 'openSettings', section: 'video' }); } catch { /* extension reloaded */ } },
-					retry: load, seek: seconds => { const player = media(); if (player) { player.currentTime = seconds; void player.play().catch(() => {}); } },
-					getTime: () => media()?.currentTime, initialOpen: false, theme: 'x',
+					retry: load, seek: seconds => { const player = media(); if (player && 'currentTime' in player) { player.currentTime = seconds; void player.play().catch(() => {}); } },
+					getTime: () => { const player = media(); return player && 'currentTime' in player ? player.currentTime : undefined; }, initialOpen: false, theme: 'x',
 					generation: { strings: generationStrings(text), actions: generation.actions }, getSegments: async () => lines,
 				} as Parameters<typeof buildTranscriptBar>[1]);
 				host.append(bar.element); where = place(host, tweet); paint(bar.element, where); load();
@@ -113,10 +119,10 @@ try {
 		// X is a single-page app: posts change without a page load, and its markup is rebuilt often, so look again now and then.
 		window.setInterval(() => { void mount(); }, 1000); void mount();
 		for (const type of ['timeupdate', 'seeked', 'playing']) document.addEventListener(type, event => { if (event.target instanceof HTMLMediaElement && bar && event.target === media()) bar.setTime(event.target.currentTime, event.type === 'seeked'); }, true);
-		const applySites = (value?: { off?: unknown }) => { siteOn = !(Array.isArray(value?.off) && (value!.off as unknown[]).includes('x')); void mount(); };
-		api.storage.local?.get('qiaomuStudySites').then(data => applySites(data?.qiaomuStudySites)).catch(() => {});
+		const applySites = (value?: { off?: unknown }) => { siteOn = !(Array.isArray(value?.off) && (value!.off as unknown[]).includes((siteOf(location.href)?.id ?? ''))); void mount(); };
+		api.storage.local?.get('qiaomuStudySites').then(data => applySites(data?.qiaomuStudySites)).catch(() => applySites());
 		api.storage.onChanged.addListener((changes, area) => { if (area === 'local' && changes.qiaomuStudySites) applySites(changes.qiaomuStudySites.newValue); if (area === 'sync' && changes.general_settings) { panelOn = changes.general_settings.newValue?.youtubePanelActions !== false; void mount(); } });
-		api.storage.sync?.get('general_settings').then(data => { panelOn = data?.general_settings?.youtubePanelActions !== false; void mount(); }).catch(() => {});
+		api.storage.sync?.get('general_settings').then(data => { panelOn = data?.general_settings?.youtubePanelActions !== false; void mount(); }).catch(() => { panelOn = true; void mount(); });
 	}
 } catch {
 	// The extension may have been updated while this page was open.

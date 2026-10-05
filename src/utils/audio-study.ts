@@ -19,6 +19,7 @@ import { mountAudioControls } from './audio-controls';
 import { recordStudy } from './study-home';
 import { reloadPage } from './page-reload';
 import { fetchFeed, rssKey, webKey } from './podcast-feed';
+import { isVideoFile, mountMediaStudyPlayer } from './media-study-player';
 
 // Study mode for audio: a podcast episode, or a file the viewer chose. The same page as for a video: the player on top, the
 // transcript following it, notes and questions beside it. The transcript is made by the same subtitle generation as for videos
@@ -117,7 +118,7 @@ article[data-audio-tab=transcript] .qiaomu-shownotes{display:none}
 
 export async function startAudioStudy(options: AudioStudyOptions): Promise<void> {
 	const initialTitle = options.title || (options.kind === 'file' ? '本地音频学习' : '播客学习');
-	const url = options.url || FILE_PAGE_URL;
+	const url = options.webUrl || options.url || FILE_PAGE_URL;
 	const session = await createReaderSourceDraft(url, initialTitle);
 	Reader.onEdit = () => {};
 	Object.defineProperty(document, 'URL', { value: url, configurable: true });
@@ -136,15 +137,13 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 	const holder = document.createElement('div'); holder.className = 'qiaomu-audio-study';
 	const status = document.createElement('p'); status.className = 'youtube-study-status qiaomu-audio-status'; status.setAttribute('role', 'status');
 	article.prepend(holder); holder.append(status);
+	let sourceHtml = '';
 	let key = options.key || '', title = initialTitle, attached = false, remade = false; // `remade`: this transcript replaces one already on the page
 
 	// The player: an <audio> would do, but the transcript wiring follows a <video class="reader-video-player">, which plays audio too.
 	const showPlayer = (src: string, picture?: { poster?: string }): HTMLVideoElement => {
-		// With a picture (a video), it is shown above the controls; for audio only the controls show.
-		const wrapper = document.createElement('div'); wrapper.className = 'reader-video-wrapper is-audio' + (picture ? ' has-picture' : '');
-		const player = document.createElement('video'); player.className = 'reader-video-player'; player.controls = false; player.preload = 'metadata'; player.playsInline = true; player.src = src; if (picture?.poster) player.poster = picture.poster;
-		if (picture) player.addEventListener('click', () => { if (player.paused) void player.play().catch(() => {}); else player.pause(); });
-		wrapper.append(player, mountAudioControls(document, player, { play: text('audioPlay', '播放', 'Play'), pause: text('audioPause', '暂停', 'Pause'), back: text('audioBack', '后退 15 秒', 'Back 15 s'), forward: text('audioForward', '前进 30 秒', 'Forward 30 s'), speed: text('audioSpeed', '播放速度', 'Playback speed'), seek: text('audioSeek', '播放进度', 'Position') })); holder.before(wrapper);
+		const player = mountMediaStudyPlayer(article, holder, src, Boolean(picture), picture?.poster);
+		if (!picture) player.parentElement!.append(mountAudioControls(document, player, { play: text('audioPlay', '播放', 'Play'), pause: text('audioPause', '暂停', 'Pause'), back: text('audioBack', '后退 15 秒', 'Back 15 s'), forward: text('audioForward', '前进 30 秒', 'Forward 30 s'), speed: text('audioSpeed', '播放速度', 'Playback speed'), seek: text('audioSeek', '播放进度', 'Position') }));
 		return player;
 	};
 	const attach = async (lines: PanelSegment[]) => {
@@ -155,8 +154,8 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 		await Reader.attachYouTubeTranscript(document, transcript, title, shell.chat);
 		// The reader puts its switches (follow playback, translate) in a bar of their own under the player; here they belong in the one row of controls.
 		const group = article.querySelector<HTMLElement>('.player-container .player-toggle-group'), tools = article.querySelector<HTMLElement>('.player-container .qa-tools');
-		if (group && tools) { tools.insertBefore(group, tools.querySelector('.qa-speed')); article.querySelector('.player-container .player-toggles')?.setAttribute('hidden', ''); }
-		await session.populate({ content: transcriptHtml(lines), title }).catch(() => {});
+		if (article.dataset.audioStudy === 'true' && group && tools) { tools.insertBefore(group, tools.querySelector('.qa-speed')); article.querySelector('.player-container .player-toggles')?.setAttribute('hidden', ''); }
+		await session.populate({ content: sourceHtml + transcriptHtml(lines), title }).catch(() => {});
 		shell.refresh(); shell.setPending(false);
 	};
 	const generation = createBarGeneration({
@@ -175,7 +174,7 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 	const begin = async () => {
 		const made = await cache.read(`generated:${key}`);
 		if (made?.length) { await attach(made); panel.show({ kind: 'generated' }); return; }
-		status.textContent = text('audioStudyNone', '这段音频还没有字幕。生成后，字幕会跟着播放滚动。', 'There are no subtitles for this audio yet. Once made, the lines follow playback.');
+		status.textContent = text('audioStudyNone', '这段内容还没有字幕。生成后，字幕会跟着播放滚动。', 'There are no subtitles for this media yet. Once made, the lines follow playback.');
 		generation.actions.request();
 	};
 
@@ -191,7 +190,7 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 		const about = document.createElement('div'); const show = document.createElement('b'); show.textContent = episode.show || '播客'; about.append(show);
 		const facts = [episode.date?.slice(0, 10), durationText(episode.seconds)].filter(Boolean).join(' · '); if (facts) { const line = document.createElement('span'); line.textContent = facts; about.append(line); }
 		hero.append(about); holder.before(hero);
-		if (episode.post) { const post = document.createElement('div'); post.className = 'qiaomu-post-text'; post.innerHTML = episode.post; holder.before(post); }
+		if (episode.post) { const post = document.createElement('div'); post.className = 'qiaomu-post-text'; post.innerHTML = DOMPurify.sanitize(episode.post); sourceHtml = post.outerHTML; holder.before(post); }
 		const player = episode.audio ? showPlayer(episode.audio, episode.picture ? { poster: episode.cover } : undefined) : undefined;
 		// The show notes next to the transcript: tabs, so neither pushes the other off the screen.
 		if (episode.notesHtml) {
@@ -252,7 +251,7 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 		if (!AUDIO_FILE.test(file.name)) { hint.textContent = text('audioBadType', '这个文件类型不支持。', 'This file type is not supported.'); return; }
 		chooser.hidden = true; title = file.name.replace(/\.[^.]+$/, '') || initialTitle; document.title = title; setPageTitle(title);
 		const heading = document.querySelector('main h1'); if (heading) heading.textContent = title;
-		showPlayer(URL.createObjectURL(file));
+		showPlayer(URL.createObjectURL(file), isVideoFile(file) ? {} : undefined);
 		status.textContent = text('audioSending', '正在把文件交给本机助手…', 'Handing the file to the local helper…');
 		const sent = await asrUpload(file, fraction => { status.textContent = `${text('audioSending', '正在把文件交给本机助手…', 'Handing the file to the local helper…')} ${Math.round(fraction * 100)}%`; });
 		if (!sent.ok) {

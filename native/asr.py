@@ -443,10 +443,12 @@ def probe(message):
     for item in ([info] if not info.get('formats') else []) + list(info.get('formats') or []):
         link = item.get('url')
         if not isinstance(link, str) or item.get('protocol') not in ('https', 'http') or str(item.get('ext') or '').lower() not in ('m4a', 'mp3', 'mp4', 'aac', 'ogg', 'opus', 'webm', 'wav') or not public_https(link) or (item.get('http_headers') or {}).get('Cookie'): continue
-        picture = item.get('vcodec') != 'none' and str(item.get('ext') or '').lower() in ('mp4', 'webm') and isinstance(item.get('height'), (int, float)) and item.get('acodec') != 'none'
+        picture = str(item.get('ext') or '').lower() in ('mp4', 'webm') and (item.get('vcodec') not in (None, 'none') or isinstance(item.get('height'), (int, float)))
+        if picture and item.get('acodec') == 'none': continue
         playable.append((picture, item.get('height') or 0, item.get('abr') or 0, link))
     pictured = sorted((x for x in playable if x[0] and x[1] <= 720), key=lambda x: -x[1]); sound = sorted((x for x in playable if not x[0]), key=lambda x: -x[2])
-    chosen = pictured[0] if pictured else sound[0] if sound else None
+    larger = sorted((x for x in playable if x[0]), key=lambda x: x[1])
+    chosen = pictured[0] if pictured else larger[0] if larger else sound[0] if sound else None
     direct = chosen[3] if chosen else None
     date = str(info.get('upload_date') or ''); date = f'{date[:4]}-{date[4:6]}-{date[6:8]}' if re.fullmatch(r'\d{8}', date) else None
     return {'ok': True, 'title': str(info.get('title') or '')[:300], 'author': str(info.get('uploader') or info.get('channel') or '')[:120], 'seconds': info.get('duration') if isinstance(info.get('duration'), (int, float)) else None, 'thumbnail': info.get('thumbnail') if isinstance(info.get('thumbnail'), str) and info['thumbnail'].startswith('https://') else None, 'site': str(info.get('extractor_key') or '')[:60], 'mediaUrl': direct, 'video': bool(chosen and chosen[0]), 'description': str(info.get('description') or '')[:6000], 'date': date}
