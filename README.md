@@ -62,11 +62,13 @@ npm run build:chrome
 <details>
 <summary><b>想静默写入笔记库，或把学习笔记追加到今天日记？</b></summary>
 
-安装可选的 [本地助手](native/README.md)：需要 Python 3.9+，支持 macOS / Linux 的 Chrome 系浏览器（Chrome / Edge / Brave / Arc 等），Windows 暂不支持。先装好扩展，再在仓库里运行（无需任何参数，自动识别扩展 ID 和 Obsidian 库）：
+安装可选的 [本地助手](native/README.md)：需要 Python 3.9+，支持 macOS / Linux 的 Chrome 系浏览器（Chrome / Edge / Brave / Arc 等），也提供 Windows 安装支持（尚待真机验证）。先装好扩展，再在仓库里运行（无需任何参数，自动识别扩展 ID 和 Obsidian 库）：
 
 ```sh
 python3 native/install.py
 ```
+
+**升级到 1.13.0 必须同时更新本地助手**：仅重载扩展不会更新助手。请使用 1.13.0 源码重新运行 `python3 native/install.py`（Windows 使用 `python native\install.py`），再刷新阅读页；旧助手可能导致 X 阅读页缺少帖子正文和视频播放器。
 
 输出 `"ok": true` 即安装成功，然后在 `chrome://extensions` 重新加载扩展。遇到「本地保存助手未连接」，运行 `python3 native/install.py --check` 诊断。
 
@@ -244,7 +246,7 @@ B 站使用官方嵌入播放器：点击时间戳会按该秒重新加载，高
 - **「分享到乔木 RSS」默认关闭**：勾选后剪藏会公开提交链接、标题、剪藏正文和封面到[公开源](https://rss.qiaomu.ai/feeds/user-submitted.xml)。阅读、编辑本身不会提交。学习笔记的日记保存独立于这个开关，不提交 RSS。
 - AI 提问、模板解读和字幕翻译会把所需内容发送给你选择的模型服务商；费用由该服务商计算。插件不提供模型账号或免费额度。
 - 对话历史保存在本机浏览器（最多 40 篇文章，每篇 15 段对话）。本地保存与 RSS 结果分开显示，失败可重试。
-- 当前以 **Chrome** 为验收目标。Firefox / Safari 沿用上游代码；Windows 不支持本地助手。
+- 当前以 **Chrome** 为验收目标。Firefox / Safari 沿用上游代码；Windows 助手已通过自动测试，尚待真机验证。
 - 界面截图展示组件与交互，不代表所有视频均有字幕，也不替代真实扩展中的播放、跨窗口恢复、真实 AI 请求与日记写入验收。
 
 [隐私说明](PRIVACY.md) · [安全问题反馈](SECURITY.md) · [提交使用反馈](https://github.com/joeseesun/qiaomu-clipper/issues)
@@ -259,7 +261,7 @@ npm run build:chrome          # 构建 dist/
 ```
 
 - `src/`：弹窗、阅读页、编辑页、AI 对话、设置与后台脚本。
-- `native/`：静默保存助手及安装器，Windows 暂不支持。
+- `native/`：静默保存助手及安装器，包含 Windows 支持（尚待真机验证）。
 - `integration/qmreader/`：RSS 接口参考实现与测试，不随扩展 ZIP 打包。
 - [Chrome 应用商店发布准备](docs/CHROME-WEB-STORE.md)：权限、材料、包与验收说明。
 
@@ -302,7 +304,7 @@ npm run build:chrome
 
 Open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select `dist`. Open an article or video, then press `aaa` outside an input field. Rebuild and reload the extension after pulling updates.
 
-For AI chat or translation, configure your own model and API key in the extension's AI settings. Reading and copying captions do not require AI. To save silently or append learning notes to today's daily note, install the optional Python 3 [local helper](native/README.md) for macOS / Linux Chrome; run `python3 native/install.py` (no arguments; it detects the extension ID and vault) and re-run it after upgrading; `--check` diagnoses a "helper not connected" error, and an AI agent can run the same command for you. Daily-note append requires Obsidian's Daily notes plugin with a numeric date format and no template.
+For AI chat or translation, configure your own model and API key in the extension's AI settings. Reading and copying captions do not require AI. To save silently or append learning notes to today's daily note, install the optional Python 3 [local helper](native/README.md) for macOS / Linux Chrome; run `python3 native/install.py` (no arguments; it detects the extension ID and vault) and re-run it from the 1.13.0 source after upgrading (Windows: `python native\install.py`); reloading the extension alone leaves the helper unchanged and may leave X study pages without post text or a video player; `--check` diagnoses a "helper not connected" error, and an AI agent can run the same command for you. Daily-note append requires Obsidian's Daily notes plugin with a numeric date format and no template.
 
 Audio transcription and study: podcasts, recordings, meetings and course audio go through the same transcription (a local engine or a cloud service) and become timed subtitles you can study, following playback. Xiaoyuzhou episode pages get the transcript bar at the bottom right; or open "Transcribe and study" (the settings sidebar, or the ⋯ menu in the popup): paste a YouTube, Bilibili, Xiaoyuzhou or other audio/video site link (anything yt-dlp can read may work, depending on the site and login), choose a local audio/video file, or pick from the suggested podcasts (five Chinese shows and five overseas AI shows, read from their public RSS feeds, one press to study the newest episodes) (it is only handed to the local helper, never uploaded); what you studied is listed under Recent. On Bilibili, study mode now also follows playback (the extension reads the embedded player's time).
 
@@ -330,7 +332,7 @@ AI answers stream with Markdown; history stays per article, panel width is adjus
 - **Share to Qiaomu RSS is enabled by default.** When clipping with it on, the URL, title, clipped Markdown and cover image are submitted to a [public feed](https://rss.qiaomu.ai/feeds/user-submitted.xml). Turn it off for private content. Reading and editing do not submit anything. Learning-note daily saves never submit to RSS.
 - AI features send necessary source content and your instructions to the provider you configure, at that provider's cost. Chat history remains in your local browser (up to 40 articles, 15 conversations each).
 - Local saving and RSS submission report results separately. Closing the learning-note card preserves its draft; failed writes can be retried.
-- Chrome is the current target. Firefox / Safari inherit upstream code; the local helper does not support Windows.
+- Chrome is the current target. Firefox / Safari inherit upstream code; Windows helper support is covered by automated tests; real-device validation is pending.
 - The screenshots demonstrate interface components, not universal caption availability or completed live playback, AI and vault-write verification.
 
 See [Privacy](PRIVACY.md), [Security](SECURITY.md), [video study](docs/STUDY-WORKSPACE.md), and [daily-note setup](docs/LEARNING-DIARY.md).
