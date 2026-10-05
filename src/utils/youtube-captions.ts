@@ -65,8 +65,8 @@ export const audioLanguageFromDocument = (doc: Document, videoId?: string): stri
 	return undefined;
 };
 
-interface CaptionSource { tracks: CaptionTrack[]; audioLanguage?: string }
-async function fetchCaptionSource(videoId: string, doc: Document, request: Request): Promise<CaptionSource> {
+interface CaptionTrackSource { tracks: CaptionTrack[]; audioLanguage?: string }
+async function fetchCaptionSource(videoId: string, doc: Document, request: Request): Promise<CaptionTrackSource> {
 	const key = apiKeyFromPage(doc), hl = doc.documentElement.lang || 'en';
 	const pageLanguage = audioLanguageFromDocument(doc, videoId);
 	for (const client of CLIENTS) {
@@ -123,14 +123,15 @@ export function parseCaptions(body: string): PanelSegment[] {
 	return out;
 }
 
-export interface CaptionResult { segments: PanelSegment[]; language?: string }
+export type CaptionSource = 'manual' | 'automatic';
+export interface CaptionResult { segments: PanelSegment[]; language?: string; source?: CaptionSource }
 export async function fetchCaptionResult(videoId: string, doc: Document, request: Request = (...args) => fetch(...args)): Promise<CaptionResult> {
 	const source = await fetchCaptionSource(videoId, doc, request);
 	const track = pickTrack(source.tracks, source.audioLanguage); if (!track) return { segments: [] };
 	const base = track.baseUrl.replace(/&fmt=[^&]*/g, '');
 	for (const url of [`${base}&fmt=json3`, base]) {
-		try { const segments = parseCaptions(await (await ok(await request(url, { credentials: 'include' }))).text()); if (segments.length) return { segments, language: track.languageCode }; } catch { /* try the plain format */ }
+		try { const segments = parseCaptions(await (await ok(await request(url, { credentials: 'include' }))).text()); if (segments.length) return { segments, language: track.languageCode, source: track.kind === 'asr' ? 'automatic' : 'manual' }; } catch { /* try the plain format */ }
 	}
-	return { segments: [], language: track.languageCode };
+	return { segments: [], language: track.languageCode, source: track.kind === 'asr' ? 'automatic' : 'manual' };
 }
 export async function fetchCaptionSegments(videoId: string, doc: Document, request: Request = (...args) => fetch(...args)): Promise<PanelSegment[]> { return (await fetchCaptionResult(videoId, doc, request)).segments; }

@@ -59,7 +59,7 @@ try {
 		const cache = api.storage.local ? createTranscriptCache(api.storage.local) : undefined;
 
 		// --- transcript prefetch -------------------------------------------------------------------------------
-		interface Entry { state: BarState; segments: PanelSegment[]; language?: string; done: Promise<PanelSegment[]> }
+		interface Entry { state: BarState; segments: PanelSegment[]; language?: string; source?: 'manual' | 'automatic' | 'cached'; done: Promise<PanelSegment[]> }
 		const store = new Map<string, Entry>();
 		const currentVideo = () => location.pathname === '/watch' ? new URL(location.href).searchParams.get('v') : null;
 		// YouTube answers get_transcript with "precondition failed" when it wants a player token (seen in signed-out
@@ -69,17 +69,17 @@ try {
 			const known = store.get(videoId); if (known) return known;
 			const entry: Entry = { state: 'loading', segments: [], done: Promise.resolve([]) };
 			// A transcript read before is shown at once; otherwise ask YouTube, and keep what comes back.
-			const fresh = (): Promise<{ segments: PanelSegment[]; language?: string }> => refusals >= 2 ? Promise.resolve({ segments: [] as PanelSegment[] }) : fetchCaptionResult(videoId, document).then(result => { refusals = 0; return result; }, () => { refusals++; return { segments: [] as PanelSegment[] }; });
-			const request = (cache ? cache.read(videoId) : Promise.resolve(undefined as { segments: PanelSegment[]; language?: string } | undefined)).then(async cached => {
+			const fresh = (): Promise<{ segments: PanelSegment[]; language?: string; source?: 'manual' | 'automatic' }> => refusals >= 2 ? Promise.resolve({ segments: [] as PanelSegment[] }) : fetchCaptionResult(videoId, document).then(result => { refusals = 0; return result; }, () => { refusals++; return { segments: [] as PanelSegment[] }; });
+			const request = (cache ? cache.read(videoId) : Promise.resolve(undefined as { segments: PanelSegment[]; language?: string; source?: 'manual' | 'automatic' } | undefined)).then(async cached => {
 				const audioLanguage = audioLanguageFromDocument(document, videoId);
 				if (force || (audioLanguage && cached?.language && !sameLanguage(audioLanguage, cached.language))) cached = undefined;
-				if (cached?.language) return cached;
+				if (cached?.language) return { ...cached, source: 'cached' as const };
 				const result = await fresh();
-				if (result.segments.length) { void cache?.write(videoId, result.segments, result.language); return result; }
+				if (result.segments.length) { void cache?.write(videoId, result.segments, result.language, result.source); return result; }
 				return cached || result;
 			});
 			entry.done = request.then(result => {
-				const segments = result.segments; entry.language = result.language;
+				const segments = result.segments; entry.language = result.language; entry.source = result.source;
 				// The endpoint can be refused; then read the lines from YouTube's own panel without waiting to be asked.
 				if (!segments.length && enabled) void getSegments(true).catch(() => []);
 				entry.segments = segments; entry.state = segments.length ? 'ready' : 'none'; updateBar(); return segments;
@@ -96,7 +96,7 @@ try {
 			}
 			const fromPanel = await readYouTubeTranscriptFromDom(document, open, open ? 12000 : 0);
 			const entry = videoId ? store.get(videoId) : undefined;
-			if (entry && fromPanel.length) { entry.segments = fromPanel; entry.state = 'ready'; updateBar(); if (videoId) void cache?.write(videoId, fromPanel, entry.language); }
+			if (entry && fromPanel.length) { entry.segments = fromPanel; entry.source = entry.source || 'manual'; entry.state = 'ready'; updateBar(); if (videoId) void cache?.write(videoId, fromPanel, entry.language, entry.source === 'automatic' ? 'automatic' : 'manual'); }
 			return fromPanel;
 		};
 
@@ -162,6 +162,10 @@ try {
 						const cache = transcript?.__qiaomuTranslationCache;
 						return cache && cache.size === segments.length ? cache : undefined;
 					},
+					sourceLabel: () => {
+						const entry = currentVideo() ? store.get(currentVideo()!) : undefined;
+						return entry?.source === 'automatic' ? 'YouTube 自动字幕' : entry?.source === 'cached' ? '缓存字幕' : entry?.source === 'manual' ? 'YouTube 字幕' : undefined;
+					},
 					getTime: () => mainVideo()?.currentTime,
 					initialOpen: wasOpen, onToggle: open => remember(OPEN_KEY, open),
 					initialFollow: stored(FOLLOW_KEY, true), onFollow: follow => remember(FOLLOW_KEY, follow),
@@ -199,7 +203,7 @@ try {
 			return true;
 		});
 
-		const apply = (settings?: { youtubePanelActions?: boolean; youtubeAutoTranscript?: boolean; youtubeHideNativeTranscript?: boolean }) => { enabled = settings?.youtubePanelActions !== false; autoOpen = settings?.youtubeAutoTranscript !== false; hideNative = settings?.youtubeHideNativeTranscript !== false; startPrefetch(); schedule(); };
+		const apply = (settings?: { youtubePanelActions?: boolean; youtubeAutoTranscript?: boolean; youtubeHideNativeTranscript?: boolean }) => { enabled = settings?.youtubePanelActions !== false; autoOpen = settings?.youtubeAutoTranscript === true; hideNative = settings?.youtubeHideNativeTranscript !== false; startPrefetch(); schedule(); };
 		api.storage.sync?.get('general_settings').then(data => apply(data?.general_settings)).catch(() => {});
 		api.storage.onChanged.addListener((changes, area) => { if (area === 'sync' && changes.general_settings) apply(changes.general_settings.newValue); });
 		startPrefetch(); schedule();

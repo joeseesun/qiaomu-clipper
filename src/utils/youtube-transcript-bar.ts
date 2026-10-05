@@ -11,6 +11,7 @@ export interface BarHooks {
 	title: () => string;
 	getSegments: () => Promise<PanelSegment[]>;
 	getTranslations?: (segments: PanelSegment[]) => Map<number, string> | undefined;
+	sourceLabel?: () => string | undefined;
 	openStudy: () => boolean | void;
 	openSettings: () => void;
 	retry?: () => void;
@@ -74,6 +75,7 @@ export function buildTranscriptBar(doc: Document, hooks: BarHooks): TranscriptBa
 	head.append(logo, title, dot, tools);
 	const body = doc.createElement('div'); body.className = 'qiaomu-yt-bar-body'; body.hidden = true;
 	const status = doc.createElement('p'); status.className = 'qiaomu-yt-bar-status'; status.setAttribute('role', 'status');
+	const source = doc.createElement('span'); source.className = 'qiaomu-yt-bar-source'; source.setAttribute('aria-live', 'polite');
 	// Search and follow controls above the lines.
 	const finder = doc.createElement('div'); finder.className = 'qiaomu-yt-bar-finder';
 	const searchBox = doc.createElement('label'); searchBox.className = 'qiaomu-yt-bar-search'; searchBox.append(icon(doc, 'search', 16));
@@ -88,7 +90,7 @@ export function buildTranscriptBar(doc: Document, hooks: BarHooks): TranscriptBa
 	const here = doc.createElement('button'); here.type = 'button'; here.className = 'qiaomu-yt-bar-here'; here.textContent = strings.here; here.hidden = true;
 	listWrap.append(list, here);
 	const retryButton = doc.createElement('button'); retryButton.type = 'button'; retryButton.className = 'qiaomu-yt-bar-retry'; retryButton.textContent = strings.retry; retryButton.hidden = true;
-	const notice = doc.createElement('div'); notice.className = 'qiaomu-yt-bar-notice'; notice.append(status, retryButton);
+	const notice = doc.createElement('div'); notice.className = 'qiaomu-yt-bar-notice'; notice.append(status, source, retryButton);
 	body.append(notice, finder, listWrap);
 	element.append(head, body);
 
@@ -231,6 +233,7 @@ export function buildTranscriptBar(doc: Document, hooks: BarHooks): TranscriptBa
 		if (!open || state !== 'ready') clearProgress();
 		element.dataset.state = state; element.dataset.open = String(open); body.hidden = !open; retryButton.hidden = state !== 'none' || !hooks.retry; notice.hidden = state === 'ready'; finder.hidden = state === 'none' && !segments.length; listWrap.hidden = finder.hidden;
 		const message = strings[state]; if (status.textContent !== message) status.textContent = message; dot.title = message; dot.setAttribute('aria-label', message);
+		const sourceText = hooks.sourceLabel?.() || ''; source.textContent = sourceText; source.hidden = !sourceText;
 		toggle.setAttribute('aria-expanded', String(open)); toggle.title = open ? strings.collapse : strings.expand; toggle.setAttribute('aria-label', toggle.title);
 		followButton.setAttribute('aria-pressed', String(follow)); followButton.title = follow ? strings.follow : strings.followOff; followButton.setAttribute('aria-label', followButton.title);
 		renderLines();

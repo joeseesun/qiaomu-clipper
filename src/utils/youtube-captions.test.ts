@@ -49,7 +49,7 @@ it('uses the video audio language when the first automatic caption is a differen
 		? response({ ...captions, videoDetails: { defaultAudioLanguage: 'en' } })
 		: response({ events: [{ tStartMs: 1200, segs: [{ utf8: 'English audio' }] }] }));
 	const result = await fetchCaptionResult('abc', document, request as any);
-	expect(result).toEqual({ segments: [{ time: '0:01', text: 'English audio' }], language: 'en' });
+	expect(result).toEqual({ segments: [{ time: '0:01', text: 'English audio' }], language: 'en', source: 'automatic' });
 	expect(request.mock.calls[1][0]).toContain('lang=en');
 });
 

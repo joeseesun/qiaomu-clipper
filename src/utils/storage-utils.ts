@@ -215,7 +215,7 @@ export async function loadSettings(): Promise<Settings> {
 		learningNotes: data.general_settings?.learningNotes ?? true,
 		learningIncludeQuote: data.general_settings?.learningIncludeQuote ?? true,
 		learningIncludeSource: data.general_settings?.learningIncludeSource ?? true,
-		youtubeAutoTranscript: data.general_settings?.youtubeAutoTranscript ?? true,
+		youtubeAutoTranscript: data.general_settings?.youtubeAutoTranscript ?? false,
 		youtubeHideNativeTranscript: data.general_settings?.youtubeHideNativeTranscript ?? true,
 		highlighterEnabled: data.highlighter_settings?.highlighterEnabled ?? defaultSettings.highlighterEnabled,
 		alwaysShowHighlights: data.highlighter_settings?.alwaysShowHighlights ?? defaultSettings.alwaysShowHighlights,

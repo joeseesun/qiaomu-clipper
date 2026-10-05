@@ -14,7 +14,8 @@ import { translationLanguages } from './translation-languages';
 
 // Read only transcript segments, excluding chapter headings and reader controls.
 export function transcriptText(article: HTMLElement): string {
-	return Array.from(article.querySelectorAll(`${TRANSCRIPT_SELECTOR}:not([data-source="${WHISPER_SOURCE}"]) .transcript-segment`)).map(segment => {
+	const selectors = `${TRANSCRIPT_SELECTOR}:not([data-source="${WHISPER_SOURCE}"]) .transcript-segment, .youtube-whisper-live .transcript-segment`;
+	return Array.from(article.querySelectorAll(selectors)).map(segment => {
 		const timestamp = segment.querySelector('strong')?.textContent?.trim() || '';
 		const clone = segment.cloneNode(true) as HTMLElement;
 		clone.querySelectorAll('.transcript-translation').forEach(node => node.remove());
@@ -46,12 +47,15 @@ function mountBrowserWhisper(article: HTMLElement, controls: HTMLElement, studyS
 	const download = doc.createElement('button'); download.type = 'button'; download.className = 'youtube-whisper-download'; download.textContent = '下载 SRT'; download.hidden = true;
 	const confirm = doc.createElement('button'); confirm.type = 'button'; confirm.className = 'youtube-whisper-confirm'; confirm.textContent = '确认字幕'; confirm.hidden = true;
 	const discard = doc.createElement('button'); discard.type = 'button'; discard.className = 'youtube-whisper-discard'; discard.textContent = '丢弃'; discard.hidden = true;
+	const live = doc.createElement('div'); live.className = 'youtube-whisper-live transcript'; live.setAttribute('aria-live', 'polite'); live.hidden = true;
 	const page = doc.createElement('button'); page.type = 'button'; page.className = 'youtube-whisper-page'; page.textContent = '转录页面音频';
 	page.title = '选择当前学习页标签页并共享声音，从播放位置开始转录';
 	page.hidden = !canCapturePageAudio();
 	const stop = doc.createElement('button'); stop.type = 'button'; stop.className = 'youtube-whisper-stop'; stop.textContent = '停止'; stop.hidden = true;
 	row.append(label, picker.element, page, choose, stop, retry, confirm, discard, download, input);
 	controls.append(row);
+	const insertion = existingTranscript?.isConnected ? existingTranscript : article.querySelector<HTMLElement>(TRANSCRIPT_SELECTOR);
+	if (insertion) insertion.after(live); else row.after(live);
 	whisperControls.set(article, { row, status });
 
 	let selected: File | undefined;
@@ -96,6 +100,14 @@ function mountBrowserWhisper(article: HTMLElement, controls: HTMLElement, studyS
 	const clearPending = () => { pendingResult = undefined; confirm.hidden = true; discard.hidden = true; };
 	const showPending = (next: BrowserWhisperResult) => {
 		pendingResult = next; confirm.hidden = false; discard.hidden = false;
+		live.replaceChildren(); live.hidden = !next.segments.length;
+		const heading = doc.createElement('h2'); heading.textContent = '实时识别字幕'; live.append(heading);
+		for (const segment of next.segments) {
+			const line = doc.createElement('p'); line.className = 'transcript-segment';
+			const time = doc.createElement('strong'); time.textContent = segment.time;
+			const text = doc.createElement('span'); text.className = 'transcript-segment-text'; text.textContent = segment.text;
+			line.append(time, text); live.append(line);
+		}
 		setStatus(`已识别 ${next.segments.length} 段，确认后可复制、下载、剪藏和翻译`);
 	};
 	const renderCaptured = (next: BrowserWhisperResult, window: CapturedAudioWindow) => {
@@ -209,9 +221,10 @@ function mountBrowserWhisper(article: HTMLElement, controls: HTMLElement, studyS
 	confirm.addEventListener('click', () => {
 		if (!pendingResult) return;
 		replaceTranscript(pendingResult); result = pendingResult; clearPending();
+		doc.dispatchEvent(new CustomEvent('qiaomu-transcript-state', { detail: { ready: true } }));
 		setStatus(`已确认字幕：${result.segments.length} 段`);
 	});
-	discard.addEventListener('click', () => { clearPending(); result = undefined; const local = article.querySelector<HTMLElement>(`${TRANSCRIPT_SELECTOR}[data-source="${WHISPER_SOURCE}"]`); local?.remove(); download.hidden = true; setStatus('已丢弃本次识别结果'); });
+	discard.addEventListener('click', () => { clearPending(); result = undefined; live.replaceChildren(); live.hidden = true; const local = article.querySelector<HTMLElement>(`${TRANSCRIPT_SELECTOR}[data-source="${WHISPER_SOURCE}"]`); local?.remove(); download.hidden = true; setStatus('已丢弃本次识别结果'); });
 	stop.addEventListener('click', () => {
 		if (capturing || capture) {
 			capturing = false;
@@ -236,7 +249,7 @@ function mountBrowserWhisper(article: HTMLElement, controls: HTMLElement, studyS
 		const link = doc.createElement('a'); link.href = url; link.download = 'browser-whisper.srt'; doc.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
 	});
 	const dispose = () => {
-		++generation; controller?.abort(); capture?.stop(); queue = []; picker.destroy(); observer.disconnect();
+		++generation; controller?.abort(); capture?.stop(); queue = []; picker.destroy(); observer.disconnect(); live.remove();
 		doc.defaultView?.removeEventListener('pagehide', dispose);
 	};
 	const observer = new MutationObserver(() => { if (!article.isConnected) dispose(); });
@@ -261,20 +274,20 @@ export async function mountYouTubeStudy(doc: Document, article: HTMLElement, tit
 	const toggleGroup = article.querySelector<HTMLElement>('.player-toggle-group');
 	const controls = toggleGroup || feedback;
 	mountBrowserWhisper(article, controls, status, transcript || undefined);
+	// A transcript may arrive later from page Whisper. Let the preview shell
+	// re-evaluate copy/download/clip controls as soon as real text exists.
+	doc.dispatchEvent(new CustomEvent('qiaomu-transcript-state', { detail: { ready: Boolean(text) } }));
 	let chat: ReturnType<typeof mountClipChat> | undefined = existingChat;
-	if (!text) {
-		status.textContent = article.dataset.videoPlatform === 'bilibili'
-			? '未获取到字幕：视频可能没有字幕，B 站的 AI 字幕通常需要登录后才能获取。登录后重新进入学习模式可重试。'
-			: '未获取到字幕：视频可能没有字幕，或 YouTube 暂时限制了获取。打开原页转写文稿后再进入学习模式可重试。';
-		return;
-	}
 	await loadSettings();
-	mountTranslation(article, controls, status);
+	if (text) mountTranslation(article, controls, status);
+	else status.textContent = article.dataset.videoPlatform === 'bilibili'
+		? '未获取到字幕：可以用浏览器 Whisper 转录页面音频，确认后再复制、下载、剪藏和翻译。'
+		: '未获取到字幕：可以用浏览器 Whisper 转录页面音频，确认后再复制、下载、剪藏和翻译。';
 	if (existingChat) return;
 	chat = mountClipChat({
 		onLearningRecord: quote => { void learningNotes(doc)?.open({quote}); },
 		onLearningAi: aiSupplement => { void learningNotes(doc)?.open({aiSupplement}); },
-		getContext: () => ({ title, url, markdown: `以下是视频字幕文稿，时间戳对应播放位置。仅依据文稿回答；文稿没有的信息请明确说明。\n\n${text}` }),
+		getContext: () => ({ title, url, markdown: `以下是视频字幕文稿，时间戳对应播放位置。仅依据文稿回答；文稿没有的信息请明确说明。\n\n${transcriptText(article) || '当前还没有确认的字幕，请先完成浏览器 Whisper 转录并确认字幕。'}` }),
 		onInsert: answer => {
 			let notes = article.querySelector('.youtube-study-notes');
 			if (!notes) { notes = doc.createElement('section'); notes.className = 'youtube-study-notes'; article.appendChild(notes); }

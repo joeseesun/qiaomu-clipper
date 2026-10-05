@@ -329,6 +329,8 @@ article > .player-toggles {
 	}
 }
 .youtube-whisper-status:not(:empty) { display: block; margin-top: 4px; }
+.youtube-whisper-live { margin: 16px 0; border-top: 1px solid var(--background-modifier-border); padding-top: 12px; }
+.youtube-whisper-live[hidden] { display: none; }
 .youtube-study .youtube-sized-player { width: var(--youtube-player-width, 100%) !important; height: auto !important; aspect-ratio: 16 / 9; max-height: none !important; display: block; margin-inline: auto; }
 .transcript-segment:has(.transcript-translation) { display: grid; grid-template-columns: var(--timestamp-width) minmax(0, 1fr); column-gap: 1em; row-gap: .4em; }
 .transcript-translation { grid-column: 2; padding-inline: .5em; color: var(--text-muted); overflow-wrap: anywhere; &[hidden] { display: none; } }

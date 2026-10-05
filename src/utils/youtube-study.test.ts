@@ -66,7 +66,7 @@ describe('YouTube study transcript', () => {
 		expect(node.querySelector<HTMLButtonElement>('.youtube-whisper-confirm')?.hidden).toBe(false);
 		node.querySelector<HTMLButtonElement>('.youtube-whisper-confirm')!.click();
 		expect(node.querySelector('.transcript[data-source="browser-whisper"] .transcript-segment-text')?.textContent).toBe('Local caption');
-		expect(transcriptText(node)).toBe('');
+		expect(transcriptText(node)).toBe('[0:01] Local caption');
 		expect(choose.textContent).toBe('重新选择音频');
 	});
 	it('maps Reader regional language values to Whisper model language codes', async () => {

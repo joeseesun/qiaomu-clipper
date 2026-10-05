@@ -39,6 +39,12 @@ it('survives a storage that fails', async () => {
 	const cache = createTranscriptCache(broken); expect(await cache.read('abcdefghijk')).toBeUndefined(); await expect(cache.write('abcdefghijk', lines)).resolves.toBeUndefined();
 });
 
+it('preserves whether a cached transcript came from YouTube automatic speech recognition', async () => {
+	data = {}; const cache = createTranscriptCache(storage);
+	await cache.write('abcdefghijk', lines, 'en', 'automatic');
+	expect(await cache.read('abcdefghijk')).toEqual({ segments: lines, language: 'en', source: 'automatic' });
+});
+
 it('keeps a Bilibili transcript under its own video-and-part key, and nothing under a malformed one', async () => {
 	data = {}; const cache = createTranscriptCache(storage);
 	await cache.write('bilibili:BV1GJ411x7h7:2', lines); expect(await cache.read('bilibili:BV1GJ411x7h7:2')).toEqual({ segments: lines });

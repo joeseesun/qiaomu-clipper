@@ -44,6 +44,10 @@ export function mountReaderPreviewShell(draft: ClipPreview, pending = false) {
 		pending = value;
 		for (const control of Array.from(bar.querySelectorAll<HTMLButtonElement>('.clip-bar-segment button[aria-selected="false"], #clip-bar-copy, #clip-bar-download, #clip-bar-ai, #clip-bar-clip'))) control.disabled = value || (control.id === 'clip-bar-clip' && Boolean(draft.localDone && (!draft.aggregate || draft.rssDone))) || (control.id === 'clip-bar-ai' && Boolean(videoKey(draft.clip.url)) && !transcriptText(document.querySelector('article')!));
 	};
+	document.addEventListener('qiaomu-transcript-state', event => {
+		const ready = Boolean((event as CustomEvent<{ ready?: boolean }>).detail?.ready || transcriptText(document.querySelector('article')!));
+		if (ready) setPending(false);
+	});
 	setPending(pending);
 	listenTripleKey(() => [normalizeTripleKeys(generalSettings.tripleKeys).edit].filter(Boolean), () => { if (!pending) openEditor(); }, () => generalSettings.tripleKeyShortcuts !== false && !document.querySelector('.learning-composer[open]'));
 	return {bar,chat, setPending, refresh: () => {title.textContent = draft.clip.title;} };
