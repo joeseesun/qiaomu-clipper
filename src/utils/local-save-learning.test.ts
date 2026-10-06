@@ -220,3 +220,11 @@ it('permits an identified TikTok feed item but rejects cross-site requests',asyn
  await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'start',videoKey:KEY,web:{url:'https://www.tiktok.com/@maker/video/123'}}},page);expect(native).toHaveBeenCalledTimes(1);
  native.mockClear();expect(await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'start',videoKey:KEY,web:{url:'https://www.douyin.com/video/123'}}},page)).toMatchObject({error:'bad-request'});expect(native).not.toHaveBeenCalled();
 });
+
+it('passes the current Douyin media to the helper and refuses foreign CDN URLs',async()=>{
+ native.mockReset();native.mockResolvedValue({ok:true});const url='https://www.douyin.com/video/123',mediaUrl='https://v11-weba.douyinvod.com/video/a/?signature=x',KEY='web:'+'a'.repeat(12);
+ await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'start',videoKey:KEY,web:{url,mediaUrl}}},{id:'test-id',url});
+ expect(native.mock.calls[0][1]).toMatchObject({web:{url,mediaUrl}});native.mockClear();
+ for(const bad of ['https://example.com/a','https://douyinvod.com.evil.org/a','http://v11.douyinvod.com/a']) expect(await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'start',videoKey:KEY,web:{url,mediaUrl:bad}}},sender)).toMatchObject({error:'bad-request'});
+ expect(native).not.toHaveBeenCalled();
+});

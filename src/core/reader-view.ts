@@ -40,7 +40,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 	// Audio: a file chosen on this page, or a podcast episode.
 	if (params.get('study') === 'file') { const file = await takeHandedFile(params.get('token') || ''); await startAudioStudy({ kind: 'file', title: params.get('title') || '', ...(file ? { file } : {}) }); return; }
-	if (params.get('study') === 'web' && url) { await startAudioStudy({ kind: 'web', webUrl: url, title: params.get('title') || '' }); return; }
+	if (params.get('study') === 'web' && url) { await startAudioStudy({ kind: 'web', webUrl: url, sourceTabId: params.has('sourceTab') ? Number(params.get('sourceTab')) : undefined, title: params.get('title') || '' }); return; }
 	if (params.get('study') === 'feed' && params.get('feed') && params.get('guid')) { await startAudioStudy({ kind: 'feed', feed: params.get('feed')!, guid: params.get('guid')!, title: params.get('title') || '' }); return; }
 	if (params.get('study') === 'audio' && url) {
 		const key = audioKey(url);

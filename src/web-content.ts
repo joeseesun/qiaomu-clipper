@@ -1,3 +1,4 @@
+import { readPageMedia } from './utils/web-page-media';
 import { readTedMedia } from './utils/ted-media';
 import { placeWebBar, WEB_BAR_STYLE } from './utils/web-bar-placement';
 import type { PanelSegment } from './utils/youtube-panel-actions';
@@ -46,7 +47,7 @@ try {
 		const post = () => { const player = media(); return player ? currentWebMediaAddress(document, player, location.href) : declaredWebMediaAddress(document, location.href); };
 		const mainTweet = () => isX ? document.querySelector<HTMLElement>('main article[data-testid="tweet"]') ?? document.querySelector<HTMLElement>('article') : document.body;
 		const media = () => isX ? mainTweet()?.querySelector<HTMLMediaElement>('video, audio') ?? undefined : activeWebMedia(document);
-		api.runtime.onMessage.addListener((message, _sender, reply) => { if (message.action === 'qiaomuWebMediaSource') reply({ url: post() }); });
+		api.runtime.onMessage.addListener((message, _sender, reply) => { if (message.action === 'qiaomuWebMediaSource') reply({ url: post(), info: readPageMedia(document, post() || '', media()) }); });
 		const tweetText = () => (mainTweet()?.querySelector('[data-testid="tweetText"]')?.textContent || document.title).replace(/\s+/g, ' ').trim().slice(0, 120);
 
 		// The colours of the page it sits in: X has a light, a dim and a dark theme, and none of them is ours to choose.
@@ -108,12 +109,12 @@ try {
 			const url = post(), tweet = mainTweet();
 			if (!url || !tweet) { if (host) remove(); return; }
 			// The right column can appear or go away as the window is resized: the bar follows it.
-			if (host?.isConnected && postUrl === url && (where === 'side') === Boolean(sideSpot())) { if (!isX && !host.classList.contains('is-inline')) placeWebBar(host, media(), siteOf(location.href)?.id || ''); return; }
+			if (host?.isConnected && postUrl === url && (where === 'side') === Boolean(sideSpot())) { if (!isX) { registerWebSource(key, url, readPageMedia(document, url, media())?.mediaUrl || undefined); placeWebBar(host, media(), siteOf(location.href)?.id || ''); } return; }
 			if (mounting) return; mounting = true;
 			try {
 				if (host) remove();
 				const nextKey = await webKey(url); if (post() !== url) return;
-				postUrl = url; key = nextKey; registerWebSource(key, url);
+				postUrl = url; key = nextKey; registerWebSource(key, url, readPageMedia(document, url, media())?.mediaUrl || undefined);
 				const style = document.createElement('style'); style.textContent = BAR_STYLE + '.qiaomu-x{display:block;width:100%}' + WEB_BAR_STYLE;
 				host = document.createElement('div'); host.className = isX ? 'qiaomu-x' : 'qiaomu-web-bar'; host.append(style);
 				bar = buildTranscriptBar(document, {
@@ -130,7 +131,7 @@ try {
 		// X is a single-page app: posts change without a page load, and its markup is rebuilt often, so look again now and then.
 		window.setInterval(() => { void mount(); }, 1000); void mount();
 		let moving = false;
-		const reposition = () => { if (moving) return; moving = true; requestAnimationFrame(() => { moving = false; if (host && !isX && !host.classList.contains('is-inline')) placeWebBar(host, media(), siteOf(location.href)?.id || ''); }); };
+		const reposition = () => { if (moving) return; moving = true; requestAnimationFrame(() => { moving = false; if (host && !isX) placeWebBar(host, media(), siteOf(location.href)?.id || ''); }); };
 		window.addEventListener('resize', reposition, { passive: true }); document.addEventListener('scroll', reposition, { passive: true, capture: true });
 		for (const type of ['timeupdate', 'seeked', 'playing']) document.addEventListener(type, event => { if (event.target instanceof HTMLMediaElement && bar && event.target === media()) bar.setTime(event.target.currentTime, event.type === 'seeked'); }, true);
 		const applySites = (value?: { off?: unknown }) => { siteOn = !(Array.isArray(value?.off) && (value!.off as unknown[]).includes((siteOf(location.href)?.id ?? ''))); void mount(); };

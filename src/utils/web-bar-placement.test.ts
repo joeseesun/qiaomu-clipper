@@ -15,3 +15,25 @@ it('anchors a TikTok bar beside the video and action rail, then follows player m
 	placeWebBar(host, media, 'tiktok'); expect(host.style.left).toBe('1051px'); expect(host.style.top).toBe('28px');
 	rect.mockReturnValue({ top: 100, right: 900 } as DOMRect); placeWebBar(host, media, 'tiktok'); expect(host.style.left).toBe('988px'); expect(host.style.top).toBe('112px');
 });
+it('anchors TED before its video loads and follows a replaced player without moving an already placed strip', () => {
+	document.body.innerHTML = '<div><div class="aspect-video"><media-controller id="video-player-container"></media-controller></div><h1>Talk</h1></div>';
+	const host = document.createElement('div');
+	placeWebBar(host, undefined, 'ted');
+	expect(host.previousElementSibling?.className).toBe('aspect-video');
+	const observer = new MutationObserver(() => {}); observer.observe(host.parentElement!, { childList: true });
+	placeWebBar(host, undefined, 'ted'); expect(observer.takeRecords()).toHaveLength(0); observer.disconnect();
+	const replacement = document.createElement('div'); replacement.className = 'aspect-video';
+	replacement.innerHTML = '<media-controller id="video-player-container"></media-controller>';
+	document.querySelector('.aspect-video')!.replaceWith(replacement);
+	placeWebBar(host, undefined, 'ted'); expect(host.previousElementSibling).toBe(replacement);
+});
+it('ignores Douyin’s hidden duplicate recommendation panel and leaves the author row above the strip', () => {
+	document.body.innerHTML = '<video></video><div hidden><h2>推荐视频</h2></div><aside><header>作者与关注</header><section><h2>推荐视频</h2><p>Recommendations</p></section></aside>';
+	const video = document.querySelector('video')!, section = document.querySelector('section')!, heading = section.querySelector('h2')!;
+	vi.spyOn(video, 'getBoundingClientRect').mockReturnValue({ right: 1400 } as DOMRect);
+	vi.spyOn(heading, 'getBoundingClientRect').mockReturnValue({ left: 1420, width: 405, height: 26 } as DOMRect);
+	vi.spyOn(section, 'getBoundingClientRect').mockReturnValue({ left: 1420, width: 405, height: 2306 } as DOMRect);
+	const host = document.createElement('div'); placeWebBar(host, video, 'douyin');
+	expect(host.previousElementSibling?.tagName).toBe('HEADER'); expect(host.nextElementSibling).toBe(section);
+	expect(host.classList.contains('is-inline')).toBe(true); expect(host.style.top).toBe('');
+});

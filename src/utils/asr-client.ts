@@ -18,10 +18,10 @@ export interface AsrFailure { ok: false; error: string; missing?: string[]; hint
 export type AsrReply<T> = T | AsrFailure;
 
 export const ASR_VIDEO_KEY = /^(youtube:[A-Za-z0-9_-]{11}|bilibili:BV[0-9A-Za-z]{10}:\d{1,4}|xiaoyuzhou:[0-9a-f]{24}|file:[0-9a-f]{32}|rss:[0-9a-f]{12}:[0-9a-f]{16}|web:[0-9a-f]{12})$/;
-const webRefs = new Map<string, { url: string }>();
+const webRefs = new Map<string, { url: string; mediaUrl?: string }>();
 const webCookies = new Map<string, CookieBrowser>();
 export const useWebCookies = (key: string, cookies: CookieBrowser) => { webCookies.set(key, cookies); };
-export const registerWebSource = (key: string, url: string) => { webRefs.set(key, { url }); };
+export const registerWebSource = (key: string, url: string, mediaUrl?: string) => { webRefs.set(key, { url, ...(mediaUrl ? { mediaUrl } : {}) }); };
 // A podcast episode from a feed is named by hash; the address behind a key is remembered here, for the request that starts it.
 const feedRefs = new Map<string, { feed: string; guid: string }>();
 export const registerFeedEpisode = (key: string, feed: string, guid: string) => { feedRefs.set(key, { feed, guid }); };

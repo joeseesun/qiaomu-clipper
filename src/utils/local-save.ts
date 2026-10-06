@@ -1,3 +1,4 @@
+import { isDouyinMedia } from './web-page-media';
 import browser from './browser-polyfill';
 import { Template } from '../types/types';
 import { siteOf } from './study-sites';
@@ -61,7 +62,7 @@ const ASR_ENGINE = /^(mlx|mlx-qwen3|faster-whisper)$/;
 const ASR_KEY = /^(youtube:[A-Za-z0-9_-]{11}|bilibili:BV[0-9A-Za-z]{10}:\d{1,4}|xiaoyuzhou:[0-9a-f]{24}|file:[0-9a-f]{32}|rss:[0-9a-f]{12}:[0-9a-f]{16}|web:[0-9a-f]{12})$/;
 const ASR_LANGUAGE = /^(auto|zh|en|ja|ko|de|fr|es|ru|pt|it)$/;
 const ASR_COOKIES = /^(chrome|edge|brave|chromium|firefox|safari)$/;
-type AsrPayload = { mode?: string; videoKey?: string; language?: string; force?: boolean; cookies?: string; jobId?: string; since?: number; cloud?: Record<string, unknown>; apiKey?: string; engine?: string; profile?: string; model?: boolean; auto?: boolean; name?: string; rss?: { feed?: unknown; guid?: unknown }; web?: { url?: unknown }; url?: string; size?: number; uploadId?: string; index?: number; data?: string };
+type AsrPayload = { mode?: string; videoKey?: string; language?: string; force?: boolean; cookies?: string; jobId?: string; since?: number; cloud?: Record<string, unknown>; apiKey?: string; engine?: string; profile?: string; model?: boolean; auto?: boolean; name?: string; rss?: { feed?: unknown; guid?: unknown }; web?: { url?: unknown; mediaUrl?: unknown }; url?: string; size?: number; uploadId?: string; index?: number; data?: string };
 const validCloud = (cloud: Record<string, unknown> | undefined): cloud is Record<string, unknown> => Boolean(cloud && ['openai-transcriptions', 'chat-audio', 'doubao-flash'].includes(String(cloud.protocol)) && typeof cloud.baseUrl === 'string' && isHttpsOrLocal(cloud.baseUrl) && /^[A-Za-z0-9_./:\-]{1,100}$/.test(String(cloud.model || '')) && ['none', 'segments'].includes(String(cloud.timestamps || 'none')) && (cloud.contextMode === undefined || ['doubao', 'prompt'].includes(String(cloud.contextMode))) && ['chunkSeconds', 'maxChunkSeconds'].every(name => cloud[name] === undefined || (typeof cloud[name] === 'number' && cloud[name] >= 5 && cloud[name] <= 900)));
 export function handleAsrMessage(request: unknown, sender: { id?: string; url?: string }): Promise<unknown> | undefined {
     const message = request as { action?: string; payload?: AsrPayload };
@@ -85,7 +86,8 @@ export function handleAsrMessage(request: unknown, sender: { id?: string; url?: 
             const pageAddress = webMediaAddress(sender.url || '');
             const own = Boolean(ref && typeof ref.url === 'string' && webMediaAddress(ref.url) && (pageAddress ? webMediaAddress(ref.url) === pageAddress : ['tiktok', 'douyin'].includes(siteOf(sender.url || '')?.id || '') && siteOf(ref.url)?.id === siteOf(sender.url || '')?.id));
             if (!(sender.url?.startsWith(browser.runtime.getURL('')) || own) || !ref || typeof ref.url !== 'string' || ref.url.length > 1500 || !/^https:\/\//.test(ref.url)) return Promise.resolve({ ok: false, error: 'bad-request' });
-            body.web = { url: ref.url };
+            if (ref.mediaUrl !== undefined && !isDouyinMedia(ref.url, ref.mediaUrl)) return Promise.resolve({ ok: false, error: 'bad-request' });
+            body.web = { url: ref.url, ...(ref.mediaUrl ? { mediaUrl: ref.mediaUrl } : {}) };
         }
         Object.assign(body, { videoKey: payload.videoKey, language: payload.language || 'auto', force: payload.force === true, ...(payload.cookies ? { cookies: payload.cookies } : {}) });
     } else if (payload.mode === 'poll' || payload.mode === 'cancel') {

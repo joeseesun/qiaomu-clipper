@@ -5,17 +5,30 @@ import type { WebMedia } from './web-media-page';
 export function placeWebBar(host: HTMLElement, media: WebMedia | undefined, site: string): void {
 	const doc = host.ownerDocument, win = doc.defaultView!;
 	const video = media?.getBoundingClientRect();
-	if (site === 'ted' && media) {
-		const player = media.closest<HTMLElement>('[class*="aspect-video"]') || media.closest<HTMLElement>('[role="region"]');
-		if (player?.parentElement) { host.classList.add('is-inline'); host.style.cssText = ''; player.after(host); return; }
+	if (site === 'ted') {
+		// TED creates its media element after the outer player. Anchor to that box
+		// even while the video is loading; hidden advertising videos are unrelated.
+		const frame = doc.querySelector<HTMLElement>('#video-player-container');
+		const player = frame?.closest<HTMLElement>('[class*="aspect-video"]') || media?.closest<HTMLElement>('[class*="aspect-video"]');
+		if (player?.parentElement) {
+			host.classList.add('is-inline'); host.style.cssText = '';
+			if (player.nextElementSibling !== host) player.after(host);
+			return;
+		}
 	}
 	if (site === 'douyin' && video) {
-		const heading = Array.from(doc.querySelectorAll<HTMLElement>('h2,h3,div,p,span')).find(e => !e.children.length && e.textContent?.trim() === '推荐视频');
+		const heading = Array.from(doc.querySelectorAll<HTMLElement>('h2,h3,div,p,span')).find(e => {
+			if (e.children.length || e.textContent?.trim() !== '推荐视频') return false;
+			const r = e.getBoundingClientRect();
+			return r.width > 0 && r.height > 0 && r.left >= video.right;
+		});
 		let module = heading;
 		while (module && module !== doc.body) {
 			const r = module.getBoundingClientRect();
 			if (r.left >= video.right && r.width >= 250 && r.width <= 440 && r.height > 60) {
-				host.classList.add('is-inline'); host.style.cssText = ''; module.before(host); return;
+				host.classList.add('is-inline'); host.style.cssText = '';
+				if (host.nextElementSibling !== module) module.before(host);
+				return;
 			}
 			module = module.parentElement ?? undefined;
 		}

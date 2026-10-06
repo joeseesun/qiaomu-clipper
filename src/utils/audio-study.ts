@@ -40,6 +40,7 @@ export interface AudioStudyOptions {
 	guid?: string;
 	// Any other site yt-dlp can read: its address.
 	webUrl?: string;
+	sourceTabId?: number;
 }
 const text = (id: string, zh: string, en: string) => { try { return browser.i18n.getMessage(id) || (/^zh/i.test(navigator.language) ? zh : en); } catch { return /^zh/i.test(navigator.language) ? zh : en; } };
 const FILE_PAGE_URL = 'https://qiaomu.local/audio';
@@ -223,12 +224,13 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 		if (!/^https:\/\//.test(address)) { status.textContent = '只支持 https 网址'; return; }
 		status.textContent = text('webReading', '正在读取这个网址…', 'Reading this address…');
 		const official = await readTedMedia(address, async url => { const reply = await browser.runtime.sendMessage({ action: 'fetchProxy', url, options: {} }) as { text?: string }; return reply?.text || ''; });
-		const { info, cookies } = official ? { info: official, cookies: undefined } : await probeWebStudy(address, status, holder);
+		const pageMedia = !official ? await browser.runtime.sendMessage({ action: 'qiaomuWebStudySource', url: address, sourceTabId: options.sourceTabId }).catch(() => null) as import('./asr-client').WebInfo | null : null;
+		const { info, cookies } = official || pageMedia ? { info: (official || pageMedia)!, cookies: undefined } : await probeWebStudy(address, status, holder);
 		if (!info.ok) {
 			status.textContent = info.error === 'unsupported' ? '这个网址读不了：下载工具不支持这个网站，或这个页面里没有音视频。' : info.error === 'needs-cookies' ? '这个网站需要有效的浏览器状态才能读取。' : info.error === 'helper-offline' || info.error === 'helper-outdated' ? text('subtitleGenOffline', '没有连上本地助手，需要先安装或更新本地助手。', 'The local helper is not connected or is out of date.') : info.error === 'missing' ? '还没有安装下载工具（yt-dlp），请先在「语音识别」里安装，或运行 brew install yt-dlp。' : info.error === 'timeout' ? '读取超时，请稍后重试。' : '读取失败' + ((info as { message?: string }).message ? '：' + (info as { message?: string }).message : '');
 			return;
 		}
-		key = await webKey(address); registerWebSource(key, address);
+		key = await webKey(address); registerWebSource(key, address, pageMedia?.mediaUrl || undefined);
 		if (cookies) useWebCookies(key, cookies);
 		void recordStudy({ url: address, title: info.title, path: `reader.html?study=web&url=${encodeURIComponent(address)}`, kind: 'web' });
 		// A post on X says something of its own: its words stay with the media. A long description of another site waits behind a tab.

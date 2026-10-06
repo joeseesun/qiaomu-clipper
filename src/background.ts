@@ -1,3 +1,4 @@
+import { getWebPageMedia } from './utils/web-page-media';
 import { submitQiaomuClip, QiaomuClip } from './utils/qiaomu-rss';
 import browser from 'webextension-polyfill';
 import { detectBrowser } from './utils/browser-detection';
@@ -1202,7 +1203,7 @@ async function webStudyPath(url: string, tabId: number): Promise<string | null> 
 	if (!post) return null;
 	try {
 		const [result] = await browser.scripting.executeScript({ target: { tabId }, func: () => Boolean(document.querySelector('video, audio, iframe[src*="player.vimeo.com"], iframe[src*="player.twitch.tv"], iframe[src*="dailymotion.com"], [data-testid="videoPlayer"], meta[property="og:video"], meta[property="og:video:url"], meta[property="og:audio"]')) });
-		return result?.result || isMediaItemAddress(post) ? `reader.html?study=web&url=${encodeURIComponent(post)}` : null;
+		return result?.result || isMediaItemAddress(post) ? `reader.html?study=web&url=${encodeURIComponent(post)}&sourceTab=${tabId}` : null;
 	} catch { return null; }
 }
 
@@ -1390,4 +1391,12 @@ browser.runtime.onMessage.addListener((raw: unknown, sender) => {
 			return results[0]?.result || { error: '无法读取原视频页面' };
 		} catch { return { error: '原视频页面不可用，将从视频链接获取字幕' }; }
 	})();
+});
+
+// Only the study reader can ask for a media address from its original page.
+browser.runtime.onMessage.addListener((raw: unknown, sender) => {
+	const request = raw as { action?: string; url?: string; sourceTabId?: number };
+	if (request?.action !== 'qiaomuWebStudySource') return;
+	if (sender.id !== browser.runtime.id || !sender.url?.startsWith(browser.runtime.getURL('reader.html')) || typeof request.url !== 'string') return Promise.resolve(null);
+	return getWebPageMedia(request.url, request.sourceTabId, browser.tabs).then(info => info || null);
 });
