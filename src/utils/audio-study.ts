@@ -1,3 +1,4 @@
+import { readTedMedia } from './ted-media';
 import { probeWebStudy } from './web-study-probe';
 import DOMPurify from 'dompurify';
 import browser from './browser-polyfill';
@@ -219,7 +220,8 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 		const address = options.webUrl ?? '';
 		if (!/^https:\/\//.test(address)) { status.textContent = '只支持 https 网址'; return; }
 		status.textContent = text('webReading', '正在读取这个网址…', 'Reading this address…');
-		const { info, cookies } = await probeWebStudy(address, status, holder);
+		const official = await readTedMedia(address, async url => { const reply = await browser.runtime.sendMessage({ action: 'fetchProxy', url, options: {} }) as { text?: string }; return reply?.text || ''; });
+		const { info, cookies } = official ? { info: official, cookies: undefined } : await probeWebStudy(address, status, holder);
 		if (!info.ok) {
 			status.textContent = info.error === 'unsupported' ? '这个网址读不了：下载工具不支持这个网站，或这个页面里没有音视频。' : info.error === 'needs-cookies' ? '这个网站需要有效的浏览器状态才能读取。' : info.error === 'helper-offline' || info.error === 'helper-outdated' ? text('subtitleGenOffline', '没有连上本地助手，需要先安装或更新本地助手。', 'The local helper is not connected or is out of date.') : info.error === 'missing' ? '还没有安装下载工具（yt-dlp），请先在「语音识别」里安装，或运行 brew install yt-dlp。' : info.error === 'timeout' ? '读取超时，请稍后重试。' : '读取失败' + ((info as { message?: string }).message ? '：' + (info as { message?: string }).message : '');
 			return;
@@ -231,7 +233,7 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 		const words = (info.description ?? '').trim(), isPost = Boolean(xStatus(address)), short = isPost || words.length <= 400;
 		await present({ title: info.title, show: info.author || info.site, cover: info.thumbnail ?? undefined, date: info.date ?? undefined, seconds: info.seconds ?? undefined, audio: info.mediaUrl ?? '', picture: info.video && Boolean(info.mediaUrl), ...(words && short ? { post: plainToHtml(words) } : {}), ...(words && !short ? { notesHtml: plainToHtml(words), notesLabel: text('audioTabAbout', '简介', 'Description') } : { notesHtml: '' }) });
 		if (!info.mediaUrl) { const note = document.createElement('p'); note.className = 'qiaomu-shows-note'; note.append(document.createTextNode('这个网站没有给出可以直接播放的声音，所以这里不提供播放器；字幕照常生成，对照时请在原页面播放：')); const link = document.createElement('a'); link.href = address; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = '打开原页面'; note.append(link); holder.before(note); }
-		await begin(); return;
+		if (official?.segments.length) { await attach(official.segments); panel.element.hidden = true; } else await begin(); return;
 	}
 	if (options.kind === 'feed') {
 		if (!options.feed || !options.guid) { status.textContent = '无效的节目链接'; return; }

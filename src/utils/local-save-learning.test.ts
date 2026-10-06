@@ -214,3 +214,9 @@ it('allows supported-site bars to generate only their current detail item',async
  await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'start',videoKey:KEY,web:{url}}},{id:'test-id',url});expect(native.mock.calls[0][1]).toMatchObject({action:'asrStart',web:{url}});
  native.mockClear();expect(await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'start',videoKey:KEY,web:{url}}},{id:'test-id',url:'https://www.douyin.com/video/456'})).toMatchObject({error:'bad-request'});expect(native).not.toHaveBeenCalled();
 });
+
+it('permits an identified TikTok feed item but rejects cross-site requests',async()=>{
+ native.mockReset();native.mockResolvedValue({ok:true});const page={id:'test-id',url:'https://www.tiktok.com/'},KEY='web:'+'a'.repeat(12);
+ await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'start',videoKey:KEY,web:{url:'https://www.tiktok.com/@maker/video/123'}}},page);expect(native).toHaveBeenCalledTimes(1);
+ native.mockClear();expect(await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'start',videoKey:KEY,web:{url:'https://www.douyin.com/video/123'}}},page)).toMatchObject({error:'bad-request'});expect(native).not.toHaveBeenCalled();
+});

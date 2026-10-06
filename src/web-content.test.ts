@@ -29,3 +29,14 @@ it('never mounts a generic bar on a text-only post or a home feed without an ide
 	await import('./web-content');await flush();expect(document.querySelector('.qiaomu-web-bar')).toBeNull();
 	vi.stubGlobal('location',{href:'https://www.tiktok.com/foryou'});document.body.innerHTML='<video></video>';await flush();expect(document.querySelector('.qiaomu-web-bar')).toBeNull();
 });
+
+it('uses TED official captions before cached generated text and mounts outside the player',async()=>{
+ vi.stubGlobal('location',{href:'https://www.ted.com/talks/example'});
+ const data={props:{pageProps:{videoData:{slug:'example',videoPlayerData:{nativeLanguage:'en',languages:[{languageCode:'en',endonym:'English'},{languageCode:'zh-cn',endonym:'中文'}]}},transcriptData:{translation:{language:{internalLanguageCode:'en'},paragraphs:[{cues:[{text:'Official TED subtitle',time:359}]}]}}}}};
+ document.body.innerHTML='<main><div class="aspect-video"><video></video></div><h1>Talk</h1></main><script id="__NEXT_DATA__" type="application/json">'+JSON.stringify(data)+'</script>';
+ env.store['qiaomuTranscript2:generated:web:undefined']={segments:[{time:'0:00',text:'Old generated text'}]};
+ await import('./web-content');await flush();
+ const host=document.querySelector<HTMLElement>('.qiaomu-web-bar')!;expect(host.classList.contains('is-inline')).toBe(true);expect(host.previousElementSibling).toBe(document.querySelector('.aspect-video'));
+ const bar=host.querySelector<HTMLElement>('.qiaomu-yt-bar')!;expect(bar.dataset.state).toBe('ready');bar.querySelector<HTMLButtonElement>('.qiaomu-yt-tool-toggle')!.click();
+ expect(bar.textContent).toContain('Official TED subtitle');expect(bar.textContent).not.toContain('Old generated text');expect(bar.querySelector('select')?.querySelectorAll('option')).toHaveLength(2);
+});

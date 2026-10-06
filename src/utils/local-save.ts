@@ -1,5 +1,6 @@
 import browser from './browser-polyfill';
 import { Template } from '../types/types';
+import { siteOf } from './study-sites';
 import { webMediaAddress } from './web-media-page';
 import { activeProfile, choosePatch, cloudConfig, effectiveFor, isConfigured, isHttpsOrLocal, isLocalService, loadAsrSettings, platformOf, profileLabel, saveAsrSettings, LOCAL_ENGINE_IDS, type AsrSettings } from './asr-settings';
 export interface LocalSavePayload { requestId: string; content: string; name: string; folder: string; vault: string; behavior: Template['behavior'] }
@@ -81,7 +82,8 @@ export function handleAsrMessage(request: unknown, sender: { id?: string; url?: 
         if (payload.videoKey!.startsWith('web:')) {
             const ref = payload.web;
             // A supported media detail page may transcribe only its own item from its subtitle bar.
-            const own = Boolean(ref && typeof ref.url === 'string' && webMediaAddress(sender.url || '') && webMediaAddress(ref.url) === webMediaAddress(sender.url || ''));
+            const pageAddress = webMediaAddress(sender.url || '');
+            const own = Boolean(ref && typeof ref.url === 'string' && webMediaAddress(ref.url) && (pageAddress ? webMediaAddress(ref.url) === pageAddress : ['tiktok', 'douyin'].includes(siteOf(sender.url || '')?.id || '') && siteOf(ref.url)?.id === siteOf(sender.url || '')?.id));
             if (!(sender.url?.startsWith(browser.runtime.getURL('')) || own) || !ref || typeof ref.url !== 'string' || ref.url.length > 1500 || !/^https:\/\//.test(ref.url)) return Promise.resolve({ ok: false, error: 'bad-request' });
             body.web = { url: ref.url };
         }

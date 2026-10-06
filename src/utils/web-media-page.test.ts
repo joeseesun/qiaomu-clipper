@@ -39,3 +39,8 @@ it('finds a visible cross-origin embed without accessing its document', () => {
 	expect(activeWebMedia(document)).toBe(frame);
 	expect(currentWebMediaAddress(document,frame,'https://vimeo.com/123')).toBe('https://vimeo.com/123');
 });
+
+it('identifies TikTok feed items from the live player wrapper and author, without relying on a missing detail link', () => {
+ document.body.innerHTML='<article><div id="xgwrapper-0-7679171926396472578"><video></video></div><a href="https://www.tiktok.com/@maker">Maker</a></article>';
+ expect(currentWebMediaAddress(document,document.querySelector('video')!,'https://www.tiktok.com/')).toBe('https://www.tiktok.com/@maker/video/7679171926396472578');
+});
