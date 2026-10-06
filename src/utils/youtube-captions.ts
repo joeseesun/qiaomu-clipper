@@ -27,6 +27,24 @@ export const tracksOf = (player: any): CaptionTrack[] => {
 	return Array.isArray(list) ? list.filter((track: CaptionTrack) => typeof track?.baseUrl === 'string' && track.baseUrl) : [];
 };
 
+export const audioLanguageOf = (player: any): string | undefined => {
+	const language = player?.videoDetails?.defaultAudioLanguage || player?.microformat?.playerMicroformatRenderer?.defaultAudioLanguage;
+	if (typeof language === 'string' && language.trim()) return language.trim();
+	const renderer = player?.captions?.playerCaptionsTracklistRenderer;
+	const audio = renderer?.audioTracks?.[renderer.defaultAudioTrackIndex];
+	// Multi-audio videos may omit videoDetails.defaultAudioLanguage entirely.
+	// Track IDs contain the language followed by a numeric rendition suffix.
+	const fromId = (id: unknown) => typeof id === 'string' ? id.match(/^([a-z]{2,3}(?:-[a-zA-Z0-9]+)*)\.\d+$/)?.[1] : undefined;
+	const selected = fromId(audio?.audioTrackId);
+	if (selected) return selected;
+	const formats = player?.streamingData?.adaptiveFormats;
+	const defaultAudio = Array.isArray(formats) ? formats.find(format => format.audioTrack?.audioIsDefault)?.audioTrack : undefined;
+	const fromFormat = fromId(defaultAudio?.id);
+	if (fromFormat) return fromFormat;
+	const index = audio?.defaultCaptionTrackIndex;
+	return Number.isInteger(index) ? renderer?.captionTracks?.[index]?.languageCode : undefined;
+};
+
 // The page's own player response, for videos where the mobile clients are refused.
 export function playerFromWatchHtml(html: string): any | undefined {
 	const start = html.search(/ytInitialPlayerResponse\s*=\s*\{/); if (start < 0) return undefined;
@@ -39,16 +57,42 @@ export function playerFromWatchHtml(html: string): any | undefined {
 	return undefined;
 }
 
-export async function fetchCaptionTracks(videoId: string, doc: Document, request: Request = (...args) => fetch(...args)): Promise<CaptionTrack[]> {
+export const audioLanguageFromDocument = (doc: Document, videoId?: string): string | undefined => {
+	for (const script of Array.from(doc.scripts)) {
+		const player = playerFromWatchHtml(script.textContent || '');
+		if (videoId && player?.videoDetails?.videoId && player.videoDetails.videoId !== videoId) continue;
+		const language = audioLanguageOf(player); if (language) return language;
+	}
+	return undefined;
+};
+
+interface CaptionTrackSource { tracks: CaptionTrack[]; audioLanguage?: string }
+async function fetchCaptionSource(videoId: string, doc: Document, request: Request): Promise<CaptionTrackSource> {
 	const key = apiKeyFromPage(doc), hl = doc.documentElement.lang || 'en';
+	const pageLanguage = audioLanguageFromDocument(doc, videoId);
 	for (const client of CLIENTS) {
 		try {
 			const response = await ok(await request(`/youtubei/v1/player?prettyPrint=false${key ? `&key=${key}` : ''}`, { method: 'POST', credentials: 'include', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ context: { client: { ...client, hl } }, videoId, contentCheckOk: true, racyCheckOk: true }) }));
-			const tracks = tracksOf(await response.json()); if (tracks.length) return tracks;
+			const player = await response.json();
+			const tracks = tracksOf(player); if (tracks.length) return { tracks, audioLanguage: pageLanguage || audioLanguageOf(player) };
 		} catch { /* try the next client */ }
 	}
-	try { const page = await ok(await request(`/watch?v=${encodeURIComponent(videoId)}`, { credentials: 'include' })); return tracksOf(playerFromWatchHtml(await page.text())); } catch { return []; }
+	try {
+		const page = await ok(await request(`/watch?v=${encodeURIComponent(videoId)}`, { credentials: 'include' }));
+		const player = playerFromWatchHtml(await page.text());
+		return { tracks: tracksOf(player), audioLanguage: audioLanguageOf(player) || pageLanguage };
+	} catch { return { tracks: [], audioLanguage: pageLanguage }; }
 }
+
+export async function fetchCaptionTracks(videoId: string, doc: Document, request: Request = (...args) => fetch(...args)): Promise<CaptionTrack[]> {
+	return (await fetchCaptionSource(videoId, doc, request)).tracks;
+}
+
+const normalizedLanguage = (language: string) => language.trim().toLowerCase().replace(/_/g, '-');
+export const sameLanguage = (left: string, right: string): boolean => {
+	const a = normalizedLanguage(left), b = normalizedLanguage(right);
+	return Boolean(a && b) && (a === b || a.split('-')[0] === b.split('-')[0]);
+};
 
 export interface YouTubeTrack extends TrackInfo { track: CaptionTrack }
 const nameOf = (name: any): string => (typeof name?.simpleText === 'string' ? name.simpleText : Array.isArray(name?.runs) ? name.runs.map((run: { text?: string }) => run.text || '').join('') : '').trim();
@@ -61,7 +105,17 @@ export function trackInfos(tracks: CaptionTrack[]): YouTubeTrack[] {
 	});
 }
 // Spoken language first (see chooseTrack); `preferred` is a language the viewer picked for this video.
-export function pickTrack(tracks: CaptionTrack[], preferred?: string): CaptionTrack | undefined { return chooseTrack(trackInfos(tracks), preferred)?.track; }
+export function pickTrack(tracks: CaptionTrack[], audioLanguage?: string): CaptionTrack | undefined {
+	const usable = tracks.filter(track => !/[?&]exp=xpe\b/.test(track.baseUrl));
+	const manual = usable.filter(track => track.kind !== 'asr'), automatic = usable.filter(track => track.kind === 'asr');
+	const exact = audioLanguage ? usable.filter(track => normalizedLanguage(track.languageCode) === normalizedLanguage(audioLanguage)) : [];
+	const matching = exact.length ? exact : audioLanguage ? usable.filter(track => sameLanguage(track.languageCode, audioLanguage)) : [];
+	if (matching.length) return matching.find(track => track.kind !== 'asr') || matching[0];
+	if (automatic.length === 1) return manual.find(track => sameLanguage(track.languageCode, automatic[0].languageCode)) || automatic[0];
+	return manual.find(track => /^en(?:-|$)/i.test(track.languageCode))
+		|| automatic.find(track => /^en(?:-|$)/i.test(track.languageCode))
+		|| automatic[0] || manual[0];
+}
 
 const decode = (value: string) => value.replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code))).replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCodePoint(parseInt(code, 16))).replace(/&quot;/g, '"').replace(/&apos;|&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
 const clean = (value: string) => decode(value).replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
@@ -87,11 +141,14 @@ export async function fetchTrackSegments(track: CaptionTrack, request: Request =
 	return [];
 }
 
-export interface CaptionResult { segments: PanelSegment[]; tracks: YouTubeTrack[]; selected?: string }
+export type CaptionSource = 'manual' | 'automatic';
+export interface CaptionResult { segments: PanelSegment[]; tracks: YouTubeTrack[]; selected?: string; language?: string; source?: CaptionSource }
 export async function fetchCaptionResult(videoId: string, doc: Document, request: Request = (...args) => fetch(...args), preferred?: string): Promise<CaptionResult> {
-	const tracks = trackInfos(await fetchCaptionTracks(videoId, doc, request)), chosen = chooseTrack(tracks, preferred);
+	const source = await fetchCaptionSource(videoId, doc, request), tracks = trackInfos(source.tracks);
+	const defaultTrack = pickTrack(source.tracks, source.audioLanguage);
+	const chosen = preferred ? chooseTrack(tracks, preferred) : tracks.find(item => item.track === defaultTrack);
 	if (!chosen) return { segments: [], tracks };
-	return { segments: await fetchTrackSegments(chosen.track, request), tracks, selected: chosen.id };
+	return { segments: await fetchTrackSegments(chosen.track, request), tracks, selected: chosen.id, language: chosen.track.languageCode, source: chosen.auto ? 'automatic' : 'manual' };
 }
 export async function fetchCaptionSegments(videoId: string, doc: Document, request: Request = (...args) => fetch(...args)): Promise<PanelSegment[]> {
 	return (await fetchCaptionResult(videoId, doc, request)).segments;

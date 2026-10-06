@@ -66,6 +66,7 @@ try {
 		const GENERATE_OPTION = '__generate__';
 		interface Entry { state: BarState; segments: PanelSegment[]; needLogin: boolean; generated?: boolean; backup?: PanelSegment[]; tracks: BilibiliTrack[]; selected?: string; done: Promise<PanelSegment[]> }
 		const store = new Map<string, Entry>();
+		const liveStudy = new Map<string, PanelSegment[]>();
 		const currentKey = (): { key: string; bvid: string; page: number } | null => { const video = bilibiliVideo(location.href); return video ? { key: `bilibili:${video.bvid}:${video.page}`, ...video } : null; };
 		const getJson = async (url: string, withCookies: boolean) => (await fetch(url, { credentials: withCookies ? 'include' : 'omit', headers: { Accept: 'application/json' } })).json();
 		const prefetch = (video: { key: string; bvid: string; page: number }): Entry => {
@@ -76,19 +77,19 @@ try {
 			// The list of tracks is also what the language menu shows, so it is read even when the lines come from the cache.
 			const listing = listBilibiliTracks(video.bvid, video.page, getJson).then(({ tracks, needLogin }) => { entry.tracks = tracks; entry.needLogin = needLogin; entry.selected = entry.selected ?? chooseTrack(tracks, preferred)?.id; return tracks; });
 			entry.done = (cache ? cache.read(cacheKey) : Promise.resolve(undefined)).then(async cached => {
-				if (cached) { await listing.then(updateBar, () => {}); return cached; }
+				if (cached) { await listing.then(updateBar, () => {}); return cached.segments; }
 				const chosen = chooseTrack(await listing, preferred);
 				if (!chosen) return [];
 				entry.selected = chosen.id;
 				const segments = await fetchBilibiliTrack(chosen, getJson);
-				if (segments.length) void cache?.write(cacheKey, segments);
+				if (segments.length) void cache?.write(cacheKey, segments, chosen.language, chosen.auto ? 'automatic' : 'manual');
 				return segments;
 			}).catch(() => [] as PanelSegment[]).then(async segments => {
 				// Nothing from Bilibili: a transcript generated on this computer earlier is used instead.
 				const shown = entry.tracks.find(item => item.id === entry.selected);
 				// Bilibili's own machine subtitle is often a Chinese translation of foreign speech: a transcript the viewer already made from the audio wins over it.
-				if (segments.length && shown?.auto && cache && !entry.generated) { const made = await cache.read(`generated:${video.key}`); if (made?.length) { segments = made; entry.generated = true; generation.markGenerated(video.key); } }
-				if (!segments.length && cache) { const made = await cache.read(`generated:${video.key}`); if (made && !entry.generated) { segments = made; entry.generated = true; generation.markGenerated(video.key); } }
+				if (segments.length && shown?.auto && cache && !entry.generated) { const made = await cache.read(`generated:${video.key}`); if (made?.segments.length) { segments = made.segments; entry.generated = true; generation.markGenerated(video.key); } }
+				if (!segments.length && cache) { const made = await cache.read(`generated:${video.key}`); if (made && !entry.generated) { segments = made.segments; entry.generated = true; generation.markGenerated(video.key); } }
 				if (entry.generated && entry.segments.length > segments.length) return entry.segments; // generation already filled it while we were looking
 				entry.segments = segments; entry.state = segments.length ? 'ready' : 'none'; updateBar(); return segments;
 			});
@@ -133,7 +134,13 @@ try {
 		const updateBar = () => {
 			const video = currentKey(), entry = video ? store.get(video.key) : undefined;
 			strings.none = entry?.needLogin ? needLoginMessage : noneMessage;
-			bar?.setState(entry?.state ?? 'loading', entry?.segments); bar?.setLanguages(entry && !entry.generated ? [...optionsOf(entry.tracks), ...(entry.tracks.find(item => item.id === entry.selected)?.auto ? [{ id: GENERATE_OPTION, label: text('subtitleGenFromAudio', '识别原声…', 'Recognise the audio…') }] : [])] : [], entry?.selected); generation.sync();
+			const live = video ? liveStudy.get(video.key) : undefined;
+			bar?.setState(live?.length ? 'ready' : (entry?.state ?? 'loading'), live?.length ? live : entry?.segments);
+			bar?.setLanguages(entry && !entry.generated && !live?.length ? [...optionsOf(entry.tracks), ...(entry.tracks.find(item => item.id === entry.selected)?.auto ? [{ id: GENERATE_OPTION, label: text('subtitleGenFromAudio', '识别原声…', 'Recognise the audio…') }] : [])] : [], entry?.selected); generation.sync();
+			if (live?.length) {
+				const seconds = live[live.length - 1]?.time.split(':').reduce((total, part) => total * 60 + Number(part), 0);
+				if (Number.isFinite(seconds)) bar?.setTime(seconds, true);
+			}
 		};
 		let frame = 0;
 		const refresh = () => {
@@ -152,6 +159,11 @@ try {
 			syncTranscriptBar(document, () => {
 				bar = buildTranscriptBar(document, {
 					strings, title, openStudy, openSettings, retry, seek, getSegments,
+					getTranslations: segments => {
+						const transcript = document.querySelector<HTMLElement>('.bilibili.transcript');
+						const cache = transcript?.__qiaomuTranslationCache;
+						return cache && cache.size === segments.length ? cache : undefined;
+					},
 					getTime: () => mainVideo()?.currentTime,
 					initialOpen: stored(OPEN_KEY, false), onToggle: open => remember(OPEN_KEY, open),
 					initialFollow: stored(FOLLOW_KEY, true), onFollow: follow => remember(FOLLOW_KEY, follow), theme: 'bilibili',
@@ -172,12 +184,17 @@ try {
 
 		// Study mode asks the video's own tab for the transcript the bar already has (Bilibili's, or one generated here).
 		api.runtime.onMessage.addListener((request, _sender, respond) => {
+			if (request?.action === 'qiaomuStudyLiveTranscript') {
+				const video = currentKey();
+				if (video && Array.isArray(request.segments)) { if (request.segments.length) liveStudy.set(video.key, request.segments as PanelSegment[]); else liveStudy.delete(video.key); updateBar(); }
+				respond({ ok: Boolean(video) }); return false;
+			}
 			if (request?.action !== 'qiaomuTranscript') return;
 			void (async () => {
 				await getSegments();
 				if (typeof request.language === 'string') await chooseLanguage(request.language);
 				const segments = await getSegments(), entry = store.get(currentKey()?.key || '');
-				respond({ html: segments.length ? transcriptHtml(segments) : '', count: segments.length, languages: entry && !entry.generated ? optionsOf(entry.tracks) : [], selected: entry?.selected });
+				respond({ html: segments.length ? transcriptHtml(segments, entry?.generated ? undefined : entry?.tracks.find(item => item.id === entry.selected)?.language, 'bilibili') : '', count: segments.length, languages: entry && !entry.generated ? optionsOf(entry.tracks) : [], selected: entry?.selected });
 			})().catch(() => respond({ html: '', count: 0 }));
 			return true;
 		});

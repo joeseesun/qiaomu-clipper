@@ -4,7 +4,6 @@ import { deleteTemplate, templates, editingTemplateIndex, saveTemplateSettings, 
 import { initializeIcons, getPropertyTypeIcon } from '../icons/icons';
 import { escapeValue, unescapeValue } from '../utils/string-utils';
 import { generalSettings } from '../utils/storage-utils';
-import { updateUrl } from '../utils/routing';
 import { handleDragStart, handleDragOver, handleDrop, handleDragEnd } from '../utils/drag-and-drop';
 import { createElementWithClass, createElementWithHTML } from '../utils/dom-utils';
 import { updatePromptContextVisibility } from './interpreter-settings';
@@ -157,7 +156,7 @@ async function deleteTemplateFromList(templateId: string): Promise<void> {
 	}
 }
 
-export function showTemplateEditor(template: Template | null): void {
+export function showTemplateEditor(template: Template | null, options: { updateRoute?: boolean } = {}): void {
 	for (const timer of validationTimers.values()) clearTimeout(timer);
 	validationTimers.clear();
 	const form = document.getElementById('template-settings-form');
@@ -264,7 +263,7 @@ export function showTemplateEditor(template: Template | null): void {
 	const triggersTextarea = document.getElementById('url-patterns') as HTMLTextAreaElement;
 	if (triggersTextarea) triggersTextarea.value = editingTemplate && editingTemplate.triggers ? editingTemplate.triggers.join('\n') : '';
 
-	showSettingsSection('templates', editingTemplate.id);
+	showSettingsSection('templates', editingTemplate.id, undefined, { replace: options.updateRoute === false });
 
 	if (!editingTemplate.id) {
 		const templateNameField = document.getElementById('template-name') as HTMLInputElement;
@@ -302,7 +301,6 @@ export function showTemplateEditor(template: Template | null): void {
 		vaultSelect.value = editingTemplate.vault || '';
 	}
 
-	updateUrl('templates', editingTemplate.id);
 	updatePromptContextVisibility();
 	[noteContentFormat, noteNameFormat, pathInput, promptContextTextarea].forEach(field => {
 		if (field) createTemplateEditor(field);

@@ -3,7 +3,7 @@ import type { Settings } from '../types/types';
 export const INTERPRETER_KEY = 'interpreter_settings';
 const CHUNK_PREFIX = 'interpreter_settings_chunk_';
 const ITEM_BUDGET = 7000; // Leave room below Chrome sync's 8192-byte item limit.
-type InterpreterSettings = Pick<Settings, 'interpreterModel' | 'models' | 'providers' | 'interpreterEnabled' | 'interpreterAutoRun' | 'defaultPromptContext'>;
+type InterpreterSettings = Pick<Settings, 'interpreterModel' | 'models' | 'providers' | 'interpreterEnabled' | 'interpreterAutoRun' | 'defaultPromptContext' | 'translationModel' | 'translationTargetLanguage'>;
 const bytes = (value: unknown) => new TextEncoder().encode(JSON.stringify(value)).length;
 
 export function interpreterChunkKeys(value: unknown): string[] {

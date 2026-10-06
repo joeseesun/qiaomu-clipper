@@ -40,6 +40,16 @@
 	"content_scripts": [
 		{
 			"matches": [
+				"https://www.youtube.com/embed/*",
+				"https://www.youtube-nocookie.com/embed/*",
+				"https://player.bilibili.com/*"
+			],
+			"js": ["video-clock.js"],
+			"all_frames": true,
+			"run_at": "document_start"
+		},
+		{
+			"matches": [
 				"http://*/*",
 				"https://*/*"
 			],
@@ -172,7 +182,7 @@
 		}
 	],
 	"content_security_policy": {
-		"extension_pages": "script-src 'self'; object-src 'self'"
+		"extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
 	},
 	"commands": {
 		"_execute_action": {

@@ -27,6 +27,7 @@ html.youtube-study.obsidian-reader-active:has(.youtube-sized-player) body {
 		.player-container {
 			display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; box-sizing: border-box;
 			border-top: 8px solid var(--background-primary); background: var(--background-primary);
+			position: static; z-index: auto; isolation: isolate;
 			> .youtube-sized-player, > .youtube-player-resize { grid-column: 1 / -1; width: 100% !important; margin: 0; }
 			> .youtube-sized-player { grid-row: 1; }
 			> .youtube-player-resize { grid-row: 2; }
@@ -35,7 +36,7 @@ html.youtube-study.obsidian-reader-active:has(.youtube-sized-player) body {
 			> .player-toggles { grid-column: 2; grid-row: 3; min-width: 0; justify-content: flex-end; }
 			.player-toggle-group { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 4px 16px; }
 			// The stacked fallback pins the video under the bar; solid background, no glow over the text.
-			&.pin-player { top: var(--youtube-bar-height, var(--clip-bar-offset, 0px)); }
+			&.pin-player { position: sticky; top: var(--youtube-bar-height, var(--clip-bar-offset, 0px)); z-index: 20; }
 			.reader-video-wrapper, iframe { box-shadow: none; }
 		}
 		.youtube-sized-player {
@@ -53,7 +54,7 @@ html.youtube-study.obsidian-reader-active:has(.youtube-sized-player) body {
 			> * { grid-column: 2; }
 			> .player-container {
 				grid-column: 1; grid-row: 1 / span 99; align-self: start; width: auto !important; max-width: none; min-width: 0; margin: 0;
-				position: sticky; top: calc(var(--youtube-bar-height, 56px) + 8px); z-index: 20;
+				position: sticky; top: calc(var(--youtube-bar-height, 56px) + 8px); z-index: 20; background: var(--background-primary); isolation: isolate;
 				border-top: 0;
 			}
 			// The handle becomes a vertical divider in the gutter between video and transcript.

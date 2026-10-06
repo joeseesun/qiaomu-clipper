@@ -3,11 +3,27 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('./clip-chat', () => ({ mountClipChat: vi.fn(() => ({ toggle: vi.fn() })) }));
 vi.mock('./clipboard-utils', () => ({ copyToClipboard: vi.fn().mockResolvedValue(true) }));
 vi.mock('./file-utils', () => ({ saveFile: vi.fn() }));
-vi.mock('./storage-utils', () => ({ loadSettings: vi.fn(), getLocalStorage: vi.fn().mockResolvedValue(undefined), setLocalStorage: vi.fn().mockResolvedValue(undefined) }));
+vi.mock('./storage-utils', () => ({ loadSettings: vi.fn(), saveSettings: vi.fn().mockResolvedValue(undefined), generalSettings: { translationModel: '', translationTargetLanguage: 'zh-CN' }, getLocalStorage: vi.fn().mockResolvedValue(undefined), setLocalStorage: vi.fn().mockResolvedValue(undefined) }));
+vi.mock('./browser-whisper', async () => ({
+	...await vi.importActual('./browser-whisper'),
+	loadBrowserWhisper: vi.fn().mockResolvedValue({ model: 'test', device: 'wasm', transcriber: vi.fn() }),
+	transcribeBrowserAudio: vi.fn().mockResolvedValue({
+		text: 'Local caption', model: 'test', device: 'wasm',
+		chunks: [{ timestamp: [1, 3], text: 'Local caption' }],
+		segments: [{ time: '0:01', text: 'Local caption' }],
+	}),
+	formatSrt: vi.fn().mockReturnValue('1\n00:00:01,000 --> 00:00:03,000\nLocal caption\n'),
+}));
+vi.mock('./page-audio-capture', () => ({
+	canCapturePageAudio: vi.fn().mockReturnValue(false),
+	capturePageAudio: vi.fn(),
+}));
 import { mountYouTubeStudy, transcriptText } from './youtube-study';
 import { mountClipChat } from './clip-chat';
 import { copyToClipboard } from './clipboard-utils';
 import { saveFile } from './file-utils';
+import { transcribeBrowserAudio } from './browser-whisper';
+import { canCapturePageAudio, capturePageAudio } from './page-audio-capture';
 
 function article(html: string): HTMLElement {
 	document.body.innerHTML = `<article>${html}</article>`;
@@ -27,13 +43,77 @@ describe('YouTube study transcript', () => {
 		const node = article('<iframe src="https://www.youtube.com/embed/dbqweBCynuI"></iframe>'); const player = node.querySelector('iframe');
 		await mountYouTubeStudy(document,node,'Video','https://www.youtube.com/watch?v=dbqweBCynuI');
 		expect(node.querySelector('.youtube-player-resize')).not.toBeNull(); expect(node.querySelector('iframe')).toBe(player);
-		expect(node.querySelector('.youtube-translate-toggle')).toBeNull();
+		expect(node.querySelector('.youtube-translate-toggle.is-unavailable')).not.toBeNull();
+	});
+	it('keeps the live Whisper preview in the reader column used by dock mode', async () => {
+		const node = article('<div class="player-container"><iframe src="https://www.youtube.com/embed/example"></iframe></div><div class="youtube transcript"><p class="transcript-segment"><strong>0:00</strong>Source</p></div>');
+		await mountYouTubeStudy(document, node, 'Video', 'https://www.youtube.com/watch?v=example');
+		const live = node.querySelector('.youtube-whisper-live');
+		expect(live?.parentElement).toBe(node);
 	});
 	it('disables transcript actions when subtitles are unavailable', async () => {
 		const node = article('<iframe></iframe>');
 		await mountYouTubeStudy(document, node, 'Video', 'https://www.youtube.com/watch?v=example');
-		expect(Array.from(node.querySelectorAll('button')).every(button => button.disabled)).toBe(true);
+		expect(node.querySelector<HTMLButtonElement>('.youtube-whisper-start')?.disabled).toBe(false);
 		expect(node.textContent).toContain('未获取到字幕');
+	});
+	it('keeps local Whisper controls without source subtitles and mounts generated captions separately', async () => {
+		const node = article('<iframe></iframe>');
+		await mountYouTubeStudy(document, node, 'Video', 'https://www.youtube.com/watch?v=example');
+		const choose = node.querySelector<HTMLButtonElement>('.youtube-whisper-start')!;
+		const input = node.querySelector<HTMLInputElement>('.youtube-whisper-controls input[type=file]')!;
+		expect(choose).not.toBeNull();
+		const file = new File(['audio'], 'sample.webm', { type: 'audio/webm' });
+		Object.defineProperty(input, 'files', { configurable: true, value: [file] });
+		input.dispatchEvent(new Event('change'));
+		await new Promise(resolve => setTimeout(resolve, 0));
+		expect(vi.mocked(transcribeBrowserAudio)).toHaveBeenCalledWith(file, expect.objectContaining({ language: undefined, signal: expect.any(AbortSignal) }));
+		expect(node.querySelector('.transcript[data-source="browser-whisper"] .transcript-segment-text')).toBeNull();
+		expect(node.querySelector<HTMLButtonElement>('.youtube-whisper-confirm')?.hidden).toBe(false);
+		node.querySelector<HTMLButtonElement>('.youtube-whisper-confirm')!.click();
+		expect(node.querySelector('.transcript[data-source="browser-whisper"] .transcript-segment-text')?.textContent).toBe('Local caption');
+		expect(node.querySelector('.youtube-translate-toggle.is-unavailable')).toBeNull();
+		expect(node.querySelector('.youtube-translate-toggle')).not.toBeNull();
+		expect(node.querySelector('.youtube-whisper-copy')).not.toBeNull();
+		expect(node.querySelector('.youtube-whisper-download-bilingual')).not.toBeNull();
+		expect(transcriptText(node)).toBe('[0:01] Local caption');
+		expect(choose.textContent).toBe('重新选择音频');
+	});
+	it('maps Reader regional language values to Whisper model language codes', async () => {
+		vi.mocked(transcribeBrowserAudio).mockClear();
+		const node = article('<iframe></iframe>');
+		await mountYouTubeStudy(document, node, 'Video', 'https://www.youtube.com/watch?v=example');
+		node.querySelector<HTMLButtonElement>('.youtube-translation-picker-option[data-value="zh-CN"]')?.click();
+		const input = node.querySelector<HTMLInputElement>('.youtube-whisper-controls input[type=file]')!;
+		const file = new File(['audio'], 'sample.webm', { type: 'audio/webm' });
+		Object.defineProperty(input, 'files', { configurable: true, value: [file] });
+		input.dispatchEvent(new Event('change'));
+		await new Promise(resolve => setTimeout(resolve, 0));
+		expect(vi.mocked(transcribeBrowserAudio)).toHaveBeenCalledWith(file, expect.objectContaining({ language: 'zh' }));
+	});
+	it('captures page audio and scales timestamps for playback speed, keeping capture across late subtitles', async () => {
+		vi.mocked(canCapturePageAudio).mockReturnValue(true);
+		let callbacks: Parameters<typeof capturePageAudio>[1];
+		const stop = vi.fn(() => callbacks.onStop());
+		vi.mocked(capturePageAudio).mockImplementation(async (_article, options) => { callbacks = options; return { stop }; });
+		const node = article('<iframe></iframe>');
+		await mountYouTubeStudy(document, node, 'Video', 'https://www.youtube.com/watch?v=dbqweBCynuI');
+		node.querySelector<HTMLButtonElement>('.youtube-whisper-page')!.click();
+		await new Promise(resolve => setTimeout(resolve, 0));
+		node.querySelector('.youtube-study-feedback')!.remove();
+		node.insertAdjacentHTML('beforeend', subtitles);
+		await mountYouTubeStudy(document, node, 'Video', 'https://www.youtube.com/watch?v=dbqweBCynuI');
+		expect(node.querySelectorAll('.youtube-whisper-controls')).toHaveLength(1);
+		expect(stop).not.toHaveBeenCalled();
+		callbacks!.onWindow({ audio: new Float32Array(16000), start: 120, rate: 2, duration: 4 });
+		await new Promise(resolve => setTimeout(resolve, 0));
+		expect(node.querySelector<HTMLButtonElement>('.youtube-whisper-confirm')?.hidden).toBe(false);
+		node.querySelector<HTMLButtonElement>('.youtube-whisper-confirm')!.click();
+		expect(node.querySelector('.transcript[data-source="browser-whisper"] .timestamp')?.textContent).toBe('2:02');
+		node.querySelector<HTMLButtonElement>('.youtube-whisper-stop')!.click();
+		expect(stop).toHaveBeenCalledOnce();
+		expect(node.querySelector<HTMLButtonElement>('.youtube-whisper-page')!.disabled).toBe(false);
+		vi.mocked(canCapturePageAudio).mockReturnValue(false);
 	});
 	it('uses the shared top-bar chat without adding a duplicate AI entry or panel', async () => {
 		const node=article(subtitles);const chat={toggle:vi.fn(() => true)};const count=vi.mocked(mountClipChat).mock.calls.length;
@@ -46,7 +126,8 @@ describe('YouTube study transcript', () => {
 		await mountYouTubeStudy(document, node, 'Video', 'https://www.youtube.com/watch?v=dbqweBCynuI', {toggle: () => true});
 		expect(node.querySelector('.youtube-study-toolbar, .youtube-size-control')).toBeNull();
 		expect(node.querySelector('[aria-label="复制字幕"], [aria-label="下载字幕（TXT）"]')).toBeNull();
-		expect(node.querySelector('.player-toggle-group')!.lastElementChild?.classList.contains('youtube-translate-toggle')).toBe(true);
+		expect(node.querySelector('.player-toggle-group .youtube-translate-toggle')).not.toBeNull();
+		expect(node.querySelector('.player-toggle-group .youtube-translation-target')).not.toBeNull();
 		await mountYouTubeStudy(document,node,'Video','https://www.youtube.com/watch?v=dbqweBCynuI');
 		expect(node.querySelectorAll('.youtube-translate-toggle')).toHaveLength(1);
 	});

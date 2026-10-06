@@ -6,7 +6,7 @@ import { Reader } from './reader';
 import { transcriptText, mountYouTubeStudy } from './youtube-study';
 import { bilibiliVideo, videoKey } from './video-source';
 import { youtubeVideoId } from './youtube-url';
-import { TRANSCRIPT_SELECTOR } from './video-source';
+import { PLAYER_SELECTOR, TRANSCRIPT_SELECTOR } from './video-source';
 import { setPageTitle, setPageUrl } from './highlighter';
 import { withReliableBilibili } from './bilibili-captions';
 import { transcriptHtml } from './youtube-dom-transcript';
@@ -44,7 +44,25 @@ export function firstWithTranscript<T extends { content?: string }>(jobs: Promis
 }
 
 // Render the learning page before doing any page fetch or subtitle extraction.
-export async function startYouTubeStudy(url: string, sourceTabId: number, initialTitle: string, onReady: (result: any) => Promise<void>, mountShell?: () => {chat: {toggle: () => boolean}; ready: () => void}): Promise<void> {
+export interface StudyPlaybackOptions { timestamp?: number; autoplay?: boolean }
+export function applyStudyPlayback(frame: HTMLIFrameElement, url: string, options: StudyPlaybackOptions = {}): void {
+	const timestamp = Number.isFinite(options.timestamp) && (options.timestamp || 0) > 0 ? Math.floor(options.timestamp!) : 0;
+	if (!timestamp && !options.autoplay) return;
+	try {
+		const source = new URL(frame.src);
+		if (youtubeVideoId(url)) {
+			source.searchParams.set('start', String(timestamp));
+			source.searchParams.set('autoplay', options.autoplay ? '1' : '0');
+			source.searchParams.set('enablejsapi', '1');
+		} else if (bilibiliVideo(url)) {
+			source.searchParams.set('t', String(timestamp));
+			source.searchParams.set('autoplay', options.autoplay ? '1' : '0');
+		}
+		frame.src = source.toString();
+	} catch { /* keep the safe player URL */ }
+}
+
+export async function startYouTubeStudy(url: string, sourceTabId: number, initialTitle: string, onReady: (result: any) => Promise<void>, mountShell?: () => {chat: {toggle: () => boolean}; ready: () => void}, playback: StudyPlaybackOptions = {}): Promise<void> {
 	if (!videoKey(url)) throw new Error('无效的视频链接');
 	const title = initialTitle.replace(/\s*- YouTube$/, '') || 'YouTube 视频学习';
 	Object.defineProperty(document, 'URL', { value: url, configurable: true });
@@ -54,6 +72,10 @@ export async function startYouTubeStudy(url: string, sourceTabId: number, initia
 	document.title = title;
 	await Reader.apply(document);
 	const article = document.querySelector('article')!;
+	article.dataset.sourceTabId = String(sourceTabId);
+	article.dataset.sourceVideoUrl = url;
+	const frame = article.querySelector<HTMLIFrameElement>(PLAYER_SELECTOR);
+	if (frame) applyStudyPlayback(frame, url, playback);
 	const shell = mountShell?.();
 	await mountYouTubeStudy(document, article, title, url, shell?.chat);
 	const status = article.querySelector<HTMLElement>('.youtube-study-status')!;
@@ -112,7 +134,9 @@ export async function startYouTubeStudy(url: string, sourceTabId: number, initia
 						meta = await new Defuddle(doc, { url, fetch: async () => { throw new Error('offline'); } }).parseAsync().catch(() => meta);
 					}
 					// Defuddle may already have read the same lines from an open panel, with chapters; keep those if so.
-					return { ...meta, content: hasTranscript(meta) ? meta.content : (meta.content || '') + answer.html };
+					const content = document.createElement('div'); content.innerHTML = DOMPurify.sanitize(meta.content || '');
+					content.querySelectorAll(TRANSCRIPT_SELECTOR).forEach(node => node.remove());
+					return { ...meta, content: content.innerHTML + answer.html };
 				};
 				const fromTab = async (): Promise<any> => {
 					const live = await browser.runtime.sendMessage({ action: 'qiaomuStudyLiveExtract', sourceTabId, url }).catch(() => undefined) as Record<string, any> | undefined;
@@ -144,7 +168,7 @@ export async function startYouTubeStudy(url: string, sourceTabId: number, initia
 				Object.defineProperty(doc, 'URL', { value: url, configurable: true });
 				return await new Defuddle(doc, { url, fetch: withReliableBilibili(proxyFetch) }).parseAsync();
 				};
-				if (youtubeVideoId(url) || bilibiliVideo(url)) {
+				if (videoKey(url)) {
 					const fast = await fromPrefetch().catch(() => undefined);
 					if (fast && hasTranscript(fast)) return fast;
 				}
@@ -162,7 +186,7 @@ export async function startYouTubeStudy(url: string, sourceTabId: number, initia
 			if (!transcript || !transcriptText(content)) {
 				// Nothing from the platform: a transcript generated on this computer earlier is used instead.
 				const made = await genCache?.read(`generated:${key}`);
-				if (made) { await attachGenerated(made); panel.show({ kind: 'generated' }); return; }
+				if (made) { await attachGenerated(made.segments); panel.show({ kind: 'generated' }); return; }
 				shell?.ready();
 				if (clip) clip.disabled = false;
 				throw new Error('暂未获取到字幕，视频可能没有字幕或尚未加载完成，请重试');

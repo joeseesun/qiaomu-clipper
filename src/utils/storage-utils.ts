@@ -2,6 +2,7 @@ import { decodeInterpreterSettings, encodeInterpreterSettings, interpreterChunkK
 import browser from './browser-polyfill';
 import { Settings, ModelConfig, PropertyType, HistoryEntry, Provider, Rating } from '../types/types';
 import { debugLog } from './debug';
+import { dispatchSettingsSaveState } from './settings-save-status';
 
 export type { Settings, ModelConfig, PropertyType, HistoryEntry, Provider, Rating };
 
@@ -16,6 +17,8 @@ export let generalSettings: Settings = {
 	highlightBehavior: 'highlight-inline',
 	showMoreActionsButton: false,
 	interpreterModel: '',
+	translationModel: '',
+	translationTargetLanguage: 'zh-CN',
 	models: [],
 	providers: [],
 	interpreterEnabled: false,
@@ -104,6 +107,8 @@ interface StorageData {
 	};
 	interpreter_settings?: {
 		interpreterModel?: string;
+		translationModel?: string;
+		translationTargetLanguage?: string;
 		models?: ModelConfig[];
 		providers?: Provider[];
 		interpreterEnabled?: boolean;
@@ -141,6 +146,8 @@ export async function loadSettings(): Promise<Settings> {
 		alwaysShowHighlights: true,
 		highlightBehavior: 'highlight-inline',
 		interpreterModel: '',
+		translationModel: '',
+		translationTargetLanguage: 'zh-CN',
 		models: [],
 		providers: [],
 		interpreterEnabled: false,
@@ -210,12 +217,14 @@ export async function loadSettings(): Promise<Settings> {
 		learningNotes: data.general_settings?.learningNotes ?? true,
 		learningIncludeQuote: data.general_settings?.learningIncludeQuote ?? true,
 		learningIncludeSource: data.general_settings?.learningIncludeSource ?? true,
-		youtubeAutoTranscript: data.general_settings?.youtubeAutoTranscript ?? true,
+		youtubeAutoTranscript: data.general_settings?.youtubeAutoTranscript ?? false,
 		youtubeHideNativeTranscript: data.general_settings?.youtubeHideNativeTranscript ?? true,
 		highlighterEnabled: data.highlighter_settings?.highlighterEnabled ?? defaultSettings.highlighterEnabled,
 		alwaysShowHighlights: data.highlighter_settings?.alwaysShowHighlights ?? defaultSettings.alwaysShowHighlights,
 		highlightBehavior: data.highlighter_settings?.highlightBehavior ?? defaultSettings.highlightBehavior,
 		interpreterModel: data.interpreter_settings?.interpreterModel || defaultSettings.interpreterModel,
+		translationModel: data.interpreter_settings?.translationModel || '',
+		translationTargetLanguage: data.interpreter_settings?.translationTargetLanguage || 'zh-CN',
 		models: sanitizedModels,
 		providers: sanitizedProviders,
 		interpreterEnabled: data.interpreter_settings?.interpreterEnabled ?? defaultSettings.interpreterEnabled,
@@ -251,12 +260,16 @@ export async function loadSettings(): Promise<Settings> {
 }
 
 export async function saveSettings(settings?: Partial<Settings>): Promise<void> {
+	dispatchSettingsSaveState('saving');
 	if (settings) {
 		generalSettings = { ...generalSettings, ...settings };
 	}
 
+	try {
 	const interpreterSettings = {
 		interpreterModel: generalSettings.interpreterModel,
+		translationModel: generalSettings.translationModel,
+		translationTargetLanguage: generalSettings.translationTargetLanguage,
 		models: generalSettings.models,
 		providers: generalSettings.providers,
 		interpreterEnabled: generalSettings.interpreterEnabled,
@@ -316,6 +329,11 @@ export async function saveSettings(settings?: Partial<Settings>): Promise<void> 
 	const stale = interpreterChunkKeys(previous[INTERPRETER_KEY]).filter(key => !currentKeys.has(key));
 	// Settings are already saved; cleanup failure must not turn success into a retry.
 	if (stale.length) await browser.storage.sync.remove(stale).catch(() => {});
+	dispatchSettingsSaveState('saved');
+	} catch (error) {
+		dispatchSettingsSaveState('error');
+		throw error;
+	}
 }
 
 export async function setLegacyMode(enabled: boolean): Promise<void> {

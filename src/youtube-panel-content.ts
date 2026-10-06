@@ -1,12 +1,13 @@
 import type { PanelSegment } from './utils/youtube-panel-actions';
 import { BAR_STYLE, buildTranscriptBar, syncTranscriptBar, type BarState, type TranscriptBar } from './utils/youtube-transcript-bar';
-import { fetchCaptionResult, fetchCaptionTracks, fetchTrackSegments, trackInfos, type YouTubeTrack } from './utils/youtube-captions';
+import { audioLanguageFromDocument, fetchCaptionResult, fetchCaptionTracks, fetchTrackSegments, pickTrack, sameLanguage, trackInfos, type YouTubeTrack } from './utils/youtube-captions';
 import { cacheKeyFor, chooseTrack, optionsOf, saveLanguage, savedLanguage } from './utils/subtitle-language';
 import { createTranscriptCache } from './utils/youtube-transcript-cache';
 import { markAutoOpenedPanel, openTranscriptPanel, readYouTubeTranscriptFromDom, releaseAutoPanel, resetOpenAttempts, transcriptHtml, transcriptPanelOpen } from './utils/youtube-dom-transcript';
 import { readPanelSegments } from './utils/youtube-panel-actions';
 import { createBarGeneration } from './utils/bar-generation';
 import { generationStrings } from './utils/subtitle-generation-strings';
+import { pauseVideoForStudy } from './utils/study-playback';
 
 // Runs on YouTube pages only. Adds the transcript bar (subtitles, copy, download, study, settings, dropdown) to the
 // top of the watch page's right column, and fetches the transcript in the background as soon as a video page is idle, so opening study mode,
@@ -62,27 +63,30 @@ try {
 		const cache = api.storage.local ? createTranscriptCache(api.storage.local) : undefined;
 
 		// --- transcript prefetch -------------------------------------------------------------------------------
-		interface Entry { state: BarState; segments: PanelSegment[]; generated?: boolean; tracks: YouTubeTrack[]; selected?: string; tracksReady?: Promise<void>; done: Promise<PanelSegment[]> }
+		interface Entry { state: BarState; segments: PanelSegment[]; language?: string; source?: 'manual' | 'automatic' | 'cached'; generated?: boolean; tracks: YouTubeTrack[]; selected?: string; tracksReady?: Promise<void>; done: Promise<PanelSegment[]> }
 		const store = new Map<string, Entry>();
+		const liveStudy = new Map<string, PanelSegment[]>();
 		const currentVideo = () => location.pathname === '/watch' ? new URL(location.href).searchParams.get('v') : null;
 		// YouTube answers get_transcript with "precondition failed" when it wants a player token (seen in signed-out
 		// sessions). After two such refusals in a row stop asking on this page; the transcript panel still works.
 		let refusals = 0;
-		const prefetch = (videoId: string): Entry => {
+		const prefetch = (videoId: string, force = false): Entry => {
 			const known = store.get(videoId); if (known) return known;
 			const entry: Entry = { state: 'loading', segments: [], tracks: [], done: Promise.resolve([]) };
 			// The language this viewer picked for this video, else the one spoken in it.
 			const preferred = savedLanguage(`youtube:${videoId}`), cacheKey = cacheKeyFor(videoId, preferred);
 			// A transcript read before is shown at once; otherwise ask YouTube, and keep what comes back.
-			const fresh = () => refusals >= 2 ? Promise.resolve([] as PanelSegment[]) : fetchCaptionResult(videoId, document, undefined, preferred).then(result => { refusals = 0; entry.tracks = result.tracks; entry.selected = result.selected; return result.segments; }, () => { refusals++; return [] as PanelSegment[]; });
+			const fresh = () => refusals >= 2 ? Promise.resolve([] as PanelSegment[]) : fetchCaptionResult(videoId, document, undefined, preferred).then(result => { refusals = 0; entry.tracks = result.tracks; entry.selected = result.selected; entry.language = result.language; entry.source = result.source; return result.segments; }, () => { refusals++; return [] as PanelSegment[]; });
 			const request = (cache ? cache.read(cacheKey) : Promise.resolve(undefined)).then(cached => {
+				const audioLanguage = audioLanguageFromDocument(document, videoId);
+				if (force || (!preferred && audioLanguage && cached?.language && !sameLanguage(audioLanguage, cached.language))) cached = undefined;
 				// From the cache: the language menu still needs the list of tracks, read quietly in the background.
-				if (cached) { entry.tracksReady = fetchCaptionTracks(videoId, document).then(found => { entry.tracks = trackInfos(found); entry.selected = chooseTrack(entry.tracks, preferred)?.id; updateBar(); }, () => {}); return cached; }
-				return fresh().then(segments => { if (segments.length) void cache?.write(cacheKey, segments); return segments; });
+				if (cached) { entry.language = cached.language; entry.source = 'cached'; entry.tracksReady = fetchCaptionTracks(videoId, document).then(found => { entry.tracks = trackInfos(found); entry.selected = (preferred ? chooseTrack(entry.tracks, preferred) : entry.tracks.find(item => item.track === pickTrack(found, audioLanguage)))?.id; updateBar(); }, () => {}); return cached.segments; }
+				return fresh().then(segments => { if (segments.length) void cache?.write(cacheKey, segments, entry.language, entry.source === 'automatic' ? 'automatic' : 'manual'); return segments; });
 			});
 			entry.done = request.then(async segments => {
 				// Nothing from YouTube: a transcript generated on this computer earlier is used instead.
-				if (!segments.length && cache) { const made = await cache.read(`generated:youtube:${videoId}`); if (made && !entry.generated) { segments = made; entry.generated = true; generation.markGenerated(`youtube:${videoId}`); } }
+				if (!segments.length && cache) { const made = await cache.read(`generated:youtube:${videoId}`); if (made && !entry.generated) { segments = made.segments; entry.generated = true; generation.markGenerated(`youtube:${videoId}`); } }
 				// The endpoint can be refused; then read the lines from YouTube's own panel without waiting to be asked.
 				if (!segments.length && enabled) void getSegments(true).catch(() => []);
 				if (entry.generated && entry.segments.length > segments.length) return entry.segments; // generation already filled it meanwhile
@@ -98,7 +102,7 @@ try {
 			const previous = entry.selected; entry.selected = id; entry.state = 'loading'; updateBar();
 			try {
 				const segments = await fetchTrackSegments(track.track); if (!segments.length) throw new Error('empty');
-				entry.segments = segments; entry.done = Promise.resolve(segments); entry.state = 'ready'; saveLanguage(`youtube:${videoId}`, track.language); void cache?.write(cacheKeyFor(videoId, track.language), segments);
+				entry.segments = segments; entry.language = track.track.languageCode; entry.source = track.auto ? 'automatic' : 'manual'; entry.done = Promise.resolve(segments); entry.state = 'ready'; saveLanguage(`youtube:${videoId}`, track.language); void cache?.write(cacheKeyFor(videoId, track.language), segments, entry.language, entry.source);
 			} catch { entry.selected = previous; entry.state = entry.segments.length ? 'ready' : 'none'; }
 			updateBar();
 		};
@@ -112,7 +116,7 @@ try {
 			}
 			const fromPanel = await readYouTubeTranscriptFromDom(document, open, open ? 12000 : 0);
 			const entry = videoId ? store.get(videoId) : undefined;
-			if (entry && fromPanel.length) { entry.segments = fromPanel; entry.state = 'ready'; updateBar(); if (videoId) void cache?.write(videoId, fromPanel); }
+			if (entry && fromPanel.length) { entry.segments = fromPanel; entry.source = entry.source || 'manual'; entry.state = 'ready'; updateBar(); if (videoId) void cache?.write(videoId, fromPanel, entry.language, entry.source === 'automatic' ? 'automatic' : 'manual'); }
 			return fromPanel;
 		};
 
@@ -130,10 +134,17 @@ try {
 		// --- UI ------------------------------------------------------------------------------------------------
 		const style = document.createElement('style'); style.textContent = BAR_STYLE;
 		// A page opened before the extension was reloaded keeps a dead copy of this script; say so instead of doing nothing.
-		const openStudy = (): boolean => { try { api.runtime.sendMessage({ action: 'qiaomuTripleKey', command: 'read' })?.catch?.(() => {}); return true; } catch { return false; } };
+		const openStudy = (): boolean => {
+			try {
+				const playback = pauseVideoForStudy();
+				if (!playback) return false;
+				api.runtime.sendMessage({ action: 'qiaomuOpenStudy', ...playback })?.catch?.(() => {});
+				return true;
+			} catch { return false; }
+		};
 		const retry = () => {
 			const id = currentVideo(); if (!id) return;
-			store.delete(id); autoOpened.delete(id); resetOpenAttempts(); prefetch(id); updateBar();
+			store.delete(id); autoOpened.delete(id); refusals = 0; resetOpenAttempts(); prefetch(id, true); updateBar();
 		};
 		const openSettings = () => { try { api.runtime.sendMessage({ action: 'openSettings', section: 'video' })?.catch?.(() => {}); } catch { /* extension reloaded */ } };
 		// The page's own player does the seeking (it keeps its controls, buffering and state in step); setting the element's
@@ -152,7 +163,14 @@ try {
 		let bar: TranscriptBar | undefined;
 		const updateBar = () => {
 			const videoId = currentVideo(); const entry = videoId ? store.get(videoId) : undefined;
-			bar?.setState(entry?.state ?? 'loading', entry?.segments); bar?.setLanguages(entry && !entry.generated ? optionsOf(entry.tracks) : [], entry?.selected); generation.sync();
+			const live = videoId ? liveStudy.get(videoId) : undefined;
+			bar?.setState(live?.length ? 'ready' : (entry?.state ?? 'loading'), live?.length ? live : entry?.segments);
+			bar?.setLanguages(entry && !entry.generated && !live?.length ? optionsOf(entry.tracks) : [], entry?.selected); generation.sync();
+			if (live?.length) {
+				const playback = mainVideo()?.currentTime;
+				const seconds = playback ?? live[live.length - 1]?.time.split(':').reduce((total, part) => total * 60 + Number(part), 0);
+				if (Number.isFinite(seconds)) bar?.setTime(seconds, true);
+			}
 		};
 		let frame = 0;
 		const refresh = () => {
@@ -177,6 +195,15 @@ try {
 			syncTranscriptBar(document, () => {
 				bar = buildTranscriptBar(document, {
 					strings, title: () => document.title, openStudy, openSettings, retry, seek, getSegments: () => getSegments(true),
+					getTranslations: segments => {
+						const transcript = document.querySelector<HTMLElement>('.youtube.transcript');
+						const cache = transcript?.__qiaomuTranslationCache;
+						return cache && cache.size === segments.length ? cache : undefined;
+					},
+					sourceLabel: () => {
+						const entry = currentVideo() ? store.get(currentVideo()!) : undefined;
+						return entry?.source === 'automatic' ? 'YouTube 自动字幕' : entry?.source === 'cached' ? '缓存字幕' : entry?.source === 'manual' ? 'YouTube 字幕' : undefined;
+					},
 					getTime: () => mainVideo()?.currentTime,
 					initialOpen: wasOpen, onToggle: open => remember(OPEN_KEY, open),
 					initialFollow: stored(FOLLOW_KEY, true), onFollow: follow => remember(FOLLOW_KEY, follow),
@@ -211,6 +238,11 @@ try {
 
 		// The background asks for the transcript when study mode opens.
 		api.runtime.onMessage.addListener((request, _sender, respond) => {
+			if (request?.action === 'qiaomuStudyLiveTranscript') {
+				const videoId = currentVideo();
+				if (videoId && Array.isArray(request.segments)) { if (request.segments.length) liveStudy.set(videoId, request.segments as PanelSegment[]); else liveStudy.delete(videoId); updateBar(); }
+				respond({ ok: Boolean(videoId) }); return false;
+			}
 			if (request?.action !== 'qiaomuTranscript') return;
 			void (async () => {
 				await getSegments(true);
@@ -218,7 +250,7 @@ try {
 				if (ready) await Promise.race([ready, new Promise<void>(resolve => setTimeout(resolve, 3500))]);
 				if (typeof request.language === 'string') await chooseLanguage(request.language);
 				const segments = await getSegments(true), entry = store.get(currentVideo() || '');
-				respond({ html: segments.length ? transcriptHtml(segments) : '', count: segments.length, languages: entry && !entry.generated ? optionsOf(entry.tracks) : [], selected: entry?.selected });
+				respond({ html: segments.length ? transcriptHtml(segments, entry?.language) : '', count: segments.length, languages: entry && !entry.generated ? optionsOf(entry.tracks) : [], selected: entry?.selected });
 			})().catch(() => respond({ html: '', count: 0 }));
 			return true;
 		});

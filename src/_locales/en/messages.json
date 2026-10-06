@@ -1143,6 +1143,9 @@
 	"providerModelsLoading": {
 		"message": "Fetching provider models…"
 	},
+	"providerModelsReady": {
+		"message": "models available"
+	},
 	"providerModelsRefresh": {
 		"message": "Refresh model list"
 	},
@@ -1593,6 +1596,49 @@
 	"qiaomuTranslateChinese": {
 		"message": "Chinese translation"
 	},
+	"qiaomuTranslate": {
+		"message": "Translate subtitles"
+	},
+	"settingsBasics": { "message": "Basics" },
+	"settingsClipping": { "message": "Clipping & behavior" },
+	"settingsReading": { "message": "Reading" },
+	"settingsAi": { "message": "AI & translation" },
+	"settingsContent": { "message": "Content" },
+	"settingsOnThisPage": { "message": "On this page" },
+	"settingsSaving": { "message": "Saving" },
+	"settingsSaved": { "message": "Saved" },
+	"settingsSaveFailed": { "message": "Save failed" },
+	"qiaomuProvidersModels": { "message": "Providers & models" },
+	"qiaomuNotConfigured": { "message": "Not configured" },
+	"qiaomuProviderUnknown": { "message": "Unknown provider" },
+	"qiaomuProviderCount": { "message": "Providers" },
+	"qiaomuCaptionTrackLanguage": {
+		"message": "Source language from the caption track"
+	},
+	"qiaomuCaptionLanguageUncertain": {
+		"message": "Source language inferred from the text; confidence is low"
+	},
+	"qiaomuAnswerSettings": {
+		"message": "AI answers"
+	},
+	"qiaomuTranslationSettings": {
+		"message": "Subtitle translation"
+	},
+	"qiaomuAnswerModel": {
+		"message": "Answer model"
+	},
+	"qiaomuTranslationModel": {
+		"message": "Translation model"
+	},
+	"qiaomuTranslationTarget": {
+		"message": "Target language"
+	},
+	"qiaomuSelectModel": {
+		"message": "Select a model"
+	},
+	"qiaomuModelUnavailable": {
+		"message": "unavailable"
+	},
 	"qiaomuTranslationRetry": {
 		"message": "Retry translation"
 	},
@@ -1606,10 +1652,10 @@
 		"message": "Translating"
 	},
 	"qiaomuTranslationNoModel": {
-		"message": "Configure and enable an AI model in extension settings first."
+		"message": "Choose an enabled Translation model in Settings → AI & translation → Subtitle translation. The answer model is not used for translation."
 	},
 	"qiaomuTranslationDone": {
-		"message": "Translation complete"
+		"message": "Translation complete."
 	},
 	"qiaomuTranslationTimeout": {
 		"message": "Translation timed out. Retry to continue."

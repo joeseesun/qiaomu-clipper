@@ -49,7 +49,7 @@ try {
 			lines = []; state = 'loading'; updateBar();
 			void (cache ? cache.read(`generated:${key}`) : Promise.resolve(undefined)).then(made => {
 				if (episodeKey() !== key) return;
-				if (made?.length) { lines = made; state = 'ready'; generation.markGenerated(key); } else state = 'none';
+				if (made?.segments.length) { lines = made.segments; state = 'ready'; generation.markGenerated(key); } else state = 'none';
 				updateBar();
 			});
 		};

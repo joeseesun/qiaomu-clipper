@@ -1,4 +1,4 @@
-import { formatSegments, safeFileName, type PanelSegment } from './youtube-panel-actions';
+import { formatBilingualSegments, formatSegments, safeFileName, type PanelSegment } from './youtube-panel-actions';
 import { groupSegments } from './youtube-dom-transcript';
 import type { LanguageOption } from './subtitle-language';
 import { buildGenerationPanel, GENERATION_STYLE, type GenerationActions, type GenerationStrings, type GenUi } from './subtitle-generation-panel';
@@ -12,6 +12,8 @@ export interface BarHooks {
 	strings: BarStrings;
 	title: () => string;
 	getSegments: () => Promise<PanelSegment[]>;
+	getTranslations?: (segments: PanelSegment[]) => Map<number, string> | undefined;
+	sourceLabel?: () => string | undefined;
 	openStudy: () => boolean | void;
 	openSettings: () => void;
 	retry?: () => void;
@@ -28,6 +30,10 @@ export interface BarHooks {
 	onLanguage?: (id: string) => void;
 	// Offers "generate subtitles" when the video has none. The bar draws it; the page's script runs the job.
 	generation?: { strings: GenerationStrings; actions: GenerationActions };
+}
+
+declare global {
+	interface HTMLElement { __qiaomuTranslationCache?: Map<number, string> }
 }
 export interface TranscriptBar { element: HTMLElement; setState: (state: BarState, segments?: PanelSegment[]) => void; setGeneration: (ui: GenUi | null) => void; setLanguages: (options: LanguageOption[], selected?: string) => void; setOpen: (open: boolean) => void; setTime: (seconds: number, afterSeek?: boolean) => void }
 
@@ -75,6 +81,7 @@ export function buildTranscriptBar(doc: Document, hooks: BarHooks): TranscriptBa
 	head.append(logo, title, dot, tools);
 	const body = doc.createElement('div'); body.className = 'qiaomu-yt-bar-body'; body.hidden = true;
 	const status = doc.createElement('p'); status.className = 'qiaomu-yt-bar-status'; status.setAttribute('role', 'status');
+	const source = doc.createElement('span'); source.className = 'qiaomu-yt-bar-source'; source.setAttribute('aria-live', 'polite');
 	// Search and follow controls above the lines.
 	const finder = doc.createElement('div'); finder.className = 'qiaomu-yt-bar-finder';
 	const searchBox = doc.createElement('label'); searchBox.className = 'qiaomu-yt-bar-search'; searchBox.append(icon(doc, 'search', 16));
@@ -94,7 +101,7 @@ export function buildTranscriptBar(doc: Document, hooks: BarHooks): TranscriptBa
 	listWrap.append(list, here);
 	const retryButton = doc.createElement('button'); retryButton.type = 'button'; retryButton.className = 'qiaomu-yt-bar-retry'; retryButton.textContent = strings.retry; retryButton.hidden = true;
 	const genPanel = hooks.generation ? buildGenerationPanel(doc, hooks.generation.strings, hooks.generation.actions) : undefined;
-	const notice = doc.createElement('div'); notice.className = 'qiaomu-yt-bar-notice'; notice.append(status); if (genPanel) notice.append(genPanel.element); notice.append(retryButton);
+	const notice = doc.createElement('div'); notice.className = 'qiaomu-yt-bar-notice'; notice.append(status, source); if (genPanel) notice.append(genPanel.element); notice.append(retryButton);
 	body.append(notice, finder, listWrap);
 	element.append(head, body);
 
@@ -240,6 +247,7 @@ export function buildTranscriptBar(doc: Document, hooks: BarHooks): TranscriptBa
 		const generating = state === 'generating', busyUi = Boolean(genUi && genUi.kind !== 'offer' && genUi.kind !== 'generated');
 		element.dataset.state = state; element.dataset.open = String(open); body.hidden = !open; retryButton.hidden = state !== 'none' || !hooks.retry || busyUi; notice.hidden = state === 'ready' && (!genUi || genUi.kind === 'offer'); finder.hidden = (state === 'none' || state === 'loading') && !segments.length; listWrap.hidden = finder.hidden;
 		const message = generating ? (hooks.generation?.strings.running ?? '') : state === 'ready' || state === 'loading' || state === 'none' ? strings[state] : ''; if (status.textContent !== message) status.textContent = message; status.hidden = !message || busyUi || generating || state === 'ready'; dot.title = message || strings.ready; dot.setAttribute('aria-label', dot.title);
+		const sourceText = hooks.sourceLabel?.() || ''; source.textContent = sourceText; source.hidden = !sourceText;
 		toggle.setAttribute('aria-expanded', String(open)); toggle.title = open ? strings.collapse : strings.expand; toggle.setAttribute('aria-label', toggle.title);
 		followButton.setAttribute('aria-pressed', String(follow)); followButton.title = follow ? strings.follow : strings.followOff; followButton.setAttribute('aria-label', followButton.title);
 		renderLines();
@@ -274,10 +282,15 @@ export function buildTranscriptBar(doc: Document, hooks: BarHooks): TranscriptBa
 			try { await navigator.clipboard.writeText(value); flash(button, strings.copied, true); } catch { flash(button, strings.empty); }
 		}),
 		tool('download', strings.download, async button => {
-			const value = formatSegments(await hooks.getSegments()); if (!value) { flash(button, strings.empty); return; }
-			const url = URL.createObjectURL(new Blob([`${value}\n`], { type: 'text/plain;charset=utf-8' }));
-			const link = doc.createElement('a'); link.href = url; link.download = `${safeFileName(hooks.title())}.txt`;
-			doc.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+			const segments = await hooks.getSegments(); const value = formatSegments(segments); if (!value) { flash(button, strings.empty); return; }
+			const translations = hooks.getTranslations?.(segments);
+			const menu = doc.createElement('div'); menu.className = 'qiaomu-yt-download-menu'; menu.setAttribute('role', 'menu');
+			const save = (text: string, suffix: string) => { const url = URL.createObjectURL(new Blob([`${text}\n`], { type: 'text/plain;charset=utf-8' })); const link = doc.createElement('a'); link.href = url; link.download = `${safeFileName(hooks.title())}${suffix}.txt`; doc.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000); menu.remove(); };
+			// Preserve the established one-click action: the icon always downloads the original transcript.
+			save(value, '');
+			const more = doc.createElement('button'); more.type = 'button'; more.textContent = '选择字幕格式'; more.setAttribute('role', 'menuitem'); more.onclick = () => menu.hidden = false; menu.append(more);
+			const bilingual = doc.createElement('button'); bilingual.type = 'button'; bilingual.textContent = translations && translations.size === segments.length ? '下载双语字幕' : '双语字幕（先完成翻译）'; bilingual.setAttribute('role', 'menuitem'); bilingual.disabled = !translations || translations.size !== segments.length; bilingual.onclick = () => translations && save(formatBilingualSegments(segments, translations), '-bilingual'); menu.append(bilingual);
+			menu.hidden = true; button.after(menu); const close = (event: Event) => { if (!menu.contains(event.target as Node) && event.target !== button) { menu.remove(); doc.removeEventListener('pointerdown', close); } }; doc.addEventListener('pointerdown', close);
 		}),
 		tool('study', strings.study, button => { if (hooks.openStudy() === false) flash(button, strings.reload); }, strings.study),
 		toggle,

@@ -3,7 +3,7 @@ import DOMPurify from 'dompurify';
 import { createElement, WandSparkles, X, Plus, Copy, Send, Square, FilePlus2, History, Quote, Trash2, Highlighter, Settings2, Pencil, NotebookPen } from 'lucide';
 import browser from './browser-polyfill';
 import { getMessage } from './i18n';
-import { getLocalStorage, setLocalStorage, generalSettings } from './storage-utils';
+import { getLocalStorage, setLocalStorage, saveSettings, generalSettings } from './storage-utils';
 import { streamChat, enabledChatModels, ChatTurn } from './chat-llm';
 import { Conversation, StoredTurn, loadConversations, saveConversation, deleteConversation } from './chat-history';
 import { FONT_PRESETS } from './font-utils';
@@ -405,7 +405,7 @@ export function mountClipChat(options: ClipChatOptions): { toggle: () => boolean
 		const models = enabledChatModels();
 		const saved = await getLocalStorage('qiaomuChatModel');
 		modelSelect.replaceChildren(...models.map(model => { const option = el('option', '', model.name); option.value = model.id; return option; }));
-		modelSelect.value = models.some(m => m.id === saved) ? saved : (models[0]?.id ?? '');
+		modelSelect.value = models.some(m => m.id === generalSettings.interpreterModel) ? generalSettings.interpreterModel! : models.some(m => m.id === saved) ? saved : (models[0]?.id ?? '');
 		modelSelect.hidden = models.length < 2;
 	}
 
@@ -502,7 +502,7 @@ export function mountClipChat(options: ClipChatOptions): { toggle: () => boolean
 		if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); composer.requestSubmit(); }
 		if (event.key === 'Escape') toggle();
 	});
-	modelSelect.addEventListener('change', () => { void setLocalStorage('qiaomuChatModel', modelSelect.value); });
+	modelSelect.addEventListener('change', () => { void setLocalStorage('qiaomuChatModel', modelSelect.value); void saveSettings({ interpreterModel: modelSelect.value }); });
 	historyButton.addEventListener('click', () => { if (!settingsForm.hidden) closePreferences(); void showHistory(); });
 	newChat.addEventListener('click', () => { if (!settingsForm.hidden) closePreferences(); controller?.abort(); conversation = newConversation(); historyList.hidden = true; renderConversation(); refreshContext(); input.focus(); });
 	close.addEventListener('click', () => toggle());

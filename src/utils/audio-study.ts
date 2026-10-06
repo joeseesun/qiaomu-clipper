@@ -192,7 +192,7 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 	// With a key, use what was made before, else ask to make it now.
 	const begin = async () => {
 		const made = await cache.read(`generated:${key}`);
-		if (made?.length) { await attach(made); panel.show({ kind: 'generated' }); return; }
+		if (made?.segments.length) { await attach(made.segments); panel.show({ kind: 'generated' }); return; }
 		status.textContent = text('audioStudyNone', '这段内容还没有字幕。生成后，字幕会跟着播放滚动。', 'There are no subtitles for this media yet. Once made, the lines follow playback.');
 		generation.actions.request();
 	};

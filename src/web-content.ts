@@ -81,7 +81,7 @@ try {
 				if (official?.segments.length) { officialReady = true; lines = official.segments; state = 'ready'; bar?.setLanguages(official.languages, official.language); updateBar(); return; }
 				const made = await (cache ? cache.read(`generated:${mine}`) : Promise.resolve(undefined));
 				if (key !== mine) return;
-				if (made?.length) { lines = made; state = 'ready'; generation.markGenerated(mine); } else state = 'none';
+				if (made?.segments.length) { lines = made.segments; state = 'ready'; generation.markGenerated(mine); } else state = 'none';
 				updateBar();
 			})();
 		};

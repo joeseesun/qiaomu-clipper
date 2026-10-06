@@ -15,11 +15,15 @@ beforeEach(async () => { store.data={migrationVersion:1}; store.fail=false; awai
 it('saves a large model selection and account token then restores them after reload', async () => {
 	settings.generalSettings.models = Array.from({length:100},(_,i)=>({id:String(i),providerId:'p',providerModelId:`model-${i}`,name:`模型 ${i}`,enabled:true}));
 	settings.generalSettings.providers = [{id:'p',name:'Account',baseUrl:'https://example.com',apiKey:'',oauth:{kind:'codex',clientId:'test',access:'a'.repeat(15000),refresh:'b'.repeat(8000),expires:1}}];
+	settings.generalSettings.translationModel = '42';
+	settings.generalSettings.translationTargetLanguage = 'ja';
 	await settings.saveSettings();
 	settings.generalSettings.models=[]; settings.generalSettings.providers=[];
 	await settings.loadSettings();
 	expect(settings.generalSettings.models).toHaveLength(100);
 	expect(settings.generalSettings.providers[0].oauth?.access).toHaveLength(15000);
+	expect(settings.generalSettings.translationModel).toBe('42');
+	expect(settings.generalSettings.translationTargetLanguage).toBe('ja');
 	settings.generalSettings.models=[]; settings.generalSettings.providers=[];
 	await settings.saveSettings(); await settings.loadSettings();
 	expect(settings.generalSettings.models).toEqual([]);

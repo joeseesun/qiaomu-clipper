@@ -11,7 +11,7 @@ vi.mock('./reader', () => ({ Reader: {
 	attachYouTubeTranscript: vi.fn(async (_doc: Document, transcript: HTMLElement) => { document.querySelector('article')!.appendChild(transcript); }),
 } }));
 vi.mock('./youtube-study', () => ({ mountYouTubeStudy:vi.fn(), transcriptText: (node: HTMLElement) => node.querySelector('.transcript-segment')?.textContent || '' }));
-import { firstWithTranscript, startYouTubeStudy, withTranscriptDeadline } from './youtube-study-loader';
+import { applyStudyPlayback, firstWithTranscript, startYouTubeStudy, withTranscriptDeadline } from './youtube-study-loader';
 import { Reader } from './reader';
 import { reloadPage } from './page-reload';
 import { youtubeStudyPath } from './youtube-url';
@@ -27,6 +27,13 @@ it('opens a source-linked study route without needing extracted content', () => 
 	expect(path).toContain('sourceTab=42');
 	expect(youtubeStudyPath('https://youtube.com.evil.test/watch?v=dbqweBCynuI', 42)).toBeNull();
 	expect(youtubeStudyPath('https://example.com/article', 42)).toBeNull();
+	expect(youtubeStudyPath(url, 42, 'Video', 83.7, true)).toContain('&t=83&autoplay=1');
+});
+
+it('restores the handoff timestamp and preserves paused playback', () => {
+	const frame = document.createElement('iframe'); frame.src = 'https://www.youtube.com/embed/dbqweBCynuI?enablejsapi=1';
+	applyStudyPlayback(frame, url, { timestamp: 83.7, autoplay: false });
+	const next = new URL(frame.src); expect(next.searchParams.get('start')).toBe('83'); expect(next.searchParams.get('autoplay')).toBe('0');
 });
 
 it('renders the player immediately and attaches late subtitles without replacing it', async () => {

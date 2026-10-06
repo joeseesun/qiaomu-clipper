@@ -157,9 +157,10 @@
 	position: fixed;
 	top: 0;
 	inset-inline-start: 0;
-	padding: 16px 20px;
+	padding: 12px 20px;
 	display: flex;
 	gap: 12px;
+	z-index: var(--layer-menu);
 }
 
 .reader-nav-link {
@@ -289,10 +290,10 @@
 
 .obsidian-reader-nav {
 	position: absolute;
-	top: var(--size-4-3);
-	right: var(--size-4-5);
+	top: 16px;
+	right: 20px;
 	background: var(--background-primary);
-	box-shadow: 5px -10px 20px 20px var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
 	border-radius: var(--radius-m);
 	corner-shape: var(--corner-shape);
 	display: flex;
@@ -302,8 +303,8 @@
 	.nav-btn {
 		border-radius: var(--radius-m);
 		corner-shape: var(--corner-shape);
-		width: 30px;
-		height: 30px;
+		width: 40px;
+		height: 40px;
 		padding: 0;
 		display: flex;
 		align-items: center;
@@ -313,7 +314,7 @@
 		font-size: 16px;
 		-webkit-tap-highlight-color: transparent;
 		transition: color 0.15s ease, opacity 0.15s ease, transform 0.15s ease;
-		background: var(--background-primary);
+		background: transparent;
 		color: var(--text-muted);
 		outline: none;
 		svg {
@@ -350,16 +351,7 @@
 		padding: calc(var(--safe-area-inset-top) + var(--size-4-2)) var(--size-4-3) var(--size-4-2);
 		justify-content: flex-end;
 		&::before {
-			content: '';
-			position: absolute;
-			top: 0;
-			left: 0;
-			right: 0;
-			bottom: 0;
-			background: linear-gradient(to bottom, var(--background-primary) 25%, transparent);
-			pointer-events: none;
-			height: 200%;
-			z-index: -1;
+			content: none;
 		}
 		.nav-btn {
 			width: 40px;
@@ -377,24 +369,22 @@
 		}
 	}
 	.obsidian-reader-settings.is-open .obsidian-reader-settings-controls {
-		width: 90%;
+		width: min(420px, calc(100vw - 24px));
 		position: fixed;
 		background-color: var(--background-primary-alt);
 		left: 0;
 		right: 0;
 		bottom: 0;
 		margin: 0 auto;
-		padding: 5% 5% 6px;
-		border-radius: 8% 8% 0 0;
-		box-shadow: 0 0 0 1px var(--background-modifier-border);
+		padding: 56px 16px 16px;
+		border-radius: 12px;
+		border: 1px solid var(--background-modifier-border);
 		.obsidian-reader-settings-link-button,
 		.obsidian-reader-settings-select-wrapper >.obsidian-reader-settings-select,
 		.obsidian-reader-settings-controls-group {
-			border-radius: 40px;
+			border-radius: 6px;
 		}
-		.obsidian-reader-settings-typography-group {
-			flex-direction: row;
-		}
+		.obsidian-reader-settings-typography-group { flex-direction: column; }
 		.obsidian-reader-settings-link-button,
 		.obsidian-reader-settings-button,
 		.obsidian-reader-settings-select-wrapper >.obsidian-reader-settings-select {
@@ -446,9 +436,13 @@
 
 .obsidian-reader-settings-controls {
 	display: none;
+	width: min(340px, calc(100vw - 32px));
+	max-height: min(78vh, 560px);
+	overflow-y: auto;
 	background: var(--background-primary);
-	padding: var(--size-4-5);
-	padding-top: 56px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 10px;
+	padding: 52px 16px 16px;
 }
 .obsidian-reader-settings.is-open {
 	.obsidian-reader-settings-trigger {
@@ -462,11 +456,35 @@
 	display: flex;
 	gap: var(--size-2-3);
 	flex-direction: column;
+	padding-bottom: 12px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	.obsidian-reader-settings-section-label {
+		color: var(--text-faint);
+		font-size: var(--font-ui-small);
+		font-weight: 600;
+		letter-spacing: .04em;
+		text-transform: uppercase;
+	}
 }
 .obsidian-reader-settings-dropdown-group {
 	display: flex;
 	flex-direction: column;
 	gap: var(--size-2-3);
+	padding: 12px 0;
+	border-bottom: 1px solid var(--background-modifier-border);
+	.obsidian-reader-settings-section-label {
+		color: var(--text-faint);
+		font-size: var(--font-ui-small);
+		font-weight: 600;
+		letter-spacing: .04em;
+		text-transform: uppercase;
+	}
+}
+
+.obsidian-reader-settings-controls > .obsidian-reader-settings-link-button {
+	margin-top: 12px;
+	width: 100%;
+	justify-content: center;
 }
 .obsidian-reader-settings-spacer {
 	margin: 3px 0;
@@ -482,8 +500,9 @@
 	display: flex;
 	align-items: center;
 	flex-grow: 1;
+	min-height: 40px;
 	border: 1px solid var(--background-modifier-border);
-	border-radius: var(--radius-m);
+	border-radius: 6px;
 	corner-shape: var(--corner-shape);
 	overflow: hidden;
 	> .obsidian-reader-settings-button {
@@ -499,12 +518,12 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	width: 24px;
-	height: 24px;
+	width: 44px;
+	height: 40px;
 	border: none;
 	background: transparent;
 	border-radius: var(--radius-l);
-	height: 26px;
+	min-height: 40px;
 	color: var(--text-muted);
 	cursor: pointer;
 	padding: 0;
@@ -522,9 +541,10 @@
 	color: var(--text-muted);
 	font-family: inherit;
 	font-size: var(--font-ui-small);
-	height: 28px;
+	height: 40px;
+	min-height: 40px;
 	padding: 4px 30px 4px 8px;
-	border-radius: var(--radius-m);
+	border-radius: 6px;
 	corner-shape: var(--corner-shape);
 	cursor: pointer;
 	background-repeat: no-repeat, repeat;
@@ -585,8 +605,9 @@
 	background: transparent;
 	border-radius: var(--radius-m);
 	corner-shape: var(--corner-shape);
-	height: 28px;
-	padding: 0 6px;
+	min-height: 40px;
+	height: 40px;
+	padding: 0 10px;
 	color: var(--text-muted);
 	cursor: pointer;
 	font-family: inherit;

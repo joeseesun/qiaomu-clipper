@@ -41,6 +41,7 @@ const VIEWPORT = 'width=device-width, initial-scale=1, maximum-scale=1';
 import { ReaderSettings } from '../types/types';
 import { wireTranscript } from './reader-transcript';
 import { mountYouTubeStudy, restoreYouTubePlayer } from './youtube-study';
+import { readerScriptPolicy } from './reader-security';
 import { mountSidebarToggle } from './sidebar-toggle';
 import { mountLearningNotes, learningSelection, learningNotes } from './learning-composer';
 import { withReliableBilibili } from './bilibili-captions';
@@ -640,6 +641,10 @@ export class Reader {
 		// Assemble everything
 		const typographyGroup = doc.createElement('div');
 		typographyGroup.className = 'obsidian-reader-settings-typography-group';
+		const typographyLabel = doc.createElement('div');
+		typographyLabel.className = 'obsidian-reader-settings-section-label';
+		typographyLabel.textContent = getMessage('readerTypography');
+		typographyGroup.appendChild(typographyLabel);
 		typographyGroup.appendChild(fontGroup);
 		typographyGroup.appendChild(widthGroup);
 		typographyGroup.appendChild(lineHeightGroup);
@@ -651,6 +656,10 @@ export class Reader {
 
 		const dropdownGroup = doc.createElement('div');
 		dropdownGroup.className = 'obsidian-reader-settings-dropdown-group';
+		const appearanceLabel = doc.createElement('div');
+		appearanceLabel.className = 'obsidian-reader-settings-section-label';
+		appearanceLabel.textContent = getMessage('readerThemeSection');
+		dropdownGroup.appendChild(appearanceLabel);
 		dropdownGroup.appendChild(themeModeWrapper);
 		dropdownGroup.appendChild(themeWrapper);
 		dropdownGroup.appendChild(fontWrapper);
@@ -1453,10 +1462,11 @@ export class Reader {
 				doc.body.parentNode?.replaceChild(newBody, doc.body);
 			}
 
-			// Block inline event handlers and dynamic scripts
+			// Keep source scripts blocked; extension pages need their packaged
+			// audio worklet, model runtime modules and WebAssembly.
 			const meta = doc.createElement('meta');
 			meta.httpEquiv = 'Content-Security-Policy';
-			meta.content = "script-src 'none'; object-src 'none';";
+			meta.content = readerScriptPolicy(doc.defaultView?.location.protocol || '');
 			doc.head.appendChild(meta);
 		} catch (e) {
 			console.log('Reader', 'Error during script cleanup:', e);
@@ -2396,7 +2406,17 @@ export class Reader {
 				this.saveSettings();
 			});
 
-			if ((isYouTube || isBilibili) && !Reader.onEdit) await mountYouTubeStudy(doc, article, title || doc.title, doc.URL);
+			if ((isYouTube || isBilibili) && !Reader.onEdit) {
+				doc.addEventListener('qiaomu-reader-rewire-transcript', () => {
+					wireTranscript(doc, article, this.settings, {
+						getStickyOffset: () => this.getStickyOffset(),
+						getFocusOffset: () => this.getFocusOffset(),
+						scrollTo: y => this.scrollTo(y),
+						programmaticScroll: () => this.programmaticScroll,
+					}, (key, value) => { (this.settings as any)[key] = value; void this.saveSettings(); });
+				}, { once: true });
+				await mountYouTubeStudy(doc, article, title || doc.title, doc.URL);
+			}
 
 			if (extractorType) {
 				doc.documentElement.setAttribute('data-reader-extractor', extractorType);
@@ -2754,7 +2774,8 @@ export class Reader {
 	// Attach late-arriving subtitles without replacing or restarting the player.
 	static async attachYouTubeTranscript(doc: Document, transcript: HTMLElement, title: string, chat?: {toggle: () => boolean}): Promise<void> {
 		const article = doc.querySelector('article')!;
-		article.querySelector('.youtube-study-feedback, .youtube-study-toolbar')?.remove();
+		// Keep Whisper controls alive while late native subtitles are attached.
+		article.querySelector('.youtube-study-toolbar')?.remove();
 		article.appendChild(doc.adoptNode(transcript));
 		this.storeOriginalHtml(article);
 		wireTranscript(doc, article, this.settings, {

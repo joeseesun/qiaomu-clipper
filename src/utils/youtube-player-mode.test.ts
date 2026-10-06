@@ -61,14 +61,14 @@ it('falls back to stacked layout on narrow pages and tells the size module the m
 	document.body.innerHTML = html; expect(setup(1500).article.style.getPropertyValue('--youtube-player-max')).toBe('825px');
 });
 
-it('adopts the controls when the player container appears after subtitles load', async () => {
-	document.body.innerHTML = '<article><iframe src="https://www.youtube.com/embed/dbqweBCynuI"></iframe></article>';
-	const article = document.querySelector('article')!; vi.spyOn(article, 'getBoundingClientRect').mockReturnValue({ width: 1500 } as DOMRect);
-	mountPlayerMode(article); await flush(); expect(article.dataset.ytLayout).toBe('theater'); expect(article.querySelector('.youtube-mode-bar')).toBeNull();
-	const frame = article.querySelector('iframe')!, container = document.createElement('div'); container.className = 'player-container'; frame.before(container); container.append(frame);
-	await flush(); await new Promise(r => setTimeout(r, 0));
-	expect(container.querySelector('.youtube-mode-bar')).not.toBeNull(); expect(article.dataset.ytLayout).toBe('side');
-});
+	it('shows controls before subtitles and adopts them when the player container appears', async () => {
+		document.body.innerHTML = '<article><iframe src="https://www.youtube.com/embed/dbqweBCynuI"></iframe></article>';
+		const article = document.querySelector('article')!; vi.spyOn(article, 'getBoundingClientRect').mockReturnValue({ width: 1500 } as DOMRect);
+		mountPlayerMode(article); await flush(); expect(article.dataset.ytLayout).toBe('theater'); expect(article.querySelector('.youtube-mode-bar')).not.toBeNull();
+		const frame = article.querySelector('iframe')!, container = document.createElement('div'); container.className = 'player-container'; frame.before(container); container.append(frame);
+		await flush(); await new Promise(r => setTimeout(r, 0));
+		expect(container.querySelector('.youtube-mode-bar')).not.toBeNull(); expect(article.dataset.ytLayout).toBe('side');
+	});
 
 it('drags the floating window and snaps to the nearest corner, resizes it and cleans up a canceled drag', async () => {
 	const { article, frame, click } = setup(); await flush(); click('float');

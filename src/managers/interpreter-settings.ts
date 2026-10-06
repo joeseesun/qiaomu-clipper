@@ -7,6 +7,7 @@ import { getMessage, translatePage } from '../utils/i18n';
 import { debugLog } from '../utils/debug';
 import { iconTile, CATALOG } from '../utils/provider-catalog';
 import { openProviderPicker, openProviderEditor, openModelPicker } from './provider-dialogs';
+import { translationLanguages, validTargetLanguage } from '../utils/translation-languages';
 
 export interface PresetProvider {
 	id: string;
@@ -236,6 +237,8 @@ export async function initializeInterpreterSettings(): Promise<void> {
 		}
 
 		initializeInterpreterToggles();
+		initializeModelAssignments();
+		updateAiSettingsSummary();
 
 		const defaultPromptContextInput = document.getElementById('default-prompt-context') as HTMLTextAreaElement;
 		if (defaultPromptContextInput) {
@@ -342,7 +345,7 @@ function createProviderListItem(provider: Provider, index: number): HTMLElement 
 	return item;
 }
 
-const refreshLists = () => { initializeProviderList(); initializeModelList(); };
+const refreshLists = () => { initializeProviderList(); initializeModelList(); updateAiSettingsSummary(); };
 
 function addProviderToList(event: Event) {
 	event.preventDefault();
@@ -366,6 +369,7 @@ function deleteProvider(index: number): void {
 		generalSettings.providers.splice(index, 1);
 		saveSettings();
 		initializeProviderList();
+		updateAiSettingsSummary();
 	}
 }
 
@@ -388,6 +392,65 @@ export function initializeModelList() {
 	});
 
 	initializeIcons(modelList);
+	refreshModelAssignments();
+}
+
+export function refreshModelAssignments(): void {
+	for (const [id, setting] of [['answer-model-select', 'interpreterModel'], ['translation-model-select', 'translationModel']] as const) {
+		const select = document.getElementById(id) as HTMLSelectElement | null;
+		if (!select) continue;
+		select.replaceChildren(new Option(getMessage('qiaomuSelectModel'), ''));
+		for (const model of generalSettings.models.filter(item => item.enabled && generalSettings.providers.some(provider => provider.id === item.providerId))) {
+			const provider = generalSettings.providers.find(item => item.id === model.providerId);
+			select.add(new Option(`${model.name} · ${provider?.name || ''}`, model.id));
+		}
+		const selected = generalSettings[setting];
+		if (selected && !Array.from(select.options).some(option => option.value === selected)) {
+			const option = new Option(`${selected} (${getMessage('qiaomuModelUnavailable')})`, selected); option.disabled = true; select.add(option);
+		}
+		select.value = selected || '';
+	}
+	updateAiSettingsSummary();
+}
+
+export function updateAiSettingsSummary(): void {
+	const summary = document.getElementById('ai-settings-summary');
+	if (!summary) return;
+	const modelLabel = (id?: string): string => {
+		if (!id) return getMessage('qiaomuNotConfigured');
+		const model = generalSettings.models.find(item => item.id === id);
+		if (!model) return getMessage('qiaomuModelUnavailable');
+		const provider = generalSettings.providers.find(item => item.id === model.providerId);
+		return `${model.name} · ${provider?.name || getMessage('qiaomuProviderUnknown')}`;
+	};
+	summary.replaceChildren();
+	const entries: Array<[string, string, string]> = [
+		[getMessage('qiaomuAnswerModel'), modelLabel(generalSettings.interpreterModel), 'message-circle'],
+		[getMessage('qiaomuTranslationModel'), modelLabel(generalSettings.translationModel), 'languages'],
+		[getMessage('qiaomuProviderCount'), String(generalSettings.providers.length), 'plug-zap'],
+	];
+	for (const [label, value, icon] of entries) {
+		const item = document.createElement('div'); item.className = 'settings-summary-item';
+		const iconNode = document.createElement('i'); iconNode.setAttribute('data-lucide', icon); iconNode.setAttribute('aria-hidden', 'true');
+		const term = document.createElement('dt'); term.textContent = label;
+		const detail = document.createElement('dd'); detail.textContent = value;
+		item.append(iconNode, term, detail); summary.append(item);
+	}
+	initializeIcons(summary);
+}
+
+function initializeModelAssignments(): void {
+	refreshModelAssignments();
+	for (const [id, setting] of [['answer-model-select', 'interpreterModel'], ['translation-model-select', 'translationModel']] as const) {
+		const select = document.getElementById(id) as HTMLSelectElement | null;
+		if (select) select.onchange = () => { void saveSettings({ [setting]: select.value }); };
+	}
+	const target = document.getElementById('translation-target-select') as HTMLSelectElement | null;
+	if (target) {
+		target.replaceChildren(...translationLanguages.map(item => new Option(item.label, item.code)));
+		target.value = validTargetLanguage(generalSettings.translationTargetLanguage);
+		target.onchange = () => { void saveSettings({ translationTargetLanguage: target.value }); };
+	}
 }
 
 function createModelListItem(model: ModelConfig, index: number): HTMLElement {
@@ -449,7 +512,7 @@ function createModelListItem(model: ModelConfig, index: number): HTMLElement {
 	initializeToggles(item);
 	checkbox.addEventListener('change', () => {
 		const i = find();
-		if (i !== -1) { generalSettings.models[i].enabled = checkbox.checked; saveSettings(); }
+		if (i !== -1) { generalSettings.models[i].enabled = checkbox.checked; saveSettings(); refreshModelAssignments(); }
 	});
 	initializeIcons(item);
 	return item;

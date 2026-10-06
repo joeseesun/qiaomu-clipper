@@ -2,9 +2,9 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 const state = vi.hoisted(() => ({stream:vi.fn(), models:[{id:'model',name:'Model'}]}));
 vi.mock('./chat-llm', () => ({enabledChatModels:()=>state.models, streamChat:(...args:unknown[])=>state.stream(...args)}));
-vi.mock('./storage-utils', () => ({loadSettings:async()=>{},getLocalStorage:async()=> 'model'}));
+vi.mock('./storage-utils', () => ({loadSettings:async()=>{},saveSettings:vi.fn(async()=>{}),generalSettings:{translationModel:'model',translationTargetLanguage:'zh-CN'}}));
 vi.mock('./i18n', () => ({getMessage:(key:string)=>key}));
-import { translationBatches, parseTranslation, mountTranslation, TRANSLATION_SYSTEM } from './youtube-translation';
+import { translationBatches, parseTranslation, mountTranslation, buildTranslationSystem } from './youtube-translation';
 import { transcriptText } from './youtube-study';
 afterEach(()=>vi.useRealTimers());
 const flush=async()=>{for(let i=0;i<25;i++)await Promise.resolve();};
@@ -26,6 +26,7 @@ it('bounds requests and rejects missing, duplicate or unknown segment identifier
 	expect(()=>parseTranslation('[{"id":0,"text":"甲"}]',batch)).toThrow();
 	expect(()=>parseTranslation('[{"id":0,"text":"甲"},{"id":0,"text":"乙"}]',batch)).toThrow();
 	expect(parseTranslation('```json\n[{"id":1,"text":"乙"},{"id":0,"text":"甲"}]\n```',batch).get(0)).toBe('甲');
+	expect(parseTranslation('{"translations":[{"id":"1","text":"乙"},{"index":0,"text":"甲"}]}',batch).get(1)).toBe('乙');
 });
 
 it('preserves source and timestamps, renders plain text, and reuses translated paragraphs after toggling',async()=>{
@@ -57,6 +58,20 @@ it('retries only failed batches while preserving completed paragraphs',async()=>
 	expect(JSON.parse(state.stream.mock.calls[2][0].messages[0].content)).toHaveLength(2);
 });
 
+it('splits an incomplete provider response and keeps the translation run recoverable', async () => {
+	state.stream
+		.mockImplementationOnce(async options => {
+			const [{ id, text }] = JSON.parse(options.messages[0].content) as Array<{ id: number; text: string }>;
+			return JSON.stringify([{ id, text: `中文 ${text}` }]);
+		})
+		.mockImplementation(async options => response(options));
+	const { article, input } = setup(['First sentence.', 'Second sentence.']);
+	input.click(); await flush();
+	expect(state.stream).toHaveBeenCalledTimes(3);
+	expect(article.querySelectorAll('.transcript-translation')).toHaveLength(2);
+	expect(article.querySelector('[role="status"]')!.textContent).toBe('qiaomuTranslationDone');
+});
+
 it('keeps Chinese source unchanged and explains missing model configuration',async()=>{
 	state.stream.mockImplementation(async options=>JSON.stringify(JSON.parse(options.messages[0].content)));
 	let view=setup(['已经是中文']);view.input.click();await flush();expect(view.article.querySelector('.transcript-translation')).toBeNull();
@@ -74,7 +89,7 @@ it('cleans music cues, passes neighboring context and renders short bilingual pa
 	expect(request.length).toBeGreaterThan(1);
 	expect(request.every((part:{text:string}) => !part.text.includes('[music]'))).toBe(true);
 	expect(request[0].contextAfter).toContain('Why not me');
-	expect(options.system).toBe(TRANSLATION_SYSTEM);
+	expect(options.system).toContain('Source language:');
 	expect(article.querySelectorAll('.transcript-bilingual-block')).toHaveLength(request.length);
 	expect(article.querySelector('.transcript-translation')!.textContent).not.toContain('[音乐]');
 	expect(article.querySelectorAll('.transcript-translation p').length).toBe(request.length * 2);
@@ -87,6 +102,27 @@ it('keeps provider markup inert and never renders it as HTML', async () => {
 	const {article,input}=setup();input.click();await flush();
 	expect(article.querySelector('img')).toBeNull();
 	expect(article.querySelector('.transcript-translation')!.textContent).toContain('<img');
+});
+
+it('requires an explicitly configured translation model and never falls back to the answer model', async () => {
+	const storage = await import('./storage-utils');
+	(storage.generalSettings as any).translationModel = '';
+	const { article, input } = setup(); input.click(); await flush();
+	expect(state.stream).not.toHaveBeenCalled();
+	expect(article.querySelector('[role=status]')!.textContent).toContain('qiaomuTranslationNoModel');
+	(storage.generalSettings as any).translationModel = 'model';
+});
+
+it('uses track metadata, constrains the target language, and clears the previous language before retrying', async () => {
+	const { article, input } = setup();
+	input.click(); await flush();
+	expect(state.stream.mock.calls[0][0].model.id).toBe('model');
+	const target = article.querySelector<HTMLSelectElement>('.youtube-translation-target')!;
+	target.value = 'ja'; target.dispatchEvent(new Event('change')); await flush();
+	expect(state.stream).toHaveBeenCalledTimes(2);
+	expect(state.stream.mock.calls[1][0].system).toContain('Target language: 日本語');
+	expect(article.querySelector('.transcript-translation')!.getAttribute('lang')).toBe('ja');
+	expect(buildTranslationSystem('en', '简体中文')).toContain('Source language: en. Target language: 简体中文');
 });
 
 
