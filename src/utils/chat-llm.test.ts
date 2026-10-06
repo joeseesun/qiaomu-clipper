@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { generalSettings } from './storage-utils';
-import { normalizeOpenAIChatEndpoint, streamChat } from './chat-llm';
+import { normalizeOpenAIChatEndpoint, opencodeHeaders, streamChat } from './chat-llm';
 
 const stream = (chunks: string[]) => new Response(new ReadableStream({ start(controller) { chunks.forEach(c => controller.enqueue(new TextEncoder().encode(c))); controller.close(); } }));
 const model = (providerId: string) => ({ id: 'm', providerId, providerModelId: 'x', name: 'X', enabled: true });
@@ -74,4 +74,34 @@ it('disconnects the background request when a live-page conversation is stopped'
 	controller.abort();
 	await expect(promise).rejects.toMatchObject({ name: 'AbortError' });
 	expect(port.disconnect).toHaveBeenCalledOnce();
+});
+
+// OpenCode Go answers 400 "MissingSessionID" without this header.
+it('identifies OpenCode requests with a stable session header', () => {
+	const first = opencodeHeaders('https://opencode.ai/zen/go/v1/chat/completions');
+	expect(first?.['x-opencode-session']).toBeTruthy();
+	expect(first?.['x-opencode-client']).toBe('qiaomu-clipper');
+	expect(opencodeHeaders('https://opencode.ai/zen/go/v1/chat/completions')).toEqual(first);
+	expect(opencodeHeaders('https://api.deepseek.com/v1/chat/completions')).toBeUndefined();
+	expect(opencodeHeaders('https://notopencode.ai/v1/chat/completions')).toBeUndefined();
+	expect(opencodeHeaders('not a url')).toBeUndefined();
+});
+
+it('sends the OpenCode session header with a Go chat request', async () => {
+	generalSettings.providers = [{ id: 'p', name: 'OpenCode Go', baseUrl: 'https://opencode.ai/zen/go/v1/chat/completions', apiKeyRequired: true, apiKey: 'k' }] as any;
+	const fetchMock = vi.fn().mockResolvedValue(stream(['data: {"choices":[{"delta":{"content":"ok"}}]}\n', 'data: [DONE]\n']));
+	vi.stubGlobal('fetch', fetchMock);
+	await streamChat({ model: model('p'), system: 's', messages: [], onDelta: () => {} });
+	const headers = fetchMock.mock.calls[0][1].headers;
+	expect(headers['x-opencode-session']).toBeTruthy();
+	expect(headers['x-opencode-client']).toBe('qiaomu-clipper');
+	expect(headers.Authorization).toBe('Bearer k');
+});
+
+it('leaves other gateways without an OpenCode session header', async () => {
+	generalSettings.providers = [{ id: 'p', name: 'OpenAI', baseUrl: 'https://api.test/v1/chat/completions', apiKeyRequired: true, apiKey: 'k' }] as any;
+	const fetchMock = vi.fn().mockResolvedValue(stream(['data: {"choices":[{"delta":{"content":"ok"}}]}\n', 'data: [DONE]\n']));
+	vi.stubGlobal('fetch', fetchMock);
+	await streamChat({ model: model('p'), system: 's', messages: [], onDelta: () => {} });
+	expect(fetchMock.mock.calls[0][1].headers['x-opencode-session']).toBeUndefined();
 });

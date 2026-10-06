@@ -1,5 +1,5 @@
 import { Provider } from '../types/types';
-import { openAICompatibleBasePath } from './chat-llm';
+import { openAICompatibleBasePath, opencodeHeaders } from './chat-llm';
 import { freshOAuth, oauthModelsRequest } from './oauth/accounts';
 import { saveSettings } from './storage-utils';
 
@@ -11,7 +11,7 @@ export interface ProviderModel {
 // Derive discovery from the configured inference URL, including custom gateways.
 export function modelListRequest(provider: Provider): { url: URL; headers: Record<string, string>; kind: string } {
 	const url = new URL(provider.baseUrl);
-	const headers: Record<string, string> = { Accept: 'application/json' };
+	const headers: Record<string, string> = { Accept: 'application/json', ...(opencodeHeaders(provider.baseUrl) || {}) };
 	let kind = 'openai';
 	if (url.hostname === 'generativelanguage.googleapis.com') {
 		kind = 'gemini';

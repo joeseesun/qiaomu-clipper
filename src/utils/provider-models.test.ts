@@ -66,4 +66,11 @@ describe('provider model discovery', () => {
 		await vi.advanceTimersByTimeAsync(15000);
 		await assertion;
 	});
+	it('carries the OpenCode session header, and finds models next to the chat endpoint', () => {
+		const request = modelListRequest({ ...provider, baseUrl: 'https://opencode.ai/zen/go/v1/chat/completions' });
+		expect(request.url.href).toBe('https://opencode.ai/zen/go/v1/models');
+		expect(request.headers['x-opencode-session']).toBeTruthy();
+		expect(request.headers['x-opencode-client']).toBe('qiaomu-clipper');
+		expect(request.headers.Authorization).toBe('Bearer test-key');
+	});
 });
