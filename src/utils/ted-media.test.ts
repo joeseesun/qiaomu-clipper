@@ -24,3 +24,20 @@ it('uses no network for a ready original-language page and rejects other hosts',
 	const fetch = vi.fn(); expect((await readTedMedia(address, fetch, doc()))?.segments).toHaveLength(2); expect(fetch).not.toHaveBeenCalled();
 	expect(await readTedMedia('https://ted.com.evil.test/talks/example', fetch, doc())).toBeUndefined();
 });
+
+it('reads the official VTT timeline including the 3.504 second intro and cue ends', async () => {
+ const page = html().replace('"h264":', '"hls":{"metadata":"https://hls.ted.com/metadata.json"},"h264":');
+ const fetch = vi.fn(async (url: string) => url.endsWith('metadata.json') ? JSON.stringify({ subtitles: [{ code: 'en', webvtt: 'https://hls.ted.com/en.vtt' }] }) : 'WEBVTT\n\n1\n00:00:03.863 --> 00:00:07.859\nOfficial &amp; precise\n\n2\n00:00:07.859 --> 00:00:09.000\nSecond');
+ const result = await readTedMedia(address, fetch, new DOMParser().parseFromString(page, 'text/html'));
+ expect(result?.segments).toEqual([{ time:'0:03', text:'Official & precise', start:3.863, end:7.859 }, { time:'0:07', text:'Second', start:7.859, end:9 }]);
+ expect(result?.timelineAligned).toBe(true);
+});
+it('uses official domain offsets when VTT is missing and does not invent timing when metadata fails', async () => {
+ const page = html().replace('"h264":', '"hls":{"metadata":"https://hls.ted.com/metadata.json"},"h264":');
+ const document = new DOMParser().parseFromString(page, 'text/html');
+ const fetch = vi.fn().mockResolvedValue(JSON.stringify({domains:[{duration:3.504,primaryDomain:false},{duration:60,primaryDomain:true}]}));
+ const result = await readTedMedia(address, fetch, document);
+ expect(result?.segments[0].start).toBeCloseTo(3.863); expect(result?.timelineAligned).toBe(true);
+ fetch.mockRejectedValue(new Error('offline')); const fallback = await readTedMedia(address, fetch, document);
+ expect(fallback?.segments[0].start).toBe(.359); expect(fallback?.timelineAligned).not.toBe(true);
+});

@@ -17,7 +17,7 @@ const rowsIn = (root: ParentNode): HTMLElement[] => {
 };
 
 // `chapter` is the title of a chapter that begins at this line (YouTube shows it as a heading above the row).
-export interface PanelSegment { time: string; text: string; chapter?: string }
+export interface PanelSegment { time: string; text: string; chapter?: string; start?: number; end?: number }
 
 // Works for both the current "modern" transcript view and the classic renderer: take the first
 // line that looks like a timestamp, the remaining visible lines are the caption text.

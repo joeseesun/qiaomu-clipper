@@ -62,7 +62,7 @@ try {
 		const cache = api.storage.local ? createTranscriptCache(api.storage.local) : undefined;
 
 		// --- transcript prefetch -------------------------------------------------------------------------------
-		interface Entry { state: BarState; segments: PanelSegment[]; generated?: boolean; tracks: YouTubeTrack[]; selected?: string; done: Promise<PanelSegment[]> }
+		interface Entry { state: BarState; segments: PanelSegment[]; generated?: boolean; tracks: YouTubeTrack[]; selected?: string; tracksReady?: Promise<void>; done: Promise<PanelSegment[]> }
 		const store = new Map<string, Entry>();
 		const currentVideo = () => location.pathname === '/watch' ? new URL(location.href).searchParams.get('v') : null;
 		// YouTube answers get_transcript with "precondition failed" when it wants a player token (seen in signed-out
@@ -77,7 +77,7 @@ try {
 			const fresh = () => refusals >= 2 ? Promise.resolve([] as PanelSegment[]) : fetchCaptionResult(videoId, document, undefined, preferred).then(result => { refusals = 0; entry.tracks = result.tracks; entry.selected = result.selected; return result.segments; }, () => { refusals++; return [] as PanelSegment[]; });
 			const request = (cache ? cache.read(cacheKey) : Promise.resolve(undefined)).then(cached => {
 				// From the cache: the language menu still needs the list of tracks, read quietly in the background.
-				if (cached) { void fetchCaptionTracks(videoId, document).then(found => { entry.tracks = trackInfos(found); entry.selected = chooseTrack(entry.tracks, preferred)?.id; updateBar(); }, () => {}); return cached; }
+				if (cached) { entry.tracksReady = fetchCaptionTracks(videoId, document).then(found => { entry.tracks = trackInfos(found); entry.selected = chooseTrack(entry.tracks, preferred)?.id; updateBar(); }, () => {}); return cached; }
 				return fresh().then(segments => { if (segments.length) void cache?.write(cacheKey, segments); return segments; });
 			});
 			entry.done = request.then(async segments => {
@@ -212,7 +212,14 @@ try {
 		// The background asks for the transcript when study mode opens.
 		api.runtime.onMessage.addListener((request, _sender, respond) => {
 			if (request?.action !== 'qiaomuTranscript') return;
-			getSegments(true).then(segments => respond({ html: segments.length ? transcriptHtml(segments) : '', count: segments.length })).catch(() => respond({ html: '', count: 0 }));
+			void (async () => {
+				await getSegments(true);
+				const ready = store.get(currentVideo() || '')?.tracksReady;
+				if (ready) await Promise.race([ready, new Promise<void>(resolve => setTimeout(resolve, 3500))]);
+				if (typeof request.language === 'string') await chooseLanguage(request.language);
+				const segments = await getSegments(true), entry = store.get(currentVideo() || '');
+				respond({ html: segments.length ? transcriptHtml(segments) : '', count: segments.length, languages: entry && !entry.generated ? optionsOf(entry.tracks) : [], selected: entry?.selected });
+			})().catch(() => respond({ html: '', count: 0 }));
 			return true;
 		});
 

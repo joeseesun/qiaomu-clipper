@@ -1,3 +1,4 @@
+import { mountStudyCaptionLanguage } from './study-caption-language';
 import { readTedMedia } from './ted-media';
 import { probeWebStudy } from './web-study-probe';
 import DOMPurify from 'dompurify';
@@ -151,16 +152,17 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 		if (!picture) player.parentElement!.append(mountAudioControls(document, player, { play: text('audioPlay', '播放', 'Play'), pause: text('audioPause', '暂停', 'Pause'), back: text('audioBack', '后退 15 秒', 'Back 15 s'), forward: text('audioForward', '前进 30 秒', 'Forward 30 s'), speed: text('audioSpeed', '播放速度', 'Playback speed'), seek: text('audioSeek', '播放进度', 'Position') }));
 		return player;
 	};
-	const attach = async (lines: PanelSegment[]) => {
-		if (attached || !lines.length) return;
-		const content = document.createElement('div'); content.innerHTML = DOMPurify.sanitize(transcriptHtml(lines));
+	const attach = async (lines: PanelSegment[], replace = false) => {
+		if ((attached && !replace) || !lines.length) return;
+		const content = document.createElement('div'); content.innerHTML = DOMPurify.sanitize(transcriptHtml(lines, !lines.some(s => s.start !== undefined)));
 		const transcript = content.querySelector<HTMLElement>(TRANSCRIPT_SELECTOR); if (!transcript) return;
+		if (replace) { article.dispatchEvent(new CustomEvent('qiaomu-transcript-replaced')); article.querySelector(TRANSCRIPT_SELECTOR)?.remove(); }
 		attached = true; status.textContent = '';
 		await Reader.attachYouTubeTranscript(document, transcript, title, shell.chat);
 		// The reader puts its switches (follow playback, translate) in a bar of their own under the player; here they belong in the one row of controls.
 		const group = article.querySelector<HTMLElement>('.player-container .player-toggle-group'), tools = article.querySelector<HTMLElement>('.player-container .qa-tools');
 		if (article.dataset.audioStudy === 'true' && group && tools) { tools.insertBefore(group, tools.querySelector('.qa-speed')); article.querySelector('.player-container .player-toggles')?.setAttribute('hidden', ''); }
-		await session.populate({ content: sourceHtml + transcriptHtml(lines), title }).catch(() => {});
+		await session.populate({ content: sourceHtml + transcriptHtml(lines, !lines.some(s => s.start !== undefined)), title }).catch(() => {});
 		shell.refresh(); shell.setPending(false);
 	};
 	const generation = createBarGeneration({
@@ -233,7 +235,15 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 		const words = (info.description ?? '').trim(), isPost = Boolean(xStatus(address)), short = isPost || words.length <= 400;
 		await present({ title: info.title, show: info.author || info.site, cover: info.thumbnail ?? undefined, date: info.date ?? undefined, seconds: info.seconds ?? undefined, audio: info.mediaUrl ?? '', picture: info.video && Boolean(info.mediaUrl), ...(words && short ? { post: plainToHtml(words) } : {}), ...(words && !short ? { notesHtml: plainToHtml(words), notesLabel: text('audioTabAbout', '简介', 'Description') } : { notesHtml: '' }) });
 		if (!info.mediaUrl) { const note = document.createElement('p'); note.className = 'qiaomu-shows-note'; note.append(document.createTextNode('这个网站没有给出可以直接播放的声音，所以这里不提供播放器；字幕照常生成，对照时请在原页面播放：')); const link = document.createElement('a'); link.href = address; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = '打开原页面'; note.append(link); holder.before(note); }
-		if (official?.segments.length) { await attach(official.segments); panel.element.hidden = true; } else await begin(); return;
+		if (official?.segments.length) {
+			await attach(official.segments); panel.element.hidden = true;
+			if (!official.timelineAligned) status.textContent = '官方字幕已读取，播放时间轴暂未校准。';
+			mountStudyCaptionLanguage(article, official.languages, official.language, async language => {
+				const found = await readTedMedia(address, async url => { const r = await browser.runtime.sendMessage({ action: 'fetchProxy', url, options: {} }) as { text?: string }; return r?.text || ''; }, undefined, language);
+				if (!found?.segments.length) throw new Error('字幕不可用');
+				await attach(found.segments, true);
+			});
+		} else await begin(); return;
 	}
 	if (options.kind === 'feed') {
 		if (!options.feed || !options.guid) { status.textContent = '无效的节目链接'; return; }

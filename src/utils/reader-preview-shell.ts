@@ -1,3 +1,4 @@
+import { mountTranscriptExport } from './transcript-export';
 import { createClipBar, autoHideBar, setClipBarHighlights } from './clip-bar';
 import { mountClipChat } from './clip-chat';
 import { ClipPreview, updateClipPreview } from './clip-preview';
@@ -17,7 +18,8 @@ export function mountReaderPreviewShell(draft: ClipPreview, pending = false) {
 	const id = draft.local.requestId;
 	document.documentElement.classList.add('qiaomu-preview');
 	const title = document.createElement('span'); title.textContent = draft.clip.title;
-	const openEditor = () => { location.href = browser.runtime.getURL(`editor.html?id=${id}`); };
+	let sync = async () => {};
+	const openEditor = async () => { await sync(); location.href = browser.runtime.getURL(`editor.html?id=${id}`); };
 	Reader.onEdit = openEditor;
  const learning = mountLearningNotes({ doc: document, getSource: () => ({title: draft.clip.title, url: draft.clip.url}), getHighlights });
 	const chat = mountClipChat({
@@ -26,12 +28,14 @@ export function mountReaderPreviewShell(draft: ClipPreview, pending = false) {
 		onHighlight: () => Reader.highlightSelection(document),
 		getContext: () => ({ title: draft.clip.title, url: draft.clip.url, markdown: videoKey(draft.clip.url) ? transcriptText(document.querySelector('article')!) || '尚未获取视频字幕文稿，请明确说明无法依据文稿回答。' : draft.clip.markdown }),
 		onInsert: async text => {
+			draft.readerAppendix = `${draft.readerAppendix || ''}\n\n${text}\n`;
 			draft.clip.markdown = `${draft.clip.markdown.trimEnd()}\n\n${text}\n`;
 			draft.local.content = await generateFrontmatter(draft.properties ?? []) + draft.clip.markdown;
 			await updateClipPreview(draft);
 		},
 	});
-	const bar = createClipBar({onToggleChat:chat.toggle, mode:'read', id, draft, title, domain:getDomain(draft.clip.url), url:draft.clip.url});
+	const bar = createClipBar({onToggleChat:chat.toggle, mode:'read', id, draft, title, domain:getDomain(draft.clip.url), url:draft.clip.url, sync: () => sync()});
+	sync = mountTranscriptExport(bar, draft);
 	document.body.prepend(bar);
 	const readerSettings = document.querySelector('.obsidian-reader-settings');
 	if (readerSettings) bar.querySelector('.clip-bar-extras')?.appendChild(readerSettings);

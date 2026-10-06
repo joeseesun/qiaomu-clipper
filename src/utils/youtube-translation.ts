@@ -58,6 +58,7 @@ export function mountTranslation(article: HTMLElement, toolbar: HTMLElement, sta
 	toolbar.append(label); status.after(retry);
 	let controller: AbortController | undefined; let generation = 0;
 	const cache = new Map<number, string>();
+	article.addEventListener('qiaomu-transcript-replaced', () => { ++generation; controller?.abort(); }, { once: true });
 	const parts = batches.flat();
 	const sources = segments.map(segment => {
 		let source = segment.querySelector<HTMLElement>('.transcript-segment-text');
@@ -105,6 +106,8 @@ export function mountTranslation(article: HTMLElement, toolbar: HTMLElement, sta
 			if (rendered.has(index)) return;
 			const segmentParts = parts.filter(part => part.segment === index);
 			if (!segmentParts.length || !segmentParts.every(part => cache.has(part.id))) return;
+			segments[index].dataset.translatedText = segmentParts.map(part => cache.get(part.id)!).join('\n\n');
+			segments[index].dataset.translationReady = 'true';
 			if (segmentParts.every(part => cache.get(part.id)?.replace(/\s/g, '') === part.text.replace(/\s/g, ''))) return;
 			renderBilingualBlocks(source.element, segmentParts.map(part => ({ original: part.text, translation: cache.get(part.id)! })));
 			rendered.add(index);

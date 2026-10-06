@@ -18,7 +18,7 @@ Read, watch, ask AI, and turn what you learn into Obsidian notes.
 
 </div>
 
-> **当前为 Chrome 开发版，尚未上架应用商店。** 本页介绍当前 `main` 的功能；完整体验请按下方步骤从源码安装。不想装 Node.js？可直接下载 [1.13.1 预览包](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.13.1)（与当前 `main` 一致）；更早的版本（如 1.10.0）没有视频字幕工具栏；B 站视频页的字幕工具栏从 1.11.0 起提供。截图采用实际界面组件与示例数据，视频区域展示封面预览；[截图说明](docs/README-SCREENSHOTS.md)。
+> **当前为 Chrome 开发版，尚未上架应用商店。** 本页介绍当前 `main` 的功能；完整体验请按下方步骤从源码安装。不想装 Node.js？可直接下载 [1.13.0 已发布预览包](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.13.0)（1.13.1 改动尚待验收发布）；更早的版本（如 1.10.0）没有视频字幕工具栏；B 站视频页的字幕工具栏从 1.11.0 起提供。截图采用实际界面组件与示例数据，视频区域展示封面预览；[截图说明](docs/README-SCREENSHOTS.md)。
 
 ## 它解决什么问题
 
@@ -53,9 +53,9 @@ npm run build:chrome
 **先试一条完整流程：** 打开视频 → `aaa` → 点时间戳回看 → 按 `N` 写理解。只想读文章和复制字幕，无需配置 AI；写入日记需先装下方助手。
 
 <details>
-<summary><b>不想安装 Node.js？直接下载 1.13.1 预览包</b></summary>
+<summary><b>不想安装 Node.js？直接下载 1.13.0 已发布预览包</b></summary>
 
-下载 [Chrome ZIP](https://github.com/joeseesun/qiaomu-clipper/releases/download/1.13.1/qiaomu-clipper-1.13.1-chrome.zip)，解压后在 `chrome://extensions` 开启「开发者模式」，点「加载已解压的扩展程序」选择解压目录。[发布说明](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.13.1)。**装好后请刷新已打开的 YouTube 页面**，字幕工具栏才会出现；请勿使用 1.10.0 及更早版本，它们没有视频字幕工具栏。**装好后请刷新已打开的 B 站页面**；B 站只给已登录账号提供字幕。
+下载 [Chrome ZIP](https://github.com/joeseesun/qiaomu-clipper/releases/download/1.13.0/qiaomu-clipper-1.13.0-chrome.zip)，解压后在 `chrome://extensions` 开启「开发者模式」，点「加载已解压的扩展程序」选择解压目录。[发布说明](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.13.0)。**装好后请刷新已打开的 YouTube 页面**，字幕工具栏才会出现；请勿使用 1.10.0 及更早版本，它们没有视频字幕工具栏。**装好后请刷新已打开的 B 站页面**；B 站只给已登录账号提供字幕。
 
 </details>
 
@@ -68,7 +68,9 @@ npm run build:chrome
 python3 native/install.py
 ```
 
-**TED 官方字幕优先**：从 TED 页面直接读取官方文字稿及视频地址，默认原语言，原网页字幕条可切换官方字幕语言；无官方字幕时才提供生成入口。TikTok 字幕条跟随当前视频，抖音优先插入右侧推荐列表上方，TED 插入播放器下方；窄窗口使用收起的备用入口。新位置仍需真实页面验收。
+**TED 官方字幕优先**：从 TED 页面直接读取官方文字稿及视频地址，默认原语言，优先使用官方 VTT 的逐句起止时间（含片头偏移）；原网页和学习页均可切换官方字幕语言。YouTube、B 站学习页也显示网站提供的字幕语言，切换保留播放进度；无官方字幕时才提供生成入口。TikTok 字幕条跟随当前视频，抖音优先插入右侧推荐列表上方，TED 插入播放器下方；窄窗口使用收起的备用入口。新位置仍需真实页面验收。
+
+**译文一起剪藏**：翻译后现有剪藏按钮旁显示「原文／译文／双语」，默认双语。保留时间戳、正文、模板属性和 AI 笔记；翻译未完成时保留未译原文，禁用「仅译文」。同一选择也用于复制、下载和转到编辑页。切换官方字幕语言会清除旧语言的翻译任务。
 
 **抖音提示 Fresh cookies 时**：在学习页选择原视频所在的浏览器，点「使用浏览器状态重试」。不一定需要登录；本机工具读取该浏览器 Cookie 后重试。即使带 Cookie，抖音的下载解析仍可能失败，此时不能视为该站点已完整验证。
 
@@ -297,7 +299,7 @@ Qiaomu Clipper combines web clipping, a clean reader, a full-page Markdown edito
 
 **[Install current features](#quick-start)** · [Screenshots](#功能巡游) · [Report an issue](https://github.com/joeseesun/qiaomu-clipper/issues)
 
-> Chrome development build; not yet on the Chrome Web Store. This README describes current `main`. The downloadable [1.13.1 preview](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.13.1) matches current `main` (no Node.js needed; refresh open YouTube tabs after installing). Earlier releases such as 1.10.0 lack the video transcript bar (Bilibili's arrives in 1.11.0; Bilibili only serves subtitles to signed-in accounts). Screenshots use production components with sample articles, captions, AI responses and daily-note targets; the video area is a cover preview. See [screenshot provenance](docs/README-SCREENSHOTS.md).
+> Chrome development build; not yet on the Chrome Web Store. This README describes current `main`. The downloadable [1.13.0 preview](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.13.0) is the published release; 1.13.1 is awaiting browser acceptance (no Node.js needed; refresh open YouTube tabs after installing). Earlier releases such as 1.10.0 lack the video transcript bar (Bilibili's arrives in 1.11.0; Bilibili only serves subtitles to signed-in accounts). Screenshots use production components with sample articles, captions, AI responses and daily-note targets; the video area is a cover preview. See [screenshot provenance](docs/README-SCREENSHOTS.md).
 
 ### Quick start
 

@@ -1330,7 +1330,7 @@ browser.runtime.onMessage.addListener((raw: unknown, sender) => {
 
 // Fast route for study mode: the YouTube tab already prefetched the transcript (or reads it from the panel).
 browser.runtime.onMessage.addListener((raw: unknown, sender) => {
-	const request = raw as { action?: string; sourceTabId?: number; url?: string };
+	const request = raw as { action?: string; sourceTabId?: number; url?: string; language?: string };
 	if (request?.action !== 'qiaomuStudyTranscript') return;
 	if (sender.id !== browser.runtime.id || !sender.url?.startsWith(browser.runtime.getURL('reader.html'))
 		|| !Number.isInteger(request.sourceTabId) || !request.url || !videoKey(request.url)) return Promise.resolve({ error: '无效的视频来源' });
@@ -1339,8 +1339,8 @@ browser.runtime.onMessage.addListener((raw: unknown, sender) => {
 			const tab = await browser.tabs.get(request.sourceTabId!);
 			if (!tab.url || videoKey(tab.url) !== videoKey(request.url!)) return { error: '原视频页面已切换，请重新打开学习模式' };
 			const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('原页面读取字幕超时')), 26000));
-			const answer = await Promise.race([browser.tabs.sendMessage(request.sourceTabId!, { action: 'qiaomuTranscript' }), timeout]) as { html?: string; count?: number } | undefined;
-			return { html: answer?.html || '', count: answer?.count || 0 };
+			const answer = await Promise.race([browser.tabs.sendMessage(request.sourceTabId!, { action: 'qiaomuTranscript', ...(typeof request.language === 'string' && /^[A-Za-z0-9_-]{1,100}$/.test(request.language) ? { language: request.language } : {}) }), timeout]) as { html?: string; count?: number; languages?: Array<{id:string;label:string}>; selected?: string } | undefined;
+			return { html: answer?.html || '', count: answer?.count || 0, languages: answer?.languages, selected: answer?.selected };
 		} catch (error) { return { error: error instanceof Error ? error.message : '原页面不可用' }; }
 	})();
 });
