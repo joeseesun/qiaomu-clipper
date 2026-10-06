@@ -1,8 +1,11 @@
+import { mountStudyCaptionLanguage } from './study-caption-language';
+import { readTedMedia } from './ted-media';
+import { probeDouyinPage, probeWebStudy } from './web-study-probe';
 import DOMPurify from 'dompurify';
 import browser from './browser-polyfill';
 import { Reader } from './reader';
 import { setPageTitle, setPageUrl } from './highlighter';
-import { AUDIO_FILE, asrProbe, asrUpload, registerFeedEpisode, registerWebSource } from './asr-client';
+import { AUDIO_FILE, asrUpload, registerFeedEpisode, registerWebSource, useWebCookies } from './asr-client';
 import { createBarGeneration } from './bar-generation';
 import { buildGenerationPanel, GENERATION_STYLE, type GenUi } from './subtitle-generation-panel';
 import { generationStrings } from './subtitle-generation-strings';
@@ -14,7 +17,7 @@ import { createReaderSourceDraft } from './reader-source-draft';
 import { mountReaderPreviewShell } from './reader-preview-shell';
 import type { PanelSegment } from './youtube-panel-actions';
 import { durationText, parsePodcastPage, plainToHtml, type PodcastEpisode } from './podcast-page';
-import { xStatus } from './study-sites';
+import { siteOf, xStatus } from './study-sites';
 import { mountAudioControls } from './audio-controls';
 import { recordStudy } from './study-home';
 import { reloadPage } from './page-reload';
@@ -37,6 +40,7 @@ export interface AudioStudyOptions {
 	guid?: string;
 	// Any other site yt-dlp can read: its address.
 	webUrl?: string;
+	sourceTabId?: number;
 }
 const text = (id: string, zh: string, en: string) => { try { return browser.i18n.getMessage(id) || (/^zh/i.test(navigator.language) ? zh : en); } catch { return /^zh/i.test(navigator.language) ? zh : en; } };
 const FILE_PAGE_URL = 'https://qiaomu.local/audio';
@@ -49,6 +53,20 @@ export async function fetchEpisode(pageUrl: string): Promise<PodcastEpisode> {
 }
 
 const STYLE = `
+html .qiaomu-web-retry:has(.qiaomu-web-retry-actions){display:flex;flex-direction:column;align-items:flex-start;gap:6px;margin:8px 0 16px;padding:18px 20px;border-radius:16px;background:linear-gradient(var(--background-secondary,rgba(127,127,127,.1)),var(--background-secondary,rgba(127,127,127,.1))),var(--background-primary,#fff);box-shadow:0 0 0 1px var(--background-modifier-border,rgba(127,127,127,.16))}
+html .qiaomu-web-retry b{font-size:16px;font-weight:600;line-height:24px;color:var(--text-normal,#222)}
+html .qiaomu-web-retry p{margin:0;color:var(--text-muted,#666);font-size:14px;line-height:22px}
+html .qiaomu-web-retry-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+html .qiaomu-web-retry-actions button.qw-primary,html .qiaomu-web-retry-actions a.qw-secondary{display:inline-flex;align-items:center;justify-content:center;width:auto;min-height:36px;padding:0 16px;border:0;border-radius:10px;font-size:14px;font-weight:600;line-height:1;text-decoration:none;cursor:pointer;box-shadow:none}
+html .qiaomu-web-retry-actions button.qw-primary{background:var(--text-normal,#111);color:var(--background-primary,#fff)}
+html .qiaomu-web-retry-actions button.qw-primary:hover:not(:disabled){background:var(--text-normal,#111);opacity:.86}
+html .qiaomu-web-retry-actions button.qw-primary:disabled{opacity:.5;cursor:default}
+html .qiaomu-web-retry-actions a.qw-secondary{background:var(--background-modifier-hover,rgba(127,127,127,.16));color:var(--text-normal,#222)}
+html .qiaomu-web-retry-actions a.qw-secondary:hover{background:var(--background-modifier-border,rgba(127,127,127,.26))}
+html .qiaomu-web-retry-actions :is(button,a):focus-visible{outline:2px solid var(--text-accent,#666);outline-offset:2px}
+html .qiaomu-web-retry select{appearance:none;width:auto;max-width:100%;padding:8px 12px;border:1px solid var(--background-modifier-border,#bbb);border-radius:8px;background:var(--background-primary,#fff);color:var(--text-normal,#222);margin:0 8px 8px 0}
+html .qiaomu-web-retry select:focus-visible{outline:2px solid var(--text-accent,#666);outline-offset:2px}
+
 html.qiaomu-audio-page article{--qa-top:72px}
 .qiaomu-audio-hero{display:flex;gap:16px;align-items:center;margin:0 0 20px}
 .qiaomu-audio-hero img{flex:none;width:84px;height:84px;border-radius:18px;object-fit:cover;background:var(--background-secondary,rgba(127,127,127,.15));box-shadow:0 0 0 1px rgba(127,127,127,.18)}
@@ -117,7 +135,7 @@ article[data-audio-tab=transcript] .qiaomu-shownotes{display:none}
 `;
 
 export async function startAudioStudy(options: AudioStudyOptions): Promise<void> {
-	const initialTitle = options.title || (options.kind === 'file' ? '本地音频学习' : '播客学习');
+	const initialTitle = options.title || (options.kind === 'file' ? '本地音频学习' : options.kind === 'web' ? '视频学习' : '播客学习');
 	const url = options.webUrl || options.url || FILE_PAGE_URL;
 	const session = await createReaderSourceDraft(url, initialTitle);
 	Reader.onEdit = () => {};
@@ -141,21 +159,22 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 	let key = options.key || '', title = initialTitle, attached = false, remade = false; // `remade`: this transcript replaces one already on the page
 
 	// The player: an <audio> would do, but the transcript wiring follows a <video class="reader-video-player">, which plays audio too.
-	const showPlayer = (src: string, picture?: { poster?: string }): HTMLVideoElement => {
-		const player = mountMediaStudyPlayer(article, holder, src, Boolean(picture), picture?.poster);
+	const showPlayer = (src: string, picture?: { poster?: string; audioUrl?: string }): HTMLVideoElement => {
+		const player = mountMediaStudyPlayer(article, holder, src, Boolean(picture), picture?.poster, picture?.audioUrl);
 		if (!picture) player.parentElement!.append(mountAudioControls(document, player, { play: text('audioPlay', '播放', 'Play'), pause: text('audioPause', '暂停', 'Pause'), back: text('audioBack', '后退 15 秒', 'Back 15 s'), forward: text('audioForward', '前进 30 秒', 'Forward 30 s'), speed: text('audioSpeed', '播放速度', 'Playback speed'), seek: text('audioSeek', '播放进度', 'Position') }));
 		return player;
 	};
-	const attach = async (lines: PanelSegment[]) => {
-		if (attached || !lines.length) return;
-		const content = document.createElement('div'); content.innerHTML = DOMPurify.sanitize(transcriptHtml(lines));
+	const attach = async (lines: PanelSegment[], replace = false) => {
+		if ((attached && !replace) || !lines.length) return;
+		const content = document.createElement('div'); content.innerHTML = DOMPurify.sanitize(transcriptHtml(lines, !lines.some(s => s.start !== undefined)));
 		const transcript = content.querySelector<HTMLElement>(TRANSCRIPT_SELECTOR); if (!transcript) return;
+		if (replace) { article.dispatchEvent(new CustomEvent('qiaomu-transcript-replaced')); article.querySelector(TRANSCRIPT_SELECTOR)?.remove(); }
 		attached = true; status.textContent = '';
 		await Reader.attachYouTubeTranscript(document, transcript, title, shell.chat);
 		// The reader puts its switches (follow playback, translate) in a bar of their own under the player; here they belong in the one row of controls.
 		const group = article.querySelector<HTMLElement>('.player-container .player-toggle-group'), tools = article.querySelector<HTMLElement>('.player-container .qa-tools');
 		if (article.dataset.audioStudy === 'true' && group && tools) { tools.insertBefore(group, tools.querySelector('.qa-speed')); article.querySelector('.player-container .player-toggles')?.setAttribute('hidden', ''); }
-		await session.populate({ content: sourceHtml + transcriptHtml(lines), title }).catch(() => {});
+		await session.populate({ content: sourceHtml + transcriptHtml(lines, !lines.some(s => s.start !== undefined)), title }).catch(() => {});
 		shell.refresh(); shell.setPending(false);
 	};
 	const generation = createBarGeneration({
@@ -180,7 +199,7 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 
 	// An episode with a cover, a show, a date and show notes: from a Xiaoyuzhou page or from an RSS feed.
 	// `post`: a short text that belongs with the media (a post's words), shown under the heading rather than behind a tab.
-	const present = async (episode: { title: string; show: string; cover?: string; date?: string; seconds?: number; audio: string; picture?: boolean; notesHtml: string; notesLabel?: string; post?: string }) => {
+	const present = async (episode: { title: string; show: string; cover?: string; date?: string; seconds?: number; audio: string; audioUrl?: string; picture?: boolean; notesHtml: string; notesLabel?: string; post?: string }) => {
 		title = episode.title || initialTitle; document.title = title; setPageTitle(title);
 		const heading = document.querySelector('main h1'); if (heading) heading.textContent = title;
 		// The show, the date and the length, with the cover: what the listener knows the episode by.
@@ -191,7 +210,7 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 		const facts = [episode.date?.slice(0, 10), durationText(episode.seconds)].filter(Boolean).join(' · '); if (facts) { const line = document.createElement('span'); line.textContent = facts; about.append(line); }
 		hero.append(about); holder.before(hero);
 		if (episode.post) { const post = document.createElement('div'); post.className = 'qiaomu-post-text'; post.innerHTML = DOMPurify.sanitize(episode.post); sourceHtml = post.outerHTML; holder.before(post); }
-		const player = episode.audio ? showPlayer(episode.audio, episode.picture ? { poster: episode.cover } : undefined) : undefined;
+		const player = episode.audio ? showPlayer(episode.audio, episode.picture ? { poster: episode.cover, audioUrl: episode.audioUrl } : undefined) : undefined;
 		// The show notes next to the transcript: tabs, so neither pushes the other off the screen.
 		if (episode.notesHtml) {
 			const tabs = document.createElement('div'); tabs.className = 'qiaomu-audio-tabs'; tabs.setAttribute('role', 'tablist');
@@ -215,18 +234,34 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 		const address = options.webUrl ?? '';
 		if (!/^https:\/\//.test(address)) { status.textContent = '只支持 https 网址'; return; }
 		status.textContent = text('webReading', '正在读取这个网址…', 'Reading this address…');
-		const info = await asrProbe(address);
+		const official = await readTedMedia(address, async url => { const reply = await browser.runtime.sendMessage({ action: 'fetchProxy', url, options: {} }) as { text?: string }; return reply?.text || ''; });
+		const isDouyin = siteOf(address)?.id === 'douyin';
+		// The video host of Douyin may refuse a stranger's page as referrer; sending none works (checked on a live item).
+		if (isDouyin) { const meta = document.createElement('meta'); meta.name = 'referrer'; meta.content = 'no-referrer'; document.head.append(meta); }
+		const source = () => browser.runtime.sendMessage({ action: 'qiaomuWebStudySource', url: address, sourceTabId: options.sourceTabId }).catch(() => null) as Promise<import('./asr-client').WebInfo | null>;
+		const { info, cookies } = official ? { info: official, cookies: undefined }
+			: isDouyin ? { ...await probeDouyinPage(address, status, holder, source), cookies: undefined }
+			: await probeWebStudy(address, status, holder);
 		if (!info.ok) {
-			status.textContent = info.error === 'unsupported' ? '这个网址读不了：下载工具不支持这个网站，或这个页面里没有音视频。' : info.error === 'needs-cookies' ? '这个网站需要登录状态才能读取，暂时不支持。' : info.error === 'helper-offline' || info.error === 'helper-outdated' ? text('subtitleGenOffline', '没有连上本地助手，需要先安装或更新本地助手。', 'The local helper is not connected or is out of date.') : info.error === 'missing' ? '还没有安装下载工具（yt-dlp），请先在「语音识别」里安装，或运行 brew install yt-dlp。' : info.error === 'timeout' ? '读取超时，请稍后重试。' : '读取失败' + ((info as { message?: string }).message ? '：' + (info as { message?: string }).message : '');
+			status.textContent = info.error === 'unsupported' ? '这个网址读不了：下载工具不支持这个网站，或这个页面里没有音视频。' : info.error === 'needs-cookies' ? '这个网站需要有效的浏览器状态才能读取。' : info.error === 'helper-offline' || info.error === 'helper-outdated' ? text('subtitleGenOffline', '没有连上本地助手，需要先安装或更新本地助手。', 'The local helper is not connected or is out of date.') : info.error === 'missing' ? '还没有安装下载工具（yt-dlp），请先在「语音识别」里安装，或运行 brew install yt-dlp。' : info.error === 'timeout' ? '读取超时，请稍后重试。' : '读取失败' + ((info as { message?: string }).message ? '：' + (info as { message?: string }).message : '');
 			return;
 		}
-		key = await webKey(address); registerWebSource(key, address);
+		key = await webKey(address); registerWebSource(key, address, isDouyin ? info.audioUrl || info.mediaUrl || undefined : undefined);
+		if (cookies) useWebCookies(key, cookies);
 		void recordStudy({ url: address, title: info.title, path: `reader.html?study=web&url=${encodeURIComponent(address)}`, kind: 'web' });
 		// A post on X says something of its own: its words stay with the media. A long description of another site waits behind a tab.
 		const words = (info.description ?? '').trim(), isPost = Boolean(xStatus(address)), short = isPost || words.length <= 400;
-		await present({ title: info.title, show: info.author || info.site, cover: info.thumbnail ?? undefined, date: info.date ?? undefined, seconds: info.seconds ?? undefined, audio: info.mediaUrl ?? '', picture: info.video && Boolean(info.mediaUrl), ...(words && short ? { post: plainToHtml(words) } : {}), ...(words && !short ? { notesHtml: plainToHtml(words), notesLabel: text('audioTabAbout', '简介', 'Description') } : { notesHtml: '' }) });
+		await present({ title: info.title, show: info.author || info.site, cover: info.thumbnail ?? undefined, date: info.date ?? undefined, seconds: info.seconds ?? undefined, audio: info.mediaUrl ?? '', audioUrl: info.audioUrl, picture: info.video && Boolean(info.mediaUrl), ...(words && short ? { post: plainToHtml(words) } : {}), ...(words && !short ? { notesHtml: plainToHtml(words), notesLabel: text('audioTabAbout', '简介', 'Description') } : { notesHtml: '' }) });
 		if (!info.mediaUrl) { const note = document.createElement('p'); note.className = 'qiaomu-shows-note'; note.append(document.createTextNode('这个网站没有给出可以直接播放的声音，所以这里不提供播放器；字幕照常生成，对照时请在原页面播放：')); const link = document.createElement('a'); link.href = address; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = '打开原页面'; note.append(link); holder.before(note); }
-		await begin(); return;
+		if (official?.segments.length) {
+			await attach(official.segments); panel.element.hidden = true;
+			if (!official.timelineAligned) status.textContent = '官方字幕已读取，播放时间轴暂未校准。';
+			mountStudyCaptionLanguage(article, official.languages, official.language, async language => {
+				const found = await readTedMedia(address, async url => { const r = await browser.runtime.sendMessage({ action: 'fetchProxy', url, options: {} }) as { text?: string }; return r?.text || ''; }, undefined, language);
+				if (!found?.segments.length) throw new Error('字幕不可用');
+				await attach(found.segments, true);
+			});
+		} else await begin(); return;
 	}
 	if (options.kind === 'feed') {
 		if (!options.feed || !options.guid) { status.textContent = '无效的节目链接'; return; }

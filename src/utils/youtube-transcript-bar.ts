@@ -211,14 +211,14 @@ export function buildTranscriptBar(doc: Document, hooks: BarHooks): TranscriptBa
 		if (!open || rendered === segments.length) return;
 		rendered = segments.length; list.replaceChildren(); rows = []; headings = []; activeIndex = -1;
 		// One row per caption cue like YouTube's own transcript (a few seconds each), not a long paragraph.
-		const groups = groupSegments(segments, 8, 3);
-		for (const { time, text, chapter } of groups.slice(0, MAX_ROWS)) {
+		const groups = segments.some(s => s.start !== undefined) ? segments : groupSegments(segments, 8, 3);
+		for (const { time, text, chapter, start: preciseStart } of groups.slice(0, MAX_ROWS)) {
 			if (chapter) { const heading = doc.createElement('div'); heading.className = 'qiaomu-yt-bar-chapter'; heading.setAttribute('role', 'heading'); heading.setAttribute('aria-level', '3'); heading.textContent = chapter; list.append(heading); headings.push({ element: heading, from: rows.length, to: rows.length }); }
 			const element = doc.createElement('button'); element.type = 'button'; element.className = 'qiaomu-yt-bar-line'; element.setAttribute('role', 'listitem');
 			const stamp = doc.createElement('span'); stamp.className = 'qiaomu-yt-bar-time'; stamp.textContent = time;
 			const words = doc.createElement('span'); words.className = 'qiaomu-yt-bar-text';
 			element.append(stamp, words);
-			const start = seconds(time);
+			const start = preciseStart ?? seconds(time);
 			// The pressed line is already on screen: mark it, jump the video, and leave the list where it is.
 			press(element, () => { ignoreTimeUntil = Date.now() + 900; lastUserScroll = 0; clearTimeout(resumeTimer); hooks.seek(start); setActive(activeIndexAt(starts, start), false); paintProgress(start); });
 			rows.push({ element, words, start, text, match: true }); list.append(element);

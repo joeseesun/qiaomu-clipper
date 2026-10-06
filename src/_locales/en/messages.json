@@ -1596,6 +1596,9 @@
 	"qiaomuTranslationRetry": {
 		"message": "Retry translation"
 	},
+	"qiaomuTranslationFormatRetry": {
+		"message": "Retrying this group of translations…"
+	},
 	"qiaomuTranslationInvalid": {
 		"message": "The model returned incomplete segment data. Please retry."
 	},
@@ -1606,7 +1609,7 @@
 		"message": "Configure and enable an AI model in extension settings first."
 	},
 	"qiaomuTranslationDone": {
-		"message": "Translation complete; Chinese source text is unchanged."
+		"message": "Translation complete"
 	},
 	"qiaomuTranslationTimeout": {
 		"message": "Translation timed out. Retry to continue."
@@ -1615,7 +1618,7 @@
 		"message": "Translation failed. Retry to continue."
 	},
 	"qiaomuTranslationService": {
-		"message": "Translate subtitles with your configured AI model; translations are cached only on this page."
+		"message": "Translate subtitles with your configured AI model; clip original, translated or bilingual captions."
 	},
 	"qiaomuChatSectionAppearance": {
 		"message": "Appearance"

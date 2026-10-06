@@ -1,3 +1,4 @@
+import { mountStudyCaptionLanguage } from './study-caption-language';
 import Defuddle from 'defuddle';
 import DOMPurify from 'dompurify';
 import browser from './browser-polyfill';
@@ -63,6 +64,8 @@ export async function startYouTubeStudy(url: string, sourceTabId: number, initia
 	retry.setAttribute('aria-label', '重新加载字幕');
 	status.after(retry);
 	let loading = false;
+	let captionLanguages: Array<{id:string;label:string}> = [], captionSelected = '';
+	let studyResult: any = { content: '', title };
 	let loaded = false, remade = false; // `remade`: the generated transcript replaces one already on the page
 
 	// Videos without subtitles: offer to generate them on this computer (the helper does the work; see subtitle-generation.ts).
@@ -98,8 +101,9 @@ export async function startYouTubeStudy(url: string, sourceTabId: number, initia
 				// Fastest: the video tab prefetched the transcript when the page went idle. Only the title, description and
 				// the like are still read from the page copy, without any network, so nothing here waits on a timeout.
 				const fromPrefetch = async (): Promise<any> => {
-					const answer = await browser.runtime.sendMessage({ action: 'qiaomuStudyTranscript', sourceTabId, url }).catch(() => undefined) as { html?: string; error?: string } | undefined;
+					const answer = await browser.runtime.sendMessage({ action: 'qiaomuStudyTranscript', sourceTabId, url }).catch(() => undefined) as { html?: string; error?: string; languages?: Array<{id:string;label:string}>; selected?: string } | undefined;
 					if (signal.aborted || !answer?.html) throw new Error(answer?.error || '原页面还没有字幕');
+					captionLanguages = answer.languages || []; captionSelected = answer.selected || '';
 					const source = await browser.runtime.sendMessage({ action: 'qiaomuYouTubeStudySource', sourceTabId, url }) as { html?: string };
 					let meta: any = { content: '', title };
 					if (source?.html) {
@@ -153,6 +157,7 @@ export async function startYouTubeStudy(url: string, sourceTabId: number, initia
 			const nextTitle = result.title || title;
 			document.title = nextTitle; setPageTitle(nextTitle);
 			const heading = document.querySelector('main h1'); if (heading) heading.textContent = nextTitle;
+			studyResult = result;
 			await onReady(result);
 			if (!transcript || !transcriptText(content)) {
 				// Nothing from the platform: a transcript generated on this computer earlier is used instead.
@@ -164,6 +169,19 @@ export async function startYouTubeStudy(url: string, sourceTabId: number, initia
 			}
 			await Reader.attachYouTubeTranscript(document, transcript, nextTitle, shell?.chat);
 			loaded = true; panel.show(null);
+			let currentContent = result.content;
+			mountStudyCaptionLanguage(article, captionLanguages, captionSelected, async language => {
+				const answer = await browser.runtime.sendMessage({ action: 'qiaomuStudyTranscript', sourceTabId, url, language }) as { html?: string; selected?: string };
+				if (!answer?.html || answer.selected !== language) throw new Error('字幕不可用');
+				const holder = document.createElement('div'); holder.innerHTML = DOMPurify.sanitize(answer.html);
+				const next = holder.querySelector<HTMLElement>(TRANSCRIPT_SELECTOR); if (!next?.querySelector('.transcript-segment')) throw new Error('字幕不可用');
+				const source = document.createElement('div'); source.innerHTML = DOMPurify.sanitize(currentContent);
+				const previous = source.querySelector(TRANSCRIPT_SELECTOR); if (!previous) throw new Error('字幕不可用');
+				previous.replaceWith(next.cloneNode(true));
+				await onReady({ ...result, content: source.innerHTML }); currentContent = source.innerHTML;
+				article.dispatchEvent(new CustomEvent('qiaomu-transcript-replaced')); article.querySelector(TRANSCRIPT_SELECTOR)?.remove();
+				await Reader.attachYouTubeTranscript(document, next, nextTitle, shell?.chat);
+			});
 			shell?.ready();
 			if (clip) clip.disabled = false;
 		};
@@ -181,8 +199,10 @@ export async function startYouTubeStudy(url: string, sourceTabId: number, initia
 	}
 	// A generated transcript goes into the page the same way as one from the platform.
 	attachGenerated = async lines => {
-		const holder = document.createElement('div'); holder.innerHTML = DOMPurify.sanitize(transcriptHtml(lines));
+		const raw = transcriptHtml(lines);
+		const holder = document.createElement('div'); holder.innerHTML = DOMPurify.sanitize(raw);
 		const transcript = holder.querySelector<HTMLElement>(TRANSCRIPT_SELECTOR); if (!transcript || loaded) return;
+		await onReady({ ...studyResult, content: (studyResult.content || '') + raw });
 		await Reader.attachYouTubeTranscript(document, transcript, document.title, shell?.chat);
 		loaded = true; status.textContent = ''; retry.hidden = true; shell?.ready(); if (clip) clip.disabled = false;
 	};

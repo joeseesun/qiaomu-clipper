@@ -1,3 +1,4 @@
+import { transcriptHeadingTools } from './transcript-heading';
 import { createElement, WandSparkles } from 'lucide';
 import { mountClipChat } from './clip-chat';
 import { learningNotes } from './learning-composer';
@@ -32,7 +33,7 @@ export async function mountYouTubeStudy(doc: Document, article: HTMLElement, tit
 	feedback.append(status);
 	const text = transcriptText(article);
 	const transcript = article.querySelector(TRANSCRIPT_SELECTOR);
-	if (transcript) transcript.before(feedback); else article.append(feedback);
+	if (transcript) transcriptHeadingTools(transcript).append(feedback); else article.append(feedback);
 	const toggleGroup = article.querySelector<HTMLElement>('.player-toggle-group');
 	const controls = toggleGroup || feedback;
 	let chat: ReturnType<typeof mountClipChat> | undefined = existingChat;

@@ -17,3 +17,16 @@ it('keeps audio in the audio layout without video controls, while classifying lo
 	for(const name of ['test.mp4','test.MOV','test.webm'])expect(isVideoFile({name,type:''})).toBe(true);
 	expect(isVideoFile({name:'unknown',type:'video/mp4'})).toBe(true);expect(isVideoFile({name:'sound.mp3',type:'audio/mpeg'})).toBe(false);
 });
+it('keeps a separate MSE audio track synchronized with video playback and reader time jumps', async () => {
+	const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(), pause = vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {});
+	const article = document.querySelector('article')!, video = mountMediaStudyPlayer(article, document.querySelector('#captions')!, 'https://video.example/picture.mp4', true, undefined, 'https://video.example/audio.mp4');
+	const audio = article.querySelector('audio')!;
+	video.currentTime = 16; video.dispatchEvent(new Event('play')); expect(audio.currentTime).toBe(16); expect(play).toHaveBeenCalledOnce();
+	video.currentTime = 30; video.dispatchEvent(new Event('seeked')); expect(audio.currentTime).toBe(30);
+	video.playbackRate = 1.5; video.dispatchEvent(new Event('ratechange')); expect(audio.playbackRate).toBe(1.5);
+	video.muted = true; video.dispatchEvent(new Event('volumechange')); expect(audio.muted).toBe(true);
+	video.dispatchEvent(new Event('waiting')); expect(pause).toHaveBeenCalledOnce();
+	video.dispatchEvent(new Event('playing')); expect(play).toHaveBeenCalledTimes(2);
+	video.parentElement!.remove(); await Promise.resolve(); expect(pause).toHaveBeenCalledTimes(2);
+	play.mockRestore(); pause.mockRestore();
+});

@@ -173,7 +173,12 @@ try {
 		// Study mode asks the video's own tab for the transcript the bar already has (Bilibili's, or one generated here).
 		api.runtime.onMessage.addListener((request, _sender, respond) => {
 			if (request?.action !== 'qiaomuTranscript') return;
-			getSegments().then(segments => respond({ html: segments.length ? transcriptHtml(segments) : '', count: segments.length })).catch(() => respond({ html: '', count: 0 }));
+			void (async () => {
+				await getSegments();
+				if (typeof request.language === 'string') await chooseLanguage(request.language);
+				const segments = await getSegments(), entry = store.get(currentKey()?.key || '');
+				respond({ html: segments.length ? transcriptHtml(segments) : '', count: segments.length, languages: entry && !entry.generated ? optionsOf(entry.tracks) : [], selected: entry?.selected });
+			})().catch(() => respond({ html: '', count: 0 }));
 			return true;
 		});
 

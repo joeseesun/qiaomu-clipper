@@ -26,3 +26,13 @@ it('honors matched template destinations and never changes an installed native s
 	const session=await createReaderSourceDraft('https://youtube.com/watch?v=dbqweBCynuI','Video');await session.populate({content:'Transcript HTML'});
 	expect(session.draft.local).toMatchObject({vault:'Explicit',folder:'Videos',behavior:'append-specific'});expect(session.draft.native).toBe(true);
 });
+
+it('retains inserted AI notes when a selected official caption language repopulates the draft', async()=>{
+ const session=await createReaderSourceDraft('https://www.ted.com/talks/example','Study');
+ await session.populate({title:'First language',content:'Captions'});
+ session.draft.readerAppendix='\n\nAI notes kept across language changes\n';
+ await session.populate({title:'Second language',content:'New captions'});
+ expect(session.draft.local.content).toContain('AI notes kept across language changes');
+ await session.populate({title:'Third language',content:'More captions'});
+ expect(session.draft.clip.markdown.match(/AI notes kept/g)).toHaveLength(1);
+});

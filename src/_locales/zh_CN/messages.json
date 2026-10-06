@@ -1596,6 +1596,9 @@
 	"qiaomuTranslationRetry": {
 		"message": "重试翻译"
 	},
+	"qiaomuTranslationFormatRetry": {
+		"message": "正在重新读取这一组译文…"
+	},
 	"qiaomuTranslationInvalid": {
 		"message": "模型返回的分段格式不完整，请重试。"
 	},
@@ -1606,7 +1609,7 @@
 		"message": "请先在扩展设置中配置并启用 AI 模型。"
 	},
 	"qiaomuTranslationDone": {
-		"message": "翻译完成；中文原文保持不变。"
+		"message": "翻译完成"
 	},
 	"qiaomuTranslationTimeout": {
 		"message": "翻译超时，可重试继续。"
@@ -1615,7 +1618,7 @@
 		"message": "翻译失败，可重试继续。"
 	},
 	"qiaomuTranslationService": {
-		"message": "使用已配置的 AI 模型翻译字幕；译文仅缓存在当前页。"
+		"message": "使用已配置的 AI 模型翻译字幕；剪藏时可选择原文、译文或双语。"
 	},
 	"qiaomuChatSectionAppearance": {
 		"message": "外观"

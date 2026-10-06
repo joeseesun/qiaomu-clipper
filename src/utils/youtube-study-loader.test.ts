@@ -169,6 +169,7 @@ it('offers to generate subtitles when the platform has none, checks the helper, 
 	expect(Reader.attachYouTubeTranscript).toHaveBeenCalledOnce();
 	const attached = (Reader.attachYouTubeTranscript as any).mock.calls[0][1] as HTMLElement;
 	expect(Array.from(attached.querySelectorAll('.transcript-segment')).map(n => n.textContent)).toEqual(expect.arrayContaining([expect.stringContaining('第一句'), expect.stringContaining('第二句')]));
+	expect(state.ready.mock.calls[state.ready.mock.calls.length - 1][0].content).toContain('第一句');
 	expect(Object.keys(state.store)).toContain('qiaomuTranscript2:generated:' + KEY); // kept for the next visit
 	expect(document.querySelector('.qiaomu-yt-gen')!.textContent).toContain('字幕由「本机识别」生成');
 	expect(document.querySelector<HTMLElement>('.youtube-study-status')!.textContent).toBe('');
@@ -213,4 +214,15 @@ it('asks the Bilibili page for its transcript too, so a generated one shows up i
 	await startYouTubeStudy('https://www.bilibili.com/video/BV1hM4m1U7rA/?p=20', 42, 'Video', state.ready); await flush();
 	expect(Reader.attachYouTubeTranscript).toHaveBeenCalledOnce();
 	expect(state.fetch.mock.calls.some(([message]) => message?.action === 'qiaomuStudyLiveExtract')).toBe(false);
+});
+
+it('switches official languages without restarting the player or losing content after the transcript',async()=>{
+ const english=result.content, chinese='<div class="youtube transcript"><p class="transcript-segment">官方中文</p></div>';
+ state.fetch.mockImplementation(async (message:{action:string;language?:string})=>message.action==='qiaomuStudyTranscript'?{html:message.language?chinese:english,selected:message.language||'en',languages:[{id:'en',label:'English'},{id:'zh-cn',label:'中文'}]}:{html:'<html><body>source</body></html>'});
+ state.parse.mockResolvedValue({...result,content:'<p>Before</p>'+english+'<p>After</p>'});
+ await startYouTubeStudy(url,42,'Video',state.ready);await flush();
+ const frame=document.querySelector('iframe'), select=document.querySelector<HTMLSelectElement>('[aria-label="官方字幕语言"]')!;
+ expect(select).not.toBeNull();select.value='zh-cn';select.dispatchEvent(new Event('change'));await flush();
+ expect(document.querySelector('iframe')).toBe(frame);expect(document.querySelector('.transcript')!.textContent).toBe('官方中文');
+ const saved=state.ready.mock.calls[state.ready.mock.calls.length - 1][0].content;expect(saved).toContain('<p>Before</p>');expect(saved).toContain('<p>After</p>');expect(saved).toContain('官方中文');expect(saved).not.toContain('Actual subtitle');
 });

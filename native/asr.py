@@ -25,7 +25,7 @@ TOOL_DIRS = ['/opt/homebrew/bin', '/usr/local/bin', str(Path.home() / '.local/bi
 LANGUAGES = {'auto', 'zh', 'en', 'ja', 'ko', 'de', 'fr', 'es', 'ru', 'pt', 'it'}
 # Browsers yt-dlp can borrow a login from. Only ever used when the viewer explicitly asked for it for this video.
 COOKIE_BROWSERS = {'chrome', 'edge', 'brave', 'chromium', 'firefox', 'safari'}
-NEEDS_LOGIN = re.compile(r'sign in to confirm|not a bot|use --cookies|login required|412', re.I)
+NEEDS_LOGIN = re.compile(r'sign in to confirm|not a bot|use --cookies|fresh cookies|login required|412', re.I)
 # Lines Whisper tends to invent over silence or music. Only dropped when they stand alone in a short segment.
 HALLUCINATIONS = ('谢谢观看', '感谢观看', '请不吝点赞', '字幕由', '字幕 by', '字幕by', '订阅', 'thanks for watching', 'thank you for watching', 'subtitles by', 'amara.org')
 
@@ -205,15 +205,43 @@ def public_https(url):
     if host == 'localhost' or host.endswith(('.localhost', '.local', '.internal', '.lan', '.home', '.corp', '.intranet')) or '.' not in host: return False
     try: ipaddress.ip_address(host.strip('[]')); return False  # a numeric address of any kind
     except ValueError: return True
-def open_public(url, timeout=30):
+def open_public(url, timeout=30, headers=None, allowed=None):
     import urllib.request
     class Guard(urllib.request.HTTPRedirectHandler):
         def redirect_request(self, req, fp, code, msg, headers, newurl):
-            if not public_https(newurl): raise OSError('跳转到了不允许的地址')
+            if not public_https(newurl) or (allowed and not allowed(newurl)): raise OSError('跳转到了不允许的地址')
             return super().redirect_request(req, fp, code, msg, headers, newurl)
-    if not public_https(url): raise OSError('地址不是公开的 https 地址')
+    if not public_https(url) or (allowed and not allowed(url)): raise OSError('地址不是公开的 https 地址')
     opener = urllib.request.build_opener(Guard)
-    return opener.open(urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (qiaomu-clipper)', 'Accept': '*/*'}), timeout=timeout)
+    return opener.open(urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (qiaomu-clipper)', 'Accept': '*/*', **(headers or {})}), timeout=timeout)
+BROWSER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36'
+def douyin_media(page, media):
+    from urllib.parse import urlparse, parse_qs
+    if not isinstance(media, str) or len(media) > 8000 or not re.fullmatch(r'https://www\.douyin\.com/video/\d+', str(page)): return False
+    try:
+        parsed = urlparse(media); host = (parsed.hostname or '').lower()
+        params = parse_qs(parsed.query, keep_blank_values=True)
+        return public_https(media) and parsed.port in (None, 443) and (host == 'douyinvod.com' or host.endswith('.douyinvod.com')) and ('__vid' not in params or params['__vid'] == [page.rsplit('/', 1)[-1]])
+    except ValueError: return False
+def download_page_media(directory, spec):
+    import urllib.error
+    page = spec['url']; media = spec['mediaUrl']
+    if not douyin_media(page, media): raise Failed('视频地址无效，请刷新原页面后重试')
+    target = directory / 'audio.src.mp4'
+    write_state(directory, state='downloading', stage='正在读取原页面视频', progress=0)
+    try:
+        with open_public(media, timeout=60, headers={'Referer': page, 'User-Agent': BROWSER_AGENT}, allowed=lambda url: douyin_media(page, url)) as response, target.open('wb') as out:
+            total = int(response.headers.get('Content-Length') or 0); got = 0
+            if total > MAX_UPLOAD: raise Failed('视频文件太大')
+            for block in iter(lambda: response.read(1 << 20), b''):
+                got += len(block)
+                if got > MAX_UPLOAD: raise Failed('视频文件太大')
+                out.write(block)
+                if total: write_state(directory, state='downloading', stage='正在读取原页面视频', progress=round(min(got / total, 1) * 15, 1))
+            if not got or (total and got < total): raise Failed('视频下载中断，请刷新原页面后重试')
+    except urllib.error.HTTPError as error: raise Failed(f'视频地址已过期或被拒绝（{error.code}），请刷新原页面后重新进入学习模式')
+    except OSError: raise Failed('视频地址已过期或暂时无法读取，请刷新原页面后重新进入学习模式')
+    return target
 def cdata(text): return html_unescape(re.sub(r'^\s*<!\[CDATA\[(.*?)\]\]>\s*$', r'\1', str(text or ''), flags=re.S)).strip()
 def html_unescape(text):
     import html
@@ -362,7 +390,7 @@ def clean_key(key):
     return key
 def start(base, message):
     video_key = message.get('videoKey'); url = video_url(video_key)
-    rss = None
+    rss = None; media_url = None
     if video_key.startswith('rss:'):
         ref = message.get('rss') or {}
         if not isinstance(ref, dict) or not isinstance(ref.get('feed'), str) or not isinstance(ref.get('guid'), str) or len(ref['feed']) > 600 or len(ref['guid']) > 800: raise ValueError('订阅源信息无效')
@@ -375,6 +403,9 @@ def start(base, message):
         if video_key != 'web:' + sha(ref['url'], 12): raise ValueError('网页地址与视频标识不符')
         if not public_https(ref['url']): raise ValueError('网页地址必须是公开的 https 地址')
         url = ref['url']
+        if ref.get('mediaUrl') is not None:
+            if not douyin_media(url, ref['mediaUrl']): raise ValueError('原页面视频地址无效')
+            media_url = ref['mediaUrl']
     if video_key.startswith('file:') and not staged_file(base, video_key) and not read_json(result_path(base, video_key)): return {'ok': False, 'error': 'file-missing'}
     language = message.get('language') or 'auto'
     if language not in LANGUAGES: raise ValueError('不支持的语言')
@@ -401,7 +432,7 @@ def start(base, message):
         state = write_state(directory, id=job_id, videoKey=video_key, state='completed', stage='已从本机缓存读取', progress=100, engine=cached.get('engine'), language=cached.get('language'), cached=True, segmentCount=len(cached['segments']), totalSec=cached.get('duration'), processedSec=cached.get('duration'))
         return view(directory, state)
     engine = 'cloud' if cloud else info['engine']
-    spec = {'id': job_id, 'videoKey': video_key, 'url': url, 'language': language, 'engine': engine, 'cookies': cookies, 'cloud': cloud, 'context': message.get('context') is not False, **({'rss': rss} if rss else {})}
+    spec = {'id': job_id, 'videoKey': video_key, 'url': url, 'language': language, 'engine': engine, 'cookies': cookies, 'cloud': cloud, 'context': message.get('context') is not False, **({'rss': rss} if rss else {}), **({'mediaUrl': media_url} if media_url else {})}
     atomic_json(directory / 'spec.json', spec)
     write_state(directory, id=job_id, videoKey=video_key, state='queued', stage='正在准备', progress=0, engine=engine, language=language, segmentCount=0, createdAt=time.time())
     write_state(directory, pid=spawn_worker(directory, key))
@@ -429,9 +460,14 @@ def probe(message):
     direct media address when the site gives a plain file the page can play)."""
     url = message.get('url')
     if not isinstance(url, str) or len(url) > 1500 or not public_https(url): raise ValueError('网页地址必须是公开的 https 地址')
+    cookies = message.get('cookies') or None
+    if cookies is not None and cookies not in COOKIE_BROWSERS: raise ValueError('不支持的浏览器')
     ytdlp = find_tool('yt-dlp')
     if not ytdlp: return {'ok': False, 'error': 'missing', 'missing': ['yt-dlp']}
-    try: result = subprocess.run([ytdlp, '--dump-single-json', '--no-playlist', '--skip-download', '--no-warnings', '--socket-timeout', '20', '-f', 'bestaudio/best', url], capture_output=True, text=True, timeout=60, env=tool_env())
+    command = [ytdlp, '--dump-single-json', '--no-playlist', '--skip-download', '--no-warnings', '--socket-timeout', '20', '-f', 'bestaudio/best']
+    if cookies: command += ['--cookies-from-browser', cookies]
+    command.append(url)
+    try: result = subprocess.run(command, capture_output=True, text=True, timeout=60, env=tool_env())
     except subprocess.TimeoutExpired: return {'ok': False, 'error': 'timeout'}
     if result.returncode != 0:
         text = (result.stderr or '').strip(); low = text.lower()
@@ -608,6 +644,7 @@ def download(directory, spec, env, tools):
     if spec['videoKey'].startswith('xiaoyuzhou:'): return download_podcast(directory, spec)
     if spec['videoKey'].startswith('rss:'): return download_rss(directory, spec)
     if spec['videoKey'].startswith('file:'): return copy_staged(directory, spec, directory.parent.parent.parent)
+    if spec['videoKey'].startswith('web:') and spec.get('mediaUrl'): return download_page_media(directory, spec)
     command = [tools['yt-dlp'], '--no-playlist', '--no-warnings', '--newline', '--no-continue', '--retries', '4', '--fragment-retries', '4', '-f', 'bestaudio/best', '--write-info-json', '-o', str(directory / 'audio.%(ext)s')]
     if spec.get('cookies') in COOKIE_BROWSERS: command += ['--cookies-from-browser', spec['cookies']]
     command.append(spec['url'])

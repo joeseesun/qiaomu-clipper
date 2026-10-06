@@ -1,3 +1,4 @@
+import { createMarkdownContent } from 'defuddle/full';
 import { ClipPreview, updateClipPreview } from './clip-preview';
 import { generalSettings, loadSettings } from './storage-utils';
 import browser from './browser-polyfill';
@@ -30,8 +31,14 @@ export async function createReaderSourceDraft(url: string, initialTitle: string)
 			Promise.all(selected.properties.map(async property => ({...property,value:await compile(property.value)}))),
 		]);
 		draft.properties = properties;
-		draft.clip = {url,title:name.trim() || result.title || title,markdown,image:result.image};
-		Object.assign(draft.local,{name:`${sanitizeFileName(name.trim() || draft.clip.title)}.md`, folder, vault:selected.vault || saved.lastSelectedVault || generalSettings.vaults[0] || '', behavior:selected.behavior, content:await generateFrontmatter(properties)+markdown});
+		const body = markdown + (draft.readerAppendix || '');
+			draft.clip = {url,title:name.trim() || result.title || title,markdown:body,image:result.image};
+			if (typeof DOMParser !== 'undefined') {
+				const transcript = new DOMParser().parseFromString(result.content || '', 'text/html').querySelector('.transcript');
+				const source = transcript ? createMarkdownContent(transcript.outerHTML, url).trim() : '';
+				draft.transcriptExport = source ? { source, previous: source, mode: draft.transcriptExport?.mode } : undefined;
+			}
+		Object.assign(draft.local,{name:`${sanitizeFileName(name.trim() || draft.clip.title)}.md`, folder, vault:selected.vault || saved.lastSelectedVault || generalSettings.vaults[0] || '', behavior:selected.behavior, content:await generateFrontmatter(properties)+body});
 		try { const status = await browser.runtime.sendMessage({action:'qiaomuLocalStatus'}) as {ok?:boolean}; draft.native = Boolean(status?.ok || saved.qiaomuNativeConfigured); } catch { /* Preserve the configured save transport. */ }
 		await updateClipPreview(draft);
 	}};

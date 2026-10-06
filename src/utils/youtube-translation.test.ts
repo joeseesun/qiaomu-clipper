@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
-import { beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 const state = vi.hoisted(() => ({stream:vi.fn(), models:[{id:'model',name:'Model'}]}));
 vi.mock('./chat-llm', () => ({enabledChatModels:()=>state.models, streamChat:(...args:unknown[])=>state.stream(...args)}));
 vi.mock('./storage-utils', () => ({loadSettings:async()=>{},getLocalStorage:async()=> 'model'}));
 vi.mock('./i18n', () => ({getMessage:(key:string)=>key}));
 import { translationBatches, parseTranslation, mountTranslation, TRANSLATION_SYSTEM } from './youtube-translation';
 import { transcriptText } from './youtube-study';
+afterEach(()=>vi.useRealTimers());
 const flush=async()=>{for(let i=0;i<25;i++)await Promise.resolve();};
 function setup(texts=['English source','Another segment']) {
 	document.body.innerHTML='<article><div class="toolbar"><span role="status"></span></div><div class="youtube transcript"></div></article>';
@@ -95,4 +96,43 @@ it('retains an original-text selection while switching bilingual paragraphs on a
  const selection=document.getSelection()!;selection.setBaseAndExtent(text,0,text,8);
  input.click();await flush();expect(selection.toString()).toBe('Original');
  input.click();expect(selection.toString()).toBe('Original');
+});
+
+it('automatically retries malformed JSON as plain blocks and preserves ordinary quotes and newlines',async()=>{
+ state.stream.mockResolvedValueOnce('[\n{"id" broken: 0, "text":"bad"}]').mockImplementationOnce(async options=>JSON.parse(options.messages[0].content).map(({id}:{id:number})=>`<<<TRANSLATION:${id}>>>\n他说："中文引语"\n\n第二段。\n<<<END_TRANSLATION>>>`).join('\n\n'));
+ const {article,input}=setup();input.click();await flush();
+ expect(state.stream).toHaveBeenCalledTimes(2);expect(article.querySelectorAll('.transcript-translation')).toHaveLength(2);
+ expect(article.querySelector('.transcript-translation')!.textContent).toContain('"中文引语"');expect(article.querySelector('[role=status]')!.textContent).toBe('qiaomuTranslationDone');
+});
+it('bounds format retries, shows no JSON parser details and only retries unfinished batches',async()=>{
+ state.stream.mockImplementationOnce(async options=>response(options)).mockResolvedValueOnce('[{"id" broken}]').mockResolvedValueOnce('truncated block');
+ const {article,input}=setup(Array(10).fill('Text'));input.click();await flush();
+ expect(state.stream).toHaveBeenCalledTimes(3);expect(article.querySelectorAll('.transcript-translation')).toHaveLength(8);
+ expect(article.querySelector('[role=status]')!.textContent).toContain('qiaomuTranslationInvalid');expect(article.textContent).not.toContain('JSON at position');
+ state.stream.mockImplementation(async options=>response(options));article.querySelector<HTMLButtonElement>('.youtube-translation-retry')!.click();await flush();
+ expect(JSON.parse(state.stream.mock.calls[3][0].messages[0].content)).toHaveLength(2);expect(article.querySelectorAll('.transcript-translation')).toHaveLength(10);
+});
+it('never attaches a fallback translation to a missing, duplicated or foreign cue id',async()=>{
+ const {parseTranslationBlocks}=await import('./youtube-translation');const batch=[{id:0,segment:0,text:'A'},{id:1,segment:1,text:'B'}];
+ for(const ids of [[0],[0,0],[0,9]])expect(()=>parseTranslationBlocks(ids.map(id=>`<<<TRANSLATION:${id}>>>\n译文\n<<<END_TRANSLATION>>>`).join('\n'),batch)).toThrow('qiaomuTranslationInvalid');
+ expect(()=>parseTranslation('[{"id" broken}]',batch)).toThrow('qiaomuTranslationInvalid');
+});
+
+it('accepts valid JSON on the recovery request even when a model ignores the block format',async()=>{
+ state.stream.mockResolvedValueOnce('broken JSON').mockImplementationOnce(async options=>response(options));
+ const {article,input}=setup();input.click();await flush();expect(article.querySelectorAll('.transcript-translation')).toHaveLength(2);
+});
+it('cancels an in-flight format retry when changing subtitle language and ignores its late response',async()=>{
+ let resolve!:(text:string)=>void;let options!:Parameters<typeof response>[0]&{signal:AbortSignal};
+ state.stream.mockResolvedValueOnce('broken JSON').mockImplementationOnce(value=>{options=value;return new Promise(done=>{resolve=done;});});
+ const {article,input}=setup();input.click();await flush();article.dispatchEvent(new CustomEvent('qiaomu-transcript-replaced'));
+ expect(options.signal.aborted).toBe(true);resolve(response(options));await flush();expect(article.querySelector('.transcript-translation')).toBeNull();
+});
+
+it('clears the short completion feedback after three seconds while keeping failure feedback actionable',async()=>{
+ vi.useFakeTimers();const view=setup();view.input.click();await flush();expect(view.article.querySelector('[role=status]')!.textContent).toBe('qiaomuTranslationDone');
+ await vi.advanceTimersByTimeAsync(3000);expect((view.article.querySelector('[role=status]') as HTMLElement).dataset.feedbackState).toBe('leaving');
+ await vi.advanceTimersByTimeAsync(200);expect(view.article.querySelector('[role=status]')!.textContent).toBe('');
+ state.stream.mockRejectedValue(new Error('Offline'));const failed=setup();failed.input.click();await flush();await vi.advanceTimersByTimeAsync(10000);
+ expect(failed.article.querySelector('[role=status]')!.textContent).toContain('qiaomuTranslationError');expect(failed.article.querySelector<HTMLButtonElement>('.youtube-translation-retry')!.hidden).toBe(false);
 });

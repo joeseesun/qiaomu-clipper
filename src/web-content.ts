@@ -1,3 +1,6 @@
+import { readPageMedia } from './utils/web-page-media';
+import { readTedMedia } from './utils/ted-media';
+import { placeWebBar, WEB_BAR_STYLE } from './utils/web-bar-placement';
 import type { PanelSegment } from './utils/youtube-panel-actions';
 import { BAR_STYLE, buildTranscriptBar, type TranscriptBar } from './utils/youtube-transcript-bar';
 import { createTranscriptCache } from './utils/youtube-transcript-cache';
@@ -43,8 +46,9 @@ try {
 		const isX = siteOf(location.href)?.id === 'x';
 		const post = () => { const player = media(); return player ? currentWebMediaAddress(document, player, location.href) : declaredWebMediaAddress(document, location.href); };
 		const mainTweet = () => isX ? document.querySelector<HTMLElement>('main article[data-testid="tweet"]') ?? document.querySelector<HTMLElement>('article') : document.body;
+		const pageMedia = (url: string) => readPageMedia(document, url, media());
 		const media = () => isX ? mainTweet()?.querySelector<HTMLMediaElement>('video, audio') ?? undefined : activeWebMedia(document);
-		api.runtime.onMessage.addListener((message, _sender, reply) => { if (message.action === 'qiaomuWebMediaSource') reply({ url: post() }); });
+		api.runtime.onMessage.addListener((message, _sender, reply) => { if (message.action === 'qiaomuWebMediaSource') reply({ url: post(), info: pageMedia(post() || '') }); });
 		const tweetText = () => (mainTweet()?.querySelector('[data-testid="tweetText"]')?.textContent || document.title).replace(/\s+/g, ' ').trim().slice(0, 120);
 
 		// The colours of the page it sits in: X has a light, a dim and a dark theme, and none of them is ours to choose.
@@ -57,7 +61,8 @@ try {
 			// In the right column it is a card like X's own: a tint of its own, no outline. Under the media it keeps the outline.
 			if (where === 'side') { const black = parts[0] + parts[1] + parts[2] < 60; set('--qm-card', dark ? (black ? 'rgb(22,24,28)' : 'rgb(30,39,50)') : 'rgb(247,249,249)'); set('--qm-frame', '0 none'); set('--qm-margin', '0 0 16px'); }
 		};
-		const updateBar = () => { bar?.setState(state, lines); generation.sync(); };
+		let officialReady = false;
+		const updateBar = () => { bar?.setState(state, lines); if (officialReady) bar?.setGeneration(null); else generation.sync(); };
 		const generation = createBarGeneration({
 			openSettings: () => { try { void api.runtime.sendMessage({ action: 'openSettings', section: 'asr' }); } catch { /* extension reloaded */ } },
 			videoKey: () => key || null, bar: () => bar,
@@ -65,13 +70,20 @@ try {
 			revert: () => { lines = []; state = 'none'; updateBar(); },
 			save: (k, made) => { void cache?.write(`generated:${k}`, made); },
 		});
+		const readOfficial = async (language?: string) => {
+			if (siteOf(postUrl)?.id !== 'ted') return;
+			return readTedMedia(postUrl, async url => { const reply = await api.runtime.sendMessage({ action: 'fetchProxy', url, options: {} }) as { text?: string }; return reply?.text || ''; }, document, language);
+		};
 		const load = () => {
-			lines = []; state = 'loading'; updateBar(); const mine = key;
-			void (cache ? cache.read(`generated:${mine}`) : Promise.resolve(undefined)).then(made => {
+			officialReady = false; lines = []; state = 'loading'; updateBar(); const mine = key;
+			void (async () => {
+				const official = await readOfficial(); if (key !== mine) return;
+				if (official?.segments.length) { officialReady = true; lines = official.segments; state = 'ready'; bar?.setLanguages(official.languages, official.language); updateBar(); return; }
+				const made = await (cache ? cache.read(`generated:${mine}`) : Promise.resolve(undefined));
 				if (key !== mine) return;
 				if (made?.length) { lines = made; state = 'ready'; generation.markGenerated(mine); } else state = 'none';
 				updateBar();
-			});
+			})();
 		};
 		const remove = () => { host?.remove(); host = undefined; bar = undefined; generation.reset(); postUrl = ''; key = ''; };
 		// Under the media, above the row of reply / repost / like when it can be found, else at the end of the post.
@@ -84,7 +96,7 @@ try {
 			return module?.parentElement && module.parentElement !== side && side.contains(module.parentElement) ? module : undefined;
 		};
 		const place = (node: HTMLElement, tweet: HTMLElement): 'side' | 'media' => {
-			if (!isX) { document.body.append(node); return 'media'; }
+			if (!isX) { placeWebBar(node, media(), siteOf(location.href)?.id || ''); return 'media'; }
 			const module = sideSpot();
 			if (module) { module.parentElement!.insertBefore(node, module); return 'side'; }
 			const actions = tweet.querySelector<HTMLElement>('[role="group"]');
@@ -98,26 +110,30 @@ try {
 			const url = post(), tweet = mainTweet();
 			if (!url || !tweet) { if (host) remove(); return; }
 			// The right column can appear or go away as the window is resized: the bar follows it.
-			if (host?.isConnected && postUrl === url && (where === 'side') === Boolean(sideSpot())) return;
+			if (host?.isConnected && postUrl === url && (where === 'side') === Boolean(sideSpot())) { if (!isX) { registerWebSource(key, url, pageMedia(url)?.audioUrl || pageMedia(url)?.mediaUrl || undefined); placeWebBar(host, media(), siteOf(location.href)?.id || ''); } return; }
 			if (mounting) return; mounting = true;
 			try {
 				if (host) remove();
 				const nextKey = await webKey(url); if (post() !== url) return;
-				postUrl = url; key = nextKey; registerWebSource(key, url);
-				const style = document.createElement('style'); style.textContent = BAR_STYLE + '.qiaomu-x{display:block;width:100%}.qiaomu-web-bar{position:fixed;right:16px;bottom:16px;width:min(350px,calc(100vw - 32px));z-index:2147483600}.qiaomu-web-bar .qiaomu-yt-bar{max-height:calc(100vh - 48px)}.qiaomu-web-bar .qiaomu-yt-bar-lines{max-height:min(52vh,calc(100vh - 230px));}';
+				postUrl = url; key = nextKey; registerWebSource(key, url, pageMedia(url)?.audioUrl || pageMedia(url)?.mediaUrl || undefined);
+				const style = document.createElement('style'); style.textContent = BAR_STYLE + '.qiaomu-x{display:block;width:100%}' + WEB_BAR_STYLE;
 				host = document.createElement('div'); host.className = isX ? 'qiaomu-x' : 'qiaomu-web-bar'; host.append(style);
 				bar = buildTranscriptBar(document, {
 					strings, title: tweetText, openStudy: () => { try { void api.runtime.sendMessage({ action: 'qiaomuTripleKey', command: 'read' }); return true; } catch { return false; } },
 					openSettings: () => { try { void api.runtime.sendMessage({ action: 'openSettings', section: 'video' }); } catch { /* extension reloaded */ } },
+					onLanguage: language => { const mine = key; void readOfficial(language).then(official => { if (key !== mine || !official?.segments.length) return; officialReady = true; lines = official.segments; bar?.setLanguages(official.languages, official.language); updateBar(); }); },
 					retry: load, seek: seconds => { const player = media(); if (player && 'currentTime' in player) { player.currentTime = seconds; void player.play().catch(() => {}); } },
 					getTime: () => { const player = media(); return player && 'currentTime' in player ? player.currentTime : undefined; }, initialOpen: false, theme: 'x',
-					generation: { strings: generationStrings(text), actions: generation.actions }, getSegments: async () => lines,
+					generation: { strings: generationStrings(text), actions: { ...generation.actions, request: () => { const player = media(); if (siteOf(location.href)?.id === 'douyin' && player && 'currentSrc' in player && player.currentSrc.startsWith('blob:')) { void api.runtime.sendMessage({ action: 'qiaomuTripleKey', command: 'read' }); return; } generation.actions.request(); } } }, getSegments: async () => lines,
 				} as Parameters<typeof buildTranscriptBar>[1]);
 				host.append(bar.element); where = place(host, tweet); paint(bar.element, where); load();
 			} finally { mounting = false; }
 		};
 		// X is a single-page app: posts change without a page load, and its markup is rebuilt often, so look again now and then.
 		window.setInterval(() => { void mount(); }, 1000); void mount();
+		let moving = false;
+		const reposition = () => { if (moving) return; moving = true; requestAnimationFrame(() => { moving = false; if (host && !isX) placeWebBar(host, media(), siteOf(location.href)?.id || ''); }); };
+		window.addEventListener('resize', reposition, { passive: true }); document.addEventListener('scroll', reposition, { passive: true, capture: true });
 		for (const type of ['timeupdate', 'seeked', 'playing']) document.addEventListener(type, event => { if (event.target instanceof HTMLMediaElement && bar && event.target === media()) bar.setTime(event.target.currentTime, event.type === 'seeked'); }, true);
 		const applySites = (value?: { off?: unknown }) => { siteOn = !(Array.isArray(value?.off) && (value!.off as unknown[]).includes((siteOf(location.href)?.id ?? ''))); void mount(); };
 		api.storage.local?.get('qiaomuStudySites').then(data => applySites(data?.qiaomuStudySites)).catch(() => applySites());

@@ -50,6 +50,12 @@ export function currentWebMediaAddress(doc: Document, media: WebMedia, address: 
 		if (siteOf(a.href)?.id !== site.id) continue;
 		const detail = webMediaAddress(a.href); if (detail) return detail;
 	}
+	// TikTok's current feed player carries its item id even when no detail link is rendered.
+	if (site.id === 'tiktok') {
+		const id = media.closest('[id^="xgwrapper-"]')?.id.match(/^xgwrapper-\d+-(\d+)$/)?.[1];
+		const author = Array.from(card?.querySelectorAll<HTMLAnchorElement>('a[href]') ?? []).find(a => /^\/@[^/]+\/?$/.test(new URL(a.href).pathname));
+		if (id && author && siteOf(author.href)?.id === 'tiktok') return `https://www.tiktok.com${new URL(author.href).pathname.replace(/\/$/, '')}/video/${id}`;
+	}
 	return null;
 }
 
