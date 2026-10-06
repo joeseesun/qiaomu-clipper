@@ -29,7 +29,7 @@
 						<li data-section="highlighter"><div class="nav-item-icon"><i data-lucide="highlighter"></i></div><span data-i18n="highlighter">Highlighter</span></li>
 						<li data-section="properties"><div class="nav-item-icon"><i data-lucide="archive"></i></div><span data-i18n="properties">Properties</span></li>
 						<li class="sidebar-heading" data-i18n="headingAI">AI</li>
-						<li data-section="interpreter"><div class="nav-item-icon"><i data-lucide="sparkles"></i></div><span data-i18n="interpreter">Interpreter</span></li>
+						<li data-section="interpreter"><div class="nav-item-icon"><i data-lucide="sparkles"></i></div><span data-i18n="navAiModels">AI models</span></li>
 						<li class="sidebar-heading" data-i18n="templatesHeading">Templates</li>
 					</ul>
 					<button type="button" id="new-template-btn" class="mod-cta" data-i18n="newTemplate">New&nbsp;template</button>
@@ -466,6 +466,7 @@
 						<div class="settings-section-header">
 							<h2 data-i18n="navAsr">Speech recognition</h2>
 						</div>
+						<p class="settings-section-note"><span data-i18n="asrIntroOther">This only turns sound into subtitles. Chinese translation, chat and AI interpretation use AI models, set up separately.</span> <a href="#" data-goto-section="interpreter" data-i18n="asrGotoModels">Set up AI models</a></p>
 						<form id="asr-settings-form">
 							<div class="setting-group" id="asr-settings">
 								<div class="setting-item setting-item-heading"><h3>语音识别</h3></div>
@@ -740,8 +741,9 @@
 
 					<div id="interpreter-section" class="settings-section">
 						<div class="settings-section-header">
-							<h2 data-i18n="interpreter">Interpreter</h2>
+							<h2 data-i18n="navAiModels">AI models</h2>
 						</div>
+						<p class="settings-section-note"><span data-i18n="aiModelsIntro">Models here power Chinese translation, chat and AI interpretation. Making subtitles from audio uses Speech recognition, set up separately.</span> <a href="#" data-goto-section="asr" data-i18n="aiModelsGotoAsr">Set up speech recognition</a></p>
 						<form id="interpreter-settings-form">
 							<div class="setting-group">
 								<div class="setting-items">

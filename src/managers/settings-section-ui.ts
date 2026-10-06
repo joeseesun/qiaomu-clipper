@@ -70,6 +70,13 @@ export function initializeSidebar(): void {
 		});
 	}
 
+	// A note that points at another page of settings.
+	document.addEventListener('click', event => {
+		const link = (event.target as HTMLElement).closest<HTMLElement>('[data-goto-section]');
+		const section = link?.dataset.gotoSection;
+		if (section === 'asr' || section === 'interpreter') { event.preventDefault(); showSettingsSection(section); }
+	});
+
 	if (sidebar) {
 		sidebar.addEventListener('click', (event) => {
 			const target = event.target as HTMLElement;
