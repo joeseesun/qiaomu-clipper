@@ -20,7 +20,7 @@ class PageMediaTests(unittest.TestCase):
             spec={'videoKey':'web:'+asr.sha(PAGE,12),'url':PAGE,'mediaUrl':MEDIA,'cookies':'chrome'}
             with patch.object(asr,'open_public',return_value=Response(b'VIDEO',5)) as fetch, patch.object(asr,'stream') as extract:
                 path=asr.download(Path(tmp),spec,{},{}); self.assertEqual(path.read_bytes(),b'VIDEO'); extract.assert_not_called()
-                args=fetch.call_args.kwargs; self.assertEqual(args['headers'],{'Referer':PAGE})
+                args=fetch.call_args.kwargs; self.assertEqual(args['headers']['Referer'],PAGE); self.assertIn('Chrome/',args['headers']['User-Agent'])
                 self.assertFalse(args['allowed']('https://example.com/redirect'))
             with patch.object(asr,'open_public',return_value=Response(b'VIDEO',50)):
                 with self.assertRaises(asr.Failed): asr.download(Path(tmp),spec,{}, {})

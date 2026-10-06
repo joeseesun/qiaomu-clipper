@@ -53,6 +53,17 @@ export async function fetchEpisode(pageUrl: string): Promise<PodcastEpisode> {
 }
 
 const STYLE = `
+html .qiaomu-web-retry:has(.qiaomu-web-retry-actions){display:flex;flex-direction:column;align-items:flex-start;gap:6px;margin:8px 0 16px;padding:18px 20px;border-radius:16px;background:linear-gradient(var(--background-secondary,rgba(127,127,127,.1)),var(--background-secondary,rgba(127,127,127,.1))),var(--background-primary,#fff);box-shadow:0 0 0 1px var(--background-modifier-border,rgba(127,127,127,.16))}
+html .qiaomu-web-retry b{font-size:16px;font-weight:600;line-height:24px;color:var(--text-normal,#222)}
+html .qiaomu-web-retry p{margin:0;color:var(--text-muted,#666);font-size:14px;line-height:22px}
+html .qiaomu-web-retry-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+html .qiaomu-web-retry-actions button.qw-primary,html .qiaomu-web-retry-actions a.qw-secondary{display:inline-flex;align-items:center;justify-content:center;width:auto;min-height:36px;padding:0 16px;border:0;border-radius:10px;font-size:14px;font-weight:600;line-height:1;text-decoration:none;cursor:pointer;box-shadow:none}
+html .qiaomu-web-retry-actions button.qw-primary{background:var(--text-normal,#111);color:var(--background-primary,#fff)}
+html .qiaomu-web-retry-actions button.qw-primary:hover:not(:disabled){background:var(--text-normal,#111);opacity:.86}
+html .qiaomu-web-retry-actions button.qw-primary:disabled{opacity:.5;cursor:default}
+html .qiaomu-web-retry-actions a.qw-secondary{background:var(--background-modifier-hover,rgba(127,127,127,.16));color:var(--text-normal,#222)}
+html .qiaomu-web-retry-actions a.qw-secondary:hover{background:var(--background-modifier-border,rgba(127,127,127,.26))}
+html .qiaomu-web-retry-actions :is(button,a):focus-visible{outline:2px solid var(--text-accent,#666);outline-offset:2px}
 html .qiaomu-web-retry select{appearance:none;width:auto;max-width:100%;padding:8px 12px;border:1px solid var(--background-modifier-border,#bbb);border-radius:8px;background:var(--background-primary,#fff);color:var(--text-normal,#222);margin:0 8px 8px 0}
 html .qiaomu-web-retry select:focus-visible{outline:2px solid var(--text-accent,#666);outline-offset:2px}
 
@@ -124,7 +135,7 @@ article[data-audio-tab=transcript] .qiaomu-shownotes{display:none}
 `;
 
 export async function startAudioStudy(options: AudioStudyOptions): Promise<void> {
-	const initialTitle = options.title || (options.kind === 'file' ? '本地音频学习' : '播客学习');
+	const initialTitle = options.title || (options.kind === 'file' ? '本地音频学习' : options.kind === 'web' ? '视频学习' : '播客学习');
 	const url = options.webUrl || options.url || FILE_PAGE_URL;
 	const session = await createReaderSourceDraft(url, initialTitle);
 	Reader.onEdit = () => {};
@@ -225,6 +236,8 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 		status.textContent = text('webReading', '正在读取这个网址…', 'Reading this address…');
 		const official = await readTedMedia(address, async url => { const reply = await browser.runtime.sendMessage({ action: 'fetchProxy', url, options: {} }) as { text?: string }; return reply?.text || ''; });
 		const isDouyin = siteOf(address)?.id === 'douyin';
+		// The video host of Douyin may refuse a stranger's page as referrer; sending none works (checked on a live item).
+		if (isDouyin) { const meta = document.createElement('meta'); meta.name = 'referrer'; meta.content = 'no-referrer'; document.head.append(meta); }
 		const source = () => browser.runtime.sendMessage({ action: 'qiaomuWebStudySource', url: address, sourceTabId: options.sourceTabId }).catch(() => null) as Promise<import('./asr-client').WebInfo | null>;
 		const { info, cookies } = official ? { info: official, cookies: undefined }
 			: isDouyin ? { ...await probeDouyinPage(address, status, holder, source), cookies: undefined }

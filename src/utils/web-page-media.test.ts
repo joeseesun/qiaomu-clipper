@@ -67,9 +67,24 @@ it('pairs one loaded MSE video/audio for the exact opened item and refuses prelo
 	let navigation = url, files = [picture, audio];
 	vi.stubGlobal('performance', { getEntriesByType: (type: string) => type === 'navigation' ? [{ name: navigation }] : files.map(name => ({ name })) });
 	expect(snapshotDouyinPlayer()).toMatchObject({ url, info: { mediaUrl: picture, audioUrl: audio, video: true } });
+	files = [picture, audio, audio + '&ds=2']; expect(snapshotDouyinPlayer()).toMatchObject({ info: { mediaUrl: picture, audioUrl: audio } });
 	files = [picture, audio, audio.replace('/a/', '/preloaded/')]; expect(snapshotDouyinPlayer()).toEqual({ url });
 	files = [picture, audio.replace('pair', 'other')]; expect(snapshotDouyinPlayer()).toEqual({ url });
 	files = [picture, audio]; navigation = url.replace('123', '456'); expect(snapshotDouyinPlayer()).toEqual({ url });
+	vi.unstubAllGlobals(); vi.restoreAllMocks();
+});
+it('reads plain mp4 renditions of one item even when the player was opened from the feed', () => {
+	vi.stubGlobal('location', { href: url });
+	document.body.innerHTML = '<video></video>';
+	const video = document.querySelector('video')!;
+	Object.defineProperty(video, 'currentSrc', { value: 'blob:https://www.douyin.com/stream' });
+	Object.defineProperty(video, 'duration', { value: 899.24 });
+	vi.spyOn(video, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0, right: 400, bottom: 300, width: 400, height: 300 } as DOMRect);
+	const rendition = (rate: number, group = 'one') => `https://v11-weba.douyinvod.com/video/tos/x?mime_type=video_mp4&br=${rate}&l=${group}`;
+	let files = [rendition(896), rendition(189)];
+	vi.stubGlobal('performance', { getEntriesByType: (type: string) => type === 'navigation' ? [{ name: 'https://www.douyin.com/jingxuan' }] : files.map(name => ({ name })) });
+	expect(snapshotDouyinPlayer()).toMatchObject({ url, observed: true, info: { mediaUrl: rendition(189), seconds: 899.24 } });
+	files = [rendition(896), rendition(189, 'preloaded')]; expect(snapshotDouyinPlayer()).toMatchObject({ observed: true, candidates: [rendition(896), rendition(189, 'preloaded')] });
 	vi.unstubAllGlobals(); vi.restoreAllMocks();
 });
 it('validates separate track durations and rejects a changed page or mismatched preload before showing it', async () => {
@@ -82,4 +97,7 @@ it('validates separate track durations and rejects a changed page or mismatched 
 	done = validateDouyinTracks(url, mediaUrl, mediaUrl, 70.13); complete([83.7, 83.7]); expect(await done).toBe(false);
 	done = validateDouyinTracks(url, mediaUrl, mediaUrl, 70.13); vi.stubGlobal('location', { href: url.replace('123', '456') }); complete([70.13, 70.13]); expect(await done).toBe(false);
 	vi.unstubAllGlobals(); vi.restoreAllMocks();
+});
+it('keeps the injected page functions free of async syntax, which the build turns into helpers missing in the page', () => {
+	for (const injected of [snapshotDouyinPlayer, validateDouyinTracks]) expect(String(injected)).not.toMatch(/\basync\b|\bawait\b|__awaiter|_asyncToGenerator/);
 });

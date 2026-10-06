@@ -96,6 +96,23 @@ async function enableYouTubeInnertubeRule(): Promise<void> {
 	} catch { /* Firefox/Safari use webRequest or native messaging instead */ }
 }
 
+// Douyin's video host only serves pages it knows: the study reader plays the original file as if from douyin.com.
+const DOUYIN_MEDIA_RULE_ID = 9004;
+async function enableDouyinMediaRule(): Promise<void> {
+	const dnr = typeof chrome !== 'undefined' ? chrome.declarativeNetRequest : undefined;
+	if (!dnr || !chrome.runtime?.id) return;
+	try {
+		await dnr.updateSessionRules({
+			removeRuleIds: [DOUYIN_MEDIA_RULE_ID],
+			addRules: [{
+				id: DOUYIN_MEDIA_RULE_ID, priority: 1,
+				action: { type: 'modifyHeaders' as chrome.declarativeNetRequest.RuleActionType, requestHeaders: [{ header: 'Referer', operation: 'set' as chrome.declarativeNetRequest.HeaderOperation, value: 'https://www.douyin.com/' }] },
+				condition: { requestDomains: ['douyinvod.com'], resourceTypes: ['media' as chrome.declarativeNetRequest.ResourceType], initiatorDomains: [chrome.runtime.id] },
+			}],
+		});
+	} catch { /* other browsers */ }
+}
+
 // Firefox/Safari: use webRequest.onBeforeSendHeaders to set Origin/Referer on
 // YouTube innertube requests. Fallback for browsers where declarativeNetRequest
 // doesn't work or isn't supported.
@@ -336,6 +353,7 @@ async function initialize() {
 		// Origin headers for YouTube innertube API requests.
 		await enableYouTubeEmbedRule();
 		await enableYouTubeInnertubeRule();
+		await enableDouyinMediaRule();
 
 		// Set up action popup based on openBehavior setting
 		await updateActionPopup();
@@ -1401,6 +1419,14 @@ browser.runtime.onMessage.addListener((raw: unknown, sender) => {
 	return getWebPageMedia(request.url, request.sourceTabId, browser.tabs, async tabId => {
 		const [result] = await browser.scripting.executeScript({ target: { tabId }, func: snapshotDouyinPlayer });
 		const snapshot = result?.result as ReturnType<typeof snapshotDouyinPlayer> | undefined;
+		if (snapshot?.observed && snapshot.info) {
+			// Several preloaded items can sit in the page; only the one as long as the playing video is this item.
+			for (const candidate of snapshot.candidates?.length ? snapshot.candidates : [snapshot.info.mediaUrl!]) {
+				const [checked] = await browser.scripting.executeScript({ target: { tabId }, func: validateDouyinTracks, args: [snapshot.url, candidate, candidate, snapshot.info.seconds!] });
+				if (checked?.result) return { ...snapshot, info: { ...snapshot.info, mediaUrl: candidate } };
+			}
+			return;
+		}
 		if (snapshot?.info?.audioUrl) {
 			const info = snapshot.info;
 			const [checked] = await browser.scripting.executeScript({ target: { tabId }, func: validateDouyinTracks, args: [snapshot.url, info.mediaUrl!, info.audioUrl!, info.seconds!] });

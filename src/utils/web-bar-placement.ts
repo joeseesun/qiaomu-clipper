@@ -16,6 +16,20 @@ export function placeWebBar(host: HTMLElement, media: WebMedia | undefined, site
 			return;
 		}
 	}
+	if (site === 'douyin' && video && typeof doc.elementFromPoint === 'function') {
+		// The column beside the player: the strip goes first in it, where it is seen without scrolling.
+		let node = doc.elementFromPoint(video.right + 60, video.top + 60);
+		if (node && host.contains(node)) return;
+		while (node && node !== doc.body) {
+			const parent = node.parentElement, r = parent?.getBoundingClientRect();
+			if (parent && r && r.left >= video.right - 4 && r.width >= 250 && r.width <= 440 && r.height >= 300 && parent.children.length >= 2) {
+				host.classList.add('is-inline'); host.style.cssText = '';
+				if (parent.firstElementChild !== host) parent.insertBefore(host, parent.firstElementChild);
+				return;
+			}
+			node = parent;
+		}
+	}
 	if (site === 'douyin' && video) {
 		const heading = Array.from(doc.querySelectorAll<HTMLElement>('h2,h3,div,p,span')).find(e => {
 			if (e.children.length || e.textContent?.trim() !== '推荐视频') return false;

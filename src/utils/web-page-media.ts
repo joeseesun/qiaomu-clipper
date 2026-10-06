@@ -3,7 +3,7 @@ import { webMediaAddress, type WebMedia } from './web-media-page';
 
 // Serialized by scripting.executeScript: keep this function self-contained.
 // This also works when an older content script no longer answers after an update.
-export function snapshotDouyinPlayer(): { url: string; info?: WebInfo } {
+export function snapshotDouyinPlayer(): { url: string; info?: WebInfo; observed?: true; candidates?: string[] } {
 	const page = new URL(location.href), id = page.pathname.match(/^\/video\/(\d+)/)?.[1] || page.searchParams.get('modal_id') || page.searchParams.get('vid');
 	if (page.protocol !== 'https:' || !['www.douyin.com', 'douyin.com'].includes(page.hostname) || !/^\d+$/.test(id || '')) return { url: '' };
 	const url = `https://www.douyin.com/video/${id}`;
@@ -21,20 +21,34 @@ export function snapshotDouyinPlayer(): { url: string; info?: WebInfo } {
 		// MSE supplies separate video/audio files. Only accept a single observed
 		// pair from a document loaded for this exact item; SPA/preload ambiguity
 		// must never attach another video's speech to this transcript.
-		const visible = Array.from(document.querySelectorAll('video')).find(v => {
+		const shown = Array.from(document.querySelectorAll('video')).filter(v => {
 			const r = v.getBoundingClientRect(), css = getComputedStyle(v);
 			return v.currentSrc.startsWith('blob:') && r.width > 0 && r.height > 0 && css.visibility !== 'hidden' && css.display !== 'none';
 		});
+		const visible = shown.find(v => !v.paused) || shown[0];
 		if (!visible || typeof performance.getEntriesByType !== 'function') return { url };
+		const files = [...new Set(performance.getEntriesByType('resource').map(e => e.name))].filter(name => {
+			try { const u = new URL(name); return u.protocol === 'https:' && !u.username && !u.password && (!u.port || u.port === '443') && u.hostname.endsWith('.douyinvod.com'); } catch { return false; }
+		});
+		// Newer players stream ordinary mp4 renditions of the same item (one `l` group,
+		// different bitrates), also when opened from the feed. Take the lightest, but only
+		// as an observation: the caller confirms its duration against the playing video.
+		const plain = files.filter(name => !/\/media-(?:audio|video)-/.test(new URL(name).pathname) && new URL(name).searchParams.get('mime_type') === 'video_mp4');
+		// One lightest rendition per request group; the caller keeps the one whose duration matches.
+		const byGroup = new Map<string, string[]>();
+		for (const name of plain) { const key = new URL(name).searchParams.get('l') || ''; if (key) byGroup.set(key, [...(byGroup.get(key) || []), name]); }
+		const candidates = [...byGroup.values()].map(names => names.map(name => ({ name, rate: Number(new URL(name).searchParams.get('br')) || Infinity })).sort((x, y) => x.rate - y.rate)[0].name);
+		if (candidates.length && candidates.length <= 6 && Number.isFinite(visible.duration)) {
+			return { url, observed: true, candidates, info: { ok: true, title, author: '', site: '抖音', video: true, thumbnail: null, seconds: visible.duration, mediaUrl: candidates[0], description: title } };
+		}
 		const navigation = performance.getEntriesByType('navigation')[0];
 		if (!navigation) return { url };
 		const opened = new URL(navigation.name), openedId = opened.pathname.match(/^\/video\/(\d+)/)?.[1] || opened.searchParams.get('modal_id') || opened.searchParams.get('vid');
 		if (openedId !== id || opened.origin !== page.origin) return { url };
-		const files = [...new Set(performance.getEntriesByType('resource').map(e => e.name))].filter(name => {
-			try { const u = new URL(name); return u.protocol === 'https:' && !u.username && !u.password && (!u.port || u.port === '443') && u.hostname.endsWith('.douyinvod.com'); } catch { return false; }
-		});
-		const audio = files.filter(name => new URL(name).pathname.includes('/media-audio-'));
-		const picture = files.filter(name => new URL(name).pathname.includes('/media-video-'));
+		// The player asks for the same file more than once (different range/signature): one file, not two candidates.
+		const distinct = (names: string[]) => [...new Map(names.reverse().map(name => [new URL(name).pathname.replace(/^\/[0-9a-f]{32}\/[0-9a-f]+(?=\/)/, ''), name])).values()].reverse();
+		const audio = distinct(files.filter(name => new URL(name).pathname.includes('/media-audio-')));
+		const picture = distinct(files.filter(name => new URL(name).pathname.includes('/media-video-')));
 		if (audio.length !== 1 || picture.length !== 1 || !new URL(audio[0]).searchParams.get('l') || new URL(audio[0]).searchParams.get('l') !== new URL(picture[0]).searchParams.get('l')) return { url };
 		return { url, info: { ok: true, title, author: '', site: '抖音', video: true, thumbnail: null,
 			seconds: Number.isFinite(visible.duration) ? visible.duration : null, mediaUrl: picture[0], audioUrl: audio[0], description: title } };
@@ -46,20 +60,21 @@ export function snapshotDouyinPlayer(): { url: string; info?: WebInfo } {
 
 // Metadata is checked before pairing MSE files. A preload can be the only entry
 // in resource timing; sharing a request group alone does not prove it is current.
-export async function validateDouyinTracks(page: string, picture: string, audio: string, seconds: number): Promise<boolean> {
+// No async/await here: the build turns it into a helper that does not exist in the page it is injected into.
+export function validateDouyinTracks(page: string, picture: string, audio: string, seconds: number): Promise<boolean> {
 	const current = () => {
 		const u = new URL(location.href), id = u.pathname.match(/^\/video\/(\d+)/)?.[1] || u.searchParams.get('modal_id') || u.searchParams.get('vid');
 		return `https://www.douyin.com/video/${id}` === page;
 	};
-	if (!current() || !Number.isFinite(seconds) || seconds <= 0) return false;
+	if (!current() || !Number.isFinite(seconds) || seconds <= 0) return Promise.resolve(false);
 	const read = (src: string, kind: 'video' | 'audio') => new Promise<number>(resolve => {
 		const node = document.createElement(kind); node.preload = 'metadata';
 		const finish = (value: number) => { clearTimeout(timer); node.onloadedmetadata = null; node.onerror = null; node.removeAttribute('src'); node.load(); resolve(value); };
 		const timer = setTimeout(() => finish(NaN), 5000);
 		node.onloadedmetadata = () => finish(node.duration); node.onerror = () => finish(NaN); node.src = src;
 	});
-	const durations = await Promise.all([read(picture, 'video'), read(audio, 'audio')]);
-	return current() && durations.every(d => Number.isFinite(d) && Math.abs(d - seconds) <= Math.max(.5, seconds * .005));
+	return Promise.all([read(picture, 'video'), read(audio, 'audio')]).then(durations =>
+		current() && durations.every(d => Number.isFinite(d) && Math.abs(d - seconds) <= Math.max(.5, seconds * .005)));
 }
 
 // A page can lend only its own Douyin player, never an arbitrary download URL.

@@ -214,6 +214,7 @@ def open_public(url, timeout=30, headers=None, allowed=None):
     if not public_https(url) or (allowed and not allowed(url)): raise OSError('地址不是公开的 https 地址')
     opener = urllib.request.build_opener(Guard)
     return opener.open(urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (qiaomu-clipper)', 'Accept': '*/*', **(headers or {})}), timeout=timeout)
+BROWSER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36'
 def douyin_media(page, media):
     from urllib.parse import urlparse, parse_qs
     if not isinstance(media, str) or len(media) > 8000 or not re.fullmatch(r'https://www\.douyin\.com/video/\d+', str(page)): return False
@@ -223,12 +224,13 @@ def douyin_media(page, media):
         return public_https(media) and parsed.port in (None, 443) and (host == 'douyinvod.com' or host.endswith('.douyinvod.com')) and ('__vid' not in params or params['__vid'] == [page.rsplit('/', 1)[-1]])
     except ValueError: return False
 def download_page_media(directory, spec):
+    import urllib.error
     page = spec['url']; media = spec['mediaUrl']
     if not douyin_media(page, media): raise Failed('视频地址无效，请刷新原页面后重试')
     target = directory / 'audio.src.mp4'
     write_state(directory, state='downloading', stage='正在读取原页面视频', progress=0)
     try:
-        with open_public(media, timeout=60, headers={'Referer': page}, allowed=lambda url: douyin_media(page, url)) as response, target.open('wb') as out:
+        with open_public(media, timeout=60, headers={'Referer': page, 'User-Agent': BROWSER_AGENT}, allowed=lambda url: douyin_media(page, url)) as response, target.open('wb') as out:
             total = int(response.headers.get('Content-Length') or 0); got = 0
             if total > MAX_UPLOAD: raise Failed('视频文件太大')
             for block in iter(lambda: response.read(1 << 20), b''):
@@ -237,6 +239,7 @@ def download_page_media(directory, spec):
                 out.write(block)
                 if total: write_state(directory, state='downloading', stage='正在读取原页面视频', progress=round(min(got / total, 1) * 15, 1))
             if not got or (total and got < total): raise Failed('视频下载中断，请刷新原页面后重试')
+    except urllib.error.HTTPError as error: raise Failed(f'视频地址已过期或被拒绝（{error.code}），请刷新原页面后重新进入学习模式')
     except OSError: raise Failed('视频地址已过期或暂时无法读取，请刷新原页面后重新进入学习模式')
     return target
 def cdata(text): return html_unescape(re.sub(r'^\s*<!\[CDATA\[(.*?)\]\]>\s*$', r'\1', str(text or ''), flags=re.S)).strip()
