@@ -1606,7 +1606,7 @@
 		"message": "Translating"
 	},
 	"qiaomuTranslationNoModel": {
-		"message": "Configure and enable an AI model in extension settings first."
+		"message": "Translation needs an AI model, which is not the same as the speech recognition used for subtitles."
 	},
 	"qiaomuTranslationDone": {
 		"message": "Translation complete"
@@ -1890,5 +1890,23 @@
 	},
 	"failedToSaveModel": {
 		"message": "Could not save the model. Try again."
+	},
+	"navAiModels": {
+		"message": "AI models"
+	},
+	"aiModelsIntro": {
+		"message": "Models here power Chinese translation, chat and AI interpretation. Making subtitles from audio uses Speech recognition, set up separately."
+	},
+	"aiModelsGotoAsr": {
+		"message": "Set up speech recognition"
+	},
+	"asrIntroOther": {
+		"message": "This only turns sound into subtitles. Chinese translation, chat and AI interpretation use AI models, set up separately."
+	},
+	"asrGotoModels": {
+		"message": "Set up AI models"
+	},
+	"qiaomuTranslationSetupModel": {
+		"message": "Set up a translation model"
 	}
 }

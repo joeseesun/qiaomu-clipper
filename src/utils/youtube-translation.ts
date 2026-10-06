@@ -2,6 +2,7 @@ import { enabledChatModels, streamChat } from './chat-llm';
 import { TRANSCRIPT_SELECTOR } from './video-source';
 import { getLocalStorage, loadSettings } from './storage-utils';
 import { getMessage } from './i18n';
+import browser from './browser-polyfill';
 import { sourceParagraphs, withoutMusicCues, translationParagraphs, renderBilingualBlocks, sourceTextNodes } from './transcript-format';
 
 const TRANSLATION_RULES = `Translate the supplied video transcript into fluent, faithful Simplified Chinese for reading.
@@ -19,7 +20,7 @@ export function translationBatches(texts: string[]): TranslationPart[][] {
 	texts.forEach((text, segment) => {
 		for (const paragraph of sourceParagraphs(text)) {
 			const part = {id: id++, segment, text: paragraph};
-			if (batch.length && (size + part.text.length > 5500 || batch.length >= 8)) { batches.push(batch); batch = []; size = 0; }
+			if (batch.length && (size + part.text.length > 3500 || batch.length >= 6)) { batches.push(batch); batch = []; size = 0; }
 			batch.push(part); size += part.text.length;
 		}
 	});
@@ -51,6 +52,37 @@ export function parseTranslationBlocks(answer: string, batch: TranslationPart[])
  return validateTranslation(data, batch);
 }
 
+// Keeps every well-formed, unambiguous entry of an answer in either format, even a truncated one, so that only what is missing is asked for again.
+export function salvageTranslation(answer: string, batch: TranslationPart[]): Map<number, string> {
+ const cleaned = answer.trim().replace(/^```(?:json|text)?\s*/i, '').replace(/\s*```$/, '');
+ const found: Array<{ id: unknown; text: unknown }> = [];
+ try {
+  const data = JSON.parse(cleaned);
+  for (const item of Array.isArray(data) ? data : Array.isArray(data?.translations) ? data.translations : []) found.push(item ?? {});
+ } catch {
+  for (const match of cleaned.matchAll(/\{\s*"id"\s*:\s*(\d+)\s*,\s*"text"\s*:\s*("(?:[^"\\]|\\.)*")\s*\}/g)) {
+   try { found.push({ id: Number(match[1]), text: JSON.parse(match[2]) }); } catch { /* skip this entry */ }
+  }
+ }
+ for (const match of cleaned.matchAll(/<<<TRANSLATION:(\d+)>>>[ \t]*\r?\n([\s\S]*?)\r?\n<<<END_TRANSLATION>>>/g)) found.push({ id: Number(match[1]), text: match[2] });
+ const counts = new Map<unknown, number>();
+ for (const item of found) counts.set(item.id, (counts.get(item.id) || 0) + 1);
+ const output = new Map<number, string>();
+ for (const item of found) {
+  const part = typeof item.id === 'number' ? batch.find(candidate => candidate.id === item.id) : undefined;
+  if (!part || counts.get(item.id) !== 1 || typeof item.text !== 'string') continue;
+  const translated = translationParagraphs(item.text).join('\n\n');
+  if (translated || !withoutMusicCues(part.text)) output.set(part.id, translated);
+ }
+ return output;
+}
+
+class TranslationTimeoutError extends Error { constructor() { super(getMessage('qiaomuTranslationTimeout')); } }
+const CONCURRENCY = 3, INACTIVITY_MS = 60000, TRANSPORT_RETRIES = 2;
+// Rate limits, server errors, timeouts and dropped connections are worth retrying; a rejected key or request is not.
+const isTransient = (error: unknown) => error instanceof TranslationTimeoutError || !/API key is not set|Provider not found|\b(?:400|401|402|403|404|422)\b/.test(error instanceof Error ? error.message : '');
+const backoff = (attempt: number, signal: AbortSignal) => new Promise<void>(resolve => { const timer = setTimeout(resolve, 1000 * 2 ** attempt); signal.addEventListener('abort', () => { clearTimeout(timer); resolve(); }, { once: true }); });
+
 export function mountTranslation(article: HTMLElement, toolbar: HTMLElement, status: HTMLElement): void {
 	if (article.querySelector('.youtube-translate-toggle')) return;
 	const segments = Array.from(article.querySelectorAll<HTMLElement>(`${TRANSCRIPT_SELECTOR} .transcript-segment`));
@@ -70,7 +102,9 @@ export function mountTranslation(article: HTMLElement, toolbar: HTMLElement, sta
 	const input = doc.createElement('input'); input.type = 'checkbox'; input.setAttribute('role', 'switch'); input.setAttribute('aria-label', caption.textContent);
 	track.append(input); label.append(caption, track);
 	const retry = doc.createElement('button'); retry.type = 'button'; retry.className = 'youtube-translation-retry'; retry.textContent = getMessage('qiaomuTranslationRetry'); retry.hidden = true;
-	toolbar.append(label); status.after(retry);
+	const setup = doc.createElement('button'); setup.type = 'button'; setup.className = 'youtube-translation-setup'; setup.textContent = getMessage('qiaomuTranslationSetupModel'); setup.hidden = true;
+	setup.onclick = () => { try { void browser.runtime.sendMessage({ action: 'openSettings', section: 'interpreter' }); } catch { /* extension reloaded */ } };
+	toolbar.append(label); status.after(retry, setup);
 	let controller: AbortController | undefined; let generation = 0;
 	let feedbackTimer: ReturnType<typeof setTimeout> | undefined;
 	const showFeedback = (message: string, completed = false) => {
@@ -138,42 +172,66 @@ export function mountTranslation(article: HTMLElement, toolbar: HTMLElement, sta
 		restoreSelection(savedSelection);
 	};
 	async function translate() {
-		controller?.abort(); const current = ++generation; const abort = new AbortController(); controller = abort; retry.hidden = true;
+		controller?.abort(); const current = ++generation; const abort = new AbortController(); controller = abort; retry.hidden = true; setup.hidden = true;
 		const progress = () => { showFeedback(`${getMessage('qiaomuTranslationProgress')} ${cache.size}/${parts.length}`); };
 		progress();
 		try {
 			await loadSettings(); const models = enabledChatModels(); const selected = await getLocalStorage('qiaomuChatModel');
 			if (current !== generation) return;
 			const model = models.find(item => item.id === selected) || models[0];
-			if (!model) throw new Error(getMessage('qiaomuTranslationNoModel'));
-			for (const batch of batches) {
-				const pending = batch.filter(part => !cache.has(part.id)); if (!pending.length) continue;
-				if (abort.signal.aborted || !label.isConnected) { abort.abort(); return; }
-				const timer = setTimeout(() => abort.abort(), 60000);
-				const content = JSON.stringify(pending.map(part => ({ id: part.id, text: withoutMusicCues(part.text), contextBefore: withoutMusicCues(parts[part.id - 1]?.text || '').slice(-500), contextAfter: withoutMusicCues(parts[part.id + 1]?.text || '').slice(0, 500) })));
-				const request = (system: string) => streamChat({model, signal:abort.signal, onDelta: () => {}, system, messages:[{role:'user', content}]});
-				const cancelled = () => current !== generation || abort.signal.aborted || !label.isConnected;
-				let translated: Map<number, string>;
-				try {
-					const answer = await request(TRANSLATION_SYSTEM); if (cancelled()) return;
-					try { translated = parseTranslation(answer, pending); }
+			if (!model) { showFeedback(getMessage('qiaomuTranslationNoModel')); setup.hidden = false; return; }
+			const cancelled = () => current !== generation || abort.signal.aborted || !label.isConnected;
+			const failed = new Set<number>(); let fatal: unknown;
+			// One request. A request that stops producing text for a minute counts as a timeout, so a slow but streaming model is never cut off.
+			const call = async (system: string, items: TranslationPart[]) => {
+				const request = new AbortController(); const stop = () => request.abort(); let timedOut = false; let timer: ReturnType<typeof setTimeout> | undefined;
+				const arm = () => { clearTimeout(timer); timer = setTimeout(() => { timedOut = true; request.abort(); }, INACTIVITY_MS); };
+				abort.signal.addEventListener('abort', stop, { once: true }); arm();
+				const content = JSON.stringify(items.map(part => ({ id: part.id, text: withoutMusicCues(part.text), contextBefore: withoutMusicCues(parts[part.id - 1]?.text || '').slice(-500), contextAfter: withoutMusicCues(parts[part.id + 1]?.text || '').slice(0, 500) })));
+				try { return await streamChat({ model, signal: request.signal, onDelta: arm, system, messages: [{ role: 'user', content }] }); }
+				catch (error) { throw timedOut && !abort.signal.aborted ? new TranslationTimeoutError() : error; }
+				finally { clearTimeout(timer); abort.signal.removeEventListener('abort', stop); }
+			};
+			const callWithRetry = async (system: string, items: TranslationPart[]) => {
+				for (let attempt = 0; ; attempt++) {
+					try { return await call(system, items); }
 					catch (error) {
-						if (!(error instanceof TranslationFormatError)) throw error;
-						// One bounded format retry, using plain blocks so quotes/newlines need no JSON escaping.
-						showFeedback(getMessage('qiaomuTranslationFormatRetry'));
-						const repaired = await request(BLOCK_SYSTEM); if (cancelled()) return;
-						try { translated = parseTranslationBlocks(repaired, pending); }
-						catch { translated = parseTranslation(repaired, pending); }
+						if (cancelled() || attempt >= TRANSPORT_RETRIES || !isTransient(error)) throw error;
+						showFeedback(getMessage('qiaomuTranslationFormatRetry')); await backoff(attempt, abort.signal); if (cancelled()) throw error;
 					}
-				} finally { clearTimeout(timer); }
+				}
+			};
+			// Keep what is valid, ask again only for what is missing, then halve the group down to a single paragraph. One bad answer costs one paragraph, not the group.
+			const solve = async (group: TranslationPart[]): Promise<void> => {
+				let remaining = group;
+				for (const system of [TRANSLATION_SYSTEM, BLOCK_SYSTEM]) {
+					try {
+						const answer = await callWithRetry(system, remaining); if (cancelled()) return;
+						for (const [id, text] of salvageTranslation(answer, remaining)) cache.set(id, text);
+					} catch (error) { if (error instanceof TranslationTimeoutError && remaining.length > 1) break; throw error; }
+					remaining = remaining.filter(part => !cache.has(part.id));
+					render(); progress();
+					if (!remaining.length) return;
+					showFeedback(getMessage('qiaomuTranslationFormatRetry'));
+				}
 				if (cancelled()) return;
-				for (const [id, text] of translated) cache.set(id, text);
-				render(); progress();
-			}
+				if (remaining.length > 1) { const middle = Math.ceil(remaining.length / 2); await solve(remaining.slice(0, middle)); await solve(remaining.slice(middle)); }
+				else failed.add(remaining[0].id);
+			};
+			const queue = batches.filter(batch => batch.some(part => !cache.has(part.id)));
+			const worker = async () => {
+				for (let batch = queue.shift(); batch && !fatal && !cancelled(); batch = queue.shift()) {
+					try { await solve(batch.filter(part => !cache.has(part.id))); } catch (error) { if (!cancelled()) fatal = error; }
+				}
+			};
+			await Promise.all(Array.from({ length: Math.min(CONCURRENCY, queue.length) }, worker));
+			if (cancelled()) return;
+			if (fatal) throw fatal;
+			if (failed.size) throw new TranslationFormatError();
 			if (current === generation) showFeedback(getMessage('qiaomuTranslationDone'), true);
 		} catch (error) {
 			if (current !== generation) return;
-			showFeedback(abort.signal.aborted ? getMessage('qiaomuTranslationTimeout') : `${getMessage('qiaomuTranslationError')} ${error instanceof Error ? error.message : ''}`);
+			showFeedback(error instanceof TranslationTimeoutError ? getMessage('qiaomuTranslationTimeout') : error instanceof TranslationFormatError ? error.message : `${getMessage('qiaomuTranslationError')} ${error instanceof Error ? error.message : ''}`);
 			retry.hidden = false;
 		} finally { if (current === generation) controller = undefined; }
 	}
@@ -181,7 +239,7 @@ export function mountTranslation(article: HTMLElement, toolbar: HTMLElement, sta
 		label.classList.toggle('is-enabled', input.checked);
 		render();
 		if (input.checked) void translate();
-		else { ++generation; controller?.abort(); controller = undefined; retry.hidden = true; showFeedback(''); }
+		else { ++generation; controller?.abort(); controller = undefined; retry.hidden = true; setup.hidden = true; showFeedback(''); }
 	};
 	retry.onclick = () => { if (input.checked) void translate(); };
 }

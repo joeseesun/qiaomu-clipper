@@ -1606,7 +1606,7 @@
 		"message": "正在翻译"
 	},
 	"qiaomuTranslationNoModel": {
-		"message": "请先在扩展设置中配置并启用 AI 模型。"
+		"message": "中文翻译需要一个 AI 模型（和生成字幕用的语音识别是两回事）。"
 	},
 	"qiaomuTranslationDone": {
 		"message": "翻译完成"
@@ -1890,5 +1890,23 @@
 	},
 	"failedToSaveModel": {
 		"message": "保存模型失败，请重试"
+	},
+	"navAiModels": {
+		"message": "AI 模型"
+	},
+	"aiModelsIntro": {
+		"message": "这里的模型用于中文翻译、对话和 AI 解读。给视频生成字幕用的是「语音识别」，在另一处设置。"
+	},
+	"aiModelsGotoAsr": {
+		"message": "去设置语音识别"
+	},
+	"asrIntroOther": {
+		"message": "这里只管把声音变成字幕。中文翻译、对话和 AI 解读用的是「AI 模型」，在另一处设置。"
+	},
+	"asrGotoModels": {
+		"message": "去设置 AI 模型"
+	},
+	"qiaomuTranslationSetupModel": {
+		"message": "设置翻译模型"
 	}
 }

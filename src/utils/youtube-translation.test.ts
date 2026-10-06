@@ -1,13 +1,14 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-const state = vi.hoisted(() => ({stream:vi.fn(), models:[{id:'model',name:'Model'}]}));
+const state = vi.hoisted(() => ({stream:vi.fn(), send:vi.fn(), models:[{id:'model',name:'Model'}]}));
+vi.mock('./browser-polyfill', () => ({default:{runtime:{sendMessage:(...args:unknown[])=>state.send(...args)}}}));
 vi.mock('./chat-llm', () => ({enabledChatModels:()=>state.models, streamChat:(...args:unknown[])=>state.stream(...args)}));
 vi.mock('./storage-utils', () => ({loadSettings:async()=>{},getLocalStorage:async()=> 'model'}));
 vi.mock('./i18n', () => ({getMessage:(key:string)=>key}));
 import { translationBatches, parseTranslation, mountTranslation, TRANSLATION_SYSTEM } from './youtube-translation';
 import { transcriptText } from './youtube-study';
 afterEach(()=>vi.useRealTimers());
-const flush=async()=>{for(let i=0;i<25;i++)await Promise.resolve();};
+const flush=async()=>{for(let i=0;i<200;i++)await Promise.resolve();};
 function setup(texts=['English source','Another segment']) {
 	document.body.innerHTML='<article><div class="toolbar"><span role="status"></span></div><div class="youtube transcript"></div></article>';
 	const article=document.querySelector('article')!;
@@ -20,7 +21,7 @@ beforeEach(()=>{vi.clearAllMocks();state.models=[{id:'model',name:'Model'}];stat
 
 it('bounds requests and rejects missing, duplicate or unknown segment identifiers',()=>{
 	const batches=translationBatches(['a'.repeat(12000),...Array(20).fill('Text')]);
-	expect(batches.every(batch=>batch.length<=8&&batch.reduce((size,item)=>size+item.text.length,0)<=5500)).toBe(true);
+	expect(batches.every(batch=>batch.length<=6&&batch.reduce((size,item)=>size+item.text.length,0)<=3500)).toBe(true);
 	expect(batches.flat().filter(part=>part.segment===0).map(part=>part.text).join('')).toBe('a'.repeat(12000));
 	const batch=[{id:0,segment:0,text:'A'},{id:1,segment:1,text:'B'}];
 	expect(()=>parseTranslation('[{"id":0,"text":"甲"}]',batch)).toThrow();
@@ -48,19 +49,25 @@ it('aborts when switched off and ignores a provider response arriving after canc
 	expect(article.querySelector('.transcript-translation')).toBeNull();
 });
 
-it('retries only failed batches while preserving completed paragraphs',async()=>{
-	state.stream.mockImplementationOnce(async options=>response(options)).mockRejectedValueOnce(new Error('Offline'));
-	const {article,input}=setup(Array(10).fill('Text'));input.click();await flush();
-	expect(article.querySelectorAll('.transcript-translation')).toHaveLength(8);
-	const retry=article.querySelector<HTMLButtonElement>('.youtube-translation-retry')!;expect(retry.hidden).toBe(false);retry.click();await flush();
-	expect(article.querySelectorAll('.transcript-translation')).toHaveLength(10);
-	expect(JSON.parse(state.stream.mock.calls[2][0].messages[0].content)).toHaveLength(2);
+it('retries a dropped connection on its own, without losing the batch',async()=>{
+	vi.useFakeTimers();state.stream.mockRejectedValueOnce(new Error('Provider 503: busy'));
+	const {article,input}=setup();input.click();await vi.advanceTimersByTimeAsync(1500);
+	expect(state.stream).toHaveBeenCalledTimes(2);expect(article.querySelectorAll('.transcript-translation')).toHaveLength(2);
+	expect(article.querySelector<HTMLButtonElement>('.youtube-translation-retry')!.hidden).toBe(true);
+});
+it('stops straight away on a rejected key instead of retrying every batch',async()=>{
+	state.stream.mockRejectedValue(new Error('Provider 401: bad key'));
+	const {article,input}=setup(Array(20).fill('Text'));input.click();await flush();
+	expect(state.stream.mock.calls.length).toBeLessThanOrEqual(3);
+	expect(article.querySelector('[role=status]')!.textContent).toContain('qiaomuTranslationError');
+	expect(article.querySelector<HTMLButtonElement>('.youtube-translation-retry')!.hidden).toBe(false);
 });
 
 it('keeps Chinese source unchanged and explains missing model configuration',async()=>{
 	state.stream.mockImplementation(async options=>JSON.stringify(JSON.parse(options.messages[0].content)));
 	let view=setup(['已经是中文']);view.input.click();await flush();expect(view.article.querySelector('.transcript-translation')).toBeNull();
 	state.models=[];view=setup();view.input.click();await flush();expect(view.article.querySelector('[role=status]')!.textContent).toContain('qiaomuTranslationNoModel');
+	const setupButton=view.article.querySelector<HTMLButtonElement>('.youtube-translation-setup')!;expect(setupButton.hidden).toBe(false);setupButton.click();expect(state.send).toHaveBeenCalledWith({action:'openSettings',section:'interpreter'});
 });
 
 
@@ -104,13 +111,33 @@ it('automatically retries malformed JSON as plain blocks and preserves ordinary 
  expect(state.stream).toHaveBeenCalledTimes(2);expect(article.querySelectorAll('.transcript-translation')).toHaveLength(2);
  expect(article.querySelector('.transcript-translation')!.textContent).toContain('"中文引语"');expect(article.querySelector('[role=status]')!.textContent).toBe('qiaomuTranslationDone');
 });
-it('bounds format retries, shows no JSON parser details and only retries unfinished batches',async()=>{
- state.stream.mockImplementationOnce(async options=>response(options)).mockResolvedValueOnce('[{"id" broken}]').mockResolvedValueOnce('truncated block');
- const {article,input}=setup(Array(10).fill('Text'));input.click();await flush();
- expect(state.stream).toHaveBeenCalledTimes(3);expect(article.querySelectorAll('.transcript-translation')).toHaveLength(8);
+it('keeps the valid entries of a damaged answer and asks again only for the missing ones',async()=>{
+ state.stream.mockImplementationOnce(async options=>{const [first]=JSON.parse(options.messages[0].content);return JSON.stringify([{id:first.id,text:'译文一'}]);});
+ const {article,input}=setup();input.click();await flush();
+ expect(state.stream).toHaveBeenCalledTimes(2);
+ expect(JSON.parse(state.stream.mock.calls[1][0].messages[0].content).map((part:{id:number})=>part.id)).toEqual([1]);
+ expect(article.querySelectorAll('.transcript-translation')).toHaveLength(2);
+});
+it('halves a group that keeps failing so one bad paragraph costs one paragraph, then offers a retry for it',async()=>{
+ const bad='Text 3';const texts=Array.from({length:6},(_,i)=>`Text ${i}`);
+ state.stream.mockImplementation(async options=>{
+  const items=JSON.parse(options.messages[0].content) as Array<{id:number;text:string}>;
+  if(items.some(item=>item.text===bad)) return 'garbage';
+  return JSON.stringify(items.map(({id,text})=>({id,text:`中文 ${text}`})));
+ });
+ const {article,input}=setup(texts);input.click();await flush();
+ expect(article.querySelectorAll('.transcript-translation')).toHaveLength(5);
  expect(article.querySelector('[role=status]')!.textContent).toContain('qiaomuTranslationInvalid');expect(article.textContent).not.toContain('JSON at position');
- state.stream.mockImplementation(async options=>response(options));article.querySelector<HTMLButtonElement>('.youtube-translation-retry')!.click();await flush();
- expect(JSON.parse(state.stream.mock.calls[3][0].messages[0].content)).toHaveLength(2);expect(article.querySelectorAll('.transcript-translation')).toHaveLength(10);
+ state.stream.mockClear();state.stream.mockImplementation(async options=>response(options));
+ article.querySelector<HTMLButtonElement>('.youtube-translation-retry')!.click();await flush();
+ expect(state.stream).toHaveBeenCalledTimes(1);expect(JSON.parse(state.stream.mock.calls[0][0].messages[0].content)).toHaveLength(1);
+ expect(article.querySelectorAll('.transcript-translation')).toHaveLength(6);
+});
+it('salvages complete entries from a truncated JSON answer and ignores ambiguous ones',async()=>{
+ const {salvageTranslation}=await import('./youtube-translation');const batch=[0,1,2].map(id=>({id,segment:id,text:'T'+id}));
+ const got=salvageTranslation('[{"id":0,"text":"甲"},{"id":1,"text":"乙"},{"id":2,"te',batch);
+ expect([...got.keys()]).toEqual([0,1]);
+ expect([...salvageTranslation('[{"id":0,"text":"甲"},{"id":0,"text":"乙"}]',batch).keys()]).toEqual([]);
 });
 it('never attaches a fallback translation to a missing, duplicated or foreign cue id',async()=>{
  const {parseTranslationBlocks}=await import('./youtube-translation');const batch=[{id:0,segment:0,text:'A'},{id:1,segment:1,text:'B'}];

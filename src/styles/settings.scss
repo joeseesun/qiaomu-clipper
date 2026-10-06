@@ -666,3 +666,8 @@ label {
 .triple-key-error { color: var(--text-error); &[hidden] { display: none; } }
 
 #asr-settings [hidden] { display: none !important; }
+
+.settings-section-note {
+	margin: 0 0 16px; color: var(--text-muted); font-size: var(--font-ui-small); line-height: 1.6;
+	a { color: var(--text-normal); text-decoration: underline; cursor: pointer; &:focus-visible { outline: 1px solid var(--text-muted); outline-offset: 2px; } }
+}

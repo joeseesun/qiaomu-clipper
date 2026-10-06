@@ -209,6 +209,13 @@ article > .player-toggles {
 .youtube-study-feedback {
 	font: 12px/1.5 var(--font-ui); color: var(--text-muted);
 	&:not(:has(.youtube-study-status:not(:empty))):not(:has(button:not([hidden]))):not(:has(.youtube-translate-toggle)) { display: none; }
+	html & button.youtube-translation-setup:not(.clickable-icon) {
+		width: auto; margin-inline-start: 8px; padding: 2px 10px; border: 0; border-radius: 6px; box-shadow: none;
+		background: var(--background-modifier-hover); color: var(--text-normal); font: inherit; cursor: pointer;
+		&:hover { background: var(--background-modifier-border); box-shadow: none; }
+		&[hidden] { display: none; }
+		&:focus-visible { outline: 1px solid var(--text-muted); outline-offset: 2px; }
+	}
 	.youtube-translation-retry, button[aria-label="重新加载字幕"] {
 		margin-inline-start: 8px; background: transparent; color: inherit; border: 0;
 		font: inherit; cursor: pointer; text-decoration: underline;
