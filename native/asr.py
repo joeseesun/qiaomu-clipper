@@ -215,11 +215,12 @@ def open_public(url, timeout=30, headers=None, allowed=None):
     opener = urllib.request.build_opener(Guard)
     return opener.open(urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (qiaomu-clipper)', 'Accept': '*/*', **(headers or {})}), timeout=timeout)
 def douyin_media(page, media):
-    from urllib.parse import urlparse
+    from urllib.parse import urlparse, parse_qs
     if not isinstance(media, str) or len(media) > 8000 or not re.fullmatch(r'https://www\.douyin\.com/video/\d+', str(page)): return False
     try:
         parsed = urlparse(media); host = (parsed.hostname or '').lower()
-        return public_https(media) and parsed.port in (None, 443) and (host == 'douyinvod.com' or host.endswith('.douyinvod.com'))
+        params = parse_qs(parsed.query, keep_blank_values=True)
+        return public_https(media) and parsed.port in (None, 443) and (host == 'douyinvod.com' or host.endswith('.douyinvod.com')) and ('__vid' not in params or params['__vid'] == [page.rsplit('/', 1)[-1]])
     except ValueError: return False
 def download_page_media(directory, spec):
     page = spec['url']; media = spec['mediaUrl']

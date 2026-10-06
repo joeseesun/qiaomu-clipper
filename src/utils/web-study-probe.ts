@@ -1,5 +1,29 @@
 import { asrProbe, thisBrowser, type AsrReply, type CookieBrowser, type WebInfo } from './asr-client';
 
+// Douyin's loaded player is more reliable than the downloader's cookie extraction.
+// Keep checking it on retry: a video may start loading after the reader opens.
+export async function probeDouyinPage(url: string, status: HTMLElement, holder: HTMLElement,
+	readPage: () => Promise<WebInfo | null | undefined>): Promise<{ info: WebInfo }> {
+	const read = async () => { try { return await readPage(); } catch { return; } };
+	const first = await read(); if (first?.ok) return { info: first };
+	const doc = holder.ownerDocument, row = doc.createElement('div'); row.className = 'qiaomu-web-retry';
+	const note = doc.createElement('p'); note.className = 'qiaomu-yt-gen-text';
+	note.textContent = '请在原页面播放这条视频，再重试读取。';
+	const link = doc.createElement('a'); link.href = url; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = '打开原视频';
+	const button = doc.createElement('button'); button.type = 'button'; button.className = 'qiaomu-yt-gen-button is-primary'; button.textContent = '重新读取原视频';
+	row.append(note, link, button); holder.append(row);
+	status.textContent = '暂时没有读到原页面的播放器。';
+	return new Promise(resolve => {
+		button.addEventListener('click', async () => {
+			button.disabled = true; status.textContent = '正在读取原页面视频…';
+			const info = await read();
+			if (info?.ok) { row.remove(); resolve({ info }); return; }
+			status.textContent = '还没读到这条视频。请确认原页面能播放，且没有切换到其他视频。';
+			button.disabled = false;
+		});
+	});
+}
+
 // Borrow browser state only after a click, for this item's read and subsequent subtitle download.
 export async function probeWebStudy(url: string, status: HTMLElement, holder: HTMLElement,
 	probe: typeof asrProbe = asrProbe): Promise<{ info: AsrReply<WebInfo>; cookies?: CookieBrowser }> {

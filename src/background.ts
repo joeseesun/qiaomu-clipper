@@ -1,4 +1,4 @@
-import { getWebPageMedia } from './utils/web-page-media';
+import { getWebPageMedia, snapshotDouyinPlayer, validateDouyinTracks } from './utils/web-page-media';
 import { submitQiaomuClip, QiaomuClip } from './utils/qiaomu-rss';
 import browser from 'webextension-polyfill';
 import { detectBrowser } from './utils/browser-detection';
@@ -1398,5 +1398,14 @@ browser.runtime.onMessage.addListener((raw: unknown, sender) => {
 	const request = raw as { action?: string; url?: string; sourceTabId?: number };
 	if (request?.action !== 'qiaomuWebStudySource') return;
 	if (sender.id !== browser.runtime.id || !sender.url?.startsWith(browser.runtime.getURL('reader.html')) || typeof request.url !== 'string') return Promise.resolve(null);
-	return getWebPageMedia(request.url, request.sourceTabId, browser.tabs).then(info => info || null);
+	return getWebPageMedia(request.url, request.sourceTabId, browser.tabs, async tabId => {
+		const [result] = await browser.scripting.executeScript({ target: { tabId }, func: snapshotDouyinPlayer });
+		const snapshot = result?.result as ReturnType<typeof snapshotDouyinPlayer> | undefined;
+		if (snapshot?.info?.audioUrl) {
+			const info = snapshot.info;
+			const [checked] = await browser.scripting.executeScript({ target: { tabId }, func: validateDouyinTracks, args: [snapshot.url, info.mediaUrl!, info.audioUrl!, info.seconds!] });
+			if (!checked?.result) return;
+		}
+		return snapshot;
+	}).then(info => info || null);
 });

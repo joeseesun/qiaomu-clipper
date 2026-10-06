@@ -12,7 +12,7 @@ class Response(io.BytesIO):
 class PageMediaTests(unittest.TestCase):
     def test_only_current_douyin_cdn_is_accepted(self):
         self.assertTrue(asr.douyin_media(PAGE,MEDIA))
-        for bad in ('http://v11.douyinvod.com/a','https://douyinvod.com.evil.org/a','https://user:pw@v11.douyinvod.com/a','https://v11.douyinvod.com:8080/a','blob:https://www.douyin.com/x'):
+        for bad in ('http://v11.douyinvod.com/a','https://douyinvod.com.evil.org/a','https://user:pw@v11.douyinvod.com/a','https://v11.douyinvod.com:8080/a','blob:https://www.douyin.com/x', MEDIA+'&__vid=456'):
             self.assertFalse(asr.douyin_media(PAGE,bad))
         self.assertFalse(asr.douyin_media('https://vimeo.com/123',MEDIA))
     def test_direct_download_never_runs_cookie_extractor_and_detects_truncation(self):
