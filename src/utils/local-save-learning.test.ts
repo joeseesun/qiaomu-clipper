@@ -203,3 +203,14 @@ it('lets a post on X start a job for its own address from the bar on that post, 
  expect(native).not.toHaveBeenCalled();
  expect(await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'probe',url:post}},onPost)).toMatchObject({error:'refused'}); // the bar needs no probe, and a page may not use it
 });
+
+it('passes explicit probe browser selection and rejects invalid values',async()=>{
+ native.mockReset();native.mockResolvedValue({ok:true});const url='https://www.douyin.com/video/123';
+ expect(await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'probe',url,cookies:'chrome;bad'}},sender)).toMatchObject({error:'bad-request'});expect(native).not.toHaveBeenCalled();
+ await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'probe',url,cookies:'chrome'}},sender);expect(native.mock.calls[0][1]).toEqual({action:'asrProbe',url,cookies:'chrome'});
+});
+it('allows supported-site bars to generate only their current detail item',async()=>{
+ native.mockReset();native.mockResolvedValue({ok:true});const url='https://www.douyin.com/video/123',KEY='web:'+'a'.repeat(12);
+ await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'start',videoKey:KEY,web:{url}}},{id:'test-id',url});expect(native.mock.calls[0][1]).toMatchObject({action:'asrStart',web:{url}});
+ native.mockClear();expect(await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'start',videoKey:KEY,web:{url}}},{id:'test-id',url:'https://www.douyin.com/video/456'})).toMatchObject({error:'bad-request'});expect(native).not.toHaveBeenCalled();
+});

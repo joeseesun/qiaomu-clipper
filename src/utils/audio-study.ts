@@ -1,8 +1,9 @@
+import { probeWebStudy } from './web-study-probe';
 import DOMPurify from 'dompurify';
 import browser from './browser-polyfill';
 import { Reader } from './reader';
 import { setPageTitle, setPageUrl } from './highlighter';
-import { AUDIO_FILE, asrProbe, asrUpload, registerFeedEpisode, registerWebSource } from './asr-client';
+import { AUDIO_FILE, asrUpload, registerFeedEpisode, registerWebSource, useWebCookies } from './asr-client';
 import { createBarGeneration } from './bar-generation';
 import { buildGenerationPanel, GENERATION_STYLE, type GenUi } from './subtitle-generation-panel';
 import { generationStrings } from './subtitle-generation-strings';
@@ -49,6 +50,9 @@ export async function fetchEpisode(pageUrl: string): Promise<PodcastEpisode> {
 }
 
 const STYLE = `
+html .qiaomu-web-retry select{appearance:none;width:auto;max-width:100%;padding:8px 12px;border:1px solid var(--background-modifier-border,#bbb);border-radius:8px;background:var(--background-primary,#fff);color:var(--text-normal,#222);margin:0 8px 8px 0}
+html .qiaomu-web-retry select:focus-visible{outline:2px solid var(--text-accent,#666);outline-offset:2px}
+
 html.qiaomu-audio-page article{--qa-top:72px}
 .qiaomu-audio-hero{display:flex;gap:16px;align-items:center;margin:0 0 20px}
 .qiaomu-audio-hero img{flex:none;width:84px;height:84px;border-radius:18px;object-fit:cover;background:var(--background-secondary,rgba(127,127,127,.15));box-shadow:0 0 0 1px rgba(127,127,127,.18)}
@@ -215,12 +219,13 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 		const address = options.webUrl ?? '';
 		if (!/^https:\/\//.test(address)) { status.textContent = '只支持 https 网址'; return; }
 		status.textContent = text('webReading', '正在读取这个网址…', 'Reading this address…');
-		const info = await asrProbe(address);
+		const { info, cookies } = await probeWebStudy(address, status, holder);
 		if (!info.ok) {
-			status.textContent = info.error === 'unsupported' ? '这个网址读不了：下载工具不支持这个网站，或这个页面里没有音视频。' : info.error === 'needs-cookies' ? '这个网站需要登录状态才能读取，暂时不支持。' : info.error === 'helper-offline' || info.error === 'helper-outdated' ? text('subtitleGenOffline', '没有连上本地助手，需要先安装或更新本地助手。', 'The local helper is not connected or is out of date.') : info.error === 'missing' ? '还没有安装下载工具（yt-dlp），请先在「语音识别」里安装，或运行 brew install yt-dlp。' : info.error === 'timeout' ? '读取超时，请稍后重试。' : '读取失败' + ((info as { message?: string }).message ? '：' + (info as { message?: string }).message : '');
+			status.textContent = info.error === 'unsupported' ? '这个网址读不了：下载工具不支持这个网站，或这个页面里没有音视频。' : info.error === 'needs-cookies' ? '这个网站需要有效的浏览器状态才能读取。' : info.error === 'helper-offline' || info.error === 'helper-outdated' ? text('subtitleGenOffline', '没有连上本地助手，需要先安装或更新本地助手。', 'The local helper is not connected or is out of date.') : info.error === 'missing' ? '还没有安装下载工具（yt-dlp），请先在「语音识别」里安装，或运行 brew install yt-dlp。' : info.error === 'timeout' ? '读取超时，请稍后重试。' : '读取失败' + ((info as { message?: string }).message ? '：' + (info as { message?: string }).message : '');
 			return;
 		}
 		key = await webKey(address); registerWebSource(key, address);
+		if (cookies) useWebCookies(key, cookies);
 		void recordStudy({ url: address, title: info.title, path: `reader.html?study=web&url=${encodeURIComponent(address)}`, kind: 'web' });
 		// A post on X says something of its own: its words stay with the media. A long description of another site waits behind a tab.
 		const words = (info.description ?? '').trim(), isPost = Boolean(xStatus(address)), short = isPost || words.length <= 400;

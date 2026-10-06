@@ -78,6 +78,20 @@ class WebTests(unittest.TestCase):
             with self.assertRaises(ValueError): asr.probe({'url': 'http://x.example.com/p'})
         with patch.object(asr, 'find_tool', lambda name: None): self.assertEqual(asr.probe({'url': 'https://vimeo.com/1'})['error'], 'missing')
 
+    def test_douyin_cookie_errors_are_retryable_and_probe_uses_only_an_explicit_allowed_browser(self):
+        from unittest.mock import Mock
+        failed = type('R', (), {'returncode': 1, 'stdout': '', 'stderr': 'ERROR: [Douyin] 123: Fresh cookies (not necessarily logged in) are needed'})()
+        run = Mock(return_value=failed)
+        with patch.object(asr, 'find_tool', lambda name: '/usr/bin/true'), patch.object(asr, 'public_https', lambda url: True), patch('subprocess.run', run):
+            url = 'https://www.douyin.com/video/123'
+            self.assertEqual(asr.probe({'url': url})['error'], 'needs-cookies')
+            self.assertNotIn('--cookies-from-browser', run.call_args[0][0])
+            asr.probe({'url': url, 'cookies': 'chrome'})
+            args = run.call_args[0][0]
+            self.assertEqual(args[args.index('--cookies-from-browser') + 1], 'chrome')
+            for bad in ['chrome; echo bad', '/tmp/cookies.txt']:
+                with self.assertRaises(ValueError): asr.probe({'url': url, 'cookies': bad})
+
     def test_probe_picks_a_plain_file_with_the_picture_when_a_site_offers_streams_and_files(self):
         run = lambda out: type('R', (), {'returncode': 0, 'stdout': out, 'stderr': ''})()
         formats = [{'format_id': 'hls-audio', 'url': 'https://v.example.com/a.m3u8', 'protocol': 'm3u8_native', 'ext': 'mp4', 'vcodec': 'none'},

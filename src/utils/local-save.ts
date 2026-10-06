@@ -1,6 +1,6 @@
 import browser from './browser-polyfill';
 import { Template } from '../types/types';
-import { xStatus } from './study-sites';
+import { webMediaAddress } from './web-media-page';
 import { activeProfile, choosePatch, cloudConfig, effectiveFor, isConfigured, isHttpsOrLocal, isLocalService, loadAsrSettings, platformOf, profileLabel, saveAsrSettings, LOCAL_ENGINE_IDS, type AsrSettings } from './asr-settings';
 export interface LocalSavePayload { requestId: string; content: string; name: string; folder: string; vault: string; behavior: Template['behavior'] }
 export interface LocalSaveResult { ok: boolean; reason?: string; error?: string; cancelled?: boolean; vault?: string; vaultPath?: string; path?: string; relativePath?: string; folder?: string }
@@ -80,8 +80,8 @@ export function handleAsrMessage(request: unknown, sender: { id?: string; url?: 
         // Any other site: its address comes with the request, from the extension's own pages only, and must be https.
         if (payload.videoKey!.startsWith('web:')) {
             const ref = payload.web;
-            // A page may also transcribe itself: a post on X, from the bar on that post, for the post's own address and no other.
-            const own = Boolean(ref && typeof ref.url === 'string' && xStatus(sender.url || '') && xStatus(ref.url) === xStatus(sender.url || ''));
+            // A supported media detail page may transcribe only its own item from its subtitle bar.
+            const own = Boolean(ref && typeof ref.url === 'string' && webMediaAddress(sender.url || '') && webMediaAddress(ref.url) === webMediaAddress(sender.url || ''));
             if (!(sender.url?.startsWith(browser.runtime.getURL('')) || own) || !ref || typeof ref.url !== 'string' || ref.url.length > 1500 || !/^https:\/\//.test(ref.url)) return Promise.resolve({ ok: false, error: 'bad-request' });
             body.web = { url: ref.url };
         }
@@ -96,7 +96,9 @@ export function handleAsrMessage(request: unknown, sender: { id?: string; url?: 
         Object.assign(body, { engine: payload.engine, ...(payload.mode === 'uninstall' ? { model: payload.model === true } : {}) });
     } else if (payload.mode === 'probe') {
         if (!sender.url?.startsWith(browser.runtime.getURL('')) || typeof payload.url !== 'string' || payload.url.length > 1500 || !/^https:\/\//.test(payload.url)) return Promise.resolve({ ok: false, error: sender.url?.startsWith(browser.runtime.getURL('')) ? 'bad-request' : 'refused' });
+        if (payload.cookies !== undefined && !ASR_COOKIES.test(payload.cookies)) return Promise.resolve({ ok: false, error: 'bad-request' });
         body.url = payload.url;
+        if (payload.cookies) body.cookies = payload.cookies;
     } else if (payload.mode === 'uploadStart' || payload.mode === 'uploadChunk' || payload.mode === 'uploadFinish') {
         // Only the extension's own pages hand a file over; a web page cannot send the helper files.
         if (!sender.url?.startsWith(browser.runtime.getURL(''))) return Promise.resolve({ ok: false, error: 'refused' });

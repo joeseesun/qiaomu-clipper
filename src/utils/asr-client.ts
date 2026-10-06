@@ -19,6 +19,8 @@ export type AsrReply<T> = T | AsrFailure;
 
 export const ASR_VIDEO_KEY = /^(youtube:[A-Za-z0-9_-]{11}|bilibili:BV[0-9A-Za-z]{10}:\d{1,4}|xiaoyuzhou:[0-9a-f]{24}|file:[0-9a-f]{32}|rss:[0-9a-f]{12}:[0-9a-f]{16}|web:[0-9a-f]{12})$/;
 const webRefs = new Map<string, { url: string }>();
+const webCookies = new Map<string, CookieBrowser>();
+export const useWebCookies = (key: string, cookies: CookieBrowser) => { webCookies.set(key, cookies); };
 export const registerWebSource = (key: string, url: string) => { webRefs.set(key, { url }); };
 // A podcast episode from a feed is named by hash; the address behind a key is remembered here, for the request that starts it.
 const feedRefs = new Map<string, { feed: string; guid: string }>();
@@ -30,16 +32,16 @@ export type CookieBrowser = typeof COOKIE_BROWSERS[number];
 export const thisBrowser = (): CookieBrowser => /Edg\//.test(navigator.userAgent) ? 'edge' : /Firefox\//.test(navigator.userAgent) ? 'firefox' : 'chrome';
 export const isRunning = (state: AsrState) => state !== 'completed' && state !== 'failed' && state !== 'cancelled';
 
-const ask = async <T>(payload: Record<string, unknown>): Promise<AsrReply<T>> => {
-	try { return await Promise.race([browser.runtime.sendMessage({ action: 'qiaomuAsr', payload }) as Promise<AsrReply<T>>, new Promise<AsrFailure>(resolve => setTimeout(() => resolve({ ok: false, error: 'helper-offline' }), 20000))]); }
+const ask = async <T>(payload: Record<string, unknown>, timeout = 20000): Promise<AsrReply<T>> => {
+	try { return await Promise.race([browser.runtime.sendMessage({ action: 'qiaomuAsr', payload }) as Promise<AsrReply<T>>, new Promise<AsrFailure>(resolve => setTimeout(() => resolve({ ok: false, error: 'helper-offline' }), timeout))]); }
 	catch { return { ok: false, error: 'helper-offline' }; }
 };
 // With a video key, the answer is about the way of recognising chosen for that video's site.
 export const asrStatus = (videoKey?: string) => ask<AsrStatus>({ mode: 'status', ...(videoKey ? { videoKey } : {}) });
-export const asrStart = (videoKey: string, language = 'auto', force = false, cookies?: CookieBrowser) => ask<AsrJob>({ mode: 'start', videoKey, language, force, ...(cookies ? { cookies } : {}), ...(feedRefs.has(videoKey) ? { rss: feedRefs.get(videoKey) } : {}), ...(webRefs.has(videoKey) ? { web: webRefs.get(videoKey) } : {}) });
+export const asrStart = (videoKey: string, language = 'auto', force = false, cookies?: CookieBrowser) => ask<AsrJob>({ mode: 'start', videoKey, language, force, ...((cookies ?? webCookies.get(videoKey)) ? { cookies: cookies ?? webCookies.get(videoKey) } : {}), ...(feedRefs.has(videoKey) ? { rss: feedRefs.get(videoKey) } : {}), ...(webRefs.has(videoKey) ? { web: webRefs.get(videoKey) } : {}) });
 // What yt-dlp can tell about an address: whether it can read it, what it is, and a plain media address when the site gives one.
 export interface WebInfo { ok: true; title: string; author: string; seconds: number | null; thumbnail: string | null; site: string; mediaUrl: string | null; video: boolean; description?: string; date?: string | null }
-export const asrProbe = (url: string) => ask<WebInfo>({ mode: 'probe', url });
+export const asrProbe = (url: string, cookies?: CookieBrowser) => ask<WebInfo>({ mode: 'probe', url, ...(cookies ? { cookies } : {}) }, 65000);
 export const asrPoll = (jobId: string, since: number) => ask<AsrJob>({ mode: 'poll', jobId, since });
 // Pick how subtitles are made (saved as the default): a local engine, or one of the saved cloud services.
 // `auto` also sets whether "generate subtitles" starts at once next time.

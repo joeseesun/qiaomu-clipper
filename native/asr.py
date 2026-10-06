@@ -25,7 +25,7 @@ TOOL_DIRS = ['/opt/homebrew/bin', '/usr/local/bin', str(Path.home() / '.local/bi
 LANGUAGES = {'auto', 'zh', 'en', 'ja', 'ko', 'de', 'fr', 'es', 'ru', 'pt', 'it'}
 # Browsers yt-dlp can borrow a login from. Only ever used when the viewer explicitly asked for it for this video.
 COOKIE_BROWSERS = {'chrome', 'edge', 'brave', 'chromium', 'firefox', 'safari'}
-NEEDS_LOGIN = re.compile(r'sign in to confirm|not a bot|use --cookies|login required|412', re.I)
+NEEDS_LOGIN = re.compile(r'sign in to confirm|not a bot|use --cookies|fresh cookies|login required|412', re.I)
 # Lines Whisper tends to invent over silence or music. Only dropped when they stand alone in a short segment.
 HALLUCINATIONS = ('谢谢观看', '感谢观看', '请不吝点赞', '字幕由', '字幕 by', '字幕by', '订阅', 'thanks for watching', 'thank you for watching', 'subtitles by', 'amara.org')
 
@@ -429,9 +429,14 @@ def probe(message):
     direct media address when the site gives a plain file the page can play)."""
     url = message.get('url')
     if not isinstance(url, str) or len(url) > 1500 or not public_https(url): raise ValueError('网页地址必须是公开的 https 地址')
+    cookies = message.get('cookies') or None
+    if cookies is not None and cookies not in COOKIE_BROWSERS: raise ValueError('不支持的浏览器')
     ytdlp = find_tool('yt-dlp')
     if not ytdlp: return {'ok': False, 'error': 'missing', 'missing': ['yt-dlp']}
-    try: result = subprocess.run([ytdlp, '--dump-single-json', '--no-playlist', '--skip-download', '--no-warnings', '--socket-timeout', '20', '-f', 'bestaudio/best', url], capture_output=True, text=True, timeout=60, env=tool_env())
+    command = [ytdlp, '--dump-single-json', '--no-playlist', '--skip-download', '--no-warnings', '--socket-timeout', '20', '-f', 'bestaudio/best']
+    if cookies: command += ['--cookies-from-browser', cookies]
+    command.append(url)
+    try: result = subprocess.run(command, capture_output=True, text=True, timeout=60, env=tool_env())
     except subprocess.TimeoutExpired: return {'ok': False, 'error': 'timeout'}
     if result.returncode != 0:
         text = (result.stderr or '').strip(); low = text.lower()
