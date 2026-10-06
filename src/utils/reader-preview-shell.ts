@@ -1,5 +1,5 @@
 import { mountTranscriptExport } from './transcript-export';
-import { createClipBar, autoHideBar, setClipBarHighlights } from './clip-bar';
+import { type ClipSyncAction, createClipBar, autoHideBar, setClipBarHighlights } from './clip-bar';
 import { mountClipChat } from './clip-chat';
 import { ClipPreview, updateClipPreview } from './clip-preview';
 import { generateFrontmatter } from './obsidian-note-creator';
@@ -18,8 +18,8 @@ export function mountReaderPreviewShell(draft: ClipPreview, pending = false) {
 	const id = draft.local.requestId;
 	document.documentElement.classList.add('qiaomu-preview');
 	const title = document.createElement('span'); title.textContent = draft.clip.title;
-	let sync = async () => {};
-	const openEditor = async () => { await sync(); location.href = browser.runtime.getURL(`editor.html?id=${id}`); };
+	let sync: (action?: ClipSyncAction) => Promise<void> = async () => {};
+	const openEditor = async () => { await sync('edit'); location.href = browser.runtime.getURL(`editor.html?id=${id}`); };
 	Reader.onEdit = openEditor;
  const learning = mountLearningNotes({ doc: document, getSource: () => ({title: draft.clip.title, url: draft.clip.url}), getHighlights });
 	const chat = mountClipChat({
@@ -34,7 +34,7 @@ export function mountReaderPreviewShell(draft: ClipPreview, pending = false) {
 			await updateClipPreview(draft);
 		},
 	});
-	const bar = createClipBar({onToggleChat:chat.toggle, mode:'read', id, draft, title, domain:getDomain(draft.clip.url), url:draft.clip.url, sync: () => sync()});
+	const bar = createClipBar({onToggleChat:chat.toggle, mode:'read', id, draft, title, domain:getDomain(draft.clip.url), url:draft.clip.url, sync: action => sync(action)});
 	sync = mountTranscriptExport(bar, draft);
 	document.body.prepend(bar);
 	const readerSettings = document.querySelector('.obsidian-reader-settings');

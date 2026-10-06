@@ -1609,7 +1609,7 @@
 		"message": "请先在扩展设置中配置并启用 AI 模型。"
 	},
 	"qiaomuTranslationDone": {
-		"message": "翻译完成；中文原文保持不变。"
+		"message": "翻译完成"
 	},
 	"qiaomuTranslationTimeout": {
 		"message": "翻译超时，可重试继续。"

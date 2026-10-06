@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
-import { beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 const state = vi.hoisted(() => ({stream:vi.fn(), models:[{id:'model',name:'Model'}]}));
 vi.mock('./chat-llm', () => ({enabledChatModels:()=>state.models, streamChat:(...args:unknown[])=>state.stream(...args)}));
 vi.mock('./storage-utils', () => ({loadSettings:async()=>{},getLocalStorage:async()=> 'model'}));
 vi.mock('./i18n', () => ({getMessage:(key:string)=>key}));
 import { translationBatches, parseTranslation, mountTranslation, TRANSLATION_SYSTEM } from './youtube-translation';
 import { transcriptText } from './youtube-study';
+afterEach(()=>vi.useRealTimers());
 const flush=async()=>{for(let i=0;i<25;i++)await Promise.resolve();};
 function setup(texts=['English source','Another segment']) {
 	document.body.innerHTML='<article><div class="toolbar"><span role="status"></span></div><div class="youtube transcript"></div></article>';
@@ -126,4 +127,12 @@ it('cancels an in-flight format retry when changing subtitle language and ignore
  state.stream.mockResolvedValueOnce('broken JSON').mockImplementationOnce(value=>{options=value;return new Promise(done=>{resolve=done;});});
  const {article,input}=setup();input.click();await flush();article.dispatchEvent(new CustomEvent('qiaomu-transcript-replaced'));
  expect(options.signal.aborted).toBe(true);resolve(response(options));await flush();expect(article.querySelector('.transcript-translation')).toBeNull();
+});
+
+it('clears the short completion feedback after three seconds while keeping failure feedback actionable',async()=>{
+ vi.useFakeTimers();const view=setup();view.input.click();await flush();expect(view.article.querySelector('[role=status]')!.textContent).toBe('qiaomuTranslationDone');
+ await vi.advanceTimersByTimeAsync(3000);expect((view.article.querySelector('[role=status]') as HTMLElement).dataset.feedbackState).toBe('leaving');
+ await vi.advanceTimersByTimeAsync(200);expect(view.article.querySelector('[role=status]')!.textContent).toBe('');
+ state.stream.mockRejectedValue(new Error('Offline'));const failed=setup();failed.input.click();await flush();await vi.advanceTimersByTimeAsync(10000);
+ expect(failed.article.querySelector('[role=status]')!.textContent).toContain('qiaomuTranslationError');expect(failed.article.querySelector<HTMLButtonElement>('.youtube-translation-retry')!.hidden).toBe(false);
 });

@@ -1609,7 +1609,7 @@
 		"message": "Configure and enable an AI model in extension settings first."
 	},
 	"qiaomuTranslationDone": {
-		"message": "Translation complete; Chinese source text is unchanged."
+		"message": "Translation complete"
 	},
 	"qiaomuTranslationTimeout": {
 		"message": "Translation timed out. Retry to continue."

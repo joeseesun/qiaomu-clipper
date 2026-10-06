@@ -72,8 +72,16 @@ export function mountTranslation(article: HTMLElement, toolbar: HTMLElement, sta
 	const retry = doc.createElement('button'); retry.type = 'button'; retry.className = 'youtube-translation-retry'; retry.textContent = getMessage('qiaomuTranslationRetry'); retry.hidden = true;
 	toolbar.append(label); status.after(retry);
 	let controller: AbortController | undefined; let generation = 0;
+	let feedbackTimer: ReturnType<typeof setTimeout> | undefined;
+	const showFeedback = (message: string, completed = false) => {
+		clearTimeout(feedbackTimer); status.removeAttribute('data-feedback-state'); status.textContent = message;
+		if (completed) feedbackTimer = setTimeout(() => {
+			status.dataset.feedbackState = 'leaving';
+			feedbackTimer = setTimeout(() => { status.textContent = ''; status.removeAttribute('data-feedback-state'); }, 200);
+		}, 3000);
+	};
 	const cache = new Map<number, string>();
-	article.addEventListener('qiaomu-transcript-replaced', () => { ++generation; controller?.abort(); }, { once: true });
+	article.addEventListener('qiaomu-transcript-replaced', () => { ++generation; controller?.abort(); clearTimeout(feedbackTimer); }, { once: true });
 	const parts = batches.flat();
 	const sources = segments.map(segment => {
 		let source = segment.querySelector<HTMLElement>('.transcript-segment-text');
@@ -131,7 +139,7 @@ export function mountTranslation(article: HTMLElement, toolbar: HTMLElement, sta
 	};
 	async function translate() {
 		controller?.abort(); const current = ++generation; const abort = new AbortController(); controller = abort; retry.hidden = true;
-		const progress = () => { status.textContent = `${getMessage('qiaomuTranslationProgress')} ${cache.size}/${parts.length}`; };
+		const progress = () => { showFeedback(`${getMessage('qiaomuTranslationProgress')} ${cache.size}/${parts.length}`); };
 		progress();
 		try {
 			await loadSettings(); const models = enabledChatModels(); const selected = await getLocalStorage('qiaomuChatModel');
@@ -152,7 +160,7 @@ export function mountTranslation(article: HTMLElement, toolbar: HTMLElement, sta
 					catch (error) {
 						if (!(error instanceof TranslationFormatError)) throw error;
 						// One bounded format retry, using plain blocks so quotes/newlines need no JSON escaping.
-						status.textContent = getMessage('qiaomuTranslationFormatRetry');
+						showFeedback(getMessage('qiaomuTranslationFormatRetry'));
 						const repaired = await request(BLOCK_SYSTEM); if (cancelled()) return;
 						try { translated = parseTranslationBlocks(repaired, pending); }
 						catch { translated = parseTranslation(repaired, pending); }
@@ -162,10 +170,10 @@ export function mountTranslation(article: HTMLElement, toolbar: HTMLElement, sta
 				for (const [id, text] of translated) cache.set(id, text);
 				render(); progress();
 			}
-			if (current === generation) status.textContent = getMessage('qiaomuTranslationDone');
+			if (current === generation) showFeedback(getMessage('qiaomuTranslationDone'), true);
 		} catch (error) {
 			if (current !== generation) return;
-			status.textContent = abort.signal.aborted ? getMessage('qiaomuTranslationTimeout') : `${getMessage('qiaomuTranslationError')} ${error instanceof Error ? error.message : ''}`;
+			showFeedback(abort.signal.aborted ? getMessage('qiaomuTranslationTimeout') : `${getMessage('qiaomuTranslationError')} ${error instanceof Error ? error.message : ''}`);
 			retry.hidden = false;
 		} finally { if (current === generation) controller = undefined; }
 	}
@@ -173,7 +181,7 @@ export function mountTranslation(article: HTMLElement, toolbar: HTMLElement, sta
 		label.classList.toggle('is-enabled', input.checked);
 		render();
 		if (input.checked) void translate();
-		else { ++generation; controller?.abort(); controller = undefined; retry.hidden = true; status.textContent = ''; }
+		else { ++generation; controller?.abort(); controller = undefined; retry.hidden = true; showFeedback(''); }
 	};
 	retry.onclick = () => { if (input.checked) void translate(); };
 }

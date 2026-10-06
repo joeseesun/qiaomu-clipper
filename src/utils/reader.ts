@@ -2695,7 +2695,7 @@ export class Reader {
 	// horizontally on mobile without blowing out the article width.
 	private static storeOriginalHtml(article: Element): void {
 		const clone = article.cloneNode(true) as Element;
-		clone.querySelectorAll('.youtube-size-control, .youtube-study-toolbar, .youtube-study-feedback, .youtube-player-resize, .transcript-translation').forEach(node => node.remove());
+		clone.querySelectorAll('.transcript-heading-tools, .youtube-size-control, .youtube-study-toolbar, .youtube-study-feedback, .youtube-player-resize, .transcript-translation').forEach(node => node.remove());
 		clone.querySelectorAll('span.timestamp').forEach(span => {
 			span.replaceWith(span.textContent || '');
 		});

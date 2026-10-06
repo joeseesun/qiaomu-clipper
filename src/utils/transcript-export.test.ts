@@ -32,3 +32,13 @@ it('does not append subtitles to a content-free template until translated export
  expect(draft.clip.markdown.match(/## 字幕/g)).toHaveLength(1);expect(draft.clip.markdown.match(/译文/g)).toHaveLength(1);
  expect(replaceTranscriptExport('prefix source suffix','source','next')).toBe('prefix next suffix');
 });
+
+it('places saving choices beside Transcript and follows visible translations for copy/download independently of the saving choice',async()=>{
+ const {draft,segments,transcript,sync,select}=setup();segments[0].dataset.translatedText='可见译文';segments[0].dataset.translationReady='true';segments[1].dataset.translatedText='另一译文';segments[1].dataset.translationReady='true';await Promise.resolve();
+ expect(document.querySelector('#bar select')).toBeNull();expect(transcript.querySelector('.transcript-heading-row select')).toBe(select);
+ select.value='translated';await sync('clip');expect(draft.clip.markdown).not.toContain('First source');
+ await sync('copy');expect(draft.clip.markdown).toContain('First source');expect(draft.clip.markdown).not.toContain('可见译文');
+ const visible=document.createElement('div');visible.className='transcript-translation';visible.textContent='可见译文';segments[0].append(visible);
+ await sync('download');expect(draft.clip.markdown).toContain('First source');expect(draft.clip.markdown).toContain('可见译文');expect(draft.clip.markdown).not.toContain('剪藏字幕');expect(draft.clip.markdown).not.toContain('选择保存');
+ expect(select.value).toBe('translated');await sync('clip');expect(draft.clip.markdown).not.toContain('First source');
+});

@@ -5,6 +5,7 @@ import { getMessage } from './i18n';
 import { createElement, Copy, Download, Paperclip, Highlighter, WandSparkles } from 'lucide';
 
 export type ClipMode = 'read' | 'edit';
+export type ClipSyncAction = ClipMode | 'copy' | 'download' | 'clip';
 
 interface ClipBarOptions {
 	mode: ClipMode;
@@ -15,7 +16,7 @@ interface ClipBarOptions {
 	domain?: string;
 	url?: string;
 	// Editing page: copy form fields back into the draft before any action.
-	sync?: () => Promise<void>;
+	sync?: (action?: ClipSyncAction) => Promise<void>;
 	// Opens or closes the AI chat panel; returns whether it is now open.
 	onToggleChat?: () => boolean;
 }
@@ -87,7 +88,7 @@ export function createClipBar({ mode, id, draft, title, domain, url, sync, onTog
 		tab.textContent = getMessage(target === 'read' ? 'qiaomuActionReadShort' : 'qiaomuActionEditShort');
 		if (target !== mode) {
 			tab.addEventListener('click', async () => {
-				await sync?.();
+				await sync?.(target);
 				location.href = pageFor(target, id);
 			});
 		}
@@ -110,13 +111,13 @@ export function createClipBar({ mode, id, draft, title, domain, url, sync, onTog
 
 	const copy = button('clip-bar-copy', Copy, 'qiaomuActionCopy');
 	copy.addEventListener('click', async () => {
-		await sync?.();
+		await sync?.('copy');
 		showClipStatus(await copyToClipboard(draft.local.content) ? getMessage('qiaomuEditorCopied') : getMessage('copyToClipboard'));
 	});
 
 	const download = button('clip-bar-download', Download, 'qiaomuActionDownload');
 	download.addEventListener('click', async () => {
-		await sync?.();
+		await sync?.('download');
 		const link = document.createElement('a');
 		link.href = URL.createObjectURL(new Blob([draft.local.content], { type: 'text/markdown' }));
 		link.download = draft.local.name;
@@ -133,7 +134,7 @@ export function createClipBar({ mode, id, draft, title, domain, url, sync, onTog
 		clip.disabled = true;
 		showClipStatus('…');
 		try {
-			await sync?.();
+			await sync?.('clip');
 			showClipStatus((await saveClipPreview(draft)).join(' · '));
 		} catch (error) { showClipStatus(String(error)); }
 		if (isDone()) markDone(); else clip.disabled = false;
