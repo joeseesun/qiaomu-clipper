@@ -1726,5 +1726,154 @@
 	},
 	"providerSignInAgain": {
 		"message": "重新登入"
+	},
+	"pdAddProviderTitle": {
+		"message": "新增服務商"
+	},
+	"pdEditProviderTitle": {
+		"message": "編輯服務商"
+	},
+	"pdSearchProviders": {
+		"message": "搜尋服務商…"
+	},
+	"pdGroupAccount": {
+		"message": "帳號登入 · 無需 Key"
+	},
+	"pdGroupRelay": {
+		"message": "聚合中轉 · 一個 Key 用多家模型"
+	},
+	"pdGroupProvider": {
+		"message": "服務商"
+	},
+	"pdGroupLocal": {
+		"message": "本機"
+	},
+	"pdGroupCustom": {
+		"message": "其他"
+	},
+	"pdCustomName": {
+		"message": "自訂"
+	},
+	"pdCustomSub": {
+		"message": "任意相容的介面位址"
+	},
+	"pdAdded": {
+		"message": "已新增"
+	},
+	"pdNoMatch": {
+		"message": "沒有符合的服務商"
+	},
+	"pdFieldNamePlaceholder": {
+		"message": "服務商名稱"
+	},
+	"pdPasteWrong": {
+		"message": "這不是登入結束時停留頁面的網址，請重新複製"
+	},
+	"pdLocalNote": {
+		"message": "在這台電腦上執行，不需要 Key。"
+	},
+	"pdGetKey": {
+		"message": "取得 API Key"
+	},
+	"pdFieldUrl": {
+		"message": "介面位址"
+	},
+	"pdUrlHintCustom": {
+		"message": "對話介面，例如 https://example.com/v1/chat/completions"
+	},
+	"pdUrlHint": {
+		"message": "一般不用改。"
+	},
+	"pdFieldKey": {
+		"message": "API Key"
+	},
+	"pdFieldKeyOr": {
+		"message": "API Key（授權後自動填入）"
+	},
+	"pdShow": {
+		"message": "顯示"
+	},
+	"pdHide": {
+		"message": "隱藏"
+	},
+	"pdAdvanced": {
+		"message": "介面位址"
+	},
+	"pdNeedName": {
+		"message": "請填寫名稱"
+	},
+	"pdNeedUrl": {
+		"message": "請填寫介面位址"
+	},
+	"pdNeedLogin": {
+		"message": "請先登入"
+	},
+	"pdNeedKey": {
+		"message": "請填寫 API Key"
+	},
+	"pdBack": {
+		"message": "返回"
+	},
+	"pdAddProviderButton": {
+		"message": "新增服務商"
+	},
+	"pdAddModelTitle": {
+		"message": "新增模型"
+	},
+	"pdNoProviders": {
+		"message": "先新增一個服務商，再選擇它的模型。"
+	},
+	"pdPickProvider": {
+		"message": "服務商"
+	},
+	"pdSearchModels": {
+		"message": "搜尋模型…"
+	},
+	"pdManual": {
+		"message": "手動填寫模型 ID"
+	},
+	"pdManualNamePlaceholder": {
+		"message": "預設與模型 ID 相同"
+	},
+	"pdManualName": {
+		"message": "顯示名稱（選填）"
+	},
+	"pdAddModels": {
+		"message": "新增 $1 個模型",
+		"placeholders": {
+			"1": {
+				"content": "$1"
+			}
+		}
+	},
+	"pdAddModelsNone": {
+		"message": "新增模型"
+	},
+	"pdRecommended": {
+		"message": "推薦"
+	},
+	"pdPickProviderFirst": {
+		"message": "請先在上方選擇服務商"
+	},
+	"pdReasonTimeout": {
+		"message": "逾時"
+	},
+	"pdReasonFormat": {
+		"message": "回傳的不是模型列表"
+	},
+	"pdReasonNetwork": {
+		"message": "網路請求被攔截或無法連線"
+	},
+	"pdEdit": {
+		"message": "編輯"
+	},
+	"pdDelete": {
+		"message": "刪除"
+	},
+	"pdDuplicate": {
+		"message": "複製"
+	},
+	"failedToSaveModel": {
+		"message": "儲存模型失敗，請重試"
 	}
 }

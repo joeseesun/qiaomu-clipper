@@ -35,8 +35,8 @@ select {
 	&:focus,
 	&:focus-visible {
 		outline: none;
-		border-color: var(--background-modifier-border-focus);
-		box-shadow: 0 0 0 2px var(--background-modifier-border-focus);
+		border-color: var(--field-focus-border);
+		box-shadow: var(--field-focus-ring);
 		transition:
 			box-shadow .15s ease-in-out,
 			border .15s ease-in-out;
@@ -67,7 +67,7 @@ select {
 		}
 		&:active,
 		&:focus {
-			box-shadow: 0 0 0 2px var(--background-modifier-border-focus);
+			box-shadow: var(--field-focus-ring);
 			transition:
 				box-shadow .15s ease-in-out;
 		}

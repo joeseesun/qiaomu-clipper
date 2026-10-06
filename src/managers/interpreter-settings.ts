@@ -1,12 +1,12 @@
 import { initializeToggles, initializeSettingToggle } from '../utils/ui-utils';
-import { ModelConfig, OAuthCredentials, Provider } from '../types/types';
+import { ModelConfig, Provider } from '../types/types';
 import { generalSettings, loadSettings, saveSettings, getLocalStorage, setLocalStorage } from '../utils/storage-utils';
 import { initializeIcons } from '../icons/icons';
 import { showModal, hideModal } from '../utils/modal-utils';
 import { getMessage, translatePage } from '../utils/i18n';
 import { debugLog } from '../utils/debug';
-import { fetchProviderModels } from '../utils/provider-models';
-import { startSignIn, PendingSignIn, CHATGPT_BASE, CODEX_BASE } from '../utils/oauth/accounts';
+import { iconTile, CATALOG } from '../utils/provider-catalog';
+import { openProviderPicker, openProviderEditor, openModelPicker } from './provider-dialogs';
 
 export interface PresetProvider {
 	id: string;
@@ -109,45 +109,10 @@ async function shouldUpdatePresets(): Promise<boolean> {
 	}
 }
 
-// Gateways we ship ourselves; upstream presets with the same id win only if absent here.
-const BUILT_IN_PRESETS: Record<string, PresetProvider> = {
-	tokendance: {
-		id: 'tokendance',
-		name: '词元跳动',
-		baseUrl: 'https://tokendance.space/gateway/v1/chat/completions',
-		apiKeyUrl: 'https://tokendance.space/keys',
-		apiKeyRequired: true,
-		signIn: 'tokendance',
-		modelsList: 'https://tokendance.space/models',
-		popularModels: [
-			{ id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash', recommended: true },
-			{ id: 'qwen3.8-flash', name: 'Qwen3.8 Flash' },
-			{ id: 'kimi-k3', name: 'Kimi K3' }
-		]
-	},
-	chatgpt: {
-		id: 'chatgpt',
-		name: 'ChatGPT 账号',
-		baseUrl: `${CHATGPT_BASE}/responses`,
-		apiKeyRequired: false,
-		signIn: 'chatgpt'
-	},
-	codex: {
-		id: 'codex',
-		name: 'Codex 订阅',
-		baseUrl: `${CODEX_BASE}/responses`,
-		apiKeyRequired: false,
-		signIn: 'codex'
-	},
-	siliconflow: {
-		id: 'siliconflow',
-		name: '硅基流动',
-		baseUrl: 'https://api.siliconflow.cn/v1/chat/completions',
-		apiKeyUrl: 'https://cloud.siliconflow.cn/account/ak',
-		apiKeyRequired: true,
-		modelsList: 'https://cloud.siliconflow.cn/models'
-	}
-};
+// Providers we ship ourselves (see provider-catalog); the upstream list only adds to them.
+const BUILT_IN_PRESETS: Record<string, PresetProvider> = Object.fromEntries(CATALOG.map(e => [e.id, {
+	id: e.id, name: e.name, baseUrl: e.baseUrl, apiKeyUrl: e.apiKeyUrl, apiKeyRequired: e.apiKeyRequired, modelsList: e.modelsList, signIn: e.signIn, popularModels: e.popularModels
+}]));
 
 export async function getPresetProviders(): Promise<Record<string, PresetProvider>> {
 	const presets = await loadPresetProviders();
@@ -333,149 +298,56 @@ function initializeProviderList() {
 }
 
 function createProviderListItem(provider: Provider, index: number): HTMLElement {
-	const providerItem = document.createElement('div');
-	providerItem.className = 'provider-list-item';
-	providerItem.dataset.index = index.toString();
-	providerItem.dataset.providerId = provider.id;
+	const item = document.createElement('div');
+	item.className = 'provider-list-item';
+	item.dataset.index = index.toString();
+	item.dataset.providerId = provider.id;
 
-	const presetProvider = Object.values(cachedPresetProviders || {}).find(
-		preset => preset.name === provider.name
+	const info = document.createElement('div');
+	info.className = 'provider-list-item-info';
+	const text = document.createElement('div');
+	text.className = 'provider-list-text';
+	const name = document.createElement('div');
+	name.className = 'provider-name-text';
+	name.textContent = provider.name;
+	const sub = document.createElement('div');
+	sub.className = 'provider-list-sub';
+	const needsKey = provider.apiKeyRequired !== false && !provider.apiKey && !provider.oauth;
+	if (provider.oauth) sub.textContent = getMessage('providerSignInDone', provider.oauth.email || provider.name);
+	else if (needsKey) { sub.textContent = getMessage('apiKeyMissing'); sub.classList.add('is-warn'); }
+	else { try { sub.textContent = new URL(provider.baseUrl.replace(/[{}]/g, '')).host; } catch { sub.textContent = ''; } }
+	text.append(name, sub);
+	info.append(iconTile(provider, 'md'), text);
+
+	const actions = document.createElement('div');
+	actions.className = 'provider-list-item-actions';
+	const iconButton = (cls: string, label: string, icon: string, run: () => void) => {
+		const b = document.createElement('button');
+		b.className = `${cls} clickable-icon`;
+		b.setAttribute('aria-label', label);
+		const i = document.createElement('i');
+		i.setAttribute('data-lucide', icon);
+		b.appendChild(i);
+		b.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); run(); });
+		return b;
+	};
+	actions.append(
+		iconButton('edit-provider-btn', getMessage('pdEdit'), 'pen-line', () => { const i = generalSettings.providers.findIndex(p => p.id === provider.id); if (i !== -1) editProvider(i); }),
+		iconButton('delete-provider-btn', getMessage('pdDelete'), 'trash-2', () => { const i = generalSettings.providers.findIndex(p => p.id === provider.id); if (i !== -1) deleteProvider(i); })
 	);
-
-	const hasNoKey = presetProvider?.apiKeyRequired && !provider.apiKey;
-
-	// Create provider list item info container
-	const providerListItemInfo = document.createElement('div');
-	providerListItemInfo.className = 'provider-list-item-info';
-	
-	// Create provider name container
-	const providerName = document.createElement('div');
-	providerName.className = 'provider-name';
-	
-	// Create provider icon container
-	const providerIconContainer = document.createElement('div');
-	providerIconContainer.className = 'provider-icon-container';
-	const providerIconSpan = document.createElement('span');
-	providerIconSpan.className = `provider-icon icon-${provider.name.toLowerCase().replace(/\s+/g, '-')}`;
-	providerIconContainer.appendChild(providerIconSpan);
-	
-	// Create provider name text
-	const providerNameText = document.createElement('div');
-	providerNameText.className = 'provider-name-text';
-	providerNameText.textContent = provider.name;
-	
-	providerName.appendChild(providerIconContainer);
-	providerName.appendChild(providerNameText);
-	providerListItemInfo.appendChild(providerName);
-	
-	// Add no-key warning if needed
-	if (hasNoKey) {
-		const providerNoKey = document.createElement('span');
-		providerNoKey.className = 'provider-no-key';
-		
-		const alertIcon = document.createElement('i');
-		alertIcon.setAttribute('data-lucide', 'alert-triangle');
-		providerNoKey.appendChild(alertIcon);
-		
-		providerNoKey.appendChild(document.createTextNode(' '));
-		
-		const messageSpan = document.createElement('span');
-		messageSpan.className = 'mh';
-		messageSpan.textContent = getMessage('apiKeyMissing');
-		providerNoKey.appendChild(messageSpan);
-		
-		providerListItemInfo.appendChild(providerNoKey);
-	}
-	
-	// Create provider list item actions container
-	const providerListItemActions = document.createElement('div');
-	providerListItemActions.className = 'provider-list-item-actions';
-	
-	// Create edit button
-	const editProviderBtn = document.createElement('button');
-	editProviderBtn.className = 'edit-provider-btn clickable-icon';
-	editProviderBtn.setAttribute('data-provider-id', provider.id);
-	editProviderBtn.setAttribute('aria-label', 'Edit provider');
-	const editIcon = document.createElement('i');
-	editIcon.setAttribute('data-lucide', 'pen-line');
-	editProviderBtn.appendChild(editIcon);
-	
-	// Create delete button
-	const deleteProviderBtn = document.createElement('button');
-	deleteProviderBtn.className = 'delete-provider-btn clickable-icon';
-	deleteProviderBtn.setAttribute('data-provider-id', provider.id);
-	deleteProviderBtn.setAttribute('aria-label', 'Delete provider');
-	const deleteIcon = document.createElement('i');
-	deleteIcon.setAttribute('data-lucide', 'trash-2');
-	deleteProviderBtn.appendChild(deleteIcon);
-	
-	providerListItemActions.appendChild(editProviderBtn);
-	providerListItemActions.appendChild(deleteProviderBtn);
-	
-	// Assemble provider item
-	providerItem.appendChild(providerListItemInfo);
-	providerItem.appendChild(providerListItemActions);
-
-	// Add event listeners using direct element references
-	editProviderBtn.addEventListener('click', (e) => {
-		e.preventDefault();
-		e.stopPropagation();
-		const providerId = editProviderBtn.getAttribute('data-provider-id');
-		if (providerId) {
-			const providerIndex = generalSettings.providers.findIndex(p => p.id === providerId);
-			if (providerIndex !== -1) {
-				editProvider(providerIndex);
-			}
-		}
-	});
-
-	deleteProviderBtn.addEventListener('click', (e) => {
-		e.preventDefault();
-		e.stopPropagation();
-		const providerId = deleteProviderBtn.getAttribute('data-provider-id');
-		if (providerId) {
-			const providerIndex = generalSettings.providers.findIndex(p => p.id === providerId);
-			if (providerIndex !== -1) {
-				deleteProvider(providerIndex);
-			}
-		}
-	});
-
-	return providerItem;
+	item.append(info, actions);
+	return item;
 }
+
+const refreshLists = () => { initializeProviderList(); initializeModelList(); };
 
 function addProviderToList(event: Event) {
 	event.preventDefault();
-	debugLog('Providers', 'Adding new provider');
-	const newProvider: Provider = {
-		id: Date.now().toString(),
-		name: '',
-		baseUrl: '',
-		apiKey: ''
-	};
-	showProviderModal(newProvider);
+	openProviderPicker(cachedPresetProviders || {}, refreshLists);
 }
 
 function editProvider(index: number) {
-	const providerToEdit = generalSettings.providers[index];
-	showProviderModal(providerToEdit, index);
-}
-
-function duplicateProvider(index: number) {
-	const providerToDuplicate = generalSettings.providers[index];
-	const duplicatedProvider: Provider = {
-		...providerToDuplicate,
-		id: Date.now().toString(),
-		name: `${providerToDuplicate.name} (copy)`,
-		apiKey: ''
-	};
-
-	generalSettings.providers.push(duplicatedProvider);
-	saveSettings();
-	initializeProviderList();
-
-	const newIndex = generalSettings.providers.length - 1;
-	showProviderModal(duplicatedProvider, newIndex);
+	openProviderEditor(generalSettings.providers[index], cachedPresetProviders || {}, refreshLists);
 }
 
 function deleteProvider(index: number): void {
@@ -492,251 +364,6 @@ function deleteProvider(index: number): void {
 		saveSettings();
 		initializeProviderList();
 	}
-}
-
-async function showProviderModal(provider: Provider, index?: number) {
-	let pendingOAuth: OAuthCredentials | undefined;
-	debugLog('Providers', 'Showing provider modal:', { provider, index });
-	const modal = document.getElementById('provider-modal');
-	if (!modal) return;
-
-	if (!cachedPresetProviders) {
-		cachedPresetProviders = await getPresetProviders();
-	}
-
-	await translatePage();
-	initializeIcons(modal);
-
-	const titleElement = modal.querySelector('.modal-title');
-	if (titleElement) {
-		titleElement.setAttribute('data-i18n', index !== undefined ? 'editProvider' : 'addProviderTitle');
-	}
-
-	const form = modal.querySelector('#provider-form') as HTMLFormElement;
-	if (form) {
-		const nameInput = form.querySelector('[name="name"]') as HTMLInputElement;
-		const baseUrlInput = form.querySelector('[name="baseUrl"]') as HTMLInputElement;
-		const apiKeyInput = form.querySelector('[name="apiKey"]') as HTMLInputElement;
-		const presetSelect = form.querySelector('[name="preset"]') as HTMLSelectElement;
-		const nameContainer = nameInput.closest('.setting-item') as HTMLElement;
-		const apiKeyContainer = apiKeyInput.closest('.setting-item') as HTMLElement;
-		const apiKeyDescription = form.querySelector('.setting-item:has([name="apiKey"]) .setting-item-description') as HTMLElement;
-
-		if (!apiKeyContainer || !apiKeyDescription || !nameContainer || !presetSelect || !nameInput || !baseUrlInput || !apiKeyInput) {
-			console.error('Required provider modal elements not found');
-			return;
-		}
-
-		// Clear and populate preset select
-		presetSelect.textContent = '';
-		
-		// Add custom option
-		const customOption = document.createElement('option');
-		customOption.value = '';
-		customOption.textContent = getMessage('custom');
-		presetSelect.appendChild(customOption);
-		
-		// Add preset options
-		Object.entries(cachedPresetProviders || {}).forEach(([id, preset]) => {
-			const option = document.createElement('option');
-			option.value = id;
-			option.textContent = preset.name;
-			presetSelect.appendChild(option);
-		});
-
-		nameInput.value = '';
-		baseUrlInput.value = '';
-		apiKeyInput.value = '';
-		presetSelect.value = '';
-
-		const signInRow = form.querySelector('#provider-signin-row') as HTMLElement;
-		const signInNote = form.querySelector('#provider-signin-note') as HTMLElement;
-		const signInBtn = form.querySelector('#provider-signin-btn') as HTMLButtonElement;
-		const pasteBox = form.querySelector('#provider-signin-paste') as HTMLElement;
-		const pasteInput = form.querySelector('#provider-signin-url') as HTMLInputElement;
-		const pasteBtn = form.querySelector('#provider-signin-paste-btn') as HTMLButtonElement;
-		pendingOAuth = provider.oauth;
-		let pending: PendingSignIn | undefined;
-		const signInNames = { tokendance: 'TokenDance', chatgpt: 'ChatGPT', codex: 'Codex' } as const;
-		const showSignedIn = (label: string) => { signInNote.textContent = getMessage('providerSignInDone', label); signInBtn.textContent = getMessage('providerSignInAgain'); };
-		const runSignIn = async (kind: 'tokendance' | 'chatgpt' | 'codex') => {
-			pending?.handle.cancel();
-			signInBtn.disabled = true;
-			signInNote.textContent = getMessage('providerSignInOpen');
-			pasteBox.hidden = false;
-			try {
-				pending = await startSignIn(kind);
-				const done = await pending.finish();
-				if (done.apiKey) { apiKeyInput.value = done.apiKey; pendingOAuth = undefined; }
-				if (done.oauth) { pendingOAuth = done.oauth; apiKeyInput.value = ''; }
-				showSignedIn(done.label);
-			} catch (error) {
-				signInNote.textContent = error instanceof Error ? error.message : String(error);
-				signInBtn.textContent = getMessage('providerSignInAgain');
-			} finally {
-				signInBtn.disabled = false;
-				pasteBox.hidden = true;
-				pending = undefined;
-			}
-		};
-		let signInKind: 'tokendance' | 'chatgpt' | 'codex' | undefined;
-		signInBtn.onclick = () => { if (signInKind) void runSignIn(signInKind); };
-		pasteBtn.onclick = () => { if (pending && !pending.handle.submitUrl(pasteInput.value)) signInNote.textContent = '这不是登录完成后的地址，请重新复制'; };
-
-		let currentPresetId: string | null = null;
-		if (index !== undefined) {
-			nameInput.value = provider.name;
-			baseUrlInput.value = provider.baseUrl;
-			apiKeyInput.value = provider.apiKey;
-
-			const matchingPreset = Object.entries(cachedPresetProviders || {}).find(([_, p]) => p.baseUrl === provider.baseUrl);
-			currentPresetId = matchingPreset ? matchingPreset[0] : null;
-			
-			if (!currentPresetId) {
-				const nameMatchingPreset = Object.entries(cachedPresetProviders || {}).find(([_, p]) => p.name === provider.name);
-				currentPresetId = nameMatchingPreset ? nameMatchingPreset[0] : null;
-			}
-			
-			presetSelect.value = currentPresetId || '';
-		} else {
-			const anthropicPreset = Object.entries(cachedPresetProviders || {}).find(([_, p]) => p.name === 'Anthropic');
-			presetSelect.value = anthropicPreset ? anthropicPreset[0] : '';
-		}
-
-		const updateVisibility = () => {
-			const selectedPresetId = presetSelect.value;
-			const selectedPreset = selectedPresetId ? (cachedPresetProviders || {})[selectedPresetId] : null;
-
-			nameContainer.style.display = selectedPreset ? 'none' : 'block';
-			signInKind = selectedPreset?.signIn;
-			signInRow.style.display = signInKind ? 'flex' : 'none';
-			if (signInKind) {
-				const names = { tokendance: 'providerSignInTokenDance', chatgpt: 'providerSignInChatGPT', codex: 'providerSignInCodex' } as const;
-				const notes = { tokendance: 'providerSignInNoteTokenDance', chatgpt: 'providerSignInNoteChatGPT', codex: 'providerSignInNoteCodex' } as const;
-				const editingSame = index !== undefined && selectedPresetId === currentPresetId;
-				if (!editingSame && signInKind !== 'tokendance') pendingOAuth = undefined;
-				if (pendingOAuth && signInKind === pendingOAuth.kind) { showSignedIn(pendingOAuth.email || signInNames[signInKind]); }
-				else { signInNote.textContent = getMessage(notes[signInKind]); signInBtn.textContent = getMessage(names[signInKind]); }
-			} else pendingOAuth = undefined;
-
-			if (selectedPreset) {
-				nameInput.value = selectedPreset.name;
-				
-				const editingOriginalPreset = index !== undefined && selectedPresetId === currentPresetId;
-				baseUrlInput.value = editingOriginalPreset ? provider.baseUrl : selectedPreset.baseUrl;
-				apiKeyInput.value = editingOriginalPreset ? provider.apiKey : '';
-
-				apiKeyContainer.style.display = selectedPreset.apiKeyRequired === false && selectedPreset.signIn !== 'tokendance' ? 'none' : 'block';
-
-				if (selectedPreset.apiKeyRequired !== false && selectedPreset.apiKeyUrl) {
-					const message = getMessage('getApiKeyHere').replace('$1', selectedPreset.name);
-					apiKeyDescription.textContent = getMessage('providerApiKeyDescription') + ' ';
-					const linkElement = document.createElement('a');
-					linkElement.href = selectedPreset.apiKeyUrl;
-					linkElement.target = '_blank';
-					linkElement.textContent = message;
-					apiKeyDescription.appendChild(linkElement);
-				} else {
-					apiKeyDescription.textContent = getMessage('providerApiKeyDescription');
-				}
-			} else {
-				if (index === undefined || (index !== undefined && currentPresetId)) {
-					nameInput.value = '';
-					baseUrlInput.value = '';
-					apiKeyInput.value = '';
-				} else if (index !== undefined && !currentPresetId) {
-					nameInput.value = provider.name;
-					baseUrlInput.value = provider.baseUrl;
-					apiKeyInput.value = provider.apiKey;
-				}
-				
-				apiKeyContainer.style.display = 'block';
-				apiKeyDescription.textContent = getMessage('providerApiKeyDescription');
-			}
-		};
-
-		presetSelect.addEventListener('change', updateVisibility);
-		updateVisibility();
-	}
-
-	const confirmBtn = modal.querySelector('.provider-confirm-btn');
-	const cancelBtn = modal.querySelector('.provider-cancel-btn');
-
-	const newConfirmBtn = confirmBtn?.cloneNode(true);
-	const newCancelBtn = cancelBtn?.cloneNode(true);
-	if (confirmBtn && newConfirmBtn) {
-		confirmBtn.parentNode?.replaceChild(newConfirmBtn, confirmBtn);
-	}
-	if (cancelBtn && newCancelBtn) {
-		cancelBtn.parentNode?.replaceChild(newCancelBtn, cancelBtn);
-	}
-
-	newConfirmBtn?.addEventListener('click', async () => {
-		const formData = new FormData(form);
-		const name = formData.get('name') as string;
-		const baseUrl = formData.get('baseUrl') as string;
-		const apiKey = formData.get('apiKey') as string;
-		const presetId = (form.querySelector('[name="preset"]') as HTMLSelectElement).value;
-		
-		const updatedProvider: Provider = {
-			id: provider.id,
-			name: name,
-			baseUrl: baseUrl,
-			apiKey: apiKey,
-			apiKeyRequired: true
-		};
-
-		debugLog('Providers', 'Saving provider:', updatedProvider);
-
-		if (!updatedProvider.name || !updatedProvider.baseUrl) {
-			alert(getMessage('providerRequiredFields'));
-			return;
-		}
-
-		if (presetId && cachedPresetProviders && cachedPresetProviders[presetId]) {
-			const providerPreset = cachedPresetProviders[presetId];
-			
-			updatedProvider.name = providerPreset.name;
-			
-			const providerPresetBaseUrl = providerPreset.baseUrl;
-			// Use the user-provided baseUrl if it's different from the preset baseUrl
-			updatedProvider.baseUrl = baseUrl !== providerPresetBaseUrl ? baseUrl : providerPresetBaseUrl;
-			updatedProvider.apiKeyRequired = providerPreset.apiKeyRequired !== false;
-			updatedProvider.presetId = presetId;
-			if (providerPreset.signIn === 'chatgpt' || providerPreset.signIn === 'codex') {
-				if (!pendingOAuth || pendingOAuth.kind !== providerPreset.signIn) {
-					alert(getMessage(providerPreset.signIn === 'codex' ? 'providerSignInCodex' : 'providerSignInChatGPT'));
-					return;
-				}
-				updatedProvider.oauth = pendingOAuth;
-				updatedProvider.apiKey = '';
-			}
-		}
-
-		if (index !== undefined) {
-			generalSettings.providers[index] = updatedProvider;
-		} else {
-			generalSettings.providers.push(updatedProvider);
-		}
-
-		debugLog('Providers', 'Updated providers list:', generalSettings.providers);
-
-		try {
-			await saveSettings();
-			debugLog('Providers', 'Settings saved');
-			initializeProviderList();
-			hideModal(modal);
-		} catch (error) {
-			console.error('Failed to save settings:', error);
-			alert(getMessage('failedToSaveProvider'));
-		}
-	});
-
-	newCancelBtn?.addEventListener('click', () => {
-		hideModal(modal);
-	});
-
-	showModal(modal);
 }
 
 export function initializeModelList() {
@@ -761,378 +388,77 @@ export function initializeModelList() {
 }
 
 function createModelListItem(model: ModelConfig, index: number): HTMLElement {
-	const modelItem = document.createElement('div');
-	modelItem.className = 'model-list-item';
-	modelItem.draggable = true;
-	modelItem.dataset.index = index.toString();
-	modelItem.dataset.modelId = model.id;
-
+	const item = document.createElement('div');
+	item.className = 'model-list-item';
+	item.draggable = true;
+	item.dataset.index = index.toString();
+	item.dataset.modelId = model.id;
 	const provider = generalSettings.providers.find(p => p.id === model.providerId);
 
-	// Create drag handle
-	const dragHandle = document.createElement('div');
-	dragHandle.className = 'drag-handle';
+	const grip = document.createElement('div');
+	grip.className = 'drag-handle';
 	const gripIcon = document.createElement('i');
 	gripIcon.setAttribute('data-lucide', 'grip-vertical');
-	dragHandle.appendChild(gripIcon);
-	
-	// Create model list item info
-	const modelListItemInfo = document.createElement('div');
-	modelListItemInfo.className = 'model-list-item-info';
-	
-	const modelNameDiv = document.createElement('div');
-	modelNameDiv.className = 'model-name';
-	modelNameDiv.textContent = model.name;
-	
-	const modelProviderDiv = document.createElement('div');
-	modelProviderDiv.className = 'model-provider mh';
-	
-	// Handle provider name with potential HTML content
-	if (provider?.name) {
-		modelProviderDiv.textContent = provider.name;
-	} else {
-		// Create unknown provider warning
-		const alertIcon = document.createElement('i');
-		alertIcon.setAttribute('data-lucide', 'alert-triangle');
-		modelProviderDiv.appendChild(alertIcon);
-		modelProviderDiv.appendChild(document.createTextNode(' ' + getMessage('unknownProvider')));
-	}
-	
-	modelListItemInfo.appendChild(modelNameDiv);
-	modelListItemInfo.appendChild(modelProviderDiv);
-	
-	// Create model list item actions
-	const modelListItemActions = document.createElement('div');
-	modelListItemActions.className = 'model-list-item-actions';
-	
-	// Create edit button
-	const editModelBtn = document.createElement('button');
-	editModelBtn.className = 'edit-model-btn clickable-icon';
-	editModelBtn.setAttribute('data-model-id', model.id);
-	editModelBtn.setAttribute('aria-label', 'Edit model');
-	const editIcon = document.createElement('i');
-	editIcon.setAttribute('data-lucide', 'pen-line');
-	editModelBtn.appendChild(editIcon);
-	
-	// Create duplicate button
-	const duplicateModelBtn = document.createElement('button');
-	duplicateModelBtn.className = 'duplicate-model-btn clickable-icon';
-	duplicateModelBtn.setAttribute('data-model-id', model.id);
-	duplicateModelBtn.setAttribute('aria-label', 'Duplicate model');
-	const duplicateIcon = document.createElement('i');
-	duplicateIcon.setAttribute('data-lucide', 'copy-plus');
-	duplicateModelBtn.appendChild(duplicateIcon);
-	
-	// Create delete button
-	const deleteModelBtn = document.createElement('button');
-	deleteModelBtn.className = 'delete-model-btn clickable-icon';
-	deleteModelBtn.setAttribute('data-model-id', model.id);
-	deleteModelBtn.setAttribute('aria-label', 'Delete model');
-	const deleteIcon = document.createElement('i');
-	deleteIcon.setAttribute('data-lucide', 'trash-2');
-	deleteModelBtn.appendChild(deleteIcon);
-	
-	// Create checkbox container
+	grip.appendChild(gripIcon);
+
+	const info = document.createElement('div');
+	info.className = 'model-list-item-info';
+	const text = document.createElement('div');
+	text.className = 'model-list-text';
+	const name = document.createElement('div');
+	name.className = 'model-name';
+	name.textContent = model.name;
+	const sub = document.createElement('div');
+	sub.className = 'model-provider mh';
+	sub.textContent = provider?.name || getMessage('unknownProvider');
+	text.append(name, sub);
+	info.append(iconTile(provider || {}, 'md'), text);
+
+	const actions = document.createElement('div');
+	actions.className = 'model-list-item-actions';
+	const iconButton = (cls: string, label: string, icon: string, run: () => void) => {
+		const b = document.createElement('button');
+		b.className = `${cls} clickable-icon`;
+		b.setAttribute('aria-label', label);
+		const i = document.createElement('i');
+		i.setAttribute('data-lucide', icon);
+		b.appendChild(i);
+		b.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); run(); });
+		return b;
+	};
+	const find = () => generalSettings.models.findIndex(m => m.id === model.id);
 	const checkboxContainer = document.createElement('div');
 	checkboxContainer.className = 'checkbox-container mod-small';
 	const checkbox = document.createElement('input');
 	checkbox.type = 'checkbox';
 	checkbox.id = `model-${model.id}`;
 	checkbox.checked = model.enabled;
+	checkbox.setAttribute('aria-label', model.name);
 	checkboxContainer.appendChild(checkbox);
-	
-	// Assemble actions
-	modelListItemActions.appendChild(editModelBtn);
-	modelListItemActions.appendChild(duplicateModelBtn);
-	modelListItemActions.appendChild(deleteModelBtn);
-	modelListItemActions.appendChild(checkboxContainer);
-	
-	// Assemble model item
-	modelItem.appendChild(dragHandle);
-	modelItem.appendChild(modelListItemInfo);
-	modelItem.appendChild(modelListItemActions);
+	actions.append(
+		iconButton('edit-model-btn', getMessage('pdEdit'), 'pen-line', () => { const i = find(); if (i !== -1) editModel(i); }),
+		iconButton('duplicate-model-btn', getMessage('pdDuplicate'), 'copy-plus', () => { const i = find(); if (i !== -1) duplicateModel(i); }),
+		iconButton('delete-model-btn', getMessage('pdDelete'), 'trash-2', () => { const i = find(); if (i !== -1) deleteModel(i); }),
+		checkboxContainer
+	);
+	item.append(grip, info, actions);
 
-	// Add event listeners using direct element references
-	initializeToggles(modelItem);
+	initializeToggles(item);
 	checkbox.addEventListener('change', () => {
-		const modelIndex = generalSettings.models.findIndex(m => m.id === model.id);
-		if (modelIndex !== -1) {
-			generalSettings.models[modelIndex].enabled = checkbox.checked;
-			saveSettings();
-		}
+		const i = find();
+		if (i !== -1) { generalSettings.models[i].enabled = checkbox.checked; saveSettings(); }
 	});
-
-	duplicateModelBtn.addEventListener('click', (e) => {
-		e.preventDefault();
-		e.stopPropagation();
-		const modelId = duplicateModelBtn.getAttribute('data-model-id');
-		const modelIndex = generalSettings.models.findIndex(m => m.id === modelId);
-		if (modelIndex !== -1) {
-			duplicateModel(modelIndex);
-		}
-	});
-
-	editModelBtn.addEventListener('click', (e) => {
-		e.preventDefault();
-		e.stopPropagation();
-		const modelId = editModelBtn.getAttribute('data-model-id');
-		const modelIndex = generalSettings.models.findIndex(m => m.id === modelId);
-		if (modelIndex !== -1) {
-			editModel(modelIndex);
-		}
-	});
-
-	deleteModelBtn.addEventListener('click', (e) => {
-		e.preventDefault();
-		e.stopPropagation();
-		const modelId = deleteModelBtn.getAttribute('data-model-id');
-		const modelIndex = generalSettings.models.findIndex(m => m.id === modelId);
-		if (modelIndex !== -1) {
-			deleteModel(modelIndex);
-		}
-	});
-
-	initializeIcons(modelItem);
-
-	return modelItem;
+	initializeIcons(item);
+	return item;
 }
 
 function addModelToList(event: Event) {
 	event.preventDefault();
-	const newModel: ModelConfig = {
-		id: Date.now().toString(),
-		providerId: '',
-		providerModelId: '',
-		name: '',
-		enabled: true
-	};
-	showModelModal(newModel);
+	openModelPicker(refreshLists, () => openProviderPicker(cachedPresetProviders || {}, refreshLists));
 }
 
 function editModel(index: number) {
-	const modelToEdit = generalSettings.models[index];
-	showModelModal(modelToEdit, index);
-}
-
-async function showModelModal(model: ModelConfig, index?: number) {
-	debugLog('Models', 'Showing model modal:', { model, index });
-	const modal = document.getElementById('model-modal');
-	if (!modal) return;
-
-	if (!cachedPresetProviders) {
-		cachedPresetProviders = await getPresetProviders();
-	}
-
-	await translatePage();
-	initializeIcons(modal);
-
-	const titleElement = modal.querySelector('.modal-title');
-	if (titleElement) {
-		titleElement.setAttribute('data-i18n', index !== undefined ? 'editModel' : 'addModelTitle');
-	}
-
-	const form = modal.querySelector('#model-form') as HTMLFormElement;
-	if (form) {
-		const providerSelect = form.querySelector('[name="providerId"]') as HTMLSelectElement;
-		const modelIdDescriptionContainer = form.querySelector('.setting-item:has([name="providerModelId"]) .setting-item-description') as HTMLElement;
-		const modelSelectionContainer = form.querySelector('.model-selection-container') as HTMLElement;
-		const modelSelectionRadios = form.querySelector('#model-selection-radios') as HTMLElement;
-		const nameInput = form.querySelector('[name="name"]') as HTMLInputElement;
-		const providerModelIdInput = form.querySelector('[name="providerModelId"]') as HTMLInputElement;
-
-		if (!modelIdDescriptionContainer || !modelSelectionContainer || !modelSelectionRadios || !nameInput || !providerModelIdInput || !providerSelect) {
-			console.error('Required model modal form elements not found');
-			return;
-		}
-
-		// Clear existing provider options
-		providerSelect.textContent = '';
-		const defaultOption = document.createElement('option');
-		defaultOption.value = '';
-		defaultOption.textContent = getMessage('selectProvider');
-		defaultOption.disabled = true;
-		defaultOption.selected = true;
-		providerSelect.appendChild(defaultOption);
-
-		const sortedProviders = [...generalSettings.providers].filter(p => p).sort((a, b) => 
-			a.name.toLowerCase().localeCompare(b.name.toLowerCase())
-		);
-		sortedProviders.forEach(provider => {
-			const option = document.createElement('option');
-			option.value = provider.id;
-			option.textContent = provider.name;
-			providerSelect.appendChild(option);
-		});
-
-		nameInput.value = '';
-		providerModelIdInput.value = '';
-		nameInput.disabled = true;
-		providerModelIdInput.disabled = true;
-		modelSelectionContainer.style.display = 'none';
-		// Clear model selection radios
-		modelSelectionRadios.textContent = '';
-		modelIdDescriptionContainer.textContent = getMessage('providerModelIdDescription');
-
-		let requestController: AbortController | undefined;
-		let requestVersion = 0;
-		const updateModelOptions = async (refresh = false) => {
-			requestController?.abort();
-			requestController = new AbortController();
-			const version = ++requestVersion;
-			const provider = generalSettings.providers.find(p => p.id === providerSelect.value);
-			if (!refresh) {
-				const editing = index !== undefined && model.providerId === providerSelect.value;
-				nameInput.value = editing ? model.name : '';
-				providerModelIdInput.value = editing ? model.providerModelId || '' : '';
-			}
-			nameInput.disabled = !provider;
-			providerModelIdInput.disabled = !provider;
-			providerModelIdInput.oninput = null;
-			modelSelectionRadios.textContent = '';
-			modelSelectionContainer.style.display = provider ? 'block' : 'none';
-			modelIdDescriptionContainer.textContent = getMessage('providerModelIdDescription');
-			if (!provider) return;
-
-			const preset = cachedPresetProviders && (cachedPresetProviders[provider.presetId || ''] || Object.values(cachedPresetProviders).find(p => p.name === provider.name));
-			if (preset?.modelsList) {
-				const link = document.createElement('a');
-				link.href = preset.modelsList;
-				link.target = '_blank';
-				link.rel = 'noopener noreferrer';
-				link.textContent = getMessage('modelsListFor', provider.name);
-				modelIdDescriptionContainer.append(' ', link);
-			}
-
-			const status = document.createElement('div');
-			status.className = 'setting-item-description';
-			status.setAttribute('role', 'status');
-			status.textContent = getMessage('providerModelsLoading');
-			const select = document.createElement('select');
-			select.id = 'provider-model-select';
-			select.setAttribute('aria-label', getMessage('providerModels'));
-			const custom = document.createElement('option');
-			custom.value = '';
-			custom.textContent = getMessage('custom');
-			select.appendChild(custom);
-			select.disabled = true;
-			const refreshButton = document.createElement('button');
-			refreshButton.type = 'button';
-			refreshButton.className = 'clickable-icon';
-			refreshButton.title = getMessage('providerModelsRefresh');
-			refreshButton.setAttribute('aria-label', refreshButton.title);
-			const icon = document.createElement('i');
-			icon.setAttribute('data-lucide', 'refresh-cw');
-			refreshButton.appendChild(icon);
-			refreshButton.onclick = () => { void updateModelOptions(true); };
-			modelSelectionRadios.append(select, refreshButton, status);
-			initializeIcons(modelSelectionRadios);
-			try {
-				const available = await fetchProviderModels(provider, requestController.signal);
-				if (version !== requestVersion) return;
-				for (const item of available) {
-					const option = document.createElement('option');
-					option.value = item.id;
-					option.textContent = item.name === item.id ? item.id : `${item.name} (${item.id})`;
-					select.appendChild(option);
-				}
-				select.disabled = false;
-				select.value = available.some(m => m.id === providerModelIdInput.value) ? providerModelIdInput.value : '';
-				status.textContent = available.length ? '' : getMessage('providerModelsEmpty');
-				providerModelIdInput.oninput = () => {
-					select.value = available.some(m => m.id === providerModelIdInput.value) ? providerModelIdInput.value : '';
-				};
-				select.onchange = () => {
-					const selected = available.find(m => m.id === select.value);
-					nameInput.value = selected?.name || '';
-					providerModelIdInput.value = selected?.id || '';
-				};
-			} catch (error) {
-				if (version !== requestVersion) return;
-				select.disabled = false;
-				const reason = error instanceof Error ? error.message : '';
-				debugLog('AI', 'Model list failed', reason);
-				const base = getMessage(reason === 'missing-api-key' ? 'providerModelsMissingKey' : reason === 'deployment-models' ? 'providerModelsDeployment' : 'providerModelsFailed');
-				const detail = /abort/i.test(reason) ? '超时' : /^http-(\d+)$/.test(reason) ? `HTTP ${reason.slice(5)}` : reason === 'invalid-model-list' ? '返回格式不是模型列表' : reason.startsWith('network:') ? '网络请求被拦截或无法连接' : '';
-				status.textContent = detail ? `${base}（${detail}）` : base;
-			}
-		};
-
-		// Assign handlers so reopening this modal does not accumulate listeners.
-		providerSelect.onchange = () => { void updateModelOptions(); };
-
-		if (index !== undefined) {
-			providerSelect.value = model.providerId;
-			updateModelOptions(); 
-			nameInput.value = model.name;
-			providerModelIdInput.value = model.providerModelId || '';
-		} else {
-			if (sortedProviders.length > 0) {
-				// Maybe default to first provider? Or leave blank? Let's leave blank for now.
-				// providerSelect.value = sortedProviders[0].id; 
-				// updateModelOptions();
-			} else {
-				console.warn("No providers configured. Cannot add models.");
-				// Consider disabling the confirm button or showing a message.
-			}
-		}
-
-		translatePage();
-
-		const confirmBtn = modal.querySelector('.model-confirm-btn');
-		const cancelBtn = modal.querySelector('.model-cancel-btn');
-
-		if (!confirmBtn || !cancelBtn) {
-			console.error('Modal buttons not found');
-			return;
-		}
-
-		const newConfirmBtn = confirmBtn.cloneNode(true);
-		const newCancelBtn = cancelBtn.cloneNode(true);
-		confirmBtn.parentNode?.replaceChild(newConfirmBtn, confirmBtn);
-		cancelBtn.parentNode?.replaceChild(newCancelBtn, cancelBtn);
-
-		newConfirmBtn.addEventListener('click', async () => {
-			const formData = new FormData(form);
-			const selectedProviderId = formData.get('providerId') as string;
-			
-			let updatedModel: ModelConfig = {
-				id: model.id,
-				providerId: selectedProviderId,
-				providerModelId: '',
-				name: '',
-				enabled: model.enabled
-			};
-
-			updatedModel.name = formData.get('name') as string;
-			updatedModel.providerModelId = formData.get('providerModelId') as string;
-
-			if (!updatedModel.name || !updatedModel.providerId || !updatedModel.providerModelId) {
-				alert(getMessage('modelRequiredFields'));
-				return;
-			}
-
-			if (index !== undefined) {
-				generalSettings.models[index] = updatedModel;
-			} else {
-				generalSettings.models.push(updatedModel);
-			}
-
-			try {
-				await saveSettings();
-				initializeModelList();
-				hideModal(modal);
-			} catch (error) {
-				console.error('Failed to save model settings:', error);
-				alert(getMessage('failedToSaveModel'));
-			}
-		});
-
-		newCancelBtn?.addEventListener('click', () => {
-			hideModal(modal);
-		});
-
-		showModal(modal);
-	}
+	openModelPicker(refreshLists, () => openProviderPicker(cachedPresetProviders || {}, refreshLists), generalSettings.models[index]);
 }
 
 function deleteModel(index: number) {
@@ -1180,18 +506,10 @@ function debounce(func: Function, delay: number): (...args: any[]) => void {
 }
 
 function duplicateModel(index: number) {
-	const modelToDuplicate = generalSettings.models[index];
-	const duplicatedModel: ModelConfig = {
-		...modelToDuplicate,
-		id: Date.now().toString(),
-		name: `${modelToDuplicate.name} (copy)`
-	};
-
-	generalSettings.models.splice(index + 1, 0, duplicatedModel); 
-	
+	const source = generalSettings.models[index];
+	const copy: ModelConfig = { ...source, id: Date.now().toString(), name: `${source.name} (copy)` };
+	generalSettings.models.splice(index + 1, 0, copy);
 	saveSettings();
 	initializeModelList();
-
-	const newIndex = index + 1;
-	showModelModal(duplicatedModel, newIndex);
+	openModelPicker(refreshLists, () => {}, copy);
 }

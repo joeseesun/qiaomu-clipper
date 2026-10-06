@@ -1,6 +1,6 @@
 {
 	"name": "qiaomu-clipper",
-	"version": "1.14.0",
+	"version": "1.14.1",
 	"description": "Save web clips to Obsidian and Qiaomu RSS.",
 	"bin": {
 		"obsidian-clipper": "./dist/cli.cjs"
@@ -22,6 +22,7 @@
 		"build:firefox": "webpack --env BROWSER=firefox --mode production",
 		"build:safari": "webpack --env BROWSER=safari --mode production",
 		"build": "npm run build:chrome && npm run build:firefox && npm run build:safari",
+		"package": "bash scripts/package.sh",
 		"build:cli": "node scripts/build-cli.mjs",
 		"build:api": "node scripts/build-api.mjs",
 		"dev": "npm run dev:chrome",

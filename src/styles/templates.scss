@@ -239,8 +239,8 @@
 	&:focus-within {
 		// Keep completions above adjacent editors and property controls.
 		z-index: 3;
-		border-color: var(--background-modifier-border-focus);
-		box-shadow: 0 0 0 2px var(--background-modifier-border-focus);
+		border-color: var(--field-focus-border);
+		box-shadow: var(--field-focus-ring);
 	}
 	.cm-editor { outline: none; }
 	.cm-scroller { font-family: var(--font-default); overflow: auto; }

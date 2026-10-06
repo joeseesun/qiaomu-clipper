@@ -1741,5 +1741,154 @@
 	},
 	"providerSignInAgain": {
 		"message": "Sign in again"
+	},
+	"pdAddProviderTitle": {
+		"message": "Add provider"
+	},
+	"pdEditProviderTitle": {
+		"message": "Edit provider"
+	},
+	"pdSearchProviders": {
+		"message": "Search providers…"
+	},
+	"pdGroupAccount": {
+		"message": "Sign in with your account · no key needed"
+	},
+	"pdGroupRelay": {
+		"message": "Gateways · one key, many models"
+	},
+	"pdGroupProvider": {
+		"message": "Providers"
+	},
+	"pdGroupLocal": {
+		"message": "On this computer"
+	},
+	"pdGroupCustom": {
+		"message": "Other"
+	},
+	"pdCustomName": {
+		"message": "Custom"
+	},
+	"pdCustomSub": {
+		"message": "Any compatible endpoint"
+	},
+	"pdAdded": {
+		"message": "Added"
+	},
+	"pdNoMatch": {
+		"message": "No provider matches"
+	},
+	"pdFieldNamePlaceholder": {
+		"message": "Provider name"
+	},
+	"pdPasteWrong": {
+		"message": "That is not the address the sign-in ended on. Copy it again."
+	},
+	"pdLocalNote": {
+		"message": "Runs on this computer. No key needed."
+	},
+	"pdGetKey": {
+		"message": "Get an API key"
+	},
+	"pdFieldUrl": {
+		"message": "Endpoint address"
+	},
+	"pdUrlHintCustom": {
+		"message": "The chat endpoint, for example https://example.com/v1/chat/completions"
+	},
+	"pdUrlHint": {
+		"message": "Usually no need to change."
+	},
+	"pdFieldKey": {
+		"message": "API key"
+	},
+	"pdFieldKeyOr": {
+		"message": "API key (filled in for you after you authorize)"
+	},
+	"pdShow": {
+		"message": "Show"
+	},
+	"pdHide": {
+		"message": "Hide"
+	},
+	"pdAdvanced": {
+		"message": "Endpoint address"
+	},
+	"pdNeedName": {
+		"message": "Enter a name."
+	},
+	"pdNeedUrl": {
+		"message": "Enter the endpoint address."
+	},
+	"pdNeedLogin": {
+		"message": "Sign in first."
+	},
+	"pdNeedKey": {
+		"message": "Enter an API key."
+	},
+	"pdBack": {
+		"message": "Back"
+	},
+	"pdAddProviderButton": {
+		"message": "Add provider"
+	},
+	"pdAddModelTitle": {
+		"message": "Add models"
+	},
+	"pdNoProviders": {
+		"message": "Add a provider first, then pick its models."
+	},
+	"pdPickProvider": {
+		"message": "Provider"
+	},
+	"pdSearchModels": {
+		"message": "Search models…"
+	},
+	"pdManual": {
+		"message": "Enter a model ID yourself"
+	},
+	"pdManualNamePlaceholder": {
+		"message": "Same as the ID"
+	},
+	"pdManualName": {
+		"message": "Display name (optional)"
+	},
+	"pdAddModels": {
+		"message": "Add $1 models",
+		"placeholders": {
+			"1": {
+				"content": "$1"
+			}
+		}
+	},
+	"pdAddModelsNone": {
+		"message": "Add models"
+	},
+	"pdRecommended": {
+		"message": "Recommended"
+	},
+	"pdPickProviderFirst": {
+		"message": "Choose a provider above."
+	},
+	"pdReasonTimeout": {
+		"message": "timed out"
+	},
+	"pdReasonFormat": {
+		"message": "not a model list"
+	},
+	"pdReasonNetwork": {
+		"message": "blocked or unreachable"
+	},
+	"pdEdit": {
+		"message": "Edit"
+	},
+	"pdDelete": {
+		"message": "Delete"
+	},
+	"pdDuplicate": {
+		"message": "Duplicate"
+	},
+	"failedToSaveModel": {
+		"message": "Could not save the model. Try again."
 	}
 }

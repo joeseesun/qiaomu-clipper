@@ -1044,138 +1044,23 @@
 			</div>
 		</div>
 
-		<div id="model-modal" class="modal-container">
+		<div id="model-modal" class="modal-container provider-dialog">
 			<div class="modal-bg"></div>
 			<div class="modal">
-				<div class="modal-header">
-					<div class="modal-title" data-i18n="addModelTitle"></div>
-				</div>
-				<div class="modal-content">
-					<form id="model-form">
-						<div class="setting-item">
-							<div class="setting-item-info">
-								<label for="model-provider" data-i18n="provider">Provider</label>
-								<div class="setting-item-description" data-i18n="modelProviderDescription">Select the provider for this model.</div>
-							</div>
-							<div class="setting-item-control">
-								<select id="model-provider" name="providerId" required>
-									<option value="" data-i18n="selectProvider">Select a provider</option>
-								</select>
-							</div>
-						</div>
-						<div class="setting-item model-selection-container" style="display: none;">
-							<div class="setting-item-info">
-								<label for="provider-model-select" data-i18n="providerModels">Provider models</label>
-								<div class="setting-item-description" data-i18n="providerModelsDescription">Choose a model from your configured provider or enter a custom model ID.</div>
-							</div>
-							<div class="setting-item-control">
-								<div class="provider-model-options" id="model-selection-radios">
-								</div>
-							</div>
-						</div>
-						<div class="setting-item">
-							<div class="setting-item-info">
-								<label for="model-name">
-									<span data-i18n="modelName">Display name</span>
-								</label>
-								<div class="setting-item-description" data-i18n="modelNameDescription">A name for this model.</div>
-							</div>
-							<div class="setting-item-control">
-								<input type="text" id="model-name" name="name" data-i18n="modelName" placeholder="Model name" required>
-							</div>
-						</div>
-						<div class="setting-item">
-							<div class="setting-item-info">
-								<label for="provider-model-id" data-i18n="providerModelId">Model ID</label>
-								<div class="setting-item-description" data-i18n="providerModelIdDescription">The model identifier from your provider.</div>
-							</div>
-							<div class="setting-item-control">
-								<input type="text" id="provider-model-id" name="providerModelId" data-i18n="providerModelId" placeholder="Model ID" required>
-							</div>
-						</div>
-						
-					</form>
-				</div>
-				<div class="modal-button-container">
-					<button class="model-confirm-btn mod-cta" data-i18n="save">Save</button>
-					<button class="model-cancel-btn" data-i18n="cancel">Cancel</button>
-				</div>
+				<div class="modal-header"><div class="modal-title pd-title"></div></div>
+				<div class="modal-content pd-body"></div>
+				<div class="modal-button-container pd-actions"></div>
 			</div>
 		</div>
 
-		<div id="provider-modal" class="modal-container">
+		<div id="provider-modal" class="modal-container provider-dialog">
 			<div class="modal-bg"></div>
 			<div class="modal">
-				<div class="modal-header">
-					<div class="modal-title" data-i18n="addProviderTitle"></div>
-				</div>
-				<div class="modal-content">
-					<form id="provider-form">
-						<div class="setting-item">
-							<div class="setting-item-info">
-								<label for="provider-preset">
-									<span data-i18n="provider">Provider</span>
-								</label>
-								<div class="setting-item-description" data-i18n="providerPresetDescription">Choose a Provider or add a custom one.</div>
-							</div>
-							<div class="setting-item-control">
-								<select id="provider-preset" name="preset">
-									<option value="" data-i18n="custom">Custom</option>
-								</select>
-							</div>
-						</div>
-						<div class="setting-item">
-							<div class="setting-item-info">
-								<label for="provider-name" data-i18n="providerName">Provider name</label>
-								<div class="setting-item-description" data-i18n="providerNameDescription">Display name for this provider.</div>
-							</div>
-							<div class="setting-item-control">
-								<input type="text" id="provider-name" name="name" data-i18n="providerName" placeholder="Provider name" required>
-							</div>
-						</div>
-						<div class="setting-item">
-							<div class="setting-item-info">
-								<label for="provider-base-url" data-i18n="providerBaseUrl">Base URL</label>
-								<div class="setting-item-description" data-i18n="providerBaseUrlDescription">The API endpoint URL for this provider.</div>
-							</div>
-							<div class="setting-item-control">
-								<input type="text" id="provider-base-url" name="baseUrl" data-i18n="providerBaseUrl" placeholder="Base URL" required>
-							</div>
-						</div>
-						<div class="setting-item">
-							<div class="setting-item-info">
-								<label for="provider-api-key" data-i18n="providerApiKey">API key</label>
-								<div class="setting-item-description" data-i18n="providerApiKeyDescription">Your API key for this provider.</div>
-							</div>
-							<div class="setting-item-control">
-								<input type="text" id="provider-api-key" name="apiKey" data-i18n="providerApiKey" placeholder="API key">
-							</div>
-						</div>
-						<div class="setting-item" id="provider-signin-row" style="display: none;">
-							<div class="setting-item-info">
-								<label data-i18n="providerSignInLabel">Account</label>
-								<div class="setting-item-description" id="provider-signin-note" role="status"></div>
-							</div>
-							<div class="setting-item-control provider-signin-control">
-								<div class="provider-signin-actions">
-									<button type="button" id="provider-signin-btn" data-i18n="providerSignInButton">Sign in</button>
-								</div>
-								<div class="provider-signin-paste" id="provider-signin-paste" hidden>
-									<input type="text" id="provider-signin-url" data-i18n="providerSignInPaste" placeholder="Paste the address of the page it ended on">
-									<button type="button" id="provider-signin-paste-btn" data-i18n="providerSignInPasteButton">Continue</button>
-								</div>
-							</div>
-						</div>
-					</form>
-				</div>
-				<div class="modal-button-container">
-					<button class="provider-confirm-btn mod-cta" data-i18n="save">Save</button>
-					<button class="provider-cancel-btn" data-i18n="cancel">Cancel</button>
-				</div>
+				<div class="modal-header"><div class="modal-title pd-title"></div></div>
+				<div class="modal-content pd-body"></div>
+				<div class="modal-button-container pd-actions"></div>
 			</div>
 		</div>
-
-		
 
 		<script type="module" src="settings.js"></script>
 </body>

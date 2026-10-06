@@ -12,6 +12,7 @@ The same few mistakes have come back again and again. Check them *before* shippi
 7. **Switches** reset `mask: none` on `::after` (global `inputs.scss` draws a checkmark).
 8. **`messages.json`** entries with `$name$` need a `placeholders` block.
 9. **Verify with computed styles**, not by eye: in the jsdom/mock check `getComputedStyle` for colour, background, width on the real element. Say plainly what was *not* verified in a real browser.
+10. **Field focus.** A focused input/textarea/select gets one soft ring: `border-color: var(--field-focus-border); box-shadow: var(--field-focus-ring); outline: none` (global in `inputs.scss`/`dropdowns.scss`). Never stack a second outline or a solid 2px ring; cards/rows/chips use at most `outline: 1px solid var(--text-muted); outline-offset: 2px`.
 
 ## Words the user sees
 Write from the user's point of view. They care about what they get, not how it is done.
