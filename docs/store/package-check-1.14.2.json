@@ -13,7 +13,7 @@
   "native_tests": 130,
   "typescript": "passed",
   "chrome_build": "passed",
-  "store_status": "not_submitted_pending_runtime_validation",
+  "store_status": "pending_review",
   "fresh_install_and_upgrade_runtime_verified": false,
   "runtime_blocker": "Browser security policy rejects chrome-extension:// access; manual runtime acceptance required.",
   "source_commit": "3887b8aa0128026ead93661800481b0da6842199",
@@ -25,5 +25,9 @@
   "safari_build": "passed",
   "manifest_resources": "passed",
   "github_release": "https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.14.2",
-  "github_release_prerelease": true
+  "github_release_prerelease": true,
+  "store_id": "jniolfihillilkoajpnonlbkhfkiicoo",
+  "auto_publish_after_approval": true,
+  "public_store_version": "1.7.1",
+  "submission_authorization": "User explicitly requested submission on 2026-10-06 with runtime validation still outstanding."
 }
