@@ -1,3 +1,4 @@
+import { decodeInterpreterSettings, encodeInterpreterSettings, interpreterChunkKeys, INTERPRETER_KEY } from './interpreter-storage';
 import browser from './browser-polyfill';
 import { Settings, ModelConfig, PropertyType, HistoryEntry, Provider, Rating } from '../types/types';
 import { debugLog } from './debug';
@@ -125,7 +126,8 @@ interface StorageData {
 const CURRENT_MIGRATION_VERSION = 1;
 
 export async function loadSettings(): Promise<Settings> {
-	const data = await browser.storage.sync.get(null) as StorageData;
+	const raw = await browser.storage.sync.get(null);
+	const data = { ...raw, interpreter_settings: decodeInterpreterSettings(raw) } as StorageData;
 	
 	// Load default settings first
 	const defaultSettings: Settings = {
@@ -253,6 +255,16 @@ export async function saveSettings(settings?: Partial<Settings>): Promise<void> 
 		generalSettings = { ...generalSettings, ...settings };
 	}
 
+	const interpreterSettings = {
+		interpreterModel: generalSettings.interpreterModel,
+		models: generalSettings.models,
+		providers: generalSettings.providers,
+		interpreterEnabled: generalSettings.interpreterEnabled,
+		interpreterAutoRun: generalSettings.interpreterAutoRun,
+		defaultPromptContext: generalSettings.defaultPromptContext
+	};
+	const encodedInterpreterSettings = encodeInterpreterSettings(interpreterSettings);
+	const previous = await browser.storage.sync.get(INTERPRETER_KEY);
 	await browser.storage.sync.set({
 		vaults: generalSettings.vaults,
 		general_settings: {
@@ -279,14 +291,7 @@ export async function saveSettings(settings?: Partial<Settings>): Promise<void> 
 			alwaysShowHighlights: generalSettings.alwaysShowHighlights,
 			highlightBehavior: generalSettings.highlightBehavior
 		},
-		interpreter_settings: {
-			interpreterModel: generalSettings.interpreterModel,
-			models: generalSettings.models,
-			providers: generalSettings.providers,
-			interpreterEnabled: generalSettings.interpreterEnabled,
-			interpreterAutoRun: generalSettings.interpreterAutoRun,
-			defaultPromptContext: generalSettings.defaultPromptContext
-		},
+		...encodedInterpreterSettings,
 		property_types: generalSettings.propertyTypes,
 		reader_settings: {
 			fontSize: generalSettings.readerSettings.fontSize,
@@ -307,6 +312,10 @@ export async function saveSettings(settings?: Partial<Settings>): Promise<void> 
 		},
 		stats: generalSettings.stats
 	});
+	const currentKeys = new Set(Object.keys(encodedInterpreterSettings));
+	const stale = interpreterChunkKeys(previous[INTERPRETER_KEY]).filter(key => !currentKeys.has(key));
+	// Settings are already saved; cleanup failure must not turn success into a retry.
+	if (stale.length) await browser.storage.sync.remove(stale).catch(() => {});
 }
 
 export async function setLegacyMode(enabled: boolean): Promise<void> {

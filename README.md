@@ -18,7 +18,7 @@ Read, watch, ask AI, and turn what you learn into Obsidian notes.
 
 </div>
 
-> **[Chrome 应用商店已上线](https://chromewebstore.google.com/detail/jniolfihillilkoajpnonlbkhfkiicoo)，当前商店版本为 1.7.1；1.14.1 更新已提交审核，通过后自动发布。** 本页介绍当前 `main` 的功能；完整体验请按下方步骤从源码安装。不想装 Node.js？可直接下载 [1.14.1 已发布预览包](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.14.1)；更早的版本（如 1.10.0）没有视频字幕工具栏；B 站视频页的字幕工具栏从 1.11.0 起提供。截图采用实际界面组件与示例数据，视频区域展示封面预览；[截图说明](docs/README-SCREENSHOTS.md)。
+> **[Chrome 应用商店已上线](https://chromewebstore.google.com/detail/jniolfihillilkoajpnonlbkhfkiicoo)，当前商店版本为 1.7.1；1.14.1 送审已撤回，模型添加修复正在验收，通过真实安装测试后再提交更新。** 本页介绍当前 `main` 的功能；完整体验请按下方步骤从源码安装。不想装 Node.js？可直接下载 [1.14.1 已发布预览包](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.14.1)；更早的版本（如 1.10.0）没有视频字幕工具栏；B 站视频页的字幕工具栏从 1.11.0 起提供。截图采用实际界面组件与示例数据，视频区域展示封面预览；[截图说明](docs/README-SCREENSHOTS.md)。
 
 ## 它解决什么问题
 
@@ -299,7 +299,7 @@ Qiaomu Clipper combines web clipping, a clean reader, a full-page Markdown edito
 
 **[Install current features](#quick-start)** · [Screenshots](#功能巡游) · [Report an issue](https://github.com/joeseesun/qiaomu-clipper/issues)
 
-> [Available on the Chrome Web Store](https://chromewebstore.google.com/detail/jniolfihillilkoajpnonlbkhfkiicoo) at version 1.7.1; the 1.14.1 update has been submitted for review and will publish automatically after approval. This README describes current `main`. The downloadable [1.14.1 preview](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.14.1) is the published release (no Node.js needed; refresh open YouTube tabs after installing). Earlier releases such as 1.10.0 lack the video transcript bar (Bilibili's arrives in 1.11.0; Bilibili only serves subtitles to signed-in accounts). Screenshots use production components with sample articles, captions, AI responses and daily-note targets; the video area is a cover preview. See [screenshot provenance](docs/README-SCREENSHOTS.md).
+> [Available on the Chrome Web Store](https://chromewebstore.google.com/detail/jniolfihillilkoajpnonlbkhfkiicoo) at version 1.7.1; the 1.14.1 review was withdrawn while model-addition fixes undergo validation; resubmission requires installed-extension tests. This README describes current `main`. The downloadable [1.14.1 preview](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.14.1) is the published release (no Node.js needed; refresh open YouTube tabs after installing). Earlier releases such as 1.10.0 lack the video transcript bar (Bilibili's arrives in 1.11.0; Bilibili only serves subtitles to signed-in accounts). Screenshots use production components with sample articles, captions, AI responses and daily-note targets; the video area is a cover preview. See [screenshot provenance](docs/README-SCREENSHOTS.md).
 
 ### Quick start
 

@@ -26,6 +26,7 @@ const card = (name: string) => $$('#provider-modal .pd-card').find(c => c.getAtt
 
 beforeEach(async () => {
 	vi.clearAllMocks();
+	vi.mocked(saveSettings).mockReset();
 	vi.mocked(fetchProviderModels).mockReset();
 	vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ version: 'test' }))));
 	document.documentElement.innerHTML = readFileSync('src/settings.html', 'utf8');
@@ -87,6 +88,23 @@ describe('add provider', () => {
 		action('pdAddProviderButton').click(); await tick();
 		expect(generalSettings.providers[generalSettings.providers.length - 1]).toMatchObject({ name: 'My gateway', baseUrl: 'https://g.example/v1/chat/completions', apiKey: 'k' });
 	});
+	it('rolls back a provider after a failed save instead of duplicating it on retry', async () => {
+		vi.mocked(saveSettings).mockRejectedValueOnce(new Error('quota')).mockResolvedValue(undefined);
+		await openProviders(); card('硅基流动').click();
+		$<HTMLInputElement>('#pd-key').value='test'; action('pdAddProviderButton').click(); await tick();
+		expect(generalSettings.providers).toHaveLength(2);
+		action('pdAddProviderButton').click(); await tick(); expect(generalSettings.providers).toHaveLength(3);
+	});
+	it('ignores repeated provider save clicks until persistence completes', async () => {
+		let resolveSave!: () => void;
+		vi.mocked(saveSettings).mockImplementationOnce(() => new Promise(resolve => { resolveSave = resolve; }));
+		await openProviders(); card('硅基流动').click();
+		$<HTMLInputElement>('#pd-key').value = 'test';
+		const save = action('pdAddProviderButton'); save.click(); save.click();
+		expect(saveSettings).toHaveBeenCalledTimes(1);
+		expect(generalSettings.providers).toHaveLength(3);
+		resolveSave(); await tick();
+	});
 	it('opens an added card for editing instead of adding it twice', async () => {
 		await openProviders();
 		card('DeepSeek').click();
@@ -142,6 +160,54 @@ describe('add models', () => {
 		expect($('#model-modal .pd-body').textContent).toBe('pdNoProviders');
 		action('pdAddProviderTitle').click(); await tick();
 		expect($('#provider-modal').style.display).toBe('flex');
+	});
+	it('does not keep unsaved models after a failed save and can retry', async () => {
+		vi.mocked(fetchProviderModels).mockResolvedValue([{ id: 'new', name: 'New' }]);
+		vi.mocked(saveSettings).mockRejectedValueOnce(new Error('QUOTA_BYTES_PER_ITEM')).mockResolvedValue(undefined);
+		await openModels(); $$('#model-modal .pd-chip')[0].click(); await tick();
+		$('#model-modal .pd-model').click(); action('pdAddModels:1').click(); await tick();
+		expect(generalSettings.models).toEqual([]);
+		expect($('#model-modal .pd-status').textContent).toBe('failedToSaveModel');
+		action('pdAddModels:1').click(); await tick();
+		expect(generalSettings.models).toHaveLength(1);
+		expect(saveSettings).toHaveBeenCalledTimes(2);
+	});
+	it('keeps selected models when the active provider is pressed again', async () => {
+		vi.mocked(fetchProviderModels).mockResolvedValue([{ id: 'new', name: 'New' }]);
+		await openModels(); $$('#model-modal .pd-chip')[0].click(); await tick();
+		$('#model-modal .pd-model').click(); $$('#model-modal .pd-chip')[0].click(); await tick();
+		expect(action('pdAddModels:1')).toBeTruthy();
+		expect(fetchProviderModels).toHaveBeenCalledTimes(1);
+	});
+	it('opens manual entry for an empty catalog and clears it when changing provider', async () => {
+		vi.mocked(fetchProviderModels).mockResolvedValue([]);
+		await openModels(); $$('#model-modal .pd-chip')[0].click(); await tick();
+		expect($('#model-modal details').hasAttribute('open')).toBe(true);
+		const id = $<HTMLInputElement>('#model-modal #pd-mid'); id.value = 'only-for-a'; id.dispatchEvent(new Event('input'));
+		$$('#model-modal .pd-chip')[1].click(); await tick();
+		expect(id.value).toBe('');
+		expect(action('pdAddModelsNone').disabled).toBe(true);
+	});
+	it('does not submit twice while saving selected models', async () => {
+		let resolveSave!: () => void;
+		vi.mocked(saveSettings).mockImplementationOnce(() => new Promise(resolve => {resolveSave=resolve;}));
+		vi.mocked(fetchProviderModels).mockResolvedValue([{id:'x',name:'X'}]);
+		await openModels(); $$('#model-modal .pd-chip')[0].click(); await tick();
+		$('#model-modal .pd-model').click(); const btn=action('pdAddModels:1'); btn.click(); btn.click();
+		expect(saveSettings).toHaveBeenCalledTimes(1); expect(btn.disabled).toBe(true);
+		resolveSave(); await tick(); expect(generalSettings.models).toHaveLength(1);
+	});
+	it('does not wait for remote presets to wire model buttons', async () => {
+		vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})));
+		document.documentElement.innerHTML = readFileSync('src/settings.html', 'utf8');
+		const pending = initializeInterpreterSettings();
+		await tick();
+		await openModels();
+		expect($('#model-modal').style.display).toBe('flex');
+		await pending;
+	});
+	it('keeps provider/model settings available while interpretation is off', async () => {
+		expect($('#interpreter-section').classList.contains('is-disabled')).toBe(false);
 	});
 	it('edits the name and ID of an existing model', async () => {
 		generalSettings.models = [{ id: 'saved', providerId: 'a', providerModelId: 'legacy', name: 'Mine', enabled: true }];

@@ -190,7 +190,9 @@ export function updatePromptContextVisibility(): void {
 	}
 
 	if (interpreterSection) {
-		interpreterSection.classList.toggle('is-disabled', !interpreterToggle.checked);
+		// Configuring models is also needed by chat and translation, even when
+		// template interpretation is disabled.
+		interpreterSection.classList.remove('is-disabled');
 	}
 }
 
@@ -214,8 +216,9 @@ export async function initializeInterpreterSettings(): Promise<void> {
 			generalSettings.providers = [];
 		}
 
-		cachedPresetProviders = await getPresetProviders();
-		debugLog('Interpreter', 'Fetched preset providers:', cachedPresetProviders);
+		cachedPresetProviders = BUILT_IN_PRESETS;
+		// Remote presets enrich the built-in catalogue without blocking the UI.
+		void getPresetProviders().then(presets => { cachedPresetProviders = presets; });
 
 		// Initialize lists with error handling
 		try {
