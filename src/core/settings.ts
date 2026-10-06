@@ -40,7 +40,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 	// Apply section from URL params immediately to avoid flash (DOM only, no side effects)
 	const { section: initialSection, focus: initialFocus } = getUrlParameters();
-	const targetSection = (initialSection === 'general' || initialSection === 'interpreter' || initialSection === 'properties' || initialSection === 'highlighter' || initialSection === 'reader' || initialSection === 'templates') ? initialSection : 'general';
+	const targetSection = (initialSection === 'general' || initialSection === 'study' || initialSection === 'asr' || initialSection === 'clip' || initialSection === 'learning' || initialSection === 'video' || initialSection === 'interpreter' || initialSection === 'properties' || initialSection === 'highlighter' || initialSection === 'reader' || initialSection === 'templates') ? initialSection : 'general';
 	document.querySelectorAll('.settings-section').forEach(s => s.classList.remove('active'));
 	document.querySelectorAll('#sidebar li[data-section]').forEach(i => i.classList.remove('active'));
 	document.getElementById(`${targetSection}-section`)?.classList.add('active');
@@ -206,7 +206,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 	async function handleUrlParameters(): Promise<void> {
 		const { section, templateId, focus } = getUrlParameters();
 
-		if (section === 'general' || section === 'interpreter' || section === 'properties' || section === 'highlighter' || section === 'reader') {
+		if (section === 'general' || section === 'study' || section === 'asr' || section === 'clip' || section === 'learning' || section === 'video' || section === 'interpreter' || section === 'properties' || section === 'highlighter' || section === 'reader') {
 			showSettingsSection(section, undefined, focus || undefined, { replace: true });
 		} else if (section === 'templates') {
 			const template = templateId ? findTemplateById(templateId) : null;

@@ -1,5 +1,6 @@
 import type { PanelSegment } from './youtube-panel-actions';
 import { formatClock } from './youtube-innertube-transcript';
+import { chooseTrack, languageBase, type TrackInfo } from './subtitle-language';
 
 // The well-trodden route used by youtube-transcript-api, yt-dlp and Defuddle: ask InnerTube's player endpoint for the
 // caption track list as a mobile client (these are not gated by a player token, unlike the web client), then
@@ -93,8 +94,17 @@ export const sameLanguage = (left: string, right: string): boolean => {
 	return Boolean(a && b) && (a === b || a.split('-')[0] === b.split('-')[0]);
 };
 
-// Prefer the video's audio language. The first ASR track can be a different spoken language (for example, a dub).
-// Without audio metadata, use English when available, then fall back to the first usable ASR track.
+export interface YouTubeTrack extends TrackInfo { track: CaptionTrack }
+const nameOf = (name: any): string => (typeof name?.simpleText === 'string' ? name.simpleText : Array.isArray(name?.runs) ? name.runs.map((run: { text?: string }) => run.text || '').join('') : '').trim();
+// Every caption track the video offers (token-gated ones left out), with its language and whether YouTube made it from the audio.
+export function trackInfos(tracks: CaptionTrack[]): YouTubeTrack[] {
+	const seen = new Map<string, number>();
+	return tracks.filter(track => !/[?&]exp=xpe\b/.test(track.baseUrl)).map(track => {
+		const auto = track.kind === 'asr', base = `${track.languageCode || 'und'}${auto ? '-auto' : ''}`, count = (seen.get(base) ?? 0) + 1; seen.set(base, count);
+		return { id: count > 1 ? `${base}~${count}` : base, label: nameOf(track.name) || `${track.languageCode}${auto ? ' (auto-generated)' : ''}`, language: languageBase(track.languageCode), auto, track };
+	});
+}
+// Spoken language first (see chooseTrack); `preferred` is a language the viewer picked for this video.
 export function pickTrack(tracks: CaptionTrack[], audioLanguage?: string): CaptionTrack | undefined {
 	const usable = tracks.filter(track => !/[?&]exp=xpe\b/.test(track.baseUrl));
 	const manual = usable.filter(track => track.kind !== 'asr'), automatic = usable.filter(track => track.kind === 'asr');
@@ -123,15 +133,23 @@ export function parseCaptions(body: string): PanelSegment[] {
 	return out;
 }
 
-export type CaptionSource = 'manual' | 'automatic';
-export interface CaptionResult { segments: PanelSegment[]; language?: string; source?: CaptionSource }
-export async function fetchCaptionResult(videoId: string, doc: Document, request: Request = (...args) => fetch(...args)): Promise<CaptionResult> {
-	const source = await fetchCaptionSource(videoId, doc, request);
-	const track = pickTrack(source.tracks, source.audioLanguage); if (!track) return { segments: [] };
+export async function fetchTrackSegments(track: CaptionTrack, request: Request = (...args) => fetch(...args)): Promise<PanelSegment[]> {
 	const base = track.baseUrl.replace(/&fmt=[^&]*/g, '');
 	for (const url of [`${base}&fmt=json3`, base]) {
-		try { const segments = parseCaptions(await (await ok(await request(url, { credentials: 'include' }))).text()); if (segments.length) return { segments, language: track.languageCode, source: track.kind === 'asr' ? 'automatic' : 'manual' }; } catch { /* try the plain format */ }
+		try { const segments = parseCaptions(await (await ok(await request(url, { credentials: 'include' }))).text()); if (segments.length) return segments; } catch { /* try the plain format */ }
 	}
-	return { segments: [], language: track.languageCode, source: track.kind === 'asr' ? 'automatic' : 'manual' };
+	return [];
 }
-export async function fetchCaptionSegments(videoId: string, doc: Document, request: Request = (...args) => fetch(...args)): Promise<PanelSegment[]> { return (await fetchCaptionResult(videoId, doc, request)).segments; }
+
+export type CaptionSource = 'manual' | 'automatic';
+export interface CaptionResult { segments: PanelSegment[]; tracks: YouTubeTrack[]; selected?: string; language?: string; source?: CaptionSource }
+export async function fetchCaptionResult(videoId: string, doc: Document, request: Request = (...args) => fetch(...args), preferred?: string): Promise<CaptionResult> {
+	const source = await fetchCaptionSource(videoId, doc, request), tracks = trackInfos(source.tracks);
+	const defaultTrack = pickTrack(source.tracks, source.audioLanguage);
+	const chosen = preferred ? chooseTrack(tracks, preferred) : tracks.find(item => item.track === defaultTrack);
+	if (!chosen) return { segments: [], tracks };
+	return { segments: await fetchTrackSegments(chosen.track, request), tracks, selected: chosen.id, language: chosen.track.languageCode, source: chosen.auto ? 'automatic' : 'manual' };
+}
+export async function fetchCaptionSegments(videoId: string, doc: Document, request: Request = (...args) => fetch(...args)): Promise<PanelSegment[]> {
+	return (await fetchCaptionResult(videoId, doc, request)).segments;
+}

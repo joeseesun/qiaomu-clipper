@@ -95,6 +95,14 @@ export function parseTranslation(answer: string, batch: TranslationPart[]): Map<
 	return output;
 }
 
+export function parseTranslationBlocks(answer: string, batch: TranslationPart[]): Map<number, string> {
+	const data: Array<{ id: number; text: string }> = [];
+	const cleaned = answer.trim().replace(/^```(?:text)?\s*/i, '').replace(/\s*```$/, '');
+	const rest = cleaned.replace(/<<<TRANSLATION:(\d+)>>>[ \t]*\r?\n([\s\S]*?)\r?\n<<<END_TRANSLATION>>>/g, (_block, id, text) => { data.push({ id: Number(id), text }); return ''; });
+	if (rest.trim()) throw new Error(getMessage('qiaomuTranslationInvalid'));
+	return parseTranslation(JSON.stringify(data), batch);
+}
+
 /**
  * Providers occasionally omit one or two records when a request contains a
  * larger caption batch. Keep the public parser strict (a response is only
@@ -106,14 +114,18 @@ async function translateBatch(
 	request: (parts: TranslationPart[], repair: boolean) => Promise<string>,
 	onResolved?: (id: number, text: string) => void,
 	): Promise<Map<number, string>> {
+	let answer: string | undefined;
 	try {
-		const result = parseTranslation(await request(batch, false), batch);
+		answer = await request(batch, false);
+		const result = parseTranslation(answer, batch);
 		result.forEach((text, id) => onResolved?.(id, text));
 		return result;
 	} catch (error) {
 		if (error instanceof DOMException && error.name === 'AbortError') throw error;
 		if (!(error instanceof Error) || error.message !== getMessage('qiaomuTranslationInvalid')) throw error;
-		if (batch.length > 1) {
+		let structured = false;
+		try { if (answer !== undefined) { extractJsonArray(answer); structured = true; } } catch { /* malformed JSON uses one format retry */ }
+		if (structured && batch.length > 1) {
 			const midpoint = Math.ceil(batch.length / 2);
 			const result = new Map<number, string>();
 			for (const part of [batch.slice(0, midpoint), batch.slice(midpoint)]) {
@@ -124,7 +136,10 @@ async function translateBatch(
 		// A singleton can still be truncated by a provider. One explicit repair
 		// request is enough to recover transient formatting failures without an
 		// unbounded retry loop.
-		const result = parseTranslation(await request(batch, true), batch);
+		const repaired = await request(batch, true);
+		let result: Map<number, string>;
+		try { result = parseTranslationBlocks(repaired, batch); }
+		catch { result = parseTranslation(repaired, batch); }
 		result.forEach((text, id) => onResolved?.(id, text));
 		return result;
 	}
@@ -184,12 +199,21 @@ export function mountTranslation(article: HTMLElement, toolbar: HTMLElement, sta
 	const retry = doc.createElement('button'); retry.type = 'button'; retry.className = 'youtube-translation-retry'; retry.textContent = getMessage('qiaomuTranslationRetry'); retry.hidden = true;
 	toolbar.append(sourceLabel, picker.element, label); status.after(retry);
 	let controller: AbortController | undefined; let generation = 0;
+	let feedbackTimer: ReturnType<typeof setTimeout> | undefined;
+	const showFeedback = (message: string, completed = false) => {
+		clearTimeout(feedbackTimer); status.removeAttribute('data-feedback-state'); status.textContent = message;
+		if (completed) feedbackTimer = setTimeout(() => {
+			status.dataset.feedbackState = 'leaving';
+			feedbackTimer = setTimeout(() => { status.textContent = ''; status.removeAttribute('data-feedback-state'); }, 200);
+		}, 3000);
+	};
 	const cache = new Map<number, string>();
 	// The transcript bar is mounted outside the study article. Expose only the
 	// completed, index-aligned cache on the article so it can offer bilingual
 	// downloads without mixing translations into source text or AI context.
 	(transcript || article).dataset.translationCache = '';
 	(transcript || article).__qiaomuTranslationCache = cache;
+	article.addEventListener('qiaomu-transcript-replaced', () => { ++generation; controller?.abort(); clearTimeout(feedbackTimer); }, { once: true });
 	const parts = batches.flat();
 	const sources = segments.map(segment => {
 		let source = segment.querySelector<HTMLElement>('.transcript-segment-text');
@@ -237,6 +261,8 @@ export function mountTranslation(article: HTMLElement, toolbar: HTMLElement, sta
 			if (rendered.has(index)) return;
 			const segmentParts = parts.filter(part => part.segment === index);
 			if (!segmentParts.length || !segmentParts.every(part => cache.has(part.id))) return;
+			segments[index].dataset.translatedText = segmentParts.map(part => cache.get(part.id)!).join('\n\n');
+			segments[index].dataset.translationReady = 'true';
 			if (segmentParts.every(part => cache.get(part.id)?.replace(/\s/g, '') === part.text.replace(/\s/g, ''))) return;
 			renderBilingualBlocks(source.element, segmentParts.map(part => ({ original: part.text, translation: cache.get(part.id)! })));
 			source.element.querySelectorAll<HTMLElement>('.transcript-translation').forEach(node => { node.lang = target.value; });
@@ -246,7 +272,7 @@ export function mountTranslation(article: HTMLElement, toolbar: HTMLElement, sta
 	};
 	async function translate() {
 		controller?.abort(); const current = ++generation; const abort = new AbortController(); controller = abort; retry.hidden = true;
-		const progress = () => { status.textContent = `${getMessage('qiaomuTranslationProgress')} ${cache.size}/${parts.length}`; };
+		const progress = () => { showFeedback(`${getMessage('qiaomuTranslationProgress')} ${cache.size}/${parts.length}`); };
 		progress();
 		try {
 			await storageUtils.loadSettings(); const models = enabledChatModels();
@@ -262,7 +288,7 @@ export function mountTranslation(article: HTMLElement, toolbar: HTMLElement, sta
 				const timer = setTimeout(() => abort.abort(), 60000);
 				try {
 					const instruction = repair
-						? '\nYour previous response was incomplete or invalid. Return exactly one JSON array with every requested id once, no Markdown or commentary.'
+						? '\nYour previous response was incomplete or invalid. Return plain text blocks, never JSON. For each supplied id write exactly:\n<<<TRANSLATION:id>>>\nTranslation (ordinary quotes and newlines are allowed)\n<<<END_TRANSLATION>>>\nReplace id with its supplied number. Retain every id exactly once. No text outside the blocks.'
 						: '';
 					return await streamChat({
 						model,
@@ -286,15 +312,16 @@ export function mountTranslation(article: HTMLElement, toolbar: HTMLElement, sta
 				if (abort.signal.aborted || !label.isConnected) { abort.abort(); return; }
 				if (current !== generation || abort.signal.aborted || !label.isConnected) return;
 				for (const [id, text] of await translateBatch(pending, request, (id, text) => cache.set(id, text))) cache.set(id, text);
+				if (current !== generation || abort.signal.aborted || !label.isConnected) return;
 				render(); progress();
 			}
 			if (current === generation) {
-				status.textContent = getMessage('qiaomuTranslationDone');
+				showFeedback(getMessage('qiaomuTranslationDone'), true);
 				article.dispatchEvent(new CustomEvent('qiaomu-translation-state', { detail: { ready: cache.size === parts.length } }));
 			}
 		} catch (error) {
 			if (current !== generation) return;
-			status.textContent = abort.signal.aborted ? getMessage('qiaomuTranslationTimeout') : `${getMessage('qiaomuTranslationError')} ${error instanceof Error ? error.message : ''}`;
+			showFeedback(abort.signal.aborted ? getMessage('qiaomuTranslationTimeout') : `${getMessage('qiaomuTranslationError')} ${error instanceof Error ? error.message : ''}`);
 			retry.hidden = false;
 		} finally { if (current === generation) controller = undefined; }
 	}

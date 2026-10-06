@@ -1,3 +1,4 @@
+import { decodeInterpreterSettings, encodeInterpreterSettings, interpreterChunkKeys, INTERPRETER_KEY } from './interpreter-storage';
 import browser from './browser-polyfill';
 import { Settings, ModelConfig, PropertyType, HistoryEntry, Provider, Rating } from '../types/types';
 import { debugLog } from './debug';
@@ -130,7 +131,8 @@ interface StorageData {
 const CURRENT_MIGRATION_VERSION = 1;
 
 export async function loadSettings(): Promise<Settings> {
-	const data = await browser.storage.sync.get(null) as StorageData;
+	const raw = await browser.storage.sync.get(null);
+	const data = { ...raw, interpreter_settings: decodeInterpreterSettings(raw) } as StorageData;
 	
 	// Load default settings first
 	const defaultSettings: Settings = {
@@ -264,7 +266,19 @@ export async function saveSettings(settings?: Partial<Settings>): Promise<void> 
 	}
 
 	try {
-		await browser.storage.sync.set({
+	const interpreterSettings = {
+		interpreterModel: generalSettings.interpreterModel,
+		translationModel: generalSettings.translationModel,
+		translationTargetLanguage: generalSettings.translationTargetLanguage,
+		models: generalSettings.models,
+		providers: generalSettings.providers,
+		interpreterEnabled: generalSettings.interpreterEnabled,
+		interpreterAutoRun: generalSettings.interpreterAutoRun,
+		defaultPromptContext: generalSettings.defaultPromptContext
+	};
+	const encodedInterpreterSettings = encodeInterpreterSettings(interpreterSettings);
+	const previous = await browser.storage.sync.get(INTERPRETER_KEY);
+	await browser.storage.sync.set({
 		vaults: generalSettings.vaults,
 		general_settings: {
 			showMoreActionsButton: generalSettings.showMoreActionsButton,
@@ -290,16 +304,7 @@ export async function saveSettings(settings?: Partial<Settings>): Promise<void> 
 			alwaysShowHighlights: generalSettings.alwaysShowHighlights,
 			highlightBehavior: generalSettings.highlightBehavior
 		},
-		interpreter_settings: {
-			interpreterModel: generalSettings.interpreterModel,
-			translationModel: generalSettings.translationModel,
-			translationTargetLanguage: generalSettings.translationTargetLanguage,
-			models: generalSettings.models,
-			providers: generalSettings.providers,
-			interpreterEnabled: generalSettings.interpreterEnabled,
-			interpreterAutoRun: generalSettings.interpreterAutoRun,
-			defaultPromptContext: generalSettings.defaultPromptContext
-		},
+		...encodedInterpreterSettings,
 		property_types: generalSettings.propertyTypes,
 		reader_settings: {
 			fontSize: generalSettings.readerSettings.fontSize,
@@ -319,8 +324,12 @@ export async function saveSettings(settings?: Partial<Settings>): Promise<void> 
 			customCss: generalSettings.readerSettings.customCss
 		},
 		stats: generalSettings.stats
-		});
-		dispatchSettingsSaveState('saved');
+	});
+	const currentKeys = new Set(Object.keys(encodedInterpreterSettings));
+	const stale = interpreterChunkKeys(previous[INTERPRETER_KEY]).filter(key => !currentKeys.has(key));
+	// Settings are already saved; cleanup failure must not turn success into a retry.
+	if (stale.length) await browser.storage.sync.remove(stale).catch(() => {});
+	dispatchSettingsSaveState('saved');
 	} catch (error) {
 		dispatchSettingsSaveState('error');
 		throw error;

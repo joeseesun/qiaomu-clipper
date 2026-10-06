@@ -21,6 +21,17 @@ export function bilibiliVideo(sourceUrl: string): BilibiliVideo | null {
 	return { bvid, page: Number.isFinite(page) && page > 0 ? page : 1 };
 }
 
+// A Xiaoyuzhou (podcast) episode page: audio only, but studied the same way as a video.
+export function xiaoyuzhouEpisode(sourceUrl: string): string | null {
+	let source: URL;
+	try { source = new URL(sourceUrl); } catch { return null; }
+	if (source.protocol !== 'https:' || !['xiaoyuzhoufm.com', 'www.xiaoyuzhoufm.com'].includes(source.hostname.toLowerCase())) return null;
+	return source.pathname.match(/^\/episode\/([0-9a-f]{24})\/?$/)?.[1] ?? null;
+}
+export const audioKey = (sourceUrl: string): string | null => { const id = xiaoyuzhouEpisode(sourceUrl); return id ? `xiaoyuzhou:${id}` : null; };
+export const audioStudyPath = (url: string, title = ''): string | null => audioKey(url) ? `reader.html?study=audio&url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}` : null;
+export const LOCAL_AUDIO_STUDY_PATH = 'reader.html?study=file';
+
 export const isBilibiliEmbed = (src: string): boolean => /^https:\/\/player\.bilibili\.com\/player\.html/.test(src);
 
 export function bilibiliEmbedUrl({ bvid, page }: BilibiliVideo, options: { start?: number; autoplay?: boolean } = {}): string {

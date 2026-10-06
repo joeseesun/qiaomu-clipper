@@ -1,3 +1,4 @@
+import { transcriptHeadingTools } from './transcript-heading';
 import { createElement, WandSparkles } from 'lucide';
 import { mountClipChat } from './clip-chat';
 import { learningNotes } from './learning-composer';
@@ -336,9 +337,9 @@ function mountBrowserWhisper(article: HTMLElement, controls: HTMLElement, studyS
 }
 
 export async function mountYouTubeStudy(doc: Document, article: HTMLElement, title: string, url: string, existingChat?: { toggle: () => boolean }): Promise<void> {
-	article.dataset.videoPlatform = bilibiliVideo(url) || article.querySelector('iframe[src*="player.bilibili.com"]') ? 'bilibili' : 'youtube';
-	mountPlayerSize(article);
-	mountPlayerMode(article);
+	article.dataset.videoPlatform = article.querySelector('video.reader-video-player') ? 'web' : bilibiliVideo(url) || article.querySelector('iframe[src*="player.bilibili.com"]') ? 'bilibili' : 'youtube';
+	// A podcast or a recording has no picture to size or to move around: it keeps its one layout.
+	if (article.dataset.audioStudy !== 'true') { mountPlayerSize(article); mountPlayerMode(article); }
 	doc.documentElement.classList.add('youtube-study');
 	// No duplicate transcript action row: copy/download/AI live in the shared bar.
 	const existingFeedback = article.querySelector<HTMLElement>('.youtube-study-feedback');
@@ -349,7 +350,7 @@ export async function mountYouTubeStudy(doc: Document, article: HTMLElement, tit
 	const text = transcriptText(article);
 	const transcript = article.querySelector<HTMLElement>(TRANSCRIPT_SELECTOR);
 	if (transcript && !transcript.dataset.sourceLanguage) transcript.dataset.sourceLanguage = transcript.getAttribute('data-language') || '';
-	if (!feedback.isConnected) { if (transcript) transcript.before(feedback); else article.append(feedback); }
+	if (!feedback.isConnected) { if (transcript) transcriptHeadingTools(transcript).append(feedback); else article.append(feedback); }
 	const toggleGroup = article.querySelector<HTMLElement>('.player-toggle-group');
 	const controls = toggleGroup || feedback;
 	mountBrowserWhisper(article, controls, status, transcript || undefined);

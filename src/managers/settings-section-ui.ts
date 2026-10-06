@@ -2,9 +2,9 @@ import { getUrlParameters, updateUrl, replaceUrl } from '../utils/routing';
 import { updatePromptContextVisibility } from './interpreter-settings';
 import { initializePropertyTypesManager } from './property-types-manager';
 
-export type SettingsSection = 'general' | 'properties' | 'highlighter' | 'interpreter' | 'reader' | 'templates';
+export type SettingsSection = 'general' | 'study' | 'asr' | 'clip' | 'learning' | 'video' | 'properties' | 'highlighter' | 'interpreter' | 'reader' | 'templates';
 
-const VALID_SECTIONS: SettingsSection[] = ['general', 'properties', 'highlighter', 'interpreter', 'reader', 'templates'];
+const VALID_SECTIONS: SettingsSection[] = ['general', 'study', 'asr', 'clip', 'learning', 'video', 'properties', 'highlighter', 'interpreter', 'reader', 'templates'];
 const LEGACY_AI_FOCUSES = new Set(['answer-subsection', 'translation-subsection', 'providers-subsection']);
 let outlineObserver: IntersectionObserver | null = null;
 let outlineSection: SettingsSection | null = null;
@@ -184,6 +184,7 @@ export function showSettingsSection(section: SettingsSection, templateId?: strin
 	updateContentWorkspace(section);
 	initializeCollapsibleGroups(section);
 	buildOutline(section);
+	if (section === 'study') document.dispatchEvent(new CustomEvent('qiaomu-study-shown'));
 	updatePromptContextVisibility();
 
 	if (section === 'properties') initializePropertyTypesManager();
@@ -212,6 +213,7 @@ export function initializeSidebar(): void {
 	const sidebarTitle = document.getElementById('settings-sidebar-title');
 
 	initializeContentWorkspace();
+	sidebar?.querySelectorAll<HTMLElement>('li[data-section]').forEach(item => item.tabIndex = 0);
 	sidebarTitle?.addEventListener('click', () => showSettingsSection('general'));
 
 	sidebar?.addEventListener('click', event => {

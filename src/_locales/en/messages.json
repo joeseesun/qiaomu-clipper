@@ -719,6 +719,45 @@
 	"read": {
 		"message": "Read"
 	},
+	"navClip": {
+		"message": "Clipping and saving"
+	},
+	"navLearning": {
+		"message": "Learning notes"
+	},
+	"groupSaving": {
+		"message": "Saving"
+	},
+	"groupSharing": {
+		"message": "Sharing"
+	},
+	"groupBackup": {
+		"message": "Backup and labs"
+	},
+	"headingClip": {
+		"message": "Clipping"
+	},
+	"headingRead": {
+		"message": "Reading and learning"
+	},
+	"headingAI": {
+		"message": "AI"
+	},
+	"navStudyHome": {
+		"message": "Transcribe and study"
+	},
+	"navAsr": {
+		"message": "Speech recognition"
+	},
+	"navVideoSites": {
+		"message": "Transcript bar and sites"
+	},
+	"headingLearn": {
+		"message": "Learning"
+	},
+	"videoSubtitles": {
+		"message": "Video subtitles"
+	},
 	"reader": {
 		"message": "Reader"
 	},
@@ -1333,13 +1372,13 @@
 		"message": "Rewrite more concisely"
 	},
 	"youtubeAutoTranscriptTitle": {
-		"message": "Open the YouTube transcript automatically"
+		"message": "Open the YouTube transcript automatically (YouTube only)"
 	},
 	"youtubeAutoTranscriptDescription": {
 		"message": "On a video page, expand YouTube's transcript panel once so the transcript is ready for copying, downloading and study mode. Close it and it stays closed for that video."
 	},
 	"youtubeHideNativeTitle": {
-		"message": "Hide YouTube's own transcript panel"
+		"message": "Hide YouTube's own transcript panel (YouTube only)"
 	},
 	"youtubeHideNativeDescription": {
 		"message": "When the transcript opens automatically, hide YouTube's panel in the right column. The transcript bar shows the same lines. A panel you open yourself is never hidden."
@@ -1435,10 +1474,10 @@
 		"message": "Bilibili only provides subtitles to signed-in accounts. Sign in, then press Retry"
 	},
 	"youtubePanelActionsTitle": {
-		"message": "YouTube transcript buttons"
+		"message": "Transcript bar on YouTube and Bilibili"
 	},
 	"youtubePanelActionsDescription": {
-		"message": "On YouTube, add Copy, Download and Study buttons next to the Chapters / Transcript tabs of the transcript panel."
+		"message": "Add the transcript bar to video pages on YouTube and Bilibili: read along, copy, download, open study mode, and generate subtitles when a video has none."
 	},
 	"youtubePanelCopy": {
 		"message": "Copy"
@@ -1603,6 +1642,9 @@
 	"qiaomuTranslationRetry": {
 		"message": "Retry translation"
 	},
+	"qiaomuTranslationFormatRetry": {
+		"message": "Retrying this group of translations…"
+	},
 	"qiaomuTranslationInvalid": {
 		"message": "The model returned incomplete segment data. Please retry."
 	},
@@ -1622,7 +1664,7 @@
 		"message": "Translation failed. Retry to continue."
 	},
 	"qiaomuTranslationService": {
-		"message": "Translate subtitles with your configured AI model; translations are cached only on this page."
+		"message": "Translate subtitles with your configured AI model; clip original, translated or bilingual captions."
 	},
 	"qiaomuChatSectionAppearance": {
 		"message": "Appearance"
@@ -1701,5 +1743,198 @@
 	},
 	"qiaomuChatFontreader": {
 		"message": "Same as reading font"
+	},
+	"providerSignInLabel": {
+		"message": "Account"
+	},
+	"providerSignInButton": {
+		"message": "Sign in"
+	},
+	"providerSignInPaste": {
+		"message": "Paste the address of the page it ended on"
+	},
+	"providerSignInPasteButton": {
+		"message": "Continue"
+	},
+	"providerSignInOpen": {
+		"message": "Waiting for you to finish in the browser tab…"
+	},
+	"providerSignInDone": {
+		"message": "Signed in as $1",
+		"placeholders": {
+			"1": {
+				"content": "$1"
+			}
+		}
+	},
+	"providerSignInChatGPT": {
+		"message": "Sign in to ChatGPT"
+	},
+	"providerSignInCodex": {
+		"message": "Sign in to Codex"
+	},
+	"providerSignInTokenDance": {
+		"message": "Authorize 词元跳动"
+	},
+	"providerSignInNoteChatGPT": {
+		"message": "Uses your ChatGPT plan allowance. No API key needed."
+	},
+	"providerSignInNoteCodex": {
+		"message": "Uses your Codex plan allowance. No API key needed."
+	},
+	"providerSignInNoteTokenDance": {
+		"message": "Confirm in the browser and a key is created for you."
+	},
+	"providerSignInAgain": {
+		"message": "Sign in again"
+	},
+	"pdAddProviderTitle": {
+		"message": "Add provider"
+	},
+	"pdEditProviderTitle": {
+		"message": "Edit provider"
+	},
+	"pdSearchProviders": {
+		"message": "Search providers…"
+	},
+	"pdGroupAccount": {
+		"message": "Sign in with your account · no key needed"
+	},
+	"pdGroupRelay": {
+		"message": "Gateways · one key, many models"
+	},
+	"pdGroupProvider": {
+		"message": "Providers"
+	},
+	"pdGroupLocal": {
+		"message": "On this computer"
+	},
+	"pdGroupCustom": {
+		"message": "Other"
+	},
+	"pdCustomName": {
+		"message": "Custom"
+	},
+	"pdCustomSub": {
+		"message": "Any compatible endpoint"
+	},
+	"pdAdded": {
+		"message": "Added"
+	},
+	"pdNoMatch": {
+		"message": "No provider matches"
+	},
+	"pdFieldNamePlaceholder": {
+		"message": "Provider name"
+	},
+	"pdPasteWrong": {
+		"message": "That is not the address the sign-in ended on. Copy it again."
+	},
+	"pdLocalNote": {
+		"message": "Runs on this computer. No key needed."
+	},
+	"pdGetKey": {
+		"message": "Get an API key"
+	},
+	"pdFieldUrl": {
+		"message": "Endpoint address"
+	},
+	"pdUrlHintCustom": {
+		"message": "The chat endpoint, for example https://example.com/v1/chat/completions"
+	},
+	"pdUrlHint": {
+		"message": "Usually no need to change."
+	},
+	"pdFieldKey": {
+		"message": "API key"
+	},
+	"pdFieldKeyOr": {
+		"message": "API key (filled in for you after you authorize)"
+	},
+	"pdShow": {
+		"message": "Show"
+	},
+	"pdHide": {
+		"message": "Hide"
+	},
+	"pdAdvanced": {
+		"message": "Endpoint address"
+	},
+	"pdNeedName": {
+		"message": "Enter a name."
+	},
+	"pdNeedUrl": {
+		"message": "Enter the endpoint address."
+	},
+	"pdNeedLogin": {
+		"message": "Sign in first."
+	},
+	"pdNeedKey": {
+		"message": "Enter an API key."
+	},
+	"pdBack": {
+		"message": "Back"
+	},
+	"pdAddProviderButton": {
+		"message": "Add provider"
+	},
+	"pdAddModelTitle": {
+		"message": "Add models"
+	},
+	"pdNoProviders": {
+		"message": "Add a provider first, then pick its models."
+	},
+	"pdPickProvider": {
+		"message": "Provider"
+	},
+	"pdSearchModels": {
+		"message": "Search models…"
+	},
+	"pdManual": {
+		"message": "Enter a model ID yourself"
+	},
+	"pdManualNamePlaceholder": {
+		"message": "Same as the ID"
+	},
+	"pdManualName": {
+		"message": "Display name (optional)"
+	},
+	"pdAddModels": {
+		"message": "Add $1 models",
+		"placeholders": {
+			"1": {
+				"content": "$1"
+			}
+		}
+	},
+	"pdAddModelsNone": {
+		"message": "Add models"
+	},
+	"pdRecommended": {
+		"message": "Recommended"
+	},
+	"pdPickProviderFirst": {
+		"message": "Choose a provider above."
+	},
+	"pdReasonTimeout": {
+		"message": "timed out"
+	},
+	"pdReasonFormat": {
+		"message": "not a model list"
+	},
+	"pdReasonNetwork": {
+		"message": "blocked or unreachable"
+	},
+	"pdEdit": {
+		"message": "Edit"
+	},
+	"pdDelete": {
+		"message": "Delete"
+	},
+	"pdDuplicate": {
+		"message": "Duplicate"
+	},
+	"failedToSaveModel": {
+		"message": "Could not save the model. Try again."
 	}
 }

@@ -47,6 +47,9 @@ interface ScrollHelper {
 	programmaticScroll: () => boolean;
 }
 
+const cleanups = new WeakMap<HTMLElement, () => void>();
+export const unwireTranscript = (article: HTMLElement) => { cleanups.get(article)?.(); cleanups.delete(article); };
+
 export function wireTranscript(
 	doc: Document,
 	article: HTMLElement,
@@ -66,6 +69,12 @@ export function wireTranscript(
 	const playerEl = (videoWrapper || iframe || thumbnailLink) as HTMLElement | null;
 	if (!playerEl) return;
 
+	unwireTranscript(article);
+	const disposers: Array<() => void> = [];
+	const listen = (target: EventTarget, type: string, handler: (event: any) => void, options?: boolean | AddEventListenerOptions) => {
+		target.addEventListener(type, handler, options); disposers.push(() => target.removeEventListener(type, handler, options));
+	};
+	cleanups.set(article, () => { for (const dispose of disposers) dispose(); toggleBar.remove(); currentPosButton.remove(); if (transcript) delete transcript.dataset.readerWired; delete article.dataset.readerControlsWired; });
 	if (transcript) transcript.dataset.readerWired = 'true';
 	article.dataset.readerControlsWired = 'true';
 	// Reuse a pre-existing container when subtitles arrive after the live player.
@@ -102,7 +111,7 @@ export function wireTranscript(
 		toggle.appendChild(input);
 		const text = doc.createElement('span'); text.textContent = label;
 		wrapper.append(text, toggle);
-		input.addEventListener('change', () => { wrapper.classList.toggle('is-enabled', input.checked); onChange(input.checked); });
+		listen(input, 'change', () => { wrapper.classList.toggle('is-enabled', input.checked); onChange(input.checked); });
 		return wrapper;
 	};
 	// Pin the video while reading (only meaningful when the video sits above the text) and follow the line being
@@ -136,7 +145,7 @@ export function wireTranscript(
 		}
 
 		// Initialize postMessage connection once iframe loads
-		iframe.addEventListener('load', () => {
+		listen(iframe, 'load', () => {
 			if (iframe.contentWindow) {
 				iframe.contentWindow.postMessage(JSON.stringify({
 					event: 'listening'
@@ -186,7 +195,7 @@ export function wireTranscript(
 	const FALLBACK_SEGMENT_DURATION = 30;
 	const AUTO_SCROLL_COOLDOWN = 10000; // free scrolling: after ten quiet seconds the page returns to the playing line
 	const getSegmentEnd = (i: number) =>
-		i < segmentTimes.length - 1 ? segmentTimes[i + 1] : segmentTimes[i] + FALLBACK_SEGMENT_DURATION;
+		Number(segments[i].querySelector('.timestamp')?.getAttribute('data-end')) > segmentTimes[i] ? Number(segments[i].querySelector('.timestamp')?.getAttribute('data-end')) : i < segmentTimes.length - 1 ? segmentTimes[i + 1] : segmentTimes[i] + FALLBACK_SEGMENT_DURATION;
 
 	// Map each segment to its preceding chapter heading for outline tracking
 	const segmentChapters: (Element | null)[] = [];
@@ -206,7 +215,7 @@ export function wireTranscript(
 	// Track active segment based on video current time
 	let activeSegment: HTMLElement | null = null;
 
-	currentPosButton.addEventListener('click', () => {
+	listen(currentPosButton, 'click', () => {
 		if (activeSegment) {
 			const rect = activeSegment.getBoundingClientRect();
 			const targetY = (window.pageYOffset || doc.documentElement.scrollTop)
@@ -222,7 +231,8 @@ export function wireTranscript(
 	let lastScrub = 0;
 
 	let resumeTimer: ReturnType<typeof setTimeout> | undefined;
-	window.addEventListener('scroll', () => {
+	disposers.push(() => clearTimeout(resumeTimer));
+	listen(window, 'scroll', () => {
 		if (scroll.programmaticScroll() || scrubbing) return;
 		lastUserScroll = Date.now();
 		// Do not wait for the next line to start: when the reader has been idle long enough, go back to the one playing.
@@ -388,26 +398,40 @@ export function wireTranscript(
 		seekTo = (seconds: number) => {
 			videoEl.currentTime = seconds;
 		};
-		videoEl.addEventListener('timeupdate', () => {
+		listen(videoEl, 'timeupdate', () => {
 			updateActiveSegment(videoEl.currentTime);
 		});
 		// Prevent native video controls from handling seek shortcuts
-		videoEl.addEventListener('keydown', (e) => {
+		listen(videoEl, 'keydown', (e) => {
 			if (e.code === 'ArrowLeft' || e.code === 'ArrowRight' || e.code === 'KeyJ' || e.code === 'KeyL') {
 				e.preventDefault();
 			}
 		});
 	} else if (iframe && bilibili) {
-		// Bilibili's embed has no player API and reports no time: a jump reloads it at the requested
-		// second, the transcript marks the clicked line itself, and a scrub drag is coalesced into one reload.
-		let pending: ReturnType<typeof setTimeout> | undefined;
+		// Bilibili's embed has no player API. When this extension's script inside the embed answers (bilibili-embed-content.ts), it
+		// reports the time and takes a seek, so the transcript follows playback and a jump does not reload the player. Until it
+		// answers (or where it cannot run), a jump reloads the embed at the requested second and the transcript marks the clicked
+		// line itself; a scrub drag is coalesced into one reload.
+		let pending: ReturnType<typeof setTimeout> | undefined, bridged = false;
+		disposers.push(() => clearTimeout(pending));
+		const onBridge = (e: MessageEvent) => {
+			if (e.source !== iframe.contentWindow) return;
+			const data = e.data as { qiaomuPlayer?: string; time?: unknown; paused?: unknown } | null;
+			if (data?.qiaomuPlayer !== 'time' || typeof data.time !== 'number') return;
+			bridged = true; iframePlaying = data.paused === false; updateActiveSegment(data.time);
+		};
+		listen(window, 'message', onBridge);
+		const post = (message: Record<string, unknown>) => iframe.contentWindow?.postMessage({ qiaomuPlayer: message.qiaomuPlayer, ...message }, 'https://player.bilibili.com');
 		seekTo = (seconds: number) => {
-			const target = Math.max(0, Math.floor(seconds));
-			updateActiveSegment(target);
+			const target = Math.max(0, seconds);
+			if (bridged) { updateActiveSegment(target); post({ qiaomuPlayer: 'seek', time: target, play: true }); return; }
+			const whole = Math.floor(target);
+			updateActiveSegment(whole);
 			clearTimeout(pending);
 			pending = setTimeout(() => {
+				if (bridged) { post({ qiaomuPlayer: 'seek', time: target, play: true }); return; }
 				const url = new URL(iframe.src);
-				url.searchParams.set('t', String(target)); url.searchParams.set('autoplay', '1');
+				url.searchParams.set('t', String(whole)); url.searchParams.set('autoplay', '1');
 				iframe.src = url.toString();
 			}, 250);
 		};
@@ -434,7 +458,7 @@ export function wireTranscript(
 				}
 			} catch {} // Ignore non-YouTube postMessage events
 		};
-		window.addEventListener('message', onMessage);
+		listen(window, 'message', onMessage);
 
 		const poll = setInterval(() => {
 			if (!iframe.contentWindow || !iframe.isConnected) {
@@ -448,6 +472,7 @@ export function wireTranscript(
 				args: []
 			}), '*');
 		}, 500);
+		disposers.push(() => clearInterval(poll));
 	} else {
 		seekTo = () => {};
 	}
@@ -456,6 +481,8 @@ export function wireTranscript(
 	const togglePlayPause = () => {
 		if (videoEl) {
 			videoEl.paused ? videoEl.play() : videoEl.pause();
+		} else if (iframe?.contentWindow && bilibili) {
+			iframe.contentWindow.postMessage({ qiaomuPlayer: 'toggle' }, 'https://player.bilibili.com');
 		} else if (iframe?.contentWindow && !bilibili) {
 			iframe.contentWindow.postMessage(JSON.stringify({
 				event: 'command',
@@ -475,7 +502,7 @@ export function wireTranscript(
 
 	// Use capture phase so we intercept before YouTube's own keyboard
 	// handlers on the page — the original page scripts are still running
-	doc.addEventListener('keydown', (e: KeyboardEvent) => {
+	listen(doc, 'keydown', (e: KeyboardEvent) => {
 		if (e.ctrlKey || e.metaKey || e.altKey) return;
 		const target = e.target as HTMLElement;
 		if (target.closest('input, textarea, select, button, a, [contenteditable], [role=slider], [role=switch], .clip-chat')) return;
@@ -520,7 +547,7 @@ export function wireTranscript(
 	}, { capture: true });
 
 	// YouTube handles Space on keyup — block that too
-	doc.addEventListener('keyup', (e: KeyboardEvent) => {
+	listen(doc, 'keyup', (e: KeyboardEvent) => {
 		if (e.ctrlKey || e.metaKey || e.altKey) return;
 		if (e.code === 'Space' && !videoEl) {
 			const target = e.target as HTMLElement;
@@ -619,12 +646,12 @@ export function wireTranscript(
 		if (range) hoverHighlight.add(range);
 	};
 
-	transcript.addEventListener('mousemove', (e: MouseEvent) => {
+	listen(transcript, 'mousemove', (e: MouseEvent) => {
 		const rect = scrubTrack.getBoundingClientRect();
 		scrubHover.style.top = (e.clientY - rect.top) + 'px';
 		updateHoverHighlight(e);
 	});
-	transcript.addEventListener('mouseleave', () => {
+	listen(transcript, 'mouseleave', () => {
 		scrubHover.style.top = '';
 		if (hoverHighlight) hoverHighlight.clear();
 	});
@@ -650,14 +677,14 @@ export function wireTranscript(
 		return segmentTimes[0] || 0;
 	};
 
-	scrubTrack.addEventListener('mousedown', (e) => {
+	listen(scrubTrack, 'mousedown', (e) => {
 		scrubbing = true;
 		suppressScroll = true;
 		seekTo(getTimeFromY(e.clientY));
 		e.preventDefault();
 	});
 
-	window.addEventListener('mousemove', (e) => {
+	listen(window, 'mousemove', (e) => {
 		if (!scrubbing) return;
 		const now = Date.now();
 		if (now - lastScrub < 100) return;
@@ -665,12 +692,12 @@ export function wireTranscript(
 		seekTo(getTimeFromY(e.clientY));
 	});
 
-	window.addEventListener('mouseup', () => {
+	listen(window, 'mouseup', () => {
 		scrubbing = false;
 	});
 
 	// Click anywhere in a segment to seek to that position
-	transcript.addEventListener('click', (e: MouseEvent) => {
+	listen(transcript, 'click', (e: MouseEvent) => {
 		// Don't seek if highlighter is active or user was selecting text
 		if (doc.body.classList.contains('obsidian-highlighter-active')) return;
 		const selection = window.getSelection();
@@ -682,6 +709,7 @@ export function wireTranscript(
 		if (idx < 0) return;
 
 		const start = segmentTimes[idx];
+		if ((e.target as HTMLElement).closest('strong, .timestamp')) { seekTo(start); return; }
 		const end = getSegmentEnd(idx);
 		if ((e.target as HTMLElement).closest('.transcript-translation')) { seekTo(start); return; }
 

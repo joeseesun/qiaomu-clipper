@@ -1,4 +1,5 @@
-import { generalSettings } from './storage-utils';
+import { generalSettings, saveSettings } from './storage-utils';
+import { freshOAuth, responsesRequest, responsesText } from './oauth/accounts';
 import browser from './browser-polyfill';
 import type { ModelConfig, Provider } from '../types/types';
 
@@ -12,7 +13,7 @@ interface StreamOptions {
 	onDelta: (text: string) => void;
 }
 
-type Kind = 'anthropic' | 'gemini' | 'ollama' | 'openai';
+type Kind = 'anthropic' | 'gemini' | 'ollama' | 'openai' | 'responses';
 
 export function normalizeOpenAIChatEndpoint(raw: string): string {
 	const url = new URL(raw.trim());
@@ -31,6 +32,7 @@ export function openAICompatibleBasePath(pathname: string): string {
 }
 
 const kindOf = (provider: Provider): Kind => {
+	if (provider.oauth) return 'responses';
 	const name = provider.name.toLowerCase();
 	if (provider.baseUrl.includes('generativelanguage.googleapis.com')) return 'gemini';
 	if (name.includes('anthropic')) return 'anthropic';
@@ -82,6 +84,7 @@ function buildRequest(provider: Provider, model: ModelConfig, system: string, me
 // Pull the text out of one streamed line, whatever the provider's wire format.
 function textFromLine(kind: Kind, line: string): string {
 	const raw = kind === 'ollama' ? line : line.startsWith('data:') ? line.slice(5).trim() : '';
+	if (kind === 'responses') return responsesText(line);
 	if (!raw || raw === '[DONE]') return '';
 	try {
 		const data = JSON.parse(raw);
@@ -126,9 +129,11 @@ export async function streamChat({ model, system, messages, signal, onDelta }: S
 	}
 	const provider = generalSettings.providers.find(p => p.id === model.providerId);
 	if (!provider) throw new Error(`Provider not found for model ${model.name}`);
-	if (provider.apiKeyRequired && !provider.apiKey) throw new Error(`API key is not set for provider ${provider.name}`);
+	if (!provider.oauth && provider.apiKeyRequired && !provider.apiKey) throw new Error(`API key is not set for provider ${provider.name}`);
 
-	const { url, init } = buildRequest(provider, model, system, messages);
+	const { url, init } = provider.oauth
+		? responsesRequest(await freshOAuth(provider, () => saveSettings()), model, system, messages)
+		: buildRequest(provider, model, system, messages);
 	const response = await fetch(url, { ...init, signal });
 	if (!response.ok) {
 		const text = (await response.text()).slice(0, 300);

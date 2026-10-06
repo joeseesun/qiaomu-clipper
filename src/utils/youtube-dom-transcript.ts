@@ -111,10 +111,10 @@ const escapeHtml = (value: string) => value.replace(/&/g, '&amp;').replace(/</g,
 // page reads as text rather than as hundreds of one-line rows.
 export function groupSegments(segments: PanelSegment[], maxSeconds = 30, sentenceSeconds = 12): PanelSegment[] {
 	const groups: PanelSegment[] = []; let start = -1;
-	for (const { time, text, chapter } of segments) {
-		const at = seconds(time), last = groups[groups.length - 1];
-		if (last && !chapter && start >= 0 && at - start < maxSeconds && !(/[.!?。！？]["”)]?$/.test(last.text) && at - start >= sentenceSeconds)) last.text = joinText(last.text, text);
-		else { groups.push({ time, text, ...(chapter ? { chapter } : {}) }); start = at; }
+	for (const { time, text, chapter, start: preciseStart, end } of segments) {
+		const at = preciseStart ?? seconds(time), last = groups[groups.length - 1];
+		if (last && !chapter && start >= 0 && at - start < maxSeconds && !(/[.!?。！？]["”)]?$/.test(last.text) && at - start >= sentenceSeconds)) { last.text = joinText(last.text, text); if (end !== undefined) last.end = end; }
+		else { groups.push({ time, text, ...(chapter ? { chapter } : {}), ...(preciseStart !== undefined ? { start: preciseStart } : {}), ...(end !== undefined ? { end } : {}) }); start = at; }
 	}
 	return groups;
 }
@@ -122,7 +122,8 @@ const CJK = /[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]/;
 const joinText = (a: string, b: string) => CJK.test(a.slice(-1)) && CJK.test(b[0] || '') ? a + b : `${a} ${b}`;
 
 // The same markup Defuddle produces, so the study page treats both sources identically.
-export function transcriptHtml(segments: PanelSegment[], language?: string, platform = 'youtube'): string {
-	const lines = groupSegments(segments).map(({ time, text, chapter }) => `${chapter ? `<h3>${escapeHtml(chapter)}</h3>\n` : ''}<p class="transcript-segment"><strong><span class="timestamp" data-timestamp="${seconds(time)}">${escapeHtml(time)}</span></strong> · ${escapeHtml(text)}</p>`);
+export function transcriptHtml(segments: PanelSegment[], languageOrGroup?: string | boolean, platform = 'youtube'): string {
+	const language = typeof languageOrGroup === 'string' ? languageOrGroup : undefined;
+	const lines = (languageOrGroup === false ? segments : groupSegments(segments)).map(({ time, text, chapter, start, end }) => `${chapter ? `<h3>${escapeHtml(chapter)}</h3>\n` : ''}<p class="transcript-segment"><strong><span class="timestamp" data-timestamp="${start ?? seconds(time)}"${end !== undefined ? ` data-end="${end}"` : ''}>${escapeHtml(time)}</span></strong> · ${escapeHtml(text)}</p>`);
 	return `<div class="${platform === 'bilibili' ? 'bilibili' : 'youtube'} transcript"${language ? ` data-source-language="${escapeHtml(language)}"` : ''}>\n<h2>Transcript</h2>\n${lines.join('\n')}\n</div>`;
 }

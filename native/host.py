@@ -1,7 +1,13 @@
 #!/usr/bin/env python3
 """Chrome native host: write Markdown only inside the explicitly configured vault."""
-import base64, datetime, fcntl, hashlib, json, os, re, shutil, struct, subprocess, sys, tempfile, time, uuid
+import base64, datetime, hashlib, json, os, re, shutil, struct, subprocess, sys, tempfile, time, uuid
 from pathlib import Path
+try: import fcntl
+except ImportError: fcntl=None  # Windows
+if fcntl is None: import msvcrt
+def lock_exclusive(f):
+    if fcntl: fcntl.flock(f,fcntl.LOCK_EX)
+    else: f.seek(0);msvcrt.locking(f.fileno(),msvcrt.LK_LOCK,1)
 MAX_BYTES = 4 * 1024 * 1024
 # Attachments: files are staged here when added to the note card and only copied into the vault when the note is saved.
 MAX_ATTACHMENT = 2 * 1024 ** 3
@@ -14,7 +20,7 @@ BEHAVIORS = {'create','append-specific','prepend-specific','append-daily','prepe
 def atomic_json(path, data):
     fd, name = tempfile.mkstemp(dir=path.parent)
     try:
-        with os.fdopen(fd,'w') as f: json.dump(data,f,ensure_ascii=False); f.flush(); os.fsync(f.fileno())
+        with os.fdopen(fd,'w',encoding='utf8') as f: json.dump(data,f,ensure_ascii=False); f.flush(); os.fsync(f.fileno())
         os.replace(name,path)
     finally:
         if os.path.exists(name): os.unlink(name)
@@ -30,7 +36,7 @@ def destination(root, folder, name):
     return p
 def daily_target(root):
     config=root/'.obsidian/daily-notes.json'
-    data=json.loads(config.read_text()) if config.exists() else {}
+    data=json.loads(config.read_text(encoding='utf8')) if config.exists() else {}
     if data.get('template'): raise ValueError('配置了日记模板，请使用“添加到 Obsidian”以保留模板行为')
     pattern=data.get('format') or 'YYYY-MM-DD'
     # Keep date interpretation explicit; unsupported Moment formats never save to the wrong day.
@@ -182,7 +188,7 @@ def attach(message,base):
     return {'ok':True,'items':items,'errors':errors}
 def attachment_dir(root,note_dir):
     config=root/'.obsidian/app.json'
-    try: setting=json.loads(config.read_text()).get('attachmentFolderPath') if config.exists() else None
+    try: setting=json.loads(config.read_text(encoding='utf8')).get('attachmentFolderPath') if config.exists() else None
     except (ValueError,OSError,AttributeError): setting=None
     setting=setting.strip() if isinstance(setting,str) else '/'
     if setting in ('','/'): folder=root
@@ -221,7 +227,7 @@ def commit_attachments(root,base,note_dir,ids):
     try:
         for attachment_id in ids:
             staged=base/'staging'/attachment_id
-            try: meta=json.loads((staged/'meta.json').read_text()); data=staged/meta['file']; size=meta['size']; sha=meta['sha256']; name=meta['name']
+            try: meta=json.loads((staged/'meta.json').read_text(encoding='utf8')); data=staged/meta['file']; size=meta['size']; sha=meta['sha256']; name=meta['name']
             except (OSError,ValueError,KeyError): raise ValueError('附件已失效，请移除后重新添加')
             if not data.is_file() or data.stat().st_size!=size: raise ValueError(name+' 已失效，请移除后重新添加')
             stem,ext=Path(name).stem,Path(name).suffix
@@ -264,9 +270,9 @@ def save_learning(message, root, base):
     links=None; piece=''
     receipt_file=base/'learning-receipts.json'
     base.mkdir(parents=True,exist_ok=True)
-    with (base/'save.lock').open('a') as lock:
-        fcntl.flock(lock,fcntl.LOCK_EX)
-        receipts=json.loads(receipt_file.read_text()) if receipt_file.exists() else {}
+    with (base/'save.lock').open('a',encoding='utf8') as lock:
+        lock_exclusive(lock)
+        receipts=json.loads(receipt_file.read_text(encoding='utf8')) if receipt_file.exists() else {}
         if capture_id in receipts:
             previous=receipts[capture_id]
             if previous['digest']!=digest or previous['vault']!=str(root): return {'status':'unconfirmed','error':'此学习记录标识可能已写入其他内容，请先核对，再新建记录'}
@@ -343,6 +349,11 @@ def handle(message, config, base):
         config.update(updated)
         return {'ok':True,'vault':selected.name,'vaultPath':str(selected)}
     if message.get('action') in {'attachPick','attachLocal','attachBytes','attachDiscard'}: return attach(message,base)
+    if message.get('action') in {'asrStatus','asrStart','asrPoll','asrCancel','asrCloudTest','asrInstall','asrInstallPoll','asrInstallCancel','asrUninstall','asrUploadStart','asrUploadChunk','asrUploadFinish','asrProbe'}:
+        # Subtitle generation lives in asr.py next to this file; it needs no vault.
+        sys.path.insert(0,str(Path(__file__).resolve().parent))
+        import asr
+        return asr.handle(message,base)
     root=Path(config['vault']).resolve()
     if not root.is_dir() or not (root/'.obsidian').is_dir(): raise ValueError('配置的 Obsidian 笔记库不存在')
     if message.get('action')=='status': return {'ok':True,'vault':root.name,'vaultPath':str(root)}
@@ -375,10 +386,10 @@ def handle(message, config, base):
     target=daily_target(root) if behavior.endswith('-daily') else destination(root,message.get('folder') or '',message.get('name') or '')
     fingerprint=hashlib.sha256((str(root)+json.dumps(message,sort_keys=True,ensure_ascii=False)).encode()).hexdigest()
     base.mkdir(parents=True,exist_ok=True)
-    with (base/'save.lock').open('a') as lock:
-        fcntl.flock(lock,fcntl.LOCK_EX)
+    with (base/'save.lock').open('a',encoding='utf8') as lock:
+        lock_exclusive(lock)
         receipt_file=base/'receipts.json'
-        receipts=json.loads(receipt_file.read_text()) if receipt_file.exists() else {}
+        receipts=json.loads(receipt_file.read_text(encoding='utf8')) if receipt_file.exists() else {}
         if request_id in receipts:
             prior=receipts[request_id]
             if prior['fingerprint']!=fingerprint: raise ValueError('保存请求标识已被用于其他内容')
@@ -392,7 +403,7 @@ def handle(message, config, base):
             # Exclusive creation protects existing notes, including concurrent external writers.
             with target.open('x',encoding='utf8') as f: f.write(content); f.flush(); os.fsync(f.fileno())
         else:
-            previous=target.read_text() if target.exists() else ''
+            previous=target.read_text(encoding='utf8') if target.exists() else ''
             if behavior.startswith('append') and previous: content=previous.rstrip()+'\n\n'+content.lstrip()
             if behavior.startswith('prepend') and previous: content=content.rstrip()+'\n\n'+previous.lstrip()
             fd,name=tempfile.mkstemp(dir=target.parent,suffix='.md')
@@ -407,8 +418,11 @@ def handle(message, config, base):
         return result
 def main():
     base=Path(__file__).resolve().parent
+    if sys.platform=='win32':
+        # Native messaging is binary framing; Windows stdio defaults to text mode and would mangle bytes.
+        msvcrt.setmode(sys.stdin.fileno(),os.O_BINARY);msvcrt.setmode(sys.stdout.fileno(),os.O_BINARY)
     try:
-        config=json.loads((base/'config.json').read_text())
+        config=json.loads((base/'config.json').read_text(encoding='utf8'))
         if len(sys.argv)<2 or sys.argv[1] not in ([config['origin']] if 'origin' in config else [])+list(config.get('origins',[])): raise ValueError('本地保存请求来源无效')
         header=sys.stdin.buffer.read(4)
         if len(header)!=4: raise ValueError('本地保存请求不完整')

@@ -2702,7 +2702,7 @@ export class Reader {
 		const footer = doc.querySelector('.obsidian-reader-footer') as HTMLElement | null;
 		if (footer) {
 			const footerItems = [
-				'Obsidian Reader',
+				'向阳乔木@2026',
 				content.wordCount ? new Intl.NumberFormat().format(content.wordCount) + ' words' : '',
 				content.parseTime ? 'parsed in ' + new Intl.NumberFormat().format(content.parseTime) + ' ms' : '',
 			].filter(Boolean);
@@ -2715,7 +2715,7 @@ export class Reader {
 	// horizontally on mobile without blowing out the article width.
 	private static storeOriginalHtml(article: Element): void {
 		const clone = article.cloneNode(true) as Element;
-		clone.querySelectorAll('.youtube-size-control, .youtube-study-toolbar, .youtube-study-feedback, .youtube-player-resize, .transcript-translation').forEach(node => node.remove());
+		clone.querySelectorAll('.transcript-heading-tools, .youtube-size-control, .youtube-study-toolbar, .youtube-study-feedback, .youtube-player-resize, .transcript-translation').forEach(node => node.remove());
 		clone.querySelectorAll('span.timestamp').forEach(span => {
 			span.replaceWith(span.textContent || '');
 		});
@@ -2774,10 +2774,8 @@ export class Reader {
 	// Attach late-arriving subtitles without replacing or restarting the player.
 	static async attachYouTubeTranscript(doc: Document, transcript: HTMLElement, title: string, chat?: {toggle: () => boolean}): Promise<void> {
 		const article = doc.querySelector('article')!;
-			// Keep the study feedback and Whisper controls mounted while late native
-			// subtitles are attached. Removing this container used to discard live
-			// recognition output and its actions.
-			article.querySelector('.youtube-study-toolbar')?.remove();
+		// Keep Whisper controls alive while late native subtitles are attached.
+		article.querySelector('.youtube-study-toolbar')?.remove();
 		article.appendChild(doc.adoptNode(transcript));
 		this.storeOriginalHtml(article);
 		wireTranscript(doc, article, this.settings, {

@@ -1,3 +1,4 @@
+import { getWebPageMedia, snapshotDouyinPlayer, validateDouyinTracks } from './utils/web-page-media';
 import { submitQiaomuClip, QiaomuClip } from './utils/qiaomu-rss';
 import browser from 'webextension-polyfill';
 import { detectBrowser } from './utils/browser-detection';
@@ -8,13 +9,16 @@ import { Settings } from './types/types';
 import { debugLog } from './utils/debug';
 import { incrementStat, loadSettings } from './utils/storage-utils';
 import { enabledChatModels, streamChat } from './utils/chat-llm';
-import { videoKey, videoStudyPath } from './utils/video-source';
+import { audioStudyPath, videoKey, videoStudyPath } from './utils/video-source';
+import { isSiteOn, loadStudySites, siteOf } from './utils/study-sites';
+import { isMediaItemAddress, webMediaAddress } from './utils/web-media-page';
 import { pauseVideoForStudy } from './utils/study-playback';
 import { hasStoredHighlights } from './utils/url-utils';
-import { handleLearningNativeMessage } from './utils/local-save';
+import { handleAsrMessage, handleLearningNativeMessage } from './utils/local-save';
 import { enableYouTubeEmbedRule, disableYouTubeEmbedRule } from './utils/youtube-embed-rules';
 
 browser.runtime.onMessage.addListener(handleLearningNativeMessage);
+browser.runtime.onMessage.addListener(handleAsrMessage);
 
 // Accept RSS writes only from our own extension pages, never a website content script.
 const qiaomuInFlight = new Map<string, Promise<unknown>>();
@@ -23,7 +27,7 @@ browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime
 	const message = request as { action?: string; payload?: { requestId?: string; vaultPath?: string; vault?: string; folder?: string } };
 	if (!['qiaomuLocalStatus', 'qiaomuLocalSave', 'qiaomuLocalConfigure', 'qiaomuLocalChooseVault', 'qiaomuLocalChooseFolder'].includes(message?.action || '')) return;
 	if (sender.id !== browser.runtime.id || !sender.url?.startsWith(browser.runtime.getURL(''))) return Promise.resolve({ ok: false, error: '无效的本地保存请求' });
-	if (message.action === 'qiaomuLocalStatus') return browser.runtime.sendNativeMessage('ai.qiaomu.clipper', { action: 'status' }).catch(() => ({ ok: false }));
+	if (message.action === 'qiaomuLocalStatus') return browser.runtime.sendNativeMessage('ai.qiaomu.clipper', { action: 'status' }).catch((error: unknown) => ({ ok: false, reason: error instanceof Error ? error.message : String(error) }));
 	if (message.action === 'qiaomuLocalChooseFolder') return browser.runtime.sendNativeMessage('ai.qiaomu.clipper', { action: 'chooseNoteFolder', vault: message.payload?.vault, folder: message.payload?.folder })
 		.catch(() => ({ ok: false, error: '浏览文件夹需要本地保存助手，请先安装或更新助手，也可手动填写相对路径' }));
 	if (message.action === 'qiaomuLocalChooseVault') return browser.runtime.sendNativeMessage('ai.qiaomu.clipper', { action: 'chooseVault' })
@@ -91,6 +95,23 @@ async function enableYouTubeInnertubeRule(): Promise<void> {
 			}]
 		});
 	} catch { /* Firefox/Safari use webRequest or native messaging instead */ }
+}
+
+// Douyin's video host only serves pages it knows: the study reader plays the original file as if from douyin.com.
+const DOUYIN_MEDIA_RULE_ID = 9004;
+async function enableDouyinMediaRule(): Promise<void> {
+	const dnr = typeof chrome !== 'undefined' ? chrome.declarativeNetRequest : undefined;
+	if (!dnr || !chrome.runtime?.id) return;
+	try {
+		await dnr.updateSessionRules({
+			removeRuleIds: [DOUYIN_MEDIA_RULE_ID],
+			addRules: [{
+				id: DOUYIN_MEDIA_RULE_ID, priority: 1,
+				action: { type: 'modifyHeaders' as chrome.declarativeNetRequest.RuleActionType, requestHeaders: [{ header: 'Referer', operation: 'set' as chrome.declarativeNetRequest.HeaderOperation, value: 'https://www.douyin.com/' }] },
+				condition: { requestDomains: ['douyinvod.com'], resourceTypes: ['media' as chrome.declarativeNetRequest.ResourceType], initiatorDomains: [chrome.runtime.id] },
+			}],
+		});
+	} catch { /* other browsers */ }
 }
 
 // Firefox/Safari: use webRequest.onBeforeSendHeaders to set Origin/Referer on
@@ -333,6 +354,7 @@ async function initialize() {
 		// Origin headers for YouTube innertube API requests.
 		await enableYouTubeEmbedRule();
 		await enableYouTubeInnertubeRule();
+		await enableDouyinMediaRule();
 
 		// Set up action popup based on openBehavior setting
 		await updateActionPopup();
@@ -1218,18 +1240,32 @@ async function openNoteCard(tabId: number, quote?: string): Promise<void> {
 	} catch { /* restricted page */ }
 }
 
+// Supported media detail pages share the native study player. A feed adapter supplies the currently playing item address.
+async function webStudyPath(url: string, tabId: number): Promise<string | null> {
+	const site = siteOf(url); if (!site || site.builtin || !isSiteOn(await loadStudySites(), site.id)) return null;
+	let post = webMediaAddress(url);
+	try { const source = await browser.tabs.sendMessage(tabId, { action: 'qiaomuWebMediaSource' }) as { url?: unknown } | undefined; if (typeof source?.url === 'string' && siteOf(source.url)?.id === site.id) post = webMediaAddress(source.url); } catch { /* adapter not loaded */ }
+	if (!post) return null;
+	try {
+		const [result] = await browser.scripting.executeScript({ target: { tabId }, func: () => Boolean(document.querySelector('video, audio, iframe[src*="player.vimeo.com"], iframe[src*="player.twitch.tv"], iframe[src*="dailymotion.com"], [data-testid="videoPlayer"], meta[property="og:video"], meta[property="og:video:url"], meta[property="og:audio"]')) });
+		return result?.result || isMediaItemAddress(post) ? `reader.html?study=web&url=${encodeURIComponent(post)}&sourceTab=${tabId}` : null;
+	} catch { return null; }
+}
+
 // The triple-press commands open the clipper, which runs read / edit / clip once the clip is ready.
 async function runTripleKeyAction(action: string, tabId: number): Promise<void> {
 	if (action === 'note') { await openNoteCard(tabId); return; }
 	if (action !== 'read' && action !== 'edit' && action !== 'clip') return;
 	if (action === 'read') {
 		const tab = await browser.tabs.get(tabId);
-		let path = videoStudyPath(tab.url || '', tabId, tab.title || '');
+		let path = videoStudyPath(tab.url || '', tabId, tab.title || '') || audioStudyPath(tab.url || '', tab.title || '') || await webStudyPath(tab.url || '', tabId);
 		if (path) {
-			const results = await browser.scripting.executeScript({ target: { tabId }, func: pauseVideoForStudy });
-			const playback = results[0]?.result as { timestamp?: number; autoplay?: boolean } | undefined;
-			if (!playback) return;
-			path = videoStudyPath(tab.url || '', tabId, tab.title || '', playback.timestamp, playback.autoplay)!;
+			if (videoKey(tab.url || '')) {
+				const results = await browser.scripting.executeScript({ target: { tabId }, func: pauseVideoForStudy });
+				const playback = results[0]?.result as { timestamp?: number; autoplay?: boolean } | undefined;
+				if (!playback) return;
+				path = videoStudyPath(tab.url || '', tabId, tab.title || '', playback.timestamp, playback.autoplay)!;
+			}
 			// Open the player immediately; subtitle extraction belongs to the reader.
 			await browser.tabs.create({ url: browser.runtime.getURL(path), openerTabId: tabId });
 			return;
@@ -1346,7 +1382,7 @@ browser.runtime.onMessage.addListener((raw: unknown, sender) => {
 
 // Fast route for study mode: the YouTube tab already prefetched the transcript (or reads it from the panel).
 browser.runtime.onMessage.addListener((raw: unknown, sender) => {
-	const request = raw as { action?: string; sourceTabId?: number; url?: string };
+	const request = raw as { action?: string; sourceTabId?: number; url?: string; language?: string };
 	if (request?.action !== 'qiaomuStudyTranscript') return;
 	if (sender.id !== browser.runtime.id || !sender.url?.startsWith(browser.runtime.getURL('reader.html'))
 		|| !Number.isInteger(request.sourceTabId) || !request.url || !videoKey(request.url)) return Promise.resolve({ error: '无效的视频来源' });
@@ -1355,8 +1391,8 @@ browser.runtime.onMessage.addListener((raw: unknown, sender) => {
 			const tab = await browser.tabs.get(request.sourceTabId!);
 			if (!tab.url || videoKey(tab.url) !== videoKey(request.url!)) return { error: '原视频页面已切换，请重新打开学习模式' };
 			const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('原页面读取字幕超时')), 26000));
-			const answer = await Promise.race([browser.tabs.sendMessage(request.sourceTabId!, { action: 'qiaomuTranscript' }), timeout]) as { html?: string; count?: number } | undefined;
-			return { html: answer?.html || '', count: answer?.count || 0 };
+			const answer = await Promise.race([browser.tabs.sendMessage(request.sourceTabId!, { action: 'qiaomuTranscript', ...(typeof request.language === 'string' && /^[A-Za-z0-9_-]{1,100}$/.test(request.language) ? { language: request.language } : {}) }), timeout]) as { html?: string; count?: number; languages?: Array<{id:string;label:string}>; selected?: string } | undefined;
+			return { html: answer?.html || '', count: answer?.count || 0, languages: answer?.languages, selected: answer?.selected };
 		} catch (error) { return { error: error instanceof Error ? error.message : '原页面不可用' }; }
 	})();
 });
@@ -1406,4 +1442,29 @@ browser.runtime.onMessage.addListener((raw: unknown, sender) => {
 			return results[0]?.result || { error: '无法读取原视频页面' };
 		} catch { return { error: '原视频页面不可用，将从视频链接获取字幕' }; }
 	})();
+});
+
+// Only the study reader can ask for a media address from its original page.
+browser.runtime.onMessage.addListener((raw: unknown, sender) => {
+	const request = raw as { action?: string; url?: string; sourceTabId?: number };
+	if (request?.action !== 'qiaomuWebStudySource') return;
+	if (sender.id !== browser.runtime.id || !sender.url?.startsWith(browser.runtime.getURL('reader.html')) || typeof request.url !== 'string') return Promise.resolve(null);
+	return getWebPageMedia(request.url, request.sourceTabId, browser.tabs, async tabId => {
+		const [result] = await browser.scripting.executeScript({ target: { tabId }, func: snapshotDouyinPlayer });
+		const snapshot = result?.result as ReturnType<typeof snapshotDouyinPlayer> | undefined;
+		if (snapshot?.observed && snapshot.info) {
+			// Several preloaded items can sit in the page; only the one as long as the playing video is this item.
+			for (const candidate of snapshot.candidates?.length ? snapshot.candidates : [snapshot.info.mediaUrl!]) {
+				const [checked] = await browser.scripting.executeScript({ target: { tabId }, func: validateDouyinTracks, args: [snapshot.url, candidate, candidate, snapshot.info.seconds!] });
+				if (checked?.result) return { ...snapshot, info: { ...snapshot.info, mediaUrl: candidate } };
+			}
+			return;
+		}
+		if (snapshot?.info?.audioUrl) {
+			const info = snapshot.info;
+			const [checked] = await browser.scripting.executeScript({ target: { tabId }, func: validateDouyinTracks, args: [snapshot.url, info.mediaUrl!, info.audioUrl!, info.seconds!] });
+			if (!checked?.result) return;
+		}
+		return snapshot;
+	}).then(info => info || null);
 });

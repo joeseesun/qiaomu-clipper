@@ -719,6 +719,45 @@
 	"read": {
 		"message": "已阅读"
 	},
+	"navClip": {
+		"message": "剪藏与保存"
+	},
+	"navLearning": {
+		"message": "学习笔记"
+	},
+	"groupSaving": {
+		"message": "保存方式"
+	},
+	"groupSharing": {
+		"message": "分享"
+	},
+	"groupBackup": {
+		"message": "备份与实验"
+	},
+	"headingClip": {
+		"message": "剪藏"
+	},
+	"headingRead": {
+		"message": "阅读与学习"
+	},
+	"headingAI": {
+		"message": "AI"
+	},
+	"navStudyHome": {
+		"message": "转写学习"
+	},
+	"navAsr": {
+		"message": "语音识别"
+	},
+	"navVideoSites": {
+		"message": "字幕条与网站"
+	},
+	"headingLearn": {
+		"message": "学习"
+	},
+	"videoSubtitles": {
+		"message": "视频字幕"
+	},
 	"reader": {
 		"message": "阅读模式"
 	},
@@ -1333,13 +1372,13 @@
 		"message": "改写得更简洁"
 	},
 	"youtubeAutoTranscriptTitle": {
-		"message": "自动展开 YouTube 转写文稿"
+		"message": "自动展开 YouTube 转写文稿（仅 YouTube）"
 	},
 	"youtubeAutoTranscriptDescription": {
 		"message": "在视频页自动展开一次 YouTube 的转写文稿面板，让字幕随时可复制、下载和进入学习模式。你关掉后，这个视频不再自动展开。"
 	},
 	"youtubeHideNativeTitle": {
-		"message": "隐藏 YouTube 自带的转写面板"
+		"message": "隐藏 YouTube 自带的转写面板（仅 YouTube）"
 	},
 	"youtubeHideNativeDescription": {
 		"message": "字幕自动展开后，把 YouTube 右栏里的原生面板藏起来，转写条里能看到同样的内容。你自己手动打开的面板不会被隐藏。"
@@ -1435,10 +1474,10 @@
 		"message": "B 站只给已登录的账号提供字幕，请登录后点“重试”"
 	},
 	"youtubePanelActionsTitle": {
-		"message": "YouTube 转写文稿按钮"
+		"message": "在 YouTube 和 B 站显示字幕条"
 	},
 	"youtubePanelActionsDescription": {
-		"message": "在 YouTube 的转写文稿面板里，“章节 / 转写文稿”旁增加“复制”“下载”“沉浸学习”按钮。"
+		"message": "在 YouTube 和 B 站的视频页加上字幕条：跟读字幕、复制、下载、进入沉浸学习，没有字幕时可以生成字幕。"
 	},
 	"youtubePanelCopy": {
 		"message": "复制"
@@ -1603,6 +1642,9 @@
 	"qiaomuTranslationRetry": {
 		"message": "重试翻译"
 	},
+	"qiaomuTranslationFormatRetry": {
+		"message": "正在重新读取这一组译文…"
+	},
 	"qiaomuTranslationInvalid": {
 		"message": "模型返回的分段格式不完整，请重试。"
 	},
@@ -1622,7 +1664,7 @@
 		"message": "翻译失败，可重试继续。"
 	},
 	"qiaomuTranslationService": {
-		"message": "使用已配置的 AI 模型翻译字幕；译文仅缓存在当前页。"
+		"message": "使用已配置的 AI 模型翻译字幕；剪藏时可选择原文、译文或双语。"
 	},
 	"qiaomuChatSectionAppearance": {
 		"message": "外观"
@@ -1701,5 +1743,198 @@
 	},
 	"qiaomuChatFontreader": {
 		"message": "跟随阅读字体"
+	},
+	"providerSignInLabel": {
+		"message": "账号"
+	},
+	"providerSignInButton": {
+		"message": "登录"
+	},
+	"providerSignInPaste": {
+		"message": "如果没有自动继续，把最后停留页面的地址粘贴到这里"
+	},
+	"providerSignInPasteButton": {
+		"message": "继续"
+	},
+	"providerSignInOpen": {
+		"message": "请在打开的浏览器标签页里完成登录…"
+	},
+	"providerSignInDone": {
+		"message": "已登录：$1",
+		"placeholders": {
+			"1": {
+				"content": "$1"
+			}
+		}
+	},
+	"providerSignInChatGPT": {
+		"message": "登录 ChatGPT"
+	},
+	"providerSignInCodex": {
+		"message": "登录 Codex"
+	},
+	"providerSignInTokenDance": {
+		"message": "授权词元跳动"
+	},
+	"providerSignInNoteChatGPT": {
+		"message": "使用你的 ChatGPT 套餐额度，不需要 API Key。"
+	},
+	"providerSignInNoteCodex": {
+		"message": "使用你的 Codex 套餐额度，不需要 API Key。"
+	},
+	"providerSignInNoteTokenDance": {
+		"message": "在浏览器里确认后，会自动为你创建 Key。"
+	},
+	"providerSignInAgain": {
+		"message": "重新登录"
+	},
+	"pdAddProviderTitle": {
+		"message": "添加服务商"
+	},
+	"pdEditProviderTitle": {
+		"message": "编辑服务商"
+	},
+	"pdSearchProviders": {
+		"message": "搜索服务商…"
+	},
+	"pdGroupAccount": {
+		"message": "账号登录 · 无需 Key"
+	},
+	"pdGroupRelay": {
+		"message": "聚合中转 · 一个 Key 用多家模型"
+	},
+	"pdGroupProvider": {
+		"message": "服务商"
+	},
+	"pdGroupLocal": {
+		"message": "本机"
+	},
+	"pdGroupCustom": {
+		"message": "其他"
+	},
+	"pdCustomName": {
+		"message": "自定义"
+	},
+	"pdCustomSub": {
+		"message": "任意兼容的接口地址"
+	},
+	"pdAdded": {
+		"message": "已添加"
+	},
+	"pdNoMatch": {
+		"message": "没有匹配的服务商"
+	},
+	"pdFieldNamePlaceholder": {
+		"message": "服务商名称"
+	},
+	"pdPasteWrong": {
+		"message": "这不是登录结束时停留页面的地址，请重新复制"
+	},
+	"pdLocalNote": {
+		"message": "在这台电脑上运行，不需要 Key。"
+	},
+	"pdGetKey": {
+		"message": "获取 API Key"
+	},
+	"pdFieldUrl": {
+		"message": "接口地址"
+	},
+	"pdUrlHintCustom": {
+		"message": "对话接口，例如 https://example.com/v1/chat/completions"
+	},
+	"pdUrlHint": {
+		"message": "一般不用改。"
+	},
+	"pdFieldKey": {
+		"message": "API Key"
+	},
+	"pdFieldKeyOr": {
+		"message": "API Key（授权后自动填入）"
+	},
+	"pdShow": {
+		"message": "显示"
+	},
+	"pdHide": {
+		"message": "隐藏"
+	},
+	"pdAdvanced": {
+		"message": "接口地址"
+	},
+	"pdNeedName": {
+		"message": "请填写名称"
+	},
+	"pdNeedUrl": {
+		"message": "请填写接口地址"
+	},
+	"pdNeedLogin": {
+		"message": "请先登录"
+	},
+	"pdNeedKey": {
+		"message": "请填写 API Key"
+	},
+	"pdBack": {
+		"message": "返回"
+	},
+	"pdAddProviderButton": {
+		"message": "添加服务商"
+	},
+	"pdAddModelTitle": {
+		"message": "添加模型"
+	},
+	"pdNoProviders": {
+		"message": "先添加一个服务商，再选择它的模型。"
+	},
+	"pdPickProvider": {
+		"message": "服务商"
+	},
+	"pdSearchModels": {
+		"message": "搜索模型…"
+	},
+	"pdManual": {
+		"message": "手动填写模型 ID"
+	},
+	"pdManualNamePlaceholder": {
+		"message": "默认与模型 ID 相同"
+	},
+	"pdManualName": {
+		"message": "显示名称（可选）"
+	},
+	"pdAddModels": {
+		"message": "添加 $1 个模型",
+		"placeholders": {
+			"1": {
+				"content": "$1"
+			}
+		}
+	},
+	"pdAddModelsNone": {
+		"message": "添加模型"
+	},
+	"pdRecommended": {
+		"message": "推荐"
+	},
+	"pdPickProviderFirst": {
+		"message": "请先在上面选择服务商"
+	},
+	"pdReasonTimeout": {
+		"message": "超时"
+	},
+	"pdReasonFormat": {
+		"message": "返回的不是模型列表"
+	},
+	"pdReasonNetwork": {
+		"message": "网络请求被拦截或无法连接"
+	},
+	"pdEdit": {
+		"message": "编辑"
+	},
+	"pdDelete": {
+		"message": "删除"
+	},
+	"pdDuplicate": {
+		"message": "复制"
+	},
+	"failedToSaveModel": {
+		"message": "保存模型失败，请重试"
 	}
 }

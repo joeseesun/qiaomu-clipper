@@ -1,16 +1,24 @@
 {
-  "date": "2026-10-02",
-  "version": "1.7.1",
-  "zip": "qiaomu-clipper-1.7.1-chrome.zip",
-  "bytes": 10716200,
-  "sha256": "f143d3bf83f4bece39746d015d030e20dd1a95ae0da9dd7394c181b65ca89147",
-  "tests": {
-    "extension": 256,
-    "native_helper": 12,
-    "typescript": "passed",
-    "chrome_production_build": "passed"
-  },
+  "date": "2026-10-06",
+  "version": "1.14.1",
+  "zip": "qiaomu-clipper-1.14.1-chrome.zip",
+  "source": "https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.14.1",
+  "source_commit": "2d09880ea4eee5e1154d682edf09aefecaee2091",
+  "sha256": "8e01c0663f5d1c3a8d3f59b4da2c9d459c7d333ceeb26df3f67e22c4818e9118",
+  "bytes": 11373914,
+  "file_count": 118,
+  "root_manifest_version": "1.14.1",
+  "license_in_zip": true,
+  "production_build_content_matches": true,
+  "new_permissions": [],
+  "new_host_permissions": [],
+  "frontend_tests": 706,
+  "native_tests": 130,
+  "typescript": "passed",
+  "chrome_build": "passed",
   "store_id": "jniolfihillilkoajpnonlbkhfkiicoo",
-  "status": "draft_not_submitted",
-  "license_in_zip": true
+  "store_status": "review_withdrawn_for_model_fix",
+  "auto_publish_after_approval": false,
+  "public_store_version": "1.7.1",
+  "fresh_install_and_upgrade_runtime_verified": false
 }

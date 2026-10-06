@@ -7,6 +7,7 @@ import { adjustNoteNameHeight } from './ui-utils';
 import { debugLog } from './debug';
 import { getMessage } from './i18n';
 import { updateTokenCount } from './token-counter';
+import { freshOAuth, responsesRequest, readResponsesStream } from './oauth/accounts';
 
 const RATE_LIMIT_RESET_TIME = 5000; // guards against double clicks; retries after a failure stay quick
 let lastRequestTime = 0;
@@ -24,7 +25,7 @@ export async function sendToLLM(promptContext: string, content: string, promptVa
 	}
 
 	// Only check for API key if the provider requires it
-	if (provider.apiKeyRequired && !provider.apiKey) {
+	if (!provider.oauth && provider.apiKeyRequired && !provider.apiKey) {
 		throw new Error(`API key is not set for provider ${provider.name}`);
 	}
 
@@ -43,6 +44,20 @@ export async function sendToLLM(promptContext: string, content: string, promptVa
 				return acc;
 			}, {} as { [key: string]: string })
 		};
+
+		if (provider.oauth) {
+			const oauth = await freshOAuth(provider, () => saveSettings());
+			const { url, init } = responsesRequest(oauth, model, systemContent, [
+				{ role: 'user', content: promptContext },
+				{ role: 'user', content: JSON.stringify(promptContent) }
+			]);
+			const response = await fetch(url, init);
+			if (!response.ok) throw new Error(`${provider.name} error: ${response.status} ${(await response.text()).slice(0, 300)}`);
+			const text = await readResponsesStream(response);
+			if (!text) throw new Error(`${provider.name} 没有返回内容`);
+			lastRequestTime = now;
+			return parseLLMResponse(text, promptVariables);
+		}
 
 		let requestUrl: string;
 		let requestBody: any;

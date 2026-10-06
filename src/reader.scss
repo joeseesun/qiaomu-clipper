@@ -127,6 +127,11 @@
 			text-decoration: underline;
 		}
 	}
+	.reader-video-wrapper.is-audio {
+		aspect-ratio: auto;
+		background: transparent;
+		video.reader-video-player { height: 54px !important; }
+	}
 	.reader-video-wrapper {
 		aspect-ratio: 16 / 9;
 		background: #000;

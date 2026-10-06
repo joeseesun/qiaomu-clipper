@@ -1,6 +1,10 @@
 import { loadClipPreview } from '../utils/clip-preview';
 import { mountYouTubeStudy } from '../utils/youtube-study';
 import { startYouTubeStudy } from '../utils/youtube-study-loader';
+import { startAudioStudy } from '../utils/audio-study';
+import { recordStudy } from '../utils/study-home';
+import { takeHandedFile } from '../utils/file-handoff';
+import { audioKey } from '../utils/video-source';
 import { PLAYER_SELECTOR } from '../utils/video-source';
 import { mountReaderPreviewShell } from '../utils/reader-preview-shell';
 import { createReaderSourceDraft } from '../utils/reader-source-draft';
@@ -34,8 +38,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 	if (previewId) { await showClipPreview(previewId); return; }
 	let url = params.get('url');
 
+	// Audio: a file chosen on this page, or a podcast episode.
+	if (params.get('study') === 'file') { const file = await takeHandedFile(params.get('token') || ''); await startAudioStudy({ kind: 'file', title: params.get('title') || '', ...(file ? { file } : {}) }); return; }
+	if (params.get('study') === 'web' && url) { await startAudioStudy({ kind: 'web', webUrl: url, sourceTabId: params.has('sourceTab') ? Number(params.get('sourceTab')) : undefined, title: params.get('title') || '' }); return; }
+	if (params.get('study') === 'feed' && params.get('feed') && params.get('guid')) { await startAudioStudy({ kind: 'feed', feed: params.get('feed')!, guid: params.get('guid')!, title: params.get('title') || '' }); return; }
+	if (params.get('study') === 'audio' && url) {
+		const key = audioKey(url);
+		if (key) { await startAudioStudy({ kind: 'podcast', url, key, title: params.get('title') || '' }); return; }
+	}
+
 	if (!url) {
-		showUrlInput();
+		// No address: the front door of study mode now lives in the settings, with the menu beside it.
+		location.replace(browser.runtime.getURL('settings.html?section=study'));
 		return;
 	}
 
@@ -46,6 +60,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 		const timestamp = Number(params.get('t'));
 		await startYouTubeStudy(url, Number(params.get('sourceTab')), session.draft.clip.title, async result => {
 			await session.populate(result);
+			void recordStudy({ url: url!, title: result.title || session.draft.clip.title });
 			await setupReaderPageMessageHandler(url!, result);
 		}, () => {
 			const shell = mountReaderPreviewShell(session.draft, true);

@@ -1,11 +1,13 @@
 import { formatBilingualSegments, formatSegments, safeFileName, type PanelSegment } from './youtube-panel-actions';
 import { groupSegments } from './youtube-dom-transcript';
+import type { LanguageOption } from './subtitle-language';
+import { buildGenerationPanel, GENERATION_STYLE, type GenerationActions, type GenerationStrings, type GenUi } from './subtitle-generation-panel';
 
 // The transcript bar: one strip at the top of the watch page's right column (like other YouTube helper
 // extensions), with five tools (subtitles, copy, download, study, settings) and a chevron that opens a
 // dropdown with the transcript itself. It does not depend on YouTube's lazily built transcript panel.
-export type BarState = 'loading' | 'ready' | 'none';
-export interface BarStrings { heading: string; subtitles: string; copy: string; download: string; study: string; settings: string; expand: string; collapse: string; copied: string; empty: string; reload: string; loading: string; ready: string; none: string; more: string; search: string; clear: string; noMatch: string; follow: string; followOff: string; here: string; retry: string }
+export type BarState = 'loading' | 'ready' | 'none' | 'generating';
+export interface BarStrings { heading: string; subtitles: string; copy: string; download: string; study: string; settings: string; expand: string; collapse: string; copied: string; empty: string; reload: string; loading: string; ready: string; none: string; more: string; search: string; clear: string; noMatch: string; follow: string; followOff: string; here: string; retry: string; language?: string }
 export interface BarHooks {
 	strings: BarStrings;
 	title: () => string;
@@ -23,13 +25,17 @@ export interface BarHooks {
 	initialFollow?: boolean;
 	onFollow?: (follow: boolean) => void;
 	// Which site the bar sits in: it takes that site's own colours, corners and type.
-	theme?: 'youtube' | 'bilibili';
+	theme?: 'youtube' | 'bilibili' | 'podcast' | 'x';
+	// The subtitle languages the video offers; the viewer picks which one the bar shows.
+	onLanguage?: (id: string) => void;
+	// Offers "generate subtitles" when the video has none. The bar draws it; the page's script runs the job.
+	generation?: { strings: GenerationStrings; actions: GenerationActions };
 }
 
 declare global {
 	interface HTMLElement { __qiaomuTranslationCache?: Map<number, string> }
 }
-export interface TranscriptBar { element: HTMLElement; setState: (state: BarState, segments?: PanelSegment[]) => void; setOpen: (open: boolean) => void; setTime: (seconds: number, afterSeek?: boolean) => void }
+export interface TranscriptBar { element: HTMLElement; setState: (state: BarState, segments?: PanelSegment[]) => void; setGeneration: (ui: GenUi | null) => void; setLanguages: (options: LanguageOption[], selected?: string) => void; setOpen: (open: boolean) => void; setTime: (seconds: number, afterSeek?: boolean) => void }
 
 type Tool = 'copy' | 'download' | 'study' | 'settings';
 type Extra = 'chevron' | 'search' | 'follow' | 'clear' | 'check';
@@ -84,13 +90,18 @@ export function buildTranscriptBar(doc: Document, hooks: BarHooks): TranscriptBa
 	const count = doc.createElement('span'); count.className = 'qiaomu-yt-bar-count'; count.setAttribute('aria-live', 'polite');
 	searchBox.append(search, count, clear);
 	const followButton = doc.createElement('button'); followButton.type = 'button'; followButton.className = 'qiaomu-yt-bar-follow'; followButton.append(icon(doc, 'follow', 16));
-	finder.append(searchBox, followButton);
+	// Which subtitle language is shown, when the video offers more than one.
+	const language = doc.createElement('select'); language.className = 'qiaomu-yt-bar-lang'; language.hidden = true; language.setAttribute('aria-label', strings.language || strings.subtitles); language.title = strings.language || strings.subtitles;
+	for (const type of ['pointerdown', 'mousedown', 'touchstart', 'click']) language.addEventListener(type, event => event.stopPropagation());
+	language.addEventListener('change', () => hooks.onLanguage?.(language.value));
+	finder.append(searchBox, language, followButton);
 	const listWrap = doc.createElement('div'); listWrap.className = 'qiaomu-yt-bar-listwrap';
 	const list = doc.createElement('div'); list.className = 'qiaomu-yt-bar-lines'; list.setAttribute('role', 'list');
 	const here = doc.createElement('button'); here.type = 'button'; here.className = 'qiaomu-yt-bar-here'; here.textContent = strings.here; here.hidden = true;
 	listWrap.append(list, here);
 	const retryButton = doc.createElement('button'); retryButton.type = 'button'; retryButton.className = 'qiaomu-yt-bar-retry'; retryButton.textContent = strings.retry; retryButton.hidden = true;
-	const notice = doc.createElement('div'); notice.className = 'qiaomu-yt-bar-notice'; notice.append(status, source, retryButton);
+	const genPanel = hooks.generation ? buildGenerationPanel(doc, hooks.generation.strings, hooks.generation.actions) : undefined;
+	const notice = doc.createElement('div'); notice.className = 'qiaomu-yt-bar-notice'; notice.append(status, source); if (genPanel) notice.append(genPanel.element); notice.append(retryButton);
 	body.append(notice, finder, listWrap);
 	element.append(head, body);
 
@@ -122,7 +133,7 @@ export function buildTranscriptBar(doc: Document, hooks: BarHooks): TranscriptBa
 	interface Row { element: HTMLElement; words: HTMLElement; start: number; text: string; match: boolean }
 	interface Heading { element: HTMLElement; from: number; to: number }
 	let headings: Heading[] = [];
-	let segments: PanelSegment[] = [], state: BarState = 'loading', open = false, rendered = -1;
+	let segments: PanelSegment[] = [], state: BarState = 'loading', open = false, rendered = -1, genUi: GenUi | null = null;
 	let rows: Row[] = [], starts: number[] = [], activeIndex = -1, query = '', follow = hooks.initialFollow !== false, lastUserScroll = 0, searchTimer: ReturnType<typeof setTimeout> | undefined;
 	let ignoreTimeUntil = 0, lastScroll = { target: -1, at: 0 }, resumeTimer: ReturnType<typeof setTimeout> | undefined;
 	let ours = { from: 0, to: 0, until: 0 };
@@ -207,14 +218,14 @@ export function buildTranscriptBar(doc: Document, hooks: BarHooks): TranscriptBa
 		if (!open || rendered === segments.length) return;
 		rendered = segments.length; list.replaceChildren(); rows = []; headings = []; activeIndex = -1;
 		// One row per caption cue like YouTube's own transcript (a few seconds each), not a long paragraph.
-		const groups = groupSegments(segments, 8, 3);
-		for (const { time, text, chapter } of groups.slice(0, MAX_ROWS)) {
+		const groups = segments.some(s => s.start !== undefined) ? segments : groupSegments(segments, 8, 3);
+		for (const { time, text, chapter, start: preciseStart } of groups.slice(0, MAX_ROWS)) {
 			if (chapter) { const heading = doc.createElement('div'); heading.className = 'qiaomu-yt-bar-chapter'; heading.setAttribute('role', 'heading'); heading.setAttribute('aria-level', '3'); heading.textContent = chapter; list.append(heading); headings.push({ element: heading, from: rows.length, to: rows.length }); }
 			const element = doc.createElement('button'); element.type = 'button'; element.className = 'qiaomu-yt-bar-line'; element.setAttribute('role', 'listitem');
 			const stamp = doc.createElement('span'); stamp.className = 'qiaomu-yt-bar-time'; stamp.textContent = time;
 			const words = doc.createElement('span'); words.className = 'qiaomu-yt-bar-text';
 			element.append(stamp, words);
-			const start = seconds(time);
+			const start = preciseStart ?? seconds(time);
 			// The pressed line is already on screen: mark it, jump the video, and leave the list where it is.
 			press(element, () => { ignoreTimeUntil = Date.now() + 900; lastUserScroll = 0; clearTimeout(resumeTimer); hooks.seek(start); setActive(activeIndexAt(starts, start), false); paintProgress(start); });
 			rows.push({ element, words, start, text, match: true }); list.append(element);
@@ -231,8 +242,11 @@ export function buildTranscriptBar(doc: Document, hooks: BarHooks): TranscriptBa
 	const toggle = tool('toggle', strings.expand, () => { if (open) setOpen(false); else openAndLoad(); });
 	const paint = () => {
 		if (!open || state !== 'ready') clearProgress();
-		element.dataset.state = state; element.dataset.open = String(open); body.hidden = !open; retryButton.hidden = state !== 'none' || !hooks.retry; notice.hidden = state === 'ready'; finder.hidden = state === 'none' && !segments.length; listWrap.hidden = finder.hidden;
-		const message = strings[state]; if (status.textContent !== message) status.textContent = message; dot.title = message; dot.setAttribute('aria-label', message);
+		// Without a transcript the notice offers to generate one; while generating, or after, it carries the progress or a note.
+		const offered = genUi ?? (state === 'none' && genPanel ? { kind: 'offer' as const } : null); genPanel?.show(offered);
+		const generating = state === 'generating', busyUi = Boolean(genUi && genUi.kind !== 'offer' && genUi.kind !== 'generated');
+		element.dataset.state = state; element.dataset.open = String(open); body.hidden = !open; retryButton.hidden = state !== 'none' || !hooks.retry || busyUi; notice.hidden = state === 'ready' && (!genUi || genUi.kind === 'offer'); finder.hidden = (state === 'none' || state === 'loading') && !segments.length; listWrap.hidden = finder.hidden;
+		const message = generating ? (hooks.generation?.strings.running ?? '') : state === 'ready' || state === 'loading' || state === 'none' ? strings[state] : ''; if (status.textContent !== message) status.textContent = message; status.hidden = !message || busyUi || generating || state === 'ready'; dot.title = message || strings.ready; dot.setAttribute('aria-label', dot.title);
 		const sourceText = hooks.sourceLabel?.() || ''; source.textContent = sourceText; source.hidden = !sourceText;
 		toggle.setAttribute('aria-expanded', String(open)); toggle.title = open ? strings.collapse : strings.expand; toggle.setAttribute('aria-label', toggle.title);
 		followButton.setAttribute('aria-pressed', String(follow)); followButton.title = follow ? strings.follow : strings.followOff; followButton.setAttribute('aria-label', followButton.title);
@@ -286,7 +300,13 @@ export function buildTranscriptBar(doc: Document, hooks: BarHooks): TranscriptBa
 	// Clicking the empty part of the strip also opens and closes it; the tools handle their own presses.
 	press(head, () => { if (open) setOpen(false); else openAndLoad(); });
 	if (hooks.initialOpen) setOpen(true, false); else paint();
-	return { element, setTime, setOpen: next => setOpen(next, false), setState: (next, found) => {
+	return { element, setTime, setOpen: next => setOpen(next, false), setGeneration: ui => { if (JSON.stringify(ui) === JSON.stringify(genUi)) return; genUi = ui; paint(); },
+		setLanguages: (options, selected) => {
+			const key = JSON.stringify(options);
+			if (key !== language.dataset.options) { language.dataset.options = key; language.replaceChildren(...options.map(option => { const item = doc.createElement('option'); item.value = option.id; item.textContent = option.label; return item; })); }
+			if (selected && language.value !== selected && options.some(option => option.id === selected)) language.value = selected;
+			language.hidden = options.length < 2;
+		}, setState: (next, found) => {
 		// Called on every page change: only touch the DOM when something really changed. Rebuilding the list under
 		// the viewer's pointer breaks presses and drags, and our own changes would feed the page observer in a loop.
 		let changed = false;
@@ -303,6 +323,9 @@ ytd-engagement-panel-section-list-renderer[data-qiaomu-auto="1"]{display:none!im
    --text/--bg tokens), so it follows their light and dark themes and looks like part of the page. */
 .qiaomu-yt-bar{--qm-fg:var(--yt-spec-text-primary,#0f0f0f);--qm-fg2:var(--yt-spec-text-secondary,#606060);--qm-bg:var(--yt-spec-base-background,#fff);--qm-line:var(--yt-spec-10-percent-layer,rgba(0,0,0,.1));--qm-hover:var(--yt-spec-badge-chip-background,rgba(0,0,0,.05));--qm-field:var(--yt-spec-badge-chip-background,rgba(0,0,0,.05));--qm-accent:var(--yt-spec-call-to-action,#065fd4);--qm-head:transparent;--qm-card:var(--qm-bg);--qm-frame:1px solid var(--qm-line);--qm-radius:12px;--qm-font:Roboto,Arial,sans-serif;--qm-size:14px;--qm-margin:0 0 12px;--qm-gap:0}
 .qiaomu-yt-bar[data-theme=bilibili]{--qm-fg:var(--text1,#18191c);--qm-fg2:var(--text2,#61666d);--qm-bg:var(--bg1,#fff);--qm-line:var(--line_regular,#e3e5e7);--qm-hover:var(--bg2,#f6f7f8);--qm-field:var(--bg3,#f1f2f3);--qm-accent:var(--brand_blue,#00aeec);--qm-head:var(--bg3,#f1f2f3);--qm-card:transparent;--qm-frame:0 none;--qm-radius:6px;--qm-font:inherit;--qm-size:13px;--qm-margin:12px 0;--qm-gap:6px}
+.qiaomu-yt-bar[data-theme=x]{--qm-fg:#0f1419;--qm-fg2:#536471;--qm-bg:#fff;--qm-line:#eff3f4;--qm-hover:rgba(15,20,25,.08);--qm-field:rgba(15,20,25,.06);--qm-accent:#1d9bf0;--qm-head:transparent;--qm-card:transparent;--qm-frame:1px solid var(--qm-line);--qm-radius:16px;--qm-font:TwitterChirp,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;--qm-size:15px;--qm-margin:12px 0 4px;--qm-gap:6px}
+.qiaomu-yt-bar[data-theme=podcast]{--qm-fg:#1f1f1f;--qm-fg2:#737373;--qm-bg:#fff;--qm-line:rgba(0,0,0,.08);--qm-hover:rgba(0,0,0,.05);--qm-field:rgba(0,0,0,.05);--qm-accent:#1f1f1f;--qm-head:transparent;--qm-card:#fff;--qm-frame:1px solid var(--qm-line);--qm-radius:14px;--qm-font:inherit;--qm-size:14px;--qm-margin:16px 0;--qm-gap:6px}
+@media (prefers-color-scheme:dark){.qiaomu-yt-bar[data-theme=podcast]{--qm-fg:#ececec;--qm-fg2:#9a9a9a;--qm-bg:#1c1c1e;--qm-line:rgba(255,255,255,.12);--qm-hover:rgba(255,255,255,.08);--qm-field:rgba(255,255,255,.08);--qm-accent:#ececec;--qm-card:#1c1c1e}}
 .qiaomu-yt-bar{box-sizing:border-box;margin:var(--qm-margin);border:var(--qm-frame);border-radius:var(--qm-radius);background:var(--qm-card);color:var(--qm-fg);font:400 var(--qm-size)/20px var(--qm-font);pointer-events:auto;position:relative}
 .qiaomu-yt-bar button{font-family:inherit}
 .qiaomu-yt-bar-head{display:flex;align-items:center;gap:8px;min-height:44px;padding:0 6px 0 14px;border-radius:calc(var(--qm-radius) - 1px);background:var(--qm-head);cursor:pointer}
@@ -326,17 +349,18 @@ ytd-engagement-panel-section-list-renderer[data-qiaomu-auto="1"]{display:none!im
 .qiaomu-yt-bar[data-open=true] .qiaomu-yt-tool-toggle svg{transform:rotate(180deg)}
 .qiaomu-yt-bar-body{padding-top:var(--qm-gap)}
 .qiaomu-yt-bar:not([data-theme=bilibili]) .qiaomu-yt-bar-body{border-top:1px solid var(--qm-line)}
-.qiaomu-yt-bar-body[hidden],.qiaomu-yt-bar-notice[hidden]{display:none}
-.qiaomu-yt-bar-notice{display:flex;align-items:center;gap:8px;padding:10px 14px}
+.qiaomu-yt-bar-body[hidden],.qiaomu-yt-bar-notice[hidden],.qiaomu-yt-bar-status[hidden]{display:none}
+.qiaomu-yt-bar-notice{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 14px}
 .qiaomu-yt-bar-status{flex:1 1 auto;margin:0;color:var(--qm-fg2);font-size:12px;line-height:18px}
-.qiaomu-yt-bar-retry{flex:0 0 auto;height:28px;padding:0 10px;border:0;border-radius:6px;background:transparent;box-shadow:none;color:var(--qm-accent);font-size:13px;font-weight:500;line-height:28px;cursor:pointer}
-.qiaomu-yt-bar-retry:hover{background:var(--qm-hover)}
+html button.qiaomu-yt-bar-retry{display:inline-flex;align-items:center;justify-content:center;width:auto;flex:0 0 auto;height:32px;padding:0 14px;border:0;border-radius:8px;background:rgba(127,127,127,.16);box-shadow:none;color:var(--qm-fg);font:inherit;font-size:13px;font-weight:550;line-height:1;cursor:pointer}
+html button.qiaomu-yt-bar-retry:hover{background:rgba(127,127,127,.28);box-shadow:none;color:var(--qm-fg)}
 .qiaomu-yt-bar-retry[hidden],.qiaomu-yt-bar-finder[hidden],.qiaomu-yt-bar-listwrap[hidden]{display:none}
 .qiaomu-yt-bar-finder{display:flex;align-items:center;gap:6px;padding:12px 10px 8px 14px}
 .qiaomu-yt-bar-search{display:flex;align-items:center;gap:8px;flex:1 1 auto;min-width:0;height:32px;padding:0 10px;border-radius:8px;background:var(--qm-field);color:var(--qm-fg2)}
 .qiaomu-yt-bar-search:focus-within{box-shadow:inset 0 0 0 1.5px var(--qm-accent)}
 .qiaomu-yt-bar-search svg{flex:0 0 auto}
 .qiaomu-yt-bar-input{flex:1 1 auto;min-width:0;height:100%;padding:0;border:0;outline:0;background:transparent;box-shadow:none;color:var(--qm-fg);font:inherit}
+.qiaomu-yt-bar-lang{flex:0 1 auto;min-width:0;max-width:150px;height:32px;padding:0 4px 0 8px;border:0;border-radius:8px;background:var(--qm-field);box-shadow:none;color:var(--qm-fg2);font:inherit;font-size:12px;text-overflow:ellipsis;cursor:pointer}.qiaomu-yt-bar-lang[hidden]{display:none}.qiaomu-yt-bar-lang:focus{outline:none}.qiaomu-yt-bar-lang:focus-visible{outline:2px solid var(--qm-accent);outline-offset:-2px}
 .qiaomu-yt-bar-input::placeholder{color:var(--qm-fg2);opacity:.8}
 .qiaomu-yt-bar-input::-webkit-search-cancel-button{display:none}
 .qiaomu-yt-bar-count{flex:0 0 auto;font-size:12px;font-variant-numeric:tabular-nums}
@@ -365,7 +389,7 @@ ytd-engagement-panel-section-list-renderer[data-qiaomu-auto="1"]{display:none!im
 .qiaomu-yt-bar-time{flex:0 0 auto;min-width:3.2em;color:var(--qm-fg2);font-size:12px;font-variant-numeric:tabular-nums}
 .qiaomu-yt-bar-text{min-width:0;overflow-wrap:anywhere}
 .qiaomu-yt-bar-more{margin:6px 14px 0;color:var(--qm-fg2);font-size:12px}
-`;
+${GENERATION_STYLE}`;
 
 // Keep the bar as the first thing in the right column of the watch page, or right after `afterSelector` inside it.
 export function syncTranscriptBar(doc: Document, make: () => HTMLElement, columnSelector = 'ytd-watch-flexy #secondary-inner, #secondary-inner', afterSelector?: string): HTMLElement | undefined {

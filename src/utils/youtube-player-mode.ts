@@ -69,8 +69,9 @@ export function mountPlayerMode(article: HTMLElement): void {
 	};
 	bar.append(buttons.dock, buttons.theater, buttons.float);
 	let pipButton: HTMLButtonElement | undefined;
-	if (documentPipSupported(win)) {
-		pipButton = button('pip', ExternalLink, '浮出窗口：在浏览器之外置顶播放（会重新加载并回到当前进度）');
+	const nativePlayer = article.querySelector<HTMLVideoElement>('video.reader-video-player');
+	if (nativePlayer ? typeof nativePlayer.requestPictureInPicture === 'function' : documentPipSupported(win)) {
+		pipButton = button('pip', ExternalLink, article.querySelector('video.reader-video-player') ? '画中画：在浏览器之外置顶播放' : '浮出窗口：在浏览器之外置顶播放（会重新加载并回到当前进度）');
 		bar.append(pipButton); trackPlayback(article);
 	}
 	// Overlay of the floating window: drag strip, return-to-dock button and a resize grip.
@@ -128,7 +129,14 @@ export function mountPlayerMode(article: HTMLElement): void {
 	};
 	buttons.dock.onclick = () => setMode('dock'); buttons.theater.onclick = () => setMode('theater'); buttons.float.onclick = () => setMode('float');
 	back.onclick = () => setMode('dock');
-	if (pipButton) pipButton.onclick = () => { const frame = article.querySelector<HTMLIFrameElement>('iframe[src*="youtube.com/embed/"]'); if (frame) void openDocumentPip(article, frame); };
+	if (pipButton) pipButton.onclick = () => {
+		const player = article.querySelector<HTMLVideoElement>('video.reader-video-player');
+		if (player) {
+			const action = doc.pictureInPictureElement ? doc.exitPictureInPicture?.() : player.requestPictureInPicture?.();
+			void action?.catch(() => { pipButton!.title = '画中画暂不可用，请先播放视频后重试'; }); return;
+		}
+		const frame = article.querySelector<HTMLIFrameElement>('iframe[src*="youtube.com/embed/"]'); if (frame) void openDocumentPip(article, frame);
+	};
 
 	// Floating window: drag anywhere, snap to the nearest corner on release.
 	let drag: { pointerId: number; dx: number; dy: number; moved: boolean } | undefined;

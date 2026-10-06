@@ -17,7 +17,7 @@ const rowsIn = (root: ParentNode): HTMLElement[] => {
 };
 
 // `chapter` is the title of a chapter that begins at this line (YouTube shows it as a heading above the row).
-export interface PanelSegment { time: string; text: string; chapter?: string }
+export interface PanelSegment { time: string; text: string; chapter?: string; start?: number; end?: number }
 
 /** A download-ready bilingual transcript. Translation is deliberately optional so
  * callers can keep the original export compatible while disabling incomplete

@@ -45,3 +45,21 @@ it('keeps completed clips disabled and asks about the transcript through the sin
 	expect(state.chat).toHaveBeenCalledTimes(1);
 	expect(state.chat.mock.calls[0][0].getContext().markdown).toBe('[0:12] Source transcript');
 });
+
+it('learning entries use the original clip URL and the fresh source after a preview update',async()=>{
+ const records=await import('./learning-record');
+ const load=vi.spyOn(records,'loadLearningDraft').mockResolvedValue(null);
+ vi.spyOn(records,'getDailyTarget').mockResolvedValue({status:'unavailable'});
+ const data=draft();mountReaderPreviewShell(data);
+ state.chat.mock.calls[0][0].onLearningRecord('Selected excerpt');await flush();
+ expect(load.mock.calls[0][0].url).toBe('https://youtube.com/watch?v=dbqweBCynuI');
+ expect((document.querySelector('[aria-label="原文摘录"]') as HTMLTextAreaElement).value).toBe('Selected excerpt');
+ vi.spyOn(records,'persistLearningDraft').mockResolvedValue();
+ (document.querySelector('[aria-label="关闭并保留草稿"]') as HTMLButtonElement).click();await flush();
+ data.clip.url='https://example.com/updated-source';data.clip.title='Updated original';
+ state.chat.mock.calls[0][0].onLearningAi('Chosen answer');await flush();
+ expect(load.mock.calls[load.mock.calls.length - 1][0].url).toBe('https://example.com/updated-source');
+ expect((document.querySelector('[aria-label="我的理解"]') as HTMLTextAreaElement).value).toBe('');
+ expect((document.querySelector('[aria-label="AI 补充"]') as HTMLTextAreaElement).value).toBe('Chosen answer');
+ vi.restoreAllMocks();
+});

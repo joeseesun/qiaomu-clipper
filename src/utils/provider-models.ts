@@ -1,5 +1,7 @@
 import { Provider } from '../types/types';
 import { openAICompatibleBasePath } from './chat-llm';
+import { freshOAuth, oauthModelsRequest } from './oauth/accounts';
+import { saveSettings } from './storage-utils';
 
 export interface ProviderModel {
 	id: string;
@@ -40,7 +42,9 @@ export function modelListRequest(provider: Provider): { url: URL; headers: Recor
 	return { url, headers, kind };
 }
 
-export async function fetchProviderModels(provider: Provider, signal?: AbortSignal): Promise<ProviderModel[]> {
+export async function fetchProviderModels(input: Provider, signal?: AbortSignal): Promise<ProviderModel[]> {
+	const provider = { ...input, apiKey: (input.apiKey || '').trim(), baseUrl: (input.baseUrl || '').trim() };
+	if (provider.oauth) return fetchAccountModels(input, signal);
 	if (provider.apiKeyRequired && !provider.apiKey.trim()) throw new Error('missing-api-key');
 	const { url, headers, kind } = modelListRequest(provider);
 	const models = new Map<string, ProviderModel>();
@@ -54,13 +58,16 @@ export async function fetchProviderModels(provider: Provider, signal?: AbortSign
 		while (true) {
 			if (pages.has(url.href)) throw new Error('invalid-model-list');
 			pages.add(url.href);
-			const response = await fetch(url.href, { headers, signal: controller.signal, credentials: 'omit' });
+			const response = await fetch(url.href, { headers, signal: controller.signal, credentials: 'omit' }).catch((e: unknown) => { if (controller.signal.aborted) throw e;
+				throw new Error(`network:${e instanceof Error ? e.message : e}`); });
 			if (!response.ok) throw new Error(`http-${response.status}`);
 			const data = await response.json();
 			const entries = kind === 'gemini' || kind === 'ollama' ? data.models : data.data;
 			if (!Array.isArray(entries)) throw new Error('invalid-model-list');
 			for (const entry of entries) {
 				if (!entry || typeof entry !== 'object') continue;
+				// Gateways that mix media models into one catalogue list their protocols; keep chat-capable ones.
+				if (Array.isArray(entry.supported_protocols) && !entry.supported_protocols.some((x: unknown) => x === 'openai:chat-completions' || x === 'anthropic:messages')) continue;
 				if (kind === 'gemini' && !entry.supportedGenerationMethods?.includes('generateContent')) continue;
 				const id = kind === 'gemini' ? entry.name?.replace(/^models\//, '') : kind === 'ollama' ? entry.model || entry.name : entry.id;
 				if (typeof id !== 'string' || !id.trim()) continue;
@@ -78,4 +85,24 @@ export async function fetchProviderModels(provider: Provider, signal?: AbortSign
 		clearTimeout(timeout);
 		signal?.removeEventListener('abort', abort);
 	}
+}
+
+// A signed-in ChatGPT or Codex account lists its own models; both answer with
+// either an OpenAI-style `data` list or ChatGPT's `models` catalogue.
+async function fetchAccountModels(provider: Provider, signal?: AbortSignal): Promise<ProviderModel[]> {
+	const oauth = await freshOAuth(provider, () => saveSettings());
+	const { url, headers } = oauthModelsRequest(oauth);
+	const response = await fetch(url, { headers, signal, credentials: 'omit' });
+	if (!response.ok) throw new Error(`http-${response.status}`);
+	const data = await response.json();
+	const entries = Array.isArray(data.models) ? data.models : data.data;
+	if (!Array.isArray(entries)) throw new Error('invalid-model-list');
+	const models = new Map<string, ProviderModel>();
+	for (const entry of entries) {
+		const id = entry?.slug || entry?.id;
+		if (typeof id !== 'string' || !id || (entry.visibility && entry.visibility !== 'list')) continue;
+		const name = entry.display_name || entry.name;
+		models.set(id, { id, name: typeof name === 'string' && name.trim() ? name : id });
+	}
+	return [...models.values()];
 }

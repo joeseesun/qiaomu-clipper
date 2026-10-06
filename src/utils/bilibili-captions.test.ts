@@ -1,5 +1,5 @@
 import { expect, it, vi } from 'vitest';
-import { fetchBilibiliCaptions, pickTrack, stampOf, subtitleUrl } from './bilibili-captions';
+import { fetchBilibiliCaptions, listBilibiliTracks, stampOf, subtitleUrl, tracksOfPlayer } from './bilibili-captions';
 
 const view = { code: 0, data: { aid: 11, cid: 1, pages: [{ cid: 100 }, { cid: 200 }] } };
 const track = (extra: object) => ({ lan: 'zh-CN', lan_doc: '中文', subtitle_url: '//aisubtitle.hdslb.com/a.json', ...extra });
@@ -14,8 +14,8 @@ it('reads the subtitle file of the requested part and turns it into timed lines'
 });
 
 it('says a signed-out viewer needs to log in, and does not call that "no subtitles"', async () => {
-	expect(await fetchBilibiliCaptions('BV1xx411c7mD', 1, route({ code: 0, data: { need_login_subtitle: true, subtitle: { subtitles: [] } } }))).toEqual({ segments: [], needLogin: true });
-	expect(await fetchBilibiliCaptions('BV1xx411c7mD', 1, route({ code: 0, data: { need_login_subtitle: false, subtitle: { subtitles: [] } } }))).toEqual({ segments: [], needLogin: false });
+	expect(await fetchBilibiliCaptions('BV1xx411c7mD', 1, route({ code: 0, data: { need_login_subtitle: true, subtitle: { subtitles: [] } } }))).toEqual({ segments: [], needLogin: true, tracks: [] });
+	expect(await fetchBilibiliCaptions('BV1xx411c7mD', 1, route({ code: 0, data: { need_login_subtitle: false, subtitle: { subtitles: [] } } }))).toEqual({ segments: [], needLogin: false, tracks: [] });
 });
 
 it('falls back to the older player endpoint and fails clearly when nothing answers', async () => {
@@ -26,13 +26,23 @@ it('falls back to the older player endpoint and fails clearly when nothing answe
 	await expect(fetchBilibiliCaptions('BV1xx411c7mD', 1, async url => url.includes('view') ? view : { code: -1 })).rejects.toThrow('字幕列表');
 });
 
-it('prefers a human subtitle over an AI one, then Simplified Chinese, then English', () => {
-	const ai = track({ lan: 'ai-zh', lan_doc: '中文（自动生成）', is_ai_subtitle: true, id: 1, subtitle_url: '//x.hdslb.com/ai.json' });
-	const en = track({ lan: 'en', id: 3, subtitle_url: '//x.hdslb.com/en.json' }), cn = track({ id: 2, subtitle_url: '//x.hdslb.com/cn.json' });
-	expect(pickTrack([ai, en, cn])?.subtitle_url).toContain('cn.json');
-	expect(pickTrack([ai, en])?.subtitle_url).toContain('en.json');
-	expect(pickTrack([ai])?.subtitle_url).toContain('ai.json');
-	expect(pickTrack([{ lan: 'zh-CN' }])).toBeUndefined();
+it('lists every track with its language and whether it was made from the audio, in upload order', () => {
+	const tracks = tracksOfPlayer([track({ lan: 'en', lan_doc: 'English', id: 5, subtitle_url: '//x.hdslb.com/en.json' }), track({ lan: 'ai-zh', lan_doc: '中文（自动生成）', is_ai_subtitle: true, id: 2, subtitle_url: '//x.hdslb.com/ai.json' }), track({ lan: 'zh-CN', lan_doc: '中文（中国）', id: 9, subtitle_url: '//x.hdslb.com/cn.json' }), { lan: 'ja' } as any, track({ lan: 'fr', subtitle_url: 'https://evil.example.com/fr.json' })]);
+	expect(tracks.map(t => [t.id, t.language, t.auto, t.label])).toEqual([['ai-zh', 'zh', true, '中文（自动生成）'], ['en', 'en', false, 'English'], ['zh-CN', 'zh', false, '中文（中国）']]); // no URL, or a foreign host, is left out
+	expect(tracksOfPlayer([track({ lan: 'en', id: 1, subtitle_url: '//x.hdslb.com/a.json' }), track({ lan: 'en', id: 2, subtitle_url: '//x.hdslb.com/b.json' })]).map(t => t.id)).toEqual(['en', 'en~2']);
+	expect(tracksOfPlayer([track({ lan: 'ai-en', lan_doc: 'English', is_ai_subtitle: false, subtitle_url: '//x.hdslb.com/e.json' })])[0]).toMatchObject({ auto: true, label: 'English（AI）' });
+});
+
+it('shows the spoken language by default, so an English video is not shown in Chinese, and the viewer can pick another', async () => {
+	const english = { code: 0, data: { subtitle: { subtitles: [track({ lan: 'zh-CN', lan_doc: '中文（中国）', id: 1, subtitle_url: '//x.hdslb.com/cn.json' }), track({ lan: 'ai-en', lan_doc: 'English (AI)', is_ai_subtitle: true, id: 2, subtitle_url: '//x.hdslb.com/en.json' })] } } };
+	const files: Record<string, unknown> = { 'https://x.hdslb.com/cn.json': { body: [{ from: 0, content: '你好' }] }, 'https://x.hdslb.com/en.json': { body: [{ from: 0, content: 'Hello' }] } };
+	const getJson = vi.fn(async (url: string) => url.includes('web-interface/view') ? view : url.includes('/x/player/') ? english : files[url]);
+	const byDefault = await fetchBilibiliCaptions('BV1xx411c7mD', 1, getJson as any);
+	expect(byDefault.selected).toBe('ai-en'); expect(byDefault.language).toBe('en'); expect(byDefault.segments[0].text).toBe('Hello'); expect(byDefault.tracks.map(t => t.id)).toEqual(['zh-CN', 'ai-en']);
+	const chosen = await fetchBilibiliCaptions('BV1xx411c7mD', 1, getJson as any, 'zh');
+	expect(chosen.selected).toBe('zh-CN'); expect(chosen.segments[0].text).toBe('你好');
+	expect((await listBilibiliTracks('BV1xx411c7mD', 1, getJson as any)).tracks).toHaveLength(2);
+	const files2 = getJson.mock.calls.map(([url]) => String(url)).filter(url => url.includes('hdslb')); expect(files2).toEqual(['https://x.hdslb.com/en.json', 'https://x.hdslb.com/cn.json']); // only the chosen file is read
 });
 
 it('only fetches subtitle files from Bilibili hosts over https', () => {

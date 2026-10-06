@@ -5,7 +5,9 @@ import type { CaptionSource } from './youtube-captions';
 // build its own transcript UI) shows it at once and study mode does not wait. Kept per video in extension storage,
 // newest 30 only, and never an empty or oversized one.
 export interface CacheStorage { get(keys: string | string[]): Promise<Record<string, any>>; set(items: Record<string, unknown>): Promise<void>; remove(keys: string | string[]): Promise<void> }
-const INDEX = 'qiaomuTranscriptIndex', prefix = 'qiaomuTranscript:';
+// v2: transcripts are cached per subtitle language the viewer chose, and the default language changed (the spoken one, not Chinese).
+const INDEX = 'qiaomuTranscriptIndex2', prefix = 'qiaomuTranscript2:';
+const VALID_KEY = /^(?:[\w-]{11}|bilibili:BV[0-9A-Za-z]{10}:\d{1,4}|generated:(?:youtube:[\w-]{11}|bilibili:BV[0-9A-Za-z]{10}:\d{1,4}|xiaoyuzhou:[0-9a-f]{24}|file:[0-9a-f]{32}|rss:[0-9a-f]{12}:[0-9a-f]{16}|web:[0-9a-f]{12}))(?:#[a-z]{2,8})?$/;
 export const CACHE_LIMIT = 30, MAX_BYTES = 800_000;
 export interface CachedTranscript { segments: PanelSegment[]; language?: string; source?: CaptionSource }
 
@@ -20,7 +22,7 @@ export function createTranscriptCache(storage: CacheStorage) {
 			} catch { return undefined; }
 		},
 		async write(videoId: string, segments: PanelSegment[], language?: string, source?: CaptionSource): Promise<void> {
-			if (!/^[\w-]{11}$|^bilibili:BV[0-9A-Za-z]{10}:\d{1,4}$/.test(videoId) || !valid(segments) || JSON.stringify(segments).length > MAX_BYTES) return;
+			if (!VALID_KEY.test(videoId) || !valid(segments) || JSON.stringify(segments).length > MAX_BYTES) return;
 			try {
 				const index: Array<{ id: string; at: number }> = ((await storage.get(INDEX))[INDEX] as Array<{ id: string; at: number }> | undefined) || [];
 				const next = [{ id: videoId, at: Date.now() }, ...index.filter(entry => entry.id !== videoId)];
