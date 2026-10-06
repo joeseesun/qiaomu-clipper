@@ -1697,5 +1697,49 @@
 	},
 	"qiaomuChatFontreader": {
 		"message": "Same as reading font"
+	},
+	"providerSignInLabel": {
+		"message": "Account"
+	},
+	"providerSignInButton": {
+		"message": "Sign in"
+	},
+	"providerSignInPaste": {
+		"message": "Paste the address of the page it ended on"
+	},
+	"providerSignInPasteButton": {
+		"message": "Continue"
+	},
+	"providerSignInOpen": {
+		"message": "Waiting for you to finish in the browser tab…"
+	},
+	"providerSignInDone": {
+		"message": "Signed in as $1",
+		"placeholders": {
+			"1": {
+				"content": "$1"
+			}
+		}
+	},
+	"providerSignInChatGPT": {
+		"message": "Sign in to ChatGPT"
+	},
+	"providerSignInCodex": {
+		"message": "Sign in to Codex"
+	},
+	"providerSignInTokenDance": {
+		"message": "Authorize 词元跳动"
+	},
+	"providerSignInNoteChatGPT": {
+		"message": "Uses your ChatGPT plan allowance. No API key needed."
+	},
+	"providerSignInNoteCodex": {
+		"message": "Uses your Codex plan allowance. No API key needed."
+	},
+	"providerSignInNoteTokenDance": {
+		"message": "Confirm in the browser and a key is created for you."
+	},
+	"providerSignInAgain": {
+		"message": "Sign in again"
 	}
 }

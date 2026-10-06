@@ -13,6 +13,10 @@ describe('provider model discovery', () => {
 		expect(await fetchProviderModels(provider)).toEqual([{ id: 'new-model', name: 'new-model' }, { id: 'other-model', name: 'Other' }]);
 		expect(fetch).toHaveBeenCalledWith('https://gateway.example/proxy/v1/models', expect.objectContaining({ headers: { Accept: 'application/json', Authorization: 'Bearer test-key' }, credentials: 'omit' }));
 	});
+	it('keeps only chat-capable models from mixed gateway catalogues', async () => {
+		vi.mocked(fetch).mockResolvedValue(reply({ data: [{ id: 'chat', supported_protocols: ['openai:chat-completions'] }, { id: 'video', supported_protocols: ['seedance:generations'] }, { id: 'plain' }] }));
+		expect((await fetchProviderModels(provider)).map(m => m.id)).toEqual(['chat', 'plain']);
+	});
 	it('uses the actual DeepSeek list endpoint', () => {
 		expect(modelListRequest({ ...provider, baseUrl: 'https://api.deepseek.com/v1/chat/completions' }).url.href).toBe('https://api.deepseek.com/v1/models');
 	});

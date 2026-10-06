@@ -1682,5 +1682,49 @@
 	},
 	"qiaomuChatFontreader": {
 		"message": "跟隨閱讀字型"
+	},
+	"providerSignInLabel": {
+		"message": "帳號"
+	},
+	"providerSignInButton": {
+		"message": "登入"
+	},
+	"providerSignInPaste": {
+		"message": "如果沒有自動繼續，請貼上最後停留頁面的網址"
+	},
+	"providerSignInPasteButton": {
+		"message": "繼續"
+	},
+	"providerSignInOpen": {
+		"message": "請在開啟的瀏覽器分頁中完成登入…"
+	},
+	"providerSignInDone": {
+		"message": "已登入：$1",
+		"placeholders": {
+			"1": {
+				"content": "$1"
+			}
+		}
+	},
+	"providerSignInChatGPT": {
+		"message": "登入 ChatGPT"
+	},
+	"providerSignInCodex": {
+		"message": "登入 Codex"
+	},
+	"providerSignInTokenDance": {
+		"message": "授權詞元跳動"
+	},
+	"providerSignInNoteChatGPT": {
+		"message": "使用你的 ChatGPT 方案額度，不需要 API Key。"
+	},
+	"providerSignInNoteCodex": {
+		"message": "使用你的 Codex 方案額度，不需要 API Key。"
+	},
+	"providerSignInNoteTokenDance": {
+		"message": "在瀏覽器中確認後，會自動為你建立 Key。"
+	},
+	"providerSignInAgain": {
+		"message": "重新登入"
 	}
 }

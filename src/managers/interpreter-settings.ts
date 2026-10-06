@@ -1,11 +1,12 @@
 import { initializeToggles, initializeSettingToggle } from '../utils/ui-utils';
-import { ModelConfig, Provider } from '../types/types';
+import { ModelConfig, OAuthCredentials, Provider } from '../types/types';
 import { generalSettings, loadSettings, saveSettings, getLocalStorage, setLocalStorage } from '../utils/storage-utils';
 import { initializeIcons } from '../icons/icons';
 import { showModal, hideModal } from '../utils/modal-utils';
 import { getMessage, translatePage } from '../utils/i18n';
 import { debugLog } from '../utils/debug';
 import { fetchProviderModels } from '../utils/provider-models';
+import { startSignIn, PendingSignIn, CHATGPT_BASE, CODEX_BASE } from '../utils/oauth/accounts';
 
 export interface PresetProvider {
 	id: string;
@@ -14,6 +15,7 @@ export interface PresetProvider {
 	apiKeyUrl?: string;
 	apiKeyRequired?: boolean;
 	modelsList?: string;
+	signIn?: 'tokendance' | 'chatgpt' | 'codex';
 	popularModels?: Array<{
 		id: string;
 		name: string;
@@ -107,7 +109,52 @@ async function shouldUpdatePresets(): Promise<boolean> {
 	}
 }
 
+// Gateways we ship ourselves; upstream presets with the same id win only if absent here.
+const BUILT_IN_PRESETS: Record<string, PresetProvider> = {
+	tokendance: {
+		id: 'tokendance',
+		name: '词元跳动',
+		baseUrl: 'https://tokendance.space/gateway/v1/chat/completions',
+		apiKeyUrl: 'https://tokendance.space/keys',
+		apiKeyRequired: true,
+		signIn: 'tokendance',
+		modelsList: 'https://tokendance.space/models',
+		popularModels: [
+			{ id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash', recommended: true },
+			{ id: 'qwen3.8-flash', name: 'Qwen3.8 Flash' },
+			{ id: 'kimi-k3', name: 'Kimi K3' }
+		]
+	},
+	chatgpt: {
+		id: 'chatgpt',
+		name: 'ChatGPT 账号',
+		baseUrl: `${CHATGPT_BASE}/responses`,
+		apiKeyRequired: false,
+		signIn: 'chatgpt'
+	},
+	codex: {
+		id: 'codex',
+		name: 'Codex 订阅',
+		baseUrl: `${CODEX_BASE}/responses`,
+		apiKeyRequired: false,
+		signIn: 'codex'
+	},
+	siliconflow: {
+		id: 'siliconflow',
+		name: '硅基流动',
+		baseUrl: 'https://api.siliconflow.cn/v1/chat/completions',
+		apiKeyUrl: 'https://cloud.siliconflow.cn/account/ak',
+		apiKeyRequired: true,
+		modelsList: 'https://cloud.siliconflow.cn/models'
+	}
+};
+
 export async function getPresetProviders(): Promise<Record<string, PresetProvider>> {
+	const presets = await loadPresetProviders();
+	return { ...presets, ...BUILT_IN_PRESETS };
+}
+
+async function loadPresetProviders(): Promise<Record<string, PresetProvider>> {
 	const now = Date.now();
 
 	if (cachedPresets && (now - lastFetchTime < PRESET_CACHE_DURATION)) {
@@ -448,6 +495,7 @@ function deleteProvider(index: number): void {
 }
 
 async function showProviderModal(provider: Provider, index?: number) {
+	let pendingOAuth: OAuthCredentials | undefined;
 	debugLog('Providers', 'Showing provider modal:', { provider, index });
 	const modal = document.getElementById('provider-modal');
 	if (!modal) return;
@@ -501,6 +549,40 @@ async function showProviderModal(provider: Provider, index?: number) {
 		apiKeyInput.value = '';
 		presetSelect.value = '';
 
+		const signInRow = form.querySelector('#provider-signin-row') as HTMLElement;
+		const signInNote = form.querySelector('#provider-signin-note') as HTMLElement;
+		const signInBtn = form.querySelector('#provider-signin-btn') as HTMLButtonElement;
+		const pasteBox = form.querySelector('#provider-signin-paste') as HTMLElement;
+		const pasteInput = form.querySelector('#provider-signin-url') as HTMLInputElement;
+		const pasteBtn = form.querySelector('#provider-signin-paste-btn') as HTMLButtonElement;
+		pendingOAuth = provider.oauth;
+		let pending: PendingSignIn | undefined;
+		const signInNames = { tokendance: 'TokenDance', chatgpt: 'ChatGPT', codex: 'Codex' } as const;
+		const showSignedIn = (label: string) => { signInNote.textContent = getMessage('providerSignInDone', label); signInBtn.textContent = getMessage('providerSignInAgain'); };
+		const runSignIn = async (kind: 'tokendance' | 'chatgpt' | 'codex') => {
+			pending?.handle.cancel();
+			signInBtn.disabled = true;
+			signInNote.textContent = getMessage('providerSignInOpen');
+			pasteBox.hidden = false;
+			try {
+				pending = await startSignIn(kind);
+				const done = await pending.finish();
+				if (done.apiKey) { apiKeyInput.value = done.apiKey; pendingOAuth = undefined; }
+				if (done.oauth) { pendingOAuth = done.oauth; apiKeyInput.value = ''; }
+				showSignedIn(done.label);
+			} catch (error) {
+				signInNote.textContent = error instanceof Error ? error.message : String(error);
+				signInBtn.textContent = getMessage('providerSignInAgain');
+			} finally {
+				signInBtn.disabled = false;
+				pasteBox.hidden = true;
+				pending = undefined;
+			}
+		};
+		let signInKind: 'tokendance' | 'chatgpt' | 'codex' | undefined;
+		signInBtn.onclick = () => { if (signInKind) void runSignIn(signInKind); };
+		pasteBtn.onclick = () => { if (pending && !pending.handle.submitUrl(pasteInput.value)) signInNote.textContent = '这不是登录完成后的地址，请重新复制'; };
+
 		let currentPresetId: string | null = null;
 		if (index !== undefined) {
 			nameInput.value = provider.name;
@@ -526,7 +608,17 @@ async function showProviderModal(provider: Provider, index?: number) {
 			const selectedPreset = selectedPresetId ? (cachedPresetProviders || {})[selectedPresetId] : null;
 
 			nameContainer.style.display = selectedPreset ? 'none' : 'block';
-			
+			signInKind = selectedPreset?.signIn;
+			signInRow.style.display = signInKind ? 'flex' : 'none';
+			if (signInKind) {
+				const names = { tokendance: 'providerSignInTokenDance', chatgpt: 'providerSignInChatGPT', codex: 'providerSignInCodex' } as const;
+				const notes = { tokendance: 'providerSignInNoteTokenDance', chatgpt: 'providerSignInNoteChatGPT', codex: 'providerSignInNoteCodex' } as const;
+				const editingSame = index !== undefined && selectedPresetId === currentPresetId;
+				if (!editingSame && signInKind !== 'tokendance') pendingOAuth = undefined;
+				if (pendingOAuth && signInKind === pendingOAuth.kind) { showSignedIn(pendingOAuth.email || signInNames[signInKind]); }
+				else { signInNote.textContent = getMessage(notes[signInKind]); signInBtn.textContent = getMessage(names[signInKind]); }
+			} else pendingOAuth = undefined;
+
 			if (selectedPreset) {
 				nameInput.value = selectedPreset.name;
 				
@@ -534,7 +626,7 @@ async function showProviderModal(provider: Provider, index?: number) {
 				baseUrlInput.value = editingOriginalPreset ? provider.baseUrl : selectedPreset.baseUrl;
 				apiKeyInput.value = editingOriginalPreset ? provider.apiKey : '';
 
-				apiKeyContainer.style.display = selectedPreset.apiKeyRequired === false ? 'none' : 'block';
+				apiKeyContainer.style.display = selectedPreset.apiKeyRequired === false && selectedPreset.signIn !== 'tokendance' ? 'none' : 'block';
 
 				if (selectedPreset.apiKeyRequired !== false && selectedPreset.apiKeyUrl) {
 					const message = getMessage('getApiKeyHere').replace('$1', selectedPreset.name);
@@ -610,6 +702,15 @@ async function showProviderModal(provider: Provider, index?: number) {
 			// Use the user-provided baseUrl if it's different from the preset baseUrl
 			updatedProvider.baseUrl = baseUrl !== providerPresetBaseUrl ? baseUrl : providerPresetBaseUrl;
 			updatedProvider.apiKeyRequired = providerPreset.apiKeyRequired !== false;
+			updatedProvider.presetId = presetId;
+			if (providerPreset.signIn === 'chatgpt' || providerPreset.signIn === 'codex') {
+				if (!pendingOAuth || pendingOAuth.kind !== providerPreset.signIn) {
+					alert(getMessage(providerPreset.signIn === 'codex' ? 'providerSignInCodex' : 'providerSignInChatGPT'));
+					return;
+				}
+				updatedProvider.oauth = pendingOAuth;
+				updatedProvider.apiKey = '';
+			}
 		}
 
 		if (index !== undefined) {
@@ -949,7 +1050,10 @@ async function showModelModal(model: ModelConfig, index?: number) {
 				if (version !== requestVersion) return;
 				select.disabled = false;
 				const reason = error instanceof Error ? error.message : '';
-				status.textContent = getMessage(reason === 'missing-api-key' ? 'providerModelsMissingKey' : reason === 'deployment-models' ? 'providerModelsDeployment' : 'providerModelsFailed');
+				debugLog('AI', 'Model list failed', reason);
+				const base = getMessage(reason === 'missing-api-key' ? 'providerModelsMissingKey' : reason === 'deployment-models' ? 'providerModelsDeployment' : 'providerModelsFailed');
+				const detail = /abort/i.test(reason) ? '超时' : /^http-(\d+)$/.test(reason) ? `HTTP ${reason.slice(5)}` : reason === 'invalid-model-list' ? '返回格式不是模型列表' : reason.startsWith('network:') ? '网络请求被拦截或无法连接' : '';
+				status.textContent = detail ? `${base}（${detail}）` : base;
 			}
 		};
 

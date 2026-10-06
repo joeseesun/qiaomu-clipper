@@ -18,7 +18,7 @@ Read, watch, ask AI, and turn what you learn into Obsidian notes.
 
 </div>
 
-> **当前为 Chrome 开发版，尚未上架应用商店。** 本页介绍当前 `main` 的功能；完整体验请按下方步骤从源码安装。不想装 Node.js？可直接下载 [1.13.2 已发布预览包](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.13.2)；更早的版本（如 1.10.0）没有视频字幕工具栏；B 站视频页的字幕工具栏从 1.11.0 起提供。截图采用实际界面组件与示例数据，视频区域展示封面预览；[截图说明](docs/README-SCREENSHOTS.md)。
+> **当前为 Chrome 开发版，尚未上架应用商店。** 本页介绍当前 `main` 的功能；完整体验请按下方步骤从源码安装。不想装 Node.js？可直接下载 [1.14.0 已发布预览包](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.14.0)；更早的版本（如 1.10.0）没有视频字幕工具栏；B 站视频页的字幕工具栏从 1.11.0 起提供。截图采用实际界面组件与示例数据，视频区域展示封面预览；[截图说明](docs/README-SCREENSHOTS.md)。
 
 ## 它解决什么问题
 
@@ -53,9 +53,9 @@ npm run build:chrome
 **先试一条完整流程：** 打开视频 → `aaa` → 点时间戳回看 → 按 `N` 写理解。只想读文章和复制字幕，无需配置 AI；写入日记需先装下方助手。
 
 <details>
-<summary><b>不想安装 Node.js？直接下载 1.13.2 已发布预览包</b></summary>
+<summary><b>不想安装 Node.js？直接下载 1.14.0 已发布预览包</b></summary>
 
-下载 [Chrome ZIP](https://github.com/joeseesun/qiaomu-clipper/releases/download/1.13.2/qiaomu-clipper-1.13.2-chrome.zip)，解压后在 `chrome://extensions` 开启「开发者模式」，点「加载已解压的扩展程序」选择解压目录。[发布说明](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.13.2)。**装好后请刷新已打开的 YouTube 页面**，字幕工具栏才会出现；请勿使用 1.10.0 及更早版本，它们没有视频字幕工具栏。**装好后请刷新已打开的 B 站页面**；B 站只给已登录账号提供字幕。
+下载 [Chrome ZIP](https://github.com/joeseesun/qiaomu-clipper/releases/download/1.14.0/qiaomu-clipper-1.14.0-chrome.zip)，解压后在 `chrome://extensions` 开启「开发者模式」，点「加载已解压的扩展程序」选择解压目录。[发布说明](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.14.0)。**装好后请刷新已打开的 YouTube 页面**，字幕工具栏才会出现；请勿使用 1.10.0 及更早版本，它们没有视频字幕工具栏。**装好后请刷新已打开的 B 站页面**；B 站只给已登录账号提供字幕。
 
 </details>
 
@@ -299,7 +299,7 @@ Qiaomu Clipper combines web clipping, a clean reader, a full-page Markdown edito
 
 **[Install current features](#quick-start)** · [Screenshots](#功能巡游) · [Report an issue](https://github.com/joeseesun/qiaomu-clipper/issues)
 
-> Chrome development build; not yet on the Chrome Web Store. This README describes current `main`. The downloadable [1.13.2 preview](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.13.2) is the published release (no Node.js needed; refresh open YouTube tabs after installing). Earlier releases such as 1.10.0 lack the video transcript bar (Bilibili's arrives in 1.11.0; Bilibili only serves subtitles to signed-in accounts). Screenshots use production components with sample articles, captions, AI responses and daily-note targets; the video area is a cover preview. See [screenshot provenance](docs/README-SCREENSHOTS.md).
+> Chrome development build; not yet on the Chrome Web Store. This README describes current `main`. The downloadable [1.14.0 preview](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.14.0) is the published release (no Node.js needed; refresh open YouTube tabs after installing). Earlier releases such as 1.10.0 lack the video transcript bar (Bilibili's arrives in 1.11.0; Bilibili only serves subtitles to signed-in accounts). Screenshots use production components with sample articles, captions, AI responses and daily-note targets; the video area is a cover preview. See [screenshot provenance](docs/README-SCREENSHOTS.md).
 
 ### Quick start
 

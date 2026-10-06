@@ -1697,5 +1697,49 @@
 	},
 	"qiaomuChatFontreader": {
 		"message": "跟随阅读字体"
+	},
+	"providerSignInLabel": {
+		"message": "账号"
+	},
+	"providerSignInButton": {
+		"message": "登录"
+	},
+	"providerSignInPaste": {
+		"message": "如果没有自动继续，把最后停留页面的地址粘贴到这里"
+	},
+	"providerSignInPasteButton": {
+		"message": "继续"
+	},
+	"providerSignInOpen": {
+		"message": "请在打开的浏览器标签页里完成登录…"
+	},
+	"providerSignInDone": {
+		"message": "已登录：$1",
+		"placeholders": {
+			"1": {
+				"content": "$1"
+			}
+		}
+	},
+	"providerSignInChatGPT": {
+		"message": "登录 ChatGPT"
+	},
+	"providerSignInCodex": {
+		"message": "登录 Codex"
+	},
+	"providerSignInTokenDance": {
+		"message": "授权词元跳动"
+	},
+	"providerSignInNoteChatGPT": {
+		"message": "使用你的 ChatGPT 套餐额度，不需要 API Key。"
+	},
+	"providerSignInNoteCodex": {
+		"message": "使用你的 Codex 套餐额度，不需要 API Key。"
+	},
+	"providerSignInNoteTokenDance": {
+		"message": "在浏览器里确认后，会自动为你创建 Key。"
+	},
+	"providerSignInAgain": {
+		"message": "重新登录"
 	}
 }

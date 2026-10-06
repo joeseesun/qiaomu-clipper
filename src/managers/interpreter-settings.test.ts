@@ -77,7 +77,7 @@ describe('model settings modal', () => {
 	it('allows manual model entry after failure and retries using refresh', async () => {
 		vi.mocked(fetchProviderModels).mockRejectedValueOnce(new Error('http-401')).mockResolvedValue([{ id: 'fresh', name: 'Fresh' }]);
 		await open(); await selectProvider('a');
-		expect(document.querySelector('#model-selection-radios [role="status"]')!.textContent).toBe('providerModelsFailed');
+		expect(document.querySelector('#model-selection-radios [role="status"]')!.textContent).toBe('providerModelsFailed（HTTP 401）');
 		expect(field('providerModelId').disabled).toBe(false);
 		field('providerModelId').value = 'manual'; field('name').value = 'Manual';
 		(document.querySelector('#model-selection-radios button') as HTMLButtonElement).click(); await tick();

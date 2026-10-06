@@ -1151,6 +1151,21 @@
 								<input type="text" id="provider-api-key" name="apiKey" data-i18n="providerApiKey" placeholder="API key">
 							</div>
 						</div>
+						<div class="setting-item" id="provider-signin-row" style="display: none;">
+							<div class="setting-item-info">
+								<label data-i18n="providerSignInLabel">Account</label>
+								<div class="setting-item-description" id="provider-signin-note" role="status"></div>
+							</div>
+							<div class="setting-item-control provider-signin-control">
+								<div class="provider-signin-actions">
+									<button type="button" id="provider-signin-btn" data-i18n="providerSignInButton">Sign in</button>
+								</div>
+								<div class="provider-signin-paste" id="provider-signin-paste" hidden>
+									<input type="text" id="provider-signin-url" data-i18n="providerSignInPaste" placeholder="Paste the address of the page it ended on">
+									<button type="button" id="provider-signin-paste-btn" data-i18n="providerSignInPasteButton">Continue</button>
+								</div>
+							</div>
+						</div>
 					</form>
 				</div>
 				<div class="modal-button-container">

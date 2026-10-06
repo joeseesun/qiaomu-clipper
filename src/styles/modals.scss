@@ -107,3 +107,19 @@
 	background-color: hsla(var(--color-accent-hsl), 0.1);
 	color: var(--text-accent);
 }
+
+// Account sign-in row in the provider dialog: the primary button is an ink
+// fill and keeps its own width and hover against the global button styles.
+#provider-signin-row {
+	.provider-signin-control { flex-direction: column; align-items: flex-end; gap: var(--size-4-2); }
+	.provider-signin-paste { display: flex; gap: var(--size-4-2); width: 100%; &[hidden] { display: none; } }
+	html & button#provider-signin-btn:not(.clickable-icon) {
+		width: auto;
+		background-color: var(--text-normal);
+		color: var(--background-primary);
+		box-shadow: none;
+		&:hover:not(:disabled) { background-color: var(--text-muted); color: var(--background-primary); box-shadow: none; }
+		&:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 2px; }
+	}
+	html & button#provider-signin-paste-btn:not(.clickable-icon) { width: auto; background-color: var(--background-modifier-hover); box-shadow: none; &:hover { background-color: var(--background-modifier-border); } }
+}
