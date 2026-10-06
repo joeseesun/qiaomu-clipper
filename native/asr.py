@@ -26,6 +26,9 @@ LANGUAGES = {'auto', 'zh', 'en', 'ja', 'ko', 'de', 'fr', 'es', 'ru', 'pt', 'it'}
 # Browsers yt-dlp can borrow a login from. Only ever used when the viewer explicitly asked for it for this video.
 COOKIE_BROWSERS = {'chrome', 'edge', 'brave', 'chromium', 'firefox', 'safari'}
 NEEDS_LOGIN = re.compile(r'sign in to confirm|not a bot|use --cookies|fresh cookies|login required|412', re.I)
+# What a downloader that has fallen behind the site looks like (YouTube changes its player every few weeks). Worth one update and one retry.
+STALE_TOOL = re.compile(r'needs to be reloaded|unable to extract|nsig|signature|player response|precondition check failed|requested format is not available|http error 403|sabr|po token|js runtime|challenge', re.I)
+UPDATE_EVERY = 12 * 3600
 # Lines Whisper tends to invent over silence or music. Only dropped when they stand alone in a short segment.
 HALLUCINATIONS = ('谢谢观看', '感谢观看', '请不吝点赞', '字幕由', '字幕 by', '字幕by', '订阅', 'thanks for watching', 'thank you for watching', 'subtitles by', 'amara.org')
 
@@ -121,7 +124,61 @@ def status(cloud=False, engine=None):
         if 'whisper' in missing: hints.append('安装 whisper.cpp 并下载 ggml 模型（可用 WHISPER_CPP_MODEL 指定）')
     # What the helper itself can set up when something is missing (no package manager needed).
     installable = {'base': bool({'yt-dlp', 'ffmpeg'} & set(missing)), 'engines': [x['id'] for x in local_catalogue(found) if x['managed'] and x['supported'] and not x['installed']]}
-    return {'ok': True, 'ready': not missing, 'missing': missing, 'hints': hints, 'tools': {'yt-dlp': {'path': ytdlp, 'version': tool_version(ytdlp) if ytdlp else ''}, 'ffmpeg': {'path': ffmpeg}}, 'engines': [{k: v for k, v in e.items() if k != 'path'} for e in found], 'local': local_catalogue(found), 'installable': installable, 'engine': 'cloud' if cloud else (chosen['id'] if chosen else None), 'modelDownloadNeeded': not cloud and bool(chosen) and not chosen['modelReady']}
+    return {'ok': True, 'ready': not missing, 'missing': missing, 'hints': hints, 'tools': {'yt-dlp': {'path': ytdlp, 'version': (version := tool_version(ytdlp) if ytdlp else ''), 'ageDays': ytdlp_age_days(version), 'updatable': is_private(ytdlp)}, 'ffmpeg': {'path': ffmpeg}}, 'engines': [{k: v for k, v in e.items() if k != 'path'} for e in found], 'local': local_catalogue(found), 'installable': installable, 'engine': 'cloud' if cloud else (chosen['id'] if chosen else None), 'modelDownloadNeeded': not cloud and bool(chosen) and not chosen['modelReady']}
+
+# ---- keeping yt-dlp current ---------------------------------------------------------------------------------------
+def ytdlp_age_days(version):
+    """Days since this yt-dlp was released (its version is its release date, e.g. 2026.08.19)."""
+    match = re.match(r'(\d{4})\.(\d{2})\.(\d{2})', version or '')
+    try: return max(0, (time.time() - time.mktime((int(match.group(1)), int(match.group(2)), int(match.group(3)), 0, 0, 0, 0, 0, -1))) // 86400) if match else None
+    except (ValueError, OverflowError): return None
+def is_private(path):
+    """Only the copy the helper installed is the helper's to update; a Homebrew one belongs to the person."""
+    return bool(path) and str(Path(path).parent) == str(eng.venv_bin('base'))
+def is_standalone(path):
+    """pip's yt-dlp is a small script; the standalone one is a compiled program."""
+    try:
+        with open(path, 'rb') as f: return f.read(2) != b'#!'
+    except OSError: return False
+def update_stamp(): return eng.tools_home() / 'ytdlp-update.json'
+def run_steps(steps, env):
+    for label, weight, command in steps:
+        code, tail = stream(command, env, lambda line: None)
+        if code != 0: raise Failed((tail[-1] if tail else '未知错误')[:200])
+def rebuild_base(env):
+    """The download environment was made with a Python too old for today's yt-dlp (pip then installs a year-old one and never says so).
+    Make a new one beside it and swap; if that fails the old one is put back."""
+    folder, old = eng.venv_dir('base'), eng.tools_home() / 'base.old'
+    shutil.rmtree(old, ignore_errors=True); folder.rename(old)
+    try:
+        run_steps(eng.plan('base')[0], env); unquarantine(folder); link_ffmpeg()
+        if not eng.base_installed(): raise Failed('下载环境没有装好')
+    except Exception:
+        shutil.rmtree(folder, ignore_errors=True); old.rename(folder); raise
+    shutil.rmtree(old, ignore_errors=True)
+def update_ytdlp(env, force=False, on_stage=None):
+    """Bring the helper's own yt-dlp up to date. Quiet when it cannot (offline, someone else's copy): the download goes on with
+    what there is. Checked at most twice a day unless `force`. Returns True when the version changed."""
+    path = find_tool('yt-dlp')
+    if not is_private(path): return False
+    stamp = read_json(update_stamp(), {})
+    if not force and time.time() - stamp.get('checkedAt', 0) < UPDATE_EVERY: return False
+    before = tool_version(path)
+    if on_stage: on_stage('正在更新下载工具')
+    try:
+        old_python = (eng.venv_python_version('base') or (3, 99)) < eng.MIN_YTDLP_PYTHON
+        if is_standalone(path): run_steps([('', 0, [path, '-U'])], env)  # the standalone program updates itself
+        elif old_python and eng.has_module('base', 'yt_dlp'):
+            # pip cannot go past what this Python supports: a modern Python rebuilds the environment, else the standalone program replaces it.
+            if eng.modern_python(): rebuild_base(env)
+            else: run_steps([step for step in eng.plan('base')[0] if step[0] == '正在下载 yt-dlp'], env)
+        elif eng.has_module('base', 'yt_dlp'):
+            run_steps([('', 0, [str(eng.venv_python('base')), '-m', 'pip', 'install', '--progress-bar', 'off', '--disable-pip-version-check', '--quiet', '-U', 'yt-dlp'])], env)
+        else: run_steps([('', 0, [path, '-U'])], env)
+    except Exception: pass
+    try: atomic_json(update_stamp(), {'checkedAt': time.time(), 'before': before}, durable=False)
+    except OSError: pass
+    return tool_version(find_tool('yt-dlp')) != before
 
 # ---- the video ----------------------------------------------------------------------------------------------------
 def video_url(video_key):
@@ -651,6 +708,7 @@ def download(directory, spec, env, tools):
     def progress(line):
         match = pattern.search(line)
         if match: write_state(directory, state='downloading', stage='正在下载音频', progress=round(min(float(match.group(1)), 100) * 0.15, 1))
+    refreshed = False
     for attempt in range(3):
         for leftover in directory.glob('audio.*'): leftover.unlink(missing_ok=True)  # never resume a truncated CDN stream as if it were whole
         write_state(directory, state='downloading', stage='正在下载音频', progress=0)
@@ -663,6 +721,12 @@ def download(directory, spec, env, tools):
         text = ' '.join(tail).lower()
         if attempt < 2 and (any(x in text for x in ('timed out', 'connection reset', 'incomplete read', 'unexpected end', 'http error 5')) or re.search(r'downloaded.{0,20}expected', text)): time.sleep(attempt + 1); continue
         if NEEDS_LOGIN.search(text) and not spec.get('cookies'): raise Failed('这个平台要求登录状态才能下载这条视频的音频', code='needs-cookies')
+        if STALE_TOOL.search(text) and not refreshed:
+            # The site changed under the downloader: update it once, then try again with the new one.
+            refreshed = True
+            if update_ytdlp(env, force=True, on_stage=lambda stage: write_state(directory, state='downloading', stage=stage)):
+                command[0] = tools['yt-dlp'] = find_tool('yt-dlp'); continue
+        if STALE_TOOL.search(text): raise Failed('这个视频暂时下载不了：下载工具已是最新，但站点最近有变化，过几天更新后再试。（' + (tail[-1] if tail else '')[:160] + '）', code='tool-outdated')
         raise Failed('音频下载失败：' + (tail[-1] if tail else '未知错误')[:200])
     raise Failed('音频下载失败')
 def save_meta(directory, meta):
@@ -770,6 +834,8 @@ def run_worker(base_dir):
         if not info['ready']: raise Failed('缺少工具：' + '、'.join(info['missing']))
         tools = {'yt-dlp': find_tool('yt-dlp'), 'ffmpeg': find_tool('ffmpeg'), 'ffprobe': find_tool('ffprobe')}
         found = None if spec.get('cloud') else pick_engine(engines(), spec.get('engine'))
+        update_ytdlp(env, on_stage=lambda stage: write_state(directory, state='downloading', stage=stage, progress=0))
+        tools['yt-dlp'] = find_tool('yt-dlp')
         audio = download(directory, spec, env, tools)
         wav, total = convert(directory, audio, env, tools)
         segments, language = recognise_cloud(directory, spec, wav, total, env, tools) if spec.get('cloud') else recognise(directory, spec, wav, total, env, found, tools)

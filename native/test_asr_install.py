@@ -88,4 +88,81 @@ class InstallTests(unittest.TestCase):
         self.assertEqual(captured['c'][0], '/venv/bin/python'); self.assertTrue(captured['c'][1].endswith('asr_runner.py')); self.assertEqual(captured['c'][2:5], ['faster-whisper', str(directory / 'a.wav'), 'en'])
         self.assertEqual(segments[0]['text'], 'hello')
 
+class KeepYtdlpCurrentTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory(); root = Path(self.temp.name)
+        self.patches = [patch.dict(os.environ, {'QIAOMU_TOOLS_HOME': str(root / 'tools'), 'QIAOMU_TOOL_DIRS': ''})]
+        for p in self.patches: p.start()
+    def tearDown(self):
+        for p in self.patches: p.stop()
+        self.temp.cleanup()
+    def private_ytdlp(self, py='3.14.0', module=True):
+        venv = eng.venv_dir('base'); (venv / 'bin').mkdir(parents=True); (venv / 'pyvenv.cfg').write_text(f'version = {py}\n')
+        (venv / 'bin' / 'yt-dlp').write_text('#!/bin/sh\necho 2025.10.14\n'); (venv / 'bin' / 'yt-dlp').chmod(0o755)
+        if module: (venv / f'lib/python{py[:4]}/site-packages/yt_dlp').mkdir(parents=True)
+
+    def test_old_python_gets_the_standalone_ytdlp_not_a_year_old_pip_one(self):
+        with patch.object(eng, 'python_version', lambda path: (3, 9)), patch.object(eng, 'modern_python', lambda: None):
+            steps, _ = eng.plan('base')
+        pip = next(command for _, _, command in steps if 'pip' in command)
+        self.assertNotIn('yt-dlp', pip); self.assertIn('imageio-ffmpeg', pip)
+        self.assertTrue(any('yt-dlp_' in ' '.join(command) for _, _, command in steps))
+
+    def test_modern_python_installs_ytdlp_with_pip(self):
+        with patch.object(eng, 'python_version', lambda path: (3, 12)), patch.object(eng, 'modern_python', lambda: '/x/python3.12'):
+            steps, _ = eng.plan('base')
+        self.assertEqual(steps[0][2][0], '/x/python3.12'); self.assertIn('yt-dlp', next(c for _, _, c in steps if 'pip' in c))
+        self.assertFalse(any('curl' in ' '.join(c) for _, _, c in steps))
+
+    def test_age_is_read_from_the_version(self):
+        self.assertIsNone(asr.ytdlp_age_days('')); self.assertGreater(asr.ytdlp_age_days('2020.01.01'), 365)
+
+    def test_only_the_helpers_own_copy_is_updated_and_at_most_twice_a_day(self):
+        self.private_ytdlp(); ran = []
+        with patch.object(asr, 'run_steps', lambda steps, env: ran.append(steps)):
+            self.assertFalse(asr.update_ytdlp({}))  # find_tool finds nothing private here
+            with patch.object(asr, 'find_tool', lambda name: str(eng.venv_bin('base') / 'yt-dlp')):
+                asr.update_ytdlp({}); self.assertEqual(len(ran), 1); self.assertIn('pip', ran[0][0][2])
+                asr.update_ytdlp({}); self.assertEqual(len(ran), 1)  # throttled
+                asr.update_ytdlp({}, force=True); self.assertEqual(len(ran), 2)
+            with patch.object(asr, 'find_tool', lambda name: '/opt/homebrew/bin/yt-dlp'):
+                asr.update_ytdlp({}, force=True); self.assertEqual(len(ran), 2)  # Homebrew's copy is not ours
+
+    def test_standalone_program_updates_itself(self):
+        self.private_ytdlp(py='3.9.6'); program = eng.venv_bin('base') / 'yt-dlp'; program.write_bytes(b'\xcf\xfa\xed\xfe'); ran = []
+        with patch.object(asr, 'find_tool', lambda name: str(program)), patch.object(asr, 'run_steps', lambda steps, env: ran.append(steps[0][2])):
+            asr.update_ytdlp({}, force=True)
+        self.assertEqual(ran, [[str(program), '-U']])
+
+    def test_old_python_environment_is_rebuilt_when_a_modern_python_exists(self):
+        self.private_ytdlp(py='3.9.6'); rebuilt = []
+        with patch.object(asr, 'find_tool', lambda name: str(eng.venv_bin('base') / 'yt-dlp')), patch.object(eng, 'modern_python', lambda: '/x/python3.12'), patch.object(asr, 'rebuild_base', lambda env: rebuilt.append(1)):
+            asr.update_ytdlp({}, force=True)
+        self.assertEqual(rebuilt, [1])
+
+    def test_failed_rebuild_puts_the_old_environment_back(self):
+        self.private_ytdlp(py='3.9.6')
+        with patch.object(asr, 'run_steps', lambda steps, env: (_ for _ in ()).throw(asr.Failed('boom'))):
+            with self.assertRaises(asr.Failed): asr.rebuild_base({})
+        self.assertTrue((eng.venv_bin('base') / 'yt-dlp').is_file())
+
+    def test_download_updates_the_tool_once_when_the_site_has_moved_on(self):
+        directory = Path(self.temp.name) / 'job'; directory.mkdir()
+        spec = {'videoKey': 'youtube:t4_Uquzbg-U', 'url': 'https://www.youtube.com/watch?v=t4_Uquzbg-U'}
+        calls = []
+        def fake_stream(command, env, on_line, tail=20):
+            calls.append(command[0])
+            if command[0] == 'old': return 1, ['ERROR: [youtube] t4_Uquzbg-U: The page needs to be reloaded.']
+            (directory / 'audio.m4a').write_text('x'); return 0, []
+        with patch.object(asr, 'stream', fake_stream), patch.object(asr, 'update_ytdlp', lambda env, force=False, on_stage=None: True), patch.object(asr, 'find_tool', lambda name: 'new'):
+            audio = asr.download(directory, spec, {}, {'yt-dlp': 'old'})
+        self.assertEqual(calls, ['old', 'new']); self.assertEqual(audio.name, 'audio.m4a')
+
+    def test_download_says_so_when_even_the_newest_tool_fails(self):
+        directory = Path(self.temp.name) / 'job'; directory.mkdir()
+        spec = {'videoKey': 'youtube:t4_Uquzbg-U', 'url': 'https://www.youtube.com/watch?v=t4_Uquzbg-U'}
+        with patch.object(asr, 'stream', lambda *a, **k: (1, ['ERROR: The page needs to be reloaded.'])), patch.object(asr, 'update_ytdlp', lambda env, force=False, on_stage=None: False):
+            with self.assertRaises(asr.Failed) as caught: asr.download(directory, spec, {}, {'yt-dlp': 'x'})
+        self.assertEqual(caught.exception.code, 'tool-outdated')
+
 if __name__ == '__main__': unittest.main()
