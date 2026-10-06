@@ -1,0 +1,19 @@
+{
+  "date": "2026-10-06",
+  "version": "1.14.2",
+  "zip": "qiaomu-clipper-1.14.2-chrome.zip",
+  "sha256": "363e2db0f6e7b6fb85d41ac209e6b942c774574c29886477d9a00483fc9ac433",
+  "bytes": 11332280,
+  "file_count": 74,
+  "license_in_zip": true,
+  "production_build_content_matches": true,
+  "new_permissions": [],
+  "new_host_permissions": [],
+  "frontend_tests": 721,
+  "native_tests": 130,
+  "typescript": "passed",
+  "chrome_build": "passed",
+  "store_status": "not_submitted_pending_runtime_validation",
+  "fresh_install_and_upgrade_runtime_verified": false,
+  "runtime_blocker": "Browser security policy rejects chrome-extension:// access; manual runtime acceptance required."
+}

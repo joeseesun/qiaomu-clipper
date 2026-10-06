@@ -17,8 +17,8 @@
   "typescript": "passed",
   "chrome_build": "passed",
   "store_id": "jniolfihillilkoajpnonlbkhfkiicoo",
-  "store_status": "pending_review",
-  "auto_publish_after_approval": true,
+  "store_status": "review_withdrawn_for_model_fix",
+  "auto_publish_after_approval": false,
   "public_store_version": "1.7.1",
   "fresh_install_and_upgrade_runtime_verified": false
 }

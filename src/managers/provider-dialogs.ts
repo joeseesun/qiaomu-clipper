@@ -244,7 +244,9 @@ function showProviderForm(dlg: Dialog, entry: CatalogEntry | null, existing: Pro
 	error.setAttribute('role', 'alert');
 	dlg.body.append(error);
 
+	let saving = false;
 	const save = async () => {
+		if (saving) return;
 		const name = (entry ? entry.name : nameInput.value).trim();
 		const baseUrl = urlInput.value.trim() || entry?.baseUrl || '';
 		const apiKey = keyInput.value.trim();
@@ -263,9 +265,11 @@ function showProviderForm(dlg: Dialog, entry: CatalogEntry | null, existing: Pro
 			...(entry ? { presetId: entry.id } : {}),
 			...(signIn === 'chatgpt' || signIn === 'codex' ? { oauth } : {})
 		};
+		saving = true;
+		const previous = [...generalSettings.providers];
 		const index = existing ? generalSettings.providers.indexOf(existing) : -1;
 		if (index >= 0) generalSettings.providers[index] = provider; else generalSettings.providers.push(provider);
-		try { await saveSettings(); } catch { error.textContent = t('failedToSaveProvider'); return; }
+		try { await saveSettings(); } catch { generalSettings.providers = previous; saving = false; error.textContent = t('failedToSaveProvider'); return; }
 		pending?.handle.cancel();
 		dlg.close();
 		done();
@@ -362,6 +366,7 @@ export function openModelPicker(done: Done, openProviders: () => void, editing?:
 			available = await fetchProviderModels(provider, controller.signal);
 			if (my !== version) return;
 			status.textContent = available.length ? '' : t('providerModelsEmpty');
+			if (!available.length) manual.open = true;
 			renderList();
 		} catch (error) {
 			if (my !== version) return;
@@ -379,7 +384,7 @@ export function openModelPicker(done: Done, openProviders: () => void, editing?:
 	const renderChips = () => {
 		chips.textContent = '';
 		providers.forEach(p => {
-			const c = press(el('div', `pd-chip${provider?.id === p.id ? ' is-on' : ''}`), p.name, () => { provider = p; renderChips(); void load(); });
+			const c = press(el('div', `pd-chip${provider?.id === p.id ? ' is-on' : ''}`), p.name, () => { if (provider?.id === p.id) return; provider = p; manualId.value = ''; manualName.value = ''; renderChips(); void load(); });
 			c.setAttribute('role', 'radio');
 			c.setAttribute('aria-checked', String(provider?.id === p.id));
 			c.append(iconTile(p, 'sm'), el('span', '', p.name));
@@ -388,8 +393,12 @@ export function openModelPicker(done: Done, openProviders: () => void, editing?:
 		if (providers.length === 1) chips.hidden = true;
 	};
 
+	let savingModels = false;
 	const commit = async () => {
-		if (!provider) return;
+		if (!provider || addBtn.disabled || savingModels) return;
+		savingModels = true;
+		addBtn.disabled = true;
+		const previous = [...generalSettings.models];
 		const items = [...picked.values()];
 		const id = manualId.value.trim();
 		if (id && !items.some(m => m.id === id)) items.push({ id, name: manualName.value.trim() || id });
@@ -397,7 +406,7 @@ export function openModelPicker(done: Done, openProviders: () => void, editing?:
 			if (exists(m.id)) continue;
 			generalSettings.models.push({ id: newId() + generalSettings.models.length, providerId: provider.id, providerModelId: m.id, name: m.name, enabled: true });
 		}
-		try { await saveSettings(); } catch { status.classList.add('is-error'); status.textContent = t('failedToSaveModel'); return; }
+		try { await saveSettings(); } catch { generalSettings.models = previous; savingModels = false; refresh(); status.classList.add('is-error'); status.textContent = t('failedToSaveModel'); return; }
 		controller?.abort();
 		dlg.close();
 		done();
@@ -426,9 +435,10 @@ function showModelEditor(dlg: Dialog, model: ModelConfig, done: Done): void {
 		const providerModelId = idInput.value.trim();
 		if (!name || !providerModelId) { error.textContent = t('modelRequiredFields'); return; }
 		const index = generalSettings.models.findIndex(m => m.id === model.id);
+		const previous = [...generalSettings.models];
 		const next = { ...model, name, providerModelId };
 		if (index >= 0) generalSettings.models[index] = next; else generalSettings.models.push(next);
-		try { await saveSettings(); } catch { error.textContent = t('failedToSaveModel'); return; }
+		try { await saveSettings(); } catch { generalSettings.models = previous; error.textContent = t('failedToSaveModel'); return; }
 		dlg.close();
 		done();
 	}));
