@@ -36,7 +36,7 @@ HALLUCINATIONS = ('谢谢观看', '感谢观看', '请不吝点赞', '字幕由'
 def atomic_json(path, data, durable=True):
     fd, name = tempfile.mkstemp(dir=path.parent)
     try:
-        with os.fdopen(fd, 'w') as f:
+        with os.fdopen(fd, 'w', encoding='utf8') as f:
             json.dump(data, f, ensure_ascii=False); f.flush()
             if durable: os.fsync(f.fileno())
         os.replace(name, path)
@@ -136,9 +136,16 @@ def is_private(path):
     """Only the copy the helper installed is the helper's to update; a Homebrew one belongs to the person."""
     return bool(path) and str(Path(path).parent) == str(eng.venv_bin('base'))
 def is_standalone(path):
-    """pip's yt-dlp is a small script; the standalone one is a compiled program."""
+    """pip uses a script on Unix and an executable with an embedded script ZIP on Windows."""
     try:
-        with open(path, 'rb') as f: return f.read(2) != b'#!'
+        with open(path, 'rb') as f:
+            if f.read(2) == b'#!': return False
+        if eng.windows():
+            import zipfile
+            try:
+                with zipfile.ZipFile(path) as launcher: return '__main__.py' not in launcher.namelist()
+            except zipfile.BadZipFile: pass
+        return True
     except OSError: return False
 def update_stamp(): return eng.tools_home() / 'ytdlp-update.json'
 def run_steps(steps, env):
@@ -395,11 +402,31 @@ def clean_segments(segments):
 RUNNING = ('queued', 'downloading', 'converting', 'downloadingModel', 'transcribing')
 def pid_alive(pid):
     """Alive and still our worker: a recycled process id must neither keep a dead job running nor be killed by a cancel."""
+    if not isinstance(pid, int) or pid <= 0: return False
+    if eng.windows():
+        # os.kill(pid, 0) terminates a process on Windows instead of probing it.
+        query = f"(Get-CimInstance Win32_Process -Filter 'ProcessId = {pid}').CommandLine"
+        try:
+            command = subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', query], capture_output=True, text=True, timeout=10, creationflags=0x08000000).stdout
+        except (OSError, subprocess.SubprocessError): return False
+        return 'asr.py' in command and ('worker' in command or 'install' in command)
     try: os.kill(pid, 0)
     except (OSError, TypeError): return False
     try: command = subprocess.run(['ps', '-o', 'command=', '-p', str(pid)], capture_output=True, text=True, timeout=5).stdout
     except (OSError, subprocess.SubprocessError): return True
     return 'asr.py' in command and ('worker' in command or ' install ' in command)
+
+def stop_worker(pid):
+    if eng.windows():
+        if not pid_alive(pid): return
+        try: subprocess.run(['taskkill.exe', '/PID', str(pid), '/T', '/F'], capture_output=True, timeout=10, creationflags=0x08000000)
+        except (OSError, subprocess.SubprocessError): pass
+        return
+    for sig in (signal.SIGTERM, signal.SIGKILL):
+        try: os.killpg(pid, sig)
+        except (OSError, TypeError): break
+        time.sleep(0.3)
+        if not pid_alive(pid): break
 def job_state(base, job_id):
     if not re.fullmatch(r'[0-9a-f]{32}', str(job_id)): return None, None
     directory = job_dir(base, job_id)
@@ -503,12 +530,7 @@ def cancel(base, message):
     directory, state = job_state(base, message.get('jobId'))
     if not state: return {'ok': False, 'error': 'unknown-job'}
     if state.get('state') in RUNNING:
-        pid = state.get('pid')
-        for sig in (signal.SIGTERM, signal.SIGKILL):
-            try: os.killpg(pid, sig)
-            except (OSError, TypeError): break
-            time.sleep(0.3)
-            if not pid_alive(pid): break
+        stop_worker(state.get('pid'))
         state = write_state(directory, state='cancelled', stage='已取消', error=None)
     for leftover in directory.glob('audio.*'): leftover.unlink(missing_ok=True)
     return view(directory, state)
@@ -612,12 +634,7 @@ def install_cancel(base, message):
     directory, state = install_state(base, message.get('jobId'))
     if not state: return {'ok': False, 'error': 'unknown-job'}
     if state.get('state') in INSTALLING:
-        pid = state.get('pid')
-        for sig in (signal.SIGTERM, signal.SIGKILL):
-            try: os.killpg(pid, sig)
-            except (OSError, TypeError): break
-            time.sleep(0.3)
-            if not pid_alive(pid): break
+        stop_worker(state.get('pid'))
         state = write_state(directory, state='cancelled', stage='已取消', error=None)
         # A half-made environment is worse than none: the next attempt starts clean.
         if state.get('engine') and not (eng.base_installed() if state['engine'] == 'base' else eng.installed(state['engine'])): shutil.rmtree(eng.venv_dir(state['engine']), ignore_errors=True)
@@ -665,7 +682,7 @@ def unquarantine(path):
     except (OSError, subprocess.SubprocessError): pass
 def link_ffmpeg():
     """pip puts the bundled ffmpeg under an odd name; give it the plain one so every tool finds it."""
-    binary = eng.private_ffmpeg(); link = eng.venv_bin('base') / 'ffmpeg'
+    binary = eng.private_ffmpeg(); link = eng.venv_executable('base', 'ffmpeg')
     if binary and not link.exists():
         try: link.symlink_to(binary)
         except OSError: shutil.copy2(binary, link)
