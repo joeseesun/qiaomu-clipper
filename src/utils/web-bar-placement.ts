@@ -47,8 +47,16 @@ export function placeWebBar(host: HTMLElement, media: WebMedia | undefined, site
 			module = module.parentElement ?? undefined;
 		}
 	}
-	host.classList.remove('is-inline');
+	host.classList.remove('is-inline', 'is-floating');
 	if (!host.isConnected) doc.body.append(host);
+	if (site === 'douyin' && video && video.width >= win.innerWidth - 8) {
+		// The 精选 / feed pop-up draws the player across the whole window, in a fixed layer (z-index ~500) that covers anything
+		// placed at the usual z-index. There is no column beside it: float the strip on the search row, left of the like / comment rail (about 64px wide),
+		// so it never covers the rail or the title down the right edge, and on top of that layer.
+		host.classList.remove('is-inline'); host.classList.add('is-floating');
+		host.style.cssText = 'right:84px;left:auto;top:58px;bottom:auto;z-index:2147483000;';
+		return;
+	}
 	const left = video ? video.right + (site === 'tiktok' ? 88 : 20) : win.innerWidth - 366;
 	const width = Math.min(340, win.innerWidth - left - 20);
 	if (video && width >= 260) {
@@ -64,4 +72,12 @@ export const WEB_BAR_STYLE = `.qiaomu-web-bar{position:fixed;right:16px;bottom:1
 .qiaomu-web-bar .qiaomu-yt-bar{max-height:calc(100vh - 100px);font-family:inherit}
 .qiaomu-web-bar .qiaomu-yt-bar-lines{max-height:min(48vh,calc(100vh - 250px))}
 .qiaomu-web-bar .qiaomu-yt-bar{--qm-frame:1px solid var(--qm-line);--qm-margin:0;--qm-radius:12px}
+.qiaomu-web-bar.is-floating .qiaomu-yt-bar{--qm-card:rgba(34,34,40,.68)!important;--qm-frame:0 none!important;--qm-radius:10px!important;-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);max-height:calc(100vh - 150px)}
+.qiaomu-web-bar.is-floating{width:max-content;max-width:320px}
+.qiaomu-web-bar.is-floating:has(.qiaomu-yt-bar[data-open=true]){width:320px}
+.qiaomu-web-bar.is-floating .qiaomu-yt-bar[data-open=false] .qiaomu-yt-bar-head{min-height:34px;padding:0 4px 0 10px;gap:6px}
+.qiaomu-web-bar.is-floating .qiaomu-yt-bar[data-open=false] :is(.qiaomu-yt-bar-title,.qiaomu-yt-tool-copy,.qiaomu-yt-tool-download,.qiaomu-yt-tool-settings){display:none}
+.qiaomu-web-bar.is-floating .qiaomu-yt-bar[data-open=false] .qiaomu-yt-tool{height:26px}
+.qiaomu-web-bar.is-floating .qiaomu-yt-bar[data-open=false] .qiaomu-yt-tool-study{margin:0;padding:0 8px}
+.qiaomu-web-bar.is-floating .qiaomu-yt-bar-lines{max-height:min(48vh,calc(100vh - 330px))}
 `;

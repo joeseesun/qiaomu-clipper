@@ -37,3 +37,11 @@ it('ignores Douyin’s hidden duplicate recommendation panel and leaves the auth
 	expect(host.previousElementSibling?.tagName).toBe('HEADER'); expect(host.nextElementSibling).toBe(section);
 	expect(host.classList.contains('is-inline')).toBe(true); expect(host.style.top).toBe('');
 });
+it('floats the Douyin bar above a full-window pop-up player instead of hiding behind it', () => {
+	document.body.innerHTML = '<video></video>'; const video = document.querySelector('video')!, host = document.createElement('div'); host.className = 'qiaomu-web-bar';
+	Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1440 });
+	vi.spyOn(video, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0, right: 1440, width: 1440, height: 853 } as DOMRect);
+	placeWebBar(host, video, 'douyin');
+	expect(host.parentElement).toBe(document.body); expect(host.classList.contains('is-inline')).toBe(false);
+	expect(host.style.right).toBe('84px'); expect(host.style.top).toBe('58px'); expect(host.classList.contains('is-floating')).toBe(true); expect(Number(host.style.zIndex)).toBeGreaterThan(504);
+});
