@@ -849,6 +849,10 @@
 											<div class="asr-auto-text"><label for="asr-auto-start">点「生成字幕」后直接开始</label><span>不再每次确认。用云端模型时，音频会直接上传。</span></div>
 											<div class="checkbox-container"><input type="checkbox" id="asr-auto-start" /></div>
 										</div>
+										<div class="asr-auto" id="asr-auto-login-row" hidden>
+											<div class="asr-auto-text"><label for="asr-auto-login">下载要验证身份时，用这个浏览器的登录状态</label><span>YouTube 等网站会要求登录才给音频。打开后，只把当前网站的登录信息交给本机助手，不会上传。点过一次「用浏览器登录状态重试」会自动打开。</span></div>
+											<div class="checkbox-container"><input type="checkbox" id="asr-auto-login" /></div>
+										</div>
 										<div class="asr-auto">
 											<div class="asr-auto-text"><label for="asr-use-context">参考视频简介，少写错人名和术语</label><span>把标题、作者和简介交给模型参考。简介里的错字可能被照抄；用云端时，这些信息会一起发送。</span></div>
 											<div class="checkbox-container"><input type="checkbox" id="asr-use-context" /></div>

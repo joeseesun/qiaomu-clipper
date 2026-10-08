@@ -44,6 +44,7 @@ module.exports = (env, argv) => {
 		entry: {
 			'content-loader': './src/content-loader.ts',
 			'triple-key': './src/triple-key-content.ts',
+			'youtube-player-bridge': './src/youtube-player-bridge.ts',
 			'youtube-panel': './src/youtube-panel-content.ts',
 			'bilibili-panel': './src/bilibili-panel-content.ts',
 			'bilibili-embed': './src/bilibili-embed-content.ts',

@@ -18,7 +18,7 @@ export type AsrPlatform = 'youtube' | 'bilibili' | 'xiaoyuzhou' | 'file' | 'web'
 export const PLATFORMS: AsrPlatform[] = ['youtube', 'bilibili', 'xiaoyuzhou', 'file', 'web'];
 // A way of recognising, written 'local:<engine>' (a local engine; 'local:auto' = the best one installed) or 'cloud:<saved service id>'.
 export type Recognizer = string;
-export interface AsrSettings { useContext: boolean; mode: AsrMode; engine: LocalEngineId; profiles: AsrProfile[]; active: string; autoStart: boolean; routes: Partial<Record<AsrPlatform, Recognizer>> }
+export interface AsrSettings { useContext: boolean; mode: AsrMode; engine: LocalEngineId; profiles: AsrProfile[]; active: string; autoStart: boolean; autoLogin: boolean; routes: Partial<Record<AsrPlatform, Recognizer>> }
 export interface CloudConfig { contextMode?: 'doubao' | 'prompt'; protocol: AsrProtocol; baseUrl: string; model: string; timestamps: 'none' | 'segments'; languageParam: boolean; label: string; chunkSeconds?: number; maxChunkSeconds?: number }
 
 // Tried with real keys on a 5-minute Chinese lecture (all within 0.3 points of each other against a local Whisper reference): SiliconFlow
@@ -39,7 +39,7 @@ export const providerOf = (id: string): AsrProvider => PROVIDERS.find(provider =
 
 export const LOCAL_ENGINE_IDS: LocalEngineId[] = ['auto', 'mlx', 'mlx-qwen3', 'faster-whisper', 'whispercpp'];
 export const MAX_PROFILES = 12;
-export const defaultAsrSettings = (): AsrSettings => ({ mode: 'local', engine: 'auto', profiles: [], active: '', autoStart: false, routes: {}, useContext: true });
+export const defaultAsrSettings = (): AsrSettings => ({ mode: 'local', engine: 'auto', profiles: [], active: '', autoStart: false, autoLogin: false, routes: {}, useContext: true });
 const KEY = 'qiaomuAsrSettings';
 const newId = () => 'p' + Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-3);
 export const newProfile = (provider: AsrProviderId = 'siliconflow'): AsrProfile => { const info = providerOf(provider); return { id: newId(), provider: info.id, baseUrl: info.baseUrl, model: info.defaultModel, apiKey: '', protocol: info.protocol }; };
@@ -66,7 +66,7 @@ const clean = (value: unknown): AsrSettings => {
 	const active = profiles.some(item => item.id === v.active) ? String(v.active) : (profiles[0]?.id ?? '');
 	const routes: AsrSettings['routes'] = {};
 	if (v.routes && typeof v.routes === 'object') for (const platform of PLATFORMS) { const value = (v.routes as Record<string, unknown>)[platform]; if (typeof value === 'string' && validRecognizer(value, profiles)) routes[platform] = value; }
-	return { mode: v.mode === 'cloud' ? 'cloud' : 'local', engine: LOCAL_ENGINE_IDS.includes(v.engine as LocalEngineId) ? v.engine as LocalEngineId : 'auto', profiles, active, autoStart: v.autoStart === true, routes, useContext: v.useContext !== false };
+	return { mode: v.mode === 'cloud' ? 'cloud' : 'local', engine: LOCAL_ENGINE_IDS.includes(v.engine as LocalEngineId) ? v.engine as LocalEngineId : 'auto', profiles, active, autoStart: v.autoStart === true, autoLogin: v.autoLogin === true, routes, useContext: v.useContext !== false };
 };
 export async function loadAsrSettings(): Promise<AsrSettings> {
 	try { return clean((await browser.storage.local.get(KEY))[KEY]); } catch { return defaultAsrSettings(); }

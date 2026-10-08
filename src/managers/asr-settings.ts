@@ -54,6 +54,8 @@ export async function initializeAsrSettings(): Promise<void> {
 			wrap.append(caption, select); return wrap;
 		}));
 		if (useContext) { useContext.checked = settings.useContext; const holder = useContext.closest('.checkbox-container'); if (holder) updateToggleState(holder as HTMLElement, useContext); }
+		const autoLogin = el<HTMLInputElement>('asr-auto-login'), loginRow = el('asr-auto-login-row');
+		if (autoLogin && loginRow) { if (__LOCAL_EDITION__) loginRow.hidden = false; autoLogin.checked = settings.autoLogin; const holder = autoLogin.closest('.checkbox-container'); if (holder) updateToggleState(holder as HTMLElement, autoLogin); }
 		if (autoStart) { autoStart.checked = settings.autoStart; const holder = autoStart.closest('.checkbox-container'); if (holder) updateToggleState(holder as HTMLElement, autoStart); }
 	};
 	// The local engine to suggest: the one that does best on this computer (Qwen3-ASR on Apple silicon, else the one that runs anywhere).
@@ -204,5 +206,6 @@ export async function initializeAsrSettings(): Promise<void> {
 	defaultSelect.addEventListener('change', () => { void save(choosePatch(settings, defaultSelect.value)); });
 	useContext?.addEventListener('change', () => { void save({ useContext: useContext.checked }); });
 	autoStart?.addEventListener('change', () => { void save({ autoStart: autoStart.checked }); });
+	el<HTMLInputElement>('asr-auto-login')?.addEventListener('change', event => { void save({ autoLogin: (event.target as HTMLInputElement).checked }); });
 	addButton.addEventListener('click', openPicker);
 }

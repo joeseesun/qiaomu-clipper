@@ -54,6 +54,16 @@
 				"https://www.youtube.com/*"
 			],
 			"js": [
+				"youtube-player-bridge.js"
+			],
+			"run_at": "document_start",
+			"world": "MAIN"
+		},
+		{
+			"matches": [
+				"https://www.youtube.com/*"
+			],
+			"js": [
 				"youtube-panel.js"
 			],
 			"run_at": "document_idle"
