@@ -49,3 +49,12 @@ it('uses explicitly original audio captions ahead of Chinese and English', () =>
  expect(chooseTrack(tracks)?.id).toBe('fr');
  expect(chooseTrack(tracks, 'en')?.id).toBe('en');
 });
+
+it('names caption languages in the app language without changing the selected track IDs or source-language ranking', () => {
+ const tracks = [{...t('en-auto', 'en', true, '英语（自动生成）'),languageCode:'en'}, {...t('zh-Hant', 'zh', false, 'Chinese'),languageCode:'zh-Hant'}];
+ const options = optionsOf(tracks, 'fr', 'généré automatiquement');
+ expect(options[0]).toEqual({id:'en-auto',label:'anglais (généré automatiquement)'});
+ expect(options[1].label).toContain('traditionnel');
+ expect(chooseTrack(tracks)?.id).toBe('en-auto');
+ expect(optionsOf([{...t('unknown','not a language', false, 'Source title')}], 'fr')[0].label).toBe('Source title');
+});

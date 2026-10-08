@@ -1,5 +1,5 @@
 // Which subtitle language a video's bar shows, and which the viewer asked for. Shared by the YouTube and Bilibili bars.
-export interface TrackInfo { id: string; label: string; language: string; auto: boolean; original?: boolean; translated?: boolean }
+export interface TrackInfo { id: string; label: string; language: string; languageCode?: string; auto: boolean; original?: boolean; translated?: boolean }
 export interface LanguageOption { id: string; label: string }
 
 // "zh-CN" and "ai-zh" are both Chinese; "en-US" is English.
@@ -18,7 +18,17 @@ export function chooseTrack<T extends TrackInfo>(tracks: T[], preferred?: string
 	if (automaticLanguages.length === 1) return inLanguage(automaticLanguages[0]);
 	return inLanguage('zh') ?? inLanguage('en') ?? best(tracks);
 }
-export const optionsOf = (tracks: TrackInfo[]): LanguageOption[] => tracks.map(({ id, label }) => ({ id, label }));
+export function optionsOf(tracks: TrackInfo[], locale?: string, autoLabel = 'auto-generated'): LanguageOption[] {
+ let names: Intl.DisplayNames | undefined;
+ try { if (locale) names = new Intl.DisplayNames([locale.replace('_', '-')], { type: 'language', fallback: 'none' }); } catch { /* Keep the source label if the browser cannot name the language. */ }
+ return tracks.map(({ id, label, language, languageCode, auto }) => {
+  try {
+   const name = names?.of(languageCode || language);
+   if (name) label = name + (auto ? ` (${autoLabel})` : '') + (/~(\d+)$/.test(id) ? ` · ${id.match(/~(\d+)$/)![1]}` : '');
+  } catch { /* Unknown source language. */ }
+  return { id, label };
+ });
+}
 
 // The choice is remembered per video (never as a global rule: a viewer who reads one video in English did not ask for
 // every video in English). Kept small: the most recent 60 videos.
