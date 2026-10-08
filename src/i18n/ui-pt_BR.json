@@ -664,5 +664,18 @@
  "2. macOS 安装包版使用 /Library/QiaomuClipper/bin/qiaomu-helper --check 诊断，并用 /Library/QiaomuClipper/bin/qiaomu-helper --extension-id {0} 注册当前扩展。其他系统或源码安装按 README 操作，在仓库目录运行 python3 native/install.py --extension-id {0}；Windows 可用 python 或 py -3。": "2. Para o pacote macOS, diagnostique com /Library/QiaomuClipper/bin/qiaomu-helper --check e registre esta extensão com /Library/QiaomuClipper/bin/qiaomu-helper --extension-id {0}. Para outros sistemas ou instalações via código-fonte, siga o README e execute python3 native/install.py --extension-id {0} no repositório; no Windows, use python ou py -3.",
  "3. 不要编造扩展 ID 或 Obsidian 库路径。多个库时先让我选择；诊断失败时读取 error、hint 和 problems 处理。用当前安装方式对应的 --check 命令确认 \"ok\": true，再提醒我重新加载扩展并重试。": "3. Não invente IDs de extensão ou caminhos de cofre do Obsidian. Peça para eu escolher se houver múltiplos cofres. Trate falhas de diagnóstico usando error, hint e problems. Verifique \"ok\": true com o comando --check para o método instalado, depois me lembre de recarregar a extensão e tentar novamente.",
  "本地保存助手已安装，但尚未允许当前扩展 ID。请到「剪藏与保存」复制修复提示，让 Agent 注册当前扩展。": "O assistente de salvamento local está instalado mas não permitiu este ID de extensão. Copie o prompt de reparo em Recorte e salvamento e peça a um agente para registrar esta extensão.",
- "（部分翻译）": " (parcialmente traduzido)"
+ "（部分翻译）": " (parcialmente traduzido)",
+ "识别已成功，字幕显示失败。请刷新恢复缓存或重新选择同一文件。": "O reconhecimento foi concluído, mas não foi possível exibir as legendas. Recarregue para restaurar o cache ou selecione o mesmo arquivo novamente.",
+ "识别已成功，但浏览器字幕缓存未保存。请先导出文字稿；本机助手的成功结果仍保留。": "O reconhecimento foi concluído, mas o cache de legendas do navegador não foi salvo. Exporte primeiro a transcrição; o assistente local mantém o resultado bem-sucedido.",
+ "也可以把文件拖到这里。助手先在本机接收文件；选择云端识别时，音频会上传到所选服务并可能计费。重新生成也可能产生额外费用。": "Você também pode arrastar um arquivo para cá. O assistente o recebe primeiro neste computador. O reconhecimento na nuvem envia o áudio ao serviço selecionado e pode gerar cobranças. Gerar novamente também pode ter custos adicionais.",
+ "无法读取识别配置：{0}": "Não foi possível ler as configurações de reconhecimento: {0}",
+ "请选择识别方式": "Escolha um serviço de reconhecimento",
+ "当前识别：{0}": "Reconhecimento atual: {0}",
+ "切换识别方式失败：{0}": "Não foi possível trocar o serviço de reconhecimento: {0}",
+ "切换识别方式失败，请重新检查后重试。": "Não foi possível trocar o serviço de reconhecimento. Verifique novamente e tente outra vez.",
+ "文件已接收，但标签页恢复信息未保存。刷新后请重新选择同一文件，成功字幕仍由本机助手保留。": "Arquivo recebido, mas as informações de recuperação da aba não foram salvas. Após recarregar, selecione o mesmo arquivo; o assistente local mantém as legendas bem-sucedidas.",
+ "交给本机助手失败：{0}": "Não foi possível entregar o arquivo ao assistente local: {0}",
+ "已恢复文件标题和字幕/任务入口。浏览器刷新后需要重新选择同一文件才能播放；成功字幕缓存保留。": "O título e o acesso às legendas ou à tarefa foram restaurados. Após recarregar o navegador, selecione o mesmo arquivo para reproduzi-lo; as legendas bem-sucedidas permanecem em cache.",
+ "文件交接已过期或读取失败，请重新选择文件。若之前识别成功，同一文件会恢复缓存。": "A transferência do arquivo expirou ou não pôde ser lida. Selecione o arquivo novamente. O mesmo arquivo restaura seu cache se o reconhecimento anterior tiver sido concluído.",
+ "文件已接收，但页面初始化失败：{0}。请重试；成功字幕缓存保留。": "Arquivo recebido, mas a inicialização da página falhou: {0}. Tente novamente; as legendas bem-sucedidas permanecem em cache."
 }

@@ -664,5 +664,18 @@
  "2. macOS 安装包版使用 /Library/QiaomuClipper/bin/qiaomu-helper --check 诊断，并用 /Library/QiaomuClipper/bin/qiaomu-helper --extension-id {0} 注册当前扩展。其他系统或源码安装按 README 操作，在仓库目录运行 python3 native/install.py --extension-id {0}；Windows 可用 python 或 py -3。": "2. Para el paquete de macOS, diagnostica con /Library/QiaomuClipper/bin/qiaomu-helper --check y registra esta extensión con /Library/QiaomuClipper/bin/qiaomu-helper --extension-id {0}. Para otros sistemas o instalaciones desde el código fuente, sigue el README y ejecuta python3 native/install.py --extension-id {0} en el repositorio; en Windows, usa python o py -3.",
  "3. 不要编造扩展 ID 或 Obsidian 库路径。多个库时先让我选择；诊断失败时读取 error、hint 和 problems 处理。用当前安装方式对应的 --check 命令确认 \"ok\": true，再提醒我重新加载扩展并重试。": "3. No inventes IDs de extensión ni rutas de bóveda de Obsidian. Pídeme elegir si hay varias bóvedas. Maneja fallos de diagnóstico usando error, hint y problems. Verifica \\\"ok\\\": true con el comando --check para el método instalado, luego recuérdame recargar la extensión y reintentar.",
  "本地保存助手已安装，但尚未允许当前扩展 ID。请到「剪藏与保存」复制修复提示，让 Agent 注册当前扩展。": "El asistente local de guardado está instalado pero no ha autorizado este ID de extensión. Copia el mensaje de reparación en Recortes y guardado y pide a un agente que registre esta extensión.",
- "（部分翻译）": " (parcialmente traducido)"
+ "（部分翻译）": " (parcialmente traducido)",
+ "识别已成功，字幕显示失败。请刷新恢复缓存或重新选择同一文件。": "El reconocimiento se completó, pero no se pudieron mostrar los subtítulos. Recarga para restaurar la caché o vuelve a seleccionar el mismo archivo.",
+ "识别已成功，但浏览器字幕缓存未保存。请先导出文字稿；本机助手的成功结果仍保留。": "El reconocimiento se completó, pero no se guardó la caché de subtítulos del navegador. Exporta primero la transcripción; el asistente local conserva el resultado correcto.",
+ "也可以把文件拖到这里。助手先在本机接收文件；选择云端识别时，音频会上传到所选服务并可能计费。重新生成也可能产生额外费用。": "También puedes arrastrar un archivo aquí. El asistente lo recibe primero en este equipo. El reconocimiento en la nube sube el audio al servicio seleccionado y puede generar cargos. Volver a generar también puede tener costes adicionales.",
+ "无法读取识别配置：{0}": "No se pudo leer la configuración de reconocimiento: {0}",
+ "请选择识别方式": "Elige un servicio de reconocimiento",
+ "当前识别：{0}": "Reconocimiento actual: {0}",
+ "切换识别方式失败：{0}": "No se pudo cambiar el servicio de reconocimiento: {0}",
+ "切换识别方式失败，请重新检查后重试。": "No se pudo cambiar el servicio de reconocimiento. Comprueba de nuevo y reinténtalo.",
+ "文件已接收，但标签页恢复信息未保存。刷新后请重新选择同一文件，成功字幕仍由本机助手保留。": "Archivo recibido, pero no se guardó la información para recuperar la pestaña. Tras recargar, selecciona el mismo archivo; el asistente local conserva los subtítulos correctos.",
+ "交给本机助手失败：{0}": "No se pudo entregar el archivo al asistente local: {0}",
+ "已恢复文件标题和字幕/任务入口。浏览器刷新后需要重新选择同一文件才能播放；成功字幕缓存保留。": "Se restauraron el título y el acceso a los subtítulos o la tarea. Tras recargar el navegador, selecciona el mismo archivo para reproducirlo; los subtítulos correctos siguen en caché.",
+ "文件交接已过期或读取失败，请重新选择文件。若之前识别成功，同一文件会恢复缓存。": "La entrega del archivo caducó o no se pudo leer. Selecciona el archivo de nuevo. El mismo archivo restaurará su caché si el reconocimiento anterior se completó.",
+ "文件已接收，但页面初始化失败：{0}。请重试；成功字幕缓存保留。": "Archivo recibido, pero falló la inicialización de la página: {0}. Reinténtalo; los subtítulos correctos siguen en caché."
 }

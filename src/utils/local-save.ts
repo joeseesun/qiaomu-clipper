@@ -146,11 +146,11 @@ export function handleAsrMessage(request: unknown, sender: { id?: string; url?: 
             if (typeof payload.auto === 'boolean') patch.autoStart = payload.auto;
             chosen = effectiveFor(await saveAsrSettings(patch), platform); body.action = 'asrStatus'; payload.mode = 'status';
         }
-        let label: string | undefined, here = false;
+        let label: string | undefined, model: string | undefined, here = false;
         if (chosen?.mode === 'cloud') {
             const profile = activeProfile(chosen), cloud = profile && cloudConfig(profile, chosen.profiles);
             if (!profile || !cloud) return { ok: false, error: 'cloud-not-configured' };
-            label = cloud.label; here = isLocalService(profile.baseUrl);
+            label = cloud.label; model = cloud.model; here = isLocalService(profile.baseUrl);
             if (payload.mode === 'status') body.cloud = true; else Object.assign(body, { cloud, cloudKey: profile.apiKey || 'none' });
         } else if (chosen && chosen.engine !== 'auto') body.engine = chosen.engine;
         // The viewer agreed once to lend this browser's login (the first "retry with my browser login"): from then on a download that needs it just has it,
@@ -171,8 +171,8 @@ export function handleAsrMessage(request: unknown, sender: { id?: string; url?: 
             // A helper from before this feature answers every unknown request with an "unsupported" error.
             .then(answer => { const reply = answer as { ok?: boolean; error?: string }; return reply && typeof reply.ok === 'boolean' ? (reply.ok === false && /不支持|unsupported/i.test(reply.error || '') ? { ok: false, error: 'helper-outdated' } : answer) : { ok: false, error: 'helper-outdated' }; })
             .catch(() => ({ ok: false, error: 'helper-offline' }));
-        return payload.mode === 'status' && (result as { ok?: boolean }).ok ? { ...(result as object), mode: chosen?.mode ?? 'local', ...(label ? { cloudLabel: label, cloudLocal: here } : {}), choices: summary(chosen!) } : result;
+        return payload.mode === 'status' && (result as { ok?: boolean }).ok ? { ...(result as object), mode: chosen?.mode ?? 'local', ...(label ? { cloudLabel: label, cloudModel: model, cloudLocal: here } : {}), choices: summary(chosen!) } : result;
     });
 }
 // The viewer's choices without any key: what a page may show in its picker.
-const summary = (settings: AsrSettings) => ({ mode: settings.mode, engine: settings.engine, auto: settings.autoStart, active: activeProfile(settings)?.id ?? '', profiles: settings.profiles.map(item => ({ id: item.id, label: profileLabel(item, settings.profiles), local: isLocalService(item.baseUrl), configured: isConfigured(item) })) });
+const summary = (settings: AsrSettings) => ({ mode: settings.mode, engine: settings.engine, auto: settings.autoStart, active: activeProfile(settings)?.id ?? '', profiles: settings.profiles.map(item => ({ id: item.id, label: profileLabel(item, settings.profiles), model: item.model, local: isLocalService(item.baseUrl), configured: isConfigured(item) })) });

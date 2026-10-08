@@ -135,7 +135,8 @@ it('uses the active one of several saved services, lets a page switch between th
  expect(native.mock.calls[0][1]).toMatchObject({cloudKey:'sk-b',cloud:{label:'智谱'}});native.mockClear();
  const switched=await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'choose',profile:'a'}},sender) as any;
  expect(native.mock.calls[0][1]).toEqual({action:'asrStatus',cloud:true});expect((asrStore.data.qiaomuAsrSettings as any).active).toBe('a');
- expect(switched.choices).toEqual({mode:'cloud',engine:'auto',auto:false,active:'a',profiles:[{id:'a',label:'硅基流动',local:false,configured:true},{id:'b',label:'智谱',local:false,configured:true}]});
+ expect(switched.choices).toEqual({mode:'cloud',engine:'auto',auto:false,active:'a',profiles:[{id:'a',label:'硅基流动',model:'Qwen/Qwen3-ASR-1.7B',local:false,configured:true},{id:'b',label:'智谱',model:'glm-asr-2512',local:false,configured:true}]});
+ expect(switched.cloudModel).toBe('Qwen/Qwen3-ASR-1.7B');
  expect(JSON.stringify(switched)).not.toContain('sk-');
  native.mockClear();expect(await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'choose',profile:'nope'}},sender)).toMatchObject({error:'bad-request'});expect(await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'choose'}},sender)).toMatchObject({error:'bad-request'});expect(native).not.toHaveBeenCalled();
 });

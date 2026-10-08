@@ -664,5 +664,18 @@
  "2. macOS 安装包版使用 /Library/QiaomuClipper/bin/qiaomu-helper --check 诊断，并用 /Library/QiaomuClipper/bin/qiaomu-helper --extension-id {0} 注册当前扩展。其他系统或源码安装按 README 操作，在仓库目录运行 python3 native/install.py --extension-id {0}；Windows 可用 python 或 py -3。": "2. For the macOS package, diagnose with /Library/QiaomuClipper/bin/qiaomu-helper --check and register this extension with /Library/QiaomuClipper/bin/qiaomu-helper --extension-id {0}. For other systems or source installations, follow the README and run python3 native/install.py --extension-id {0} in the repository; on Windows, use python or py -3.",
  "3. 不要编造扩展 ID 或 Obsidian 库路径。多个库时先让我选择；诊断失败时读取 error、hint 和 problems 处理。用当前安装方式对应的 --check 命令确认 \"ok\": true，再提醒我重新加载扩展并重试。": "3. Do not invent extension IDs or Obsidian vault paths. Ask me to choose if there are multiple vaults. Handle diagnosis failures using error, hint and problems. Verify \"ok\": true with the --check command for the installed method, then remind me to reload the extension and retry.",
  "本地保存助手已安装，但尚未允许当前扩展 ID。请到「剪藏与保存」复制修复提示，让 Agent 注册当前扩展。": "The local saving helper is installed but has not allowed this extension ID. Copy the repair prompt under Clipping and saving and ask an agent to register this extension.",
- "（部分翻译）": " (partially translated)"
+ "（部分翻译）": " (partially translated)",
+ "识别已成功，字幕显示失败。请刷新恢复缓存或重新选择同一文件。": "Recognition succeeded, but captions could not be displayed. Reload to restore the cache or select the same file again.",
+ "识别已成功，但浏览器字幕缓存未保存。请先导出文字稿；本机助手的成功结果仍保留。": "Recognition succeeded, but the browser caption cache was not saved. Export the transcript first; the local helper retains the successful result.",
+ "也可以把文件拖到这里。助手先在本机接收文件；选择云端识别时，音频会上传到所选服务并可能计费。重新生成也可能产生额外费用。": "You can also drop a file here. The helper receives it on this computer first. Cloud recognition uploads audio to the selected service and may incur charges. Regenerating may also incur additional charges.",
+ "无法读取识别配置：{0}": "Could not read recognition settings: {0}",
+ "请选择识别方式": "Choose a recognition service",
+ "当前识别：{0}": "Current recognition: {0}",
+ "切换识别方式失败：{0}": "Could not switch recognition service: {0}",
+ "切换识别方式失败，请重新检查后重试。": "Could not switch recognition service. Check again and retry.",
+ "文件已接收，但标签页恢复信息未保存。刷新后请重新选择同一文件，成功字幕仍由本机助手保留。": "File received, but tab recovery information was not saved. Select the same file after reloading; the local helper retains successful captions.",
+ "交给本机助手失败：{0}": "Could not hand the file to the local helper: {0}",
+ "已恢复文件标题和字幕/任务入口。浏览器刷新后需要重新选择同一文件才能播放；成功字幕缓存保留。": "File title and caption/task access restored. After a browser reload, select the same file again to play it; successful captions remain cached.",
+ "文件交接已过期或读取失败，请重新选择文件。若之前识别成功，同一文件会恢复缓存。": "File handoff expired or could not be read. Select the file again. The same file restores its cache if recognition previously succeeded.",
+ "文件已接收，但页面初始化失败：{0}。请重试；成功字幕缓存保留。": "File received, but page initialization failed: {0}. Retry; successful captions remain cached."
 }

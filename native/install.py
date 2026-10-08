@@ -132,11 +132,14 @@ def main():
     test=self_test(host,origins[0])
     if not test.get('ok'): fail('助手已安装，但自检未通过：'+str(test.get('error')),'按错误信息处理（例如库路径失效），再重新运行安装',host=str(host))
     print(json.dumps({'ok':True,'host':str(host),'vault':str(vault) if vault else None,'vaultChoices':choices,'notes':notes,'extensionIds':ids,'registeredFor':written,'selfTest':test,'next':'在浏览器扩展管理页重新加载「乔木剪藏」，再重新打开剪藏弹窗；无需重启浏览器'},ensure_ascii=False,indent=2))
-def self_asr(host,origin):
-    """Ask the installed host which of yt-dlp / ffmpeg / a Whisper engine are present (optional: only 生成字幕 needs them)."""
-    body=json.dumps({'action':'asrStatus'}).encode()
+def self_asr(host,origin,cloud=False):
+    """Optional capabilities: cloud needs base audio tools, never a local recognition engine or model."""
+    body=json.dumps({'action':'asrStatus','cloud':cloud}).encode()
     try:
-        r=subprocess.run([str(host),origin],input=struct.pack('=I',len(body))+body,capture_output=True,timeout=20,env={'PATH':'/usr/bin:/bin'})
+        env=os.environ.copy()
+        # Unix probes mimic the browser's restricted tool search. Keep HOME and, on Windows, USERPROFILE/SystemRoot/PATH.
+        if sys.platform!='win32': env['PATH']='/usr/bin:/bin'
+        r=subprocess.run([str(host),origin],input=struct.pack('=I',len(body))+body,capture_output=True,timeout=20,env=env)
         n=struct.unpack('=I',r.stdout[:4])[0] if len(r.stdout)>=4 else 0
         answer=json.loads(r.stdout[4:4+n]) if n else {}
         return {k:answer.get(k) for k in ('ready','missing','hints','engine','modelDownloadNeeded')} if answer.get('ok') else {'ready':False,'error':answer.get('error','host produced no reply')}
@@ -158,5 +161,6 @@ def check(detected):
     test=self_test(host,origins[0]) if origins else {'ok':False,'error':'config 缺少扩展来源'}
     if not test.get('ok'): problems.append('助手自检失败：'+str(test.get('error')))
     asr_status=self_asr(host,origins[0]) if origins else None
-    print(json.dumps({'ok':not problems,'problems':problems,'selfTest':test,'subtitleGeneration':asr_status,**report,'hint':'重新运行 python3 native/install.py 通常即可修复' if problems else '助手正常；若扩展仍提示未连接，请在扩展管理页重新加载扩展'},ensure_ascii=False,indent=2));sys.exit(1 if problems else 0)
-main()
+    cloud_status=self_asr(host,origins[0],cloud=True) if origins else None
+    print(json.dumps({'ok':not problems,'problems':problems,'selfTest':test,'subtitleGeneration':asr_status,'cloudSubtitleGeneration':cloud_status,**report,'hint':'重新运行 python3 native/install.py 通常即可修复' if problems else '助手正常；若扩展仍提示未连接，请在扩展管理页重新加载扩展'},ensure_ascii=False,indent=2));sys.exit(1 if problems else 0)
+if __name__=='__main__': main()

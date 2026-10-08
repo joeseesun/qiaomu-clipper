@@ -664,5 +664,18 @@
  "2. macOS 安装包版使用 /Library/QiaomuClipper/bin/qiaomu-helper --check 诊断，并用 /Library/QiaomuClipper/bin/qiaomu-helper --extension-id {0} 注册当前扩展。其他系统或源码安装按 README 操作，在仓库目录运行 python3 native/install.py --extension-id {0}；Windows 可用 python 或 py -3。": "2. Für das macOS-Paket diagnostizieren Sie mit /Library/QiaomuClipper/bin/qiaomu-helper --check und registrieren Sie diese Erweiterung mit /Library/QiaomuClipper/bin/qiaomu-helper --extension-id {0}. Für andere Systeme oder Quellcode-Installationen folgen Sie der README und führen Sie python3 native/install.py --extension-id {0} im Repository aus; unter Windows verwenden Sie python oder py -3.",
  "3. 不要编造扩展 ID 或 Obsidian 库路径。多个库时先让我选择；诊断失败时读取 error、hint 和 problems 处理。用当前安装方式对应的 --check 命令确认 \"ok\": true，再提醒我重新加载扩展并重试。": "3. Erfinden Sie keine Erweiterungs-IDs oder Obsidian-Vault-Pfade. Lassen Sie mich bei mehreren Vaults wählen. Behandeln Sie Diagnosefehler anhand von error, hint und problems. Prüfen Sie \"ok\": true mit dem --check-Befehl für die installierte Methode und erinnern Sie mich dann daran, die Erweiterung neu zu laden und es erneut zu versuchen.",
  "本地保存助手已安装，但尚未允许当前扩展 ID。请到「剪藏与保存」复制修复提示，让 Agent 注册当前扩展。": "Das lokale Hilfsprogramm ist installiert, hat aber diese Erweiterungs-ID noch nicht zugelassen. Kopieren Sie die Reparatur-Eingabeaufforderung unter „Clippen und Speichern\" und lassen Sie einen Agenten diese Erweiterung registrieren.",
- "（部分翻译）": " (teilweise übersetzt)"
+ "（部分翻译）": " (teilweise übersetzt)",
+ "识别已成功，字幕显示失败。请刷新恢复缓存或重新选择同一文件。": "Die Erkennung war erfolgreich, aber die Untertitel konnten nicht angezeigt werden. Laden Sie die Seite neu, um den Cache wiederherzustellen, oder wählen Sie dieselbe Datei erneut aus.",
+ "识别已成功，但浏览器字幕缓存未保存。请先导出文字稿；本机助手的成功结果仍保留。": "Die Erkennung war erfolgreich, aber der Untertitelcache des Browsers wurde nicht gespeichert. Exportieren Sie zuerst das Transkript; der lokale Helfer behält das erfolgreiche Ergebnis.",
+ "也可以把文件拖到这里。助手先在本机接收文件；选择云端识别时，音频会上传到所选服务并可能计费。重新生成也可能产生额外费用。": "Sie können auch eine Datei hierher ziehen. Der Helfer empfängt sie zuerst auf diesem Computer. Die Cloud-Erkennung lädt Audio zum ausgewählten Dienst hoch und kann Kosten verursachen. Eine erneute Erstellung kann zusätzliche Kosten verursachen.",
+ "无法读取识别配置：{0}": "Erkennungseinstellungen konnten nicht gelesen werden: {0}",
+ "请选择识别方式": "Wählen Sie einen Erkennungsdienst",
+ "当前识别：{0}": "Aktuelle Erkennung: {0}",
+ "切换识别方式失败：{0}": "Erkennungsdienst konnte nicht gewechselt werden: {0}",
+ "切换识别方式失败，请重新检查后重试。": "Erkennungsdienst konnte nicht gewechselt werden. Prüfen Sie erneut und versuchen Sie es noch einmal.",
+ "文件已接收，但标签页恢复信息未保存。刷新后请重新选择同一文件，成功字幕仍由本机助手保留。": "Datei empfangen, aber die Wiederherstellungsinformationen für den Tab wurden nicht gespeichert. Wählen Sie nach dem Neuladen dieselbe Datei erneut aus; der lokale Helfer behält erfolgreiche Untertitel.",
+ "交给本机助手失败：{0}": "Datei konnte nicht an den lokalen Helfer übergeben werden: {0}",
+ "已恢复文件标题和字幕/任务入口。浏览器刷新后需要重新选择同一文件才能播放；成功字幕缓存保留。": "Dateititel und Zugang zu Untertiteln oder Aufgabe wurden wiederhergestellt. Wählen Sie nach dem Neuladen des Browsers dieselbe Datei zur Wiedergabe aus; erfolgreiche Untertitel bleiben im Cache.",
+ "文件交接已过期或读取失败，请重新选择文件。若之前识别成功，同一文件会恢复缓存。": "Die Dateiübergabe ist abgelaufen oder konnte nicht gelesen werden. Wählen Sie die Datei erneut aus. Dieselbe Datei stellt ihren Cache wieder her, wenn die vorherige Erkennung erfolgreich war.",
+ "文件已接收，但页面初始化失败：{0}。请重试；成功字幕缓存保留。": "Datei empfangen, aber die Seite konnte nicht initialisiert werden: {0}. Versuchen Sie es erneut; erfolgreiche Untertitel bleiben im Cache."
 }

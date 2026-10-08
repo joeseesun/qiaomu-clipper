@@ -9,8 +9,8 @@ export interface AsrJob { ok: true; id: string; videoKey: string; state: AsrStat
 // A local recognition engine this computer could use: `installed` says whether it is ready now, `managed` whether the helper can install it.
 export interface AsrLocalEngine { id: string; name: string; sizeMb: number; note: string; supported: boolean; installed: boolean; modelReady: boolean; managed: boolean; recommended?: boolean }
 // What the viewer has chosen, without any key: the background fills this in.
-export interface AsrChoices { mode: 'local' | 'cloud'; engine: string; active: string; auto?: boolean; profiles: Array<{ id: string; label: string; local: boolean; configured: boolean }> }
-export interface AsrStatus { ok: true; ready: boolean; missing: string[]; hints: string[]; engine: string | null; modelDownloadNeeded: boolean; mode?: 'local' | 'cloud'; cloudLabel?: string; cloudLocal?: boolean; local?: AsrLocalEngine[]; installable?: { base: boolean; engines: string[] }; choices?: AsrChoices }
+export interface AsrChoices { mode: 'local' | 'cloud'; engine: string; active: string; auto?: boolean; profiles: Array<{ id: string; label: string; model?: string; local: boolean; configured: boolean }> }
+export interface AsrStatus { ok: true; ready: boolean; missing: string[]; hints: string[]; engine: string | null; modelDownloadNeeded: boolean; mode?: 'local' | 'cloud'; cloudLabel?: string; cloudModel?: string; cloudLocal?: boolean; local?: AsrLocalEngine[]; installable?: { base: boolean; engines: string[] }; choices?: AsrChoices }
 export type InstallTarget = 'base' | 'mlx' | 'mlx-qwen3' | 'faster-whisper';
 export type InstallState = 'queued' | 'installing' | 'downloadingModel' | 'completed' | 'failed' | 'cancelled';
 export interface AsrInstall { ok: true; jobId: string; engine: string; state: InstallState; stage: string; progress: number; error?: string | null }

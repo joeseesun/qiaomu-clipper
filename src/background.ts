@@ -20,6 +20,8 @@ import { cookiesGranted, handleAsrMessage, handleLearningNativeMessage } from '.
 import { enableYouTubeEmbedRule, disableYouTubeEmbedRule } from './utils/youtube-embed-rules';
 
 import { t } from './utils/ui-text';
+import { pruneHandedFiles } from './utils/file-handoff';
+void pruneHandedFiles();
 browser.runtime.onMessage.addListener(handleLearningNativeMessage);
 browser.runtime.onMessage.addListener(handleAsrMessage);
 
