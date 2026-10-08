@@ -136,5 +136,9 @@
  "音频地址不在小宇宙的媒体域名下，已拒绝": "O endereço do áudio não está no domínio de mídia do Xiaoyuzhou, então foi recusado",
  "音频文件太大": "O arquivo de áudio é muito grande",
  "音频转换失败：": "Falha na conversão do áudio: ",
- "首次使用，正在下载识别模型（约 {0} GB），请稍候": "Primeiro uso: baixando o modelo de reconhecimento (cerca de {0} GB). Aguarde"
+ "首次使用，正在下载识别模型（约 {0} GB），请稍候": "Primeiro uso: baixando o modelo de reconhecimento (cerca de {0} GB). Aguarde",
+ "正在不使用登录状态重试视频下载": "Tentando baixar o vídeo novamente sem a sessão do navegador",
+ "正在重试 YouTube 音频下载": "Tentando baixar o áudio do YouTube novamente",
+ "YouTube 拒绝了当前登录状态，匿名下载也需要验证身份；请更新 YouTube 登录状态后重试": "O YouTube rejeitou a sessão atual, e o download sem login também exige verificação. Entre no YouTube novamente e tente outra vez.",
+ "字幕生成进程意外退出，请重试": "A geração de legendas foi interrompida inesperadamente. Tente novamente."
 }

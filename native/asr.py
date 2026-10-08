@@ -29,6 +29,7 @@ COOKIES_UNREADABLE = re.compile(r'cookies? database|could not (find|decrypt).{0,
 NEEDS_LOGIN = re.compile(r'sign in to confirm|not a bot|use --cookies|fresh cookies|login required|412|ip address is blocked|blocked from accessing', re.I)  # TikTok answers an anonymous download with "IP address is blocked"; a signed-in browser is let through
 # What a downloader that has fallen behind the site looks like (YouTube changes its player every few weeks). Worth one update and one retry.
 STALE_TOOL = re.compile(r'needs to be reloaded|unable to extract|nsig|signature|player response|precondition check failed|requested format is not available|http error 403|sabr|po token|js runtime|challenge', re.I)
+YOUTUBE_CLIENT_ERROR = re.compile(r'needs to be reloaded|player response|precondition check failed|unable to extract.{0,40}(?:player|initial)', re.I)
 UPDATE_EVERY = 12 * 3600
 # Lines Whisper tends to invent over silence or music. Only dropped when they stand alone in a short segment.
 HALLUCINATIONS = ('谢谢观看', '感谢观看', '请不吝点赞', '字幕由', '字幕 by', '字幕by', '订阅', 'thanks for watching', 'thank you for watching', 'subtitles by', 'amara.org')
@@ -37,7 +38,7 @@ HALLUCINATIONS = ('谢谢观看', '感谢观看', '请不吝点赞', '字幕由'
 def atomic_json(path, data, durable=True):
     fd, name = tempfile.mkstemp(dir=path.parent)
     try:
-        with os.fdopen(fd, 'w') as f:
+        with os.fdopen(fd, 'w', encoding='utf8') as f:
             json.dump(data, f, ensure_ascii=False); f.flush()
             if durable: os.fsync(f.fileno())
         os.replace(name, path)
@@ -150,9 +151,16 @@ def is_private(path):
     """Only the copy the helper installed is the helper's to update; a Homebrew one belongs to the person."""
     return bool(path) and str(Path(path).parent) == str(eng.venv_bin('base'))
 def is_standalone(path):
-    """pip's yt-dlp is a small script; the standalone one is a compiled program."""
+    """pip uses a script on Unix and an executable with an embedded script ZIP on Windows."""
     try:
-        with open(path, 'rb') as f: return f.read(2) != b'#!'
+        with open(path, 'rb') as f:
+            if f.read(2) == b'#!': return False
+        if eng.windows():
+            import zipfile
+            try:
+                with zipfile.ZipFile(path) as launcher: return '__main__.py' not in launcher.namelist()
+            except zipfile.BadZipFile: pass
+        return True
     except OSError: return False
 def update_stamp(): return eng.tools_home() / 'ytdlp-update.json'
 def run_steps(steps, env):
@@ -409,18 +417,44 @@ def clean_segments(segments):
 RUNNING = ('queued', 'downloading', 'converting', 'downloadingModel', 'transcribing')
 def pid_alive(pid):
     """Alive and still our worker: a recycled process id must neither keep a dead job running nor be killed by a cancel."""
+    if not isinstance(pid, int) or pid <= 0: return False
+    if eng.windows():
+        # os.kill(pid, 0) terminates a process on Windows instead of probing it.
+        query = f"[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new(); (Get-CimInstance Win32_Process -Filter 'ProcessId = {pid}').CommandLine"
+        try:
+            command = subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', query], capture_output=True, text=True, encoding='utf8', errors='replace', timeout=10, creationflags=0x08000000).stdout
+        except (OSError, subprocess.SubprocessError): return False
+        return 'asr.py' in command and ('worker' in command or 'install' in command)
     try: os.kill(pid, 0)
     except (OSError, TypeError): return False
     try: command = subprocess.run(['ps', '-o', 'command=', '-p', str(pid)], capture_output=True, text=True, timeout=5).stdout
     except (OSError, subprocess.SubprocessError): return True
     return 'asr.py' in command and ('worker' in command or ' install ' in command)
+
+def stop_worker(pid):
+    if eng.windows():
+        if not pid_alive(pid): return
+        try: subprocess.run(['taskkill.exe', '/PID', str(pid), '/T', '/F'], capture_output=True, timeout=10, creationflags=0x08000000)
+        except (OSError, subprocess.SubprocessError): pass
+        return
+    for sig in (signal.SIGTERM, signal.SIGKILL):
+        try: os.killpg(pid, sig)
+        except (OSError, TypeError): break
+        time.sleep(0.3)
+        if not pid_alive(pid): break
 def job_state(base, job_id):
     if not re.fullmatch(r'[0-9a-f]{32}', str(job_id)): return None, None
     directory = job_dir(base, job_id)
     if not directory.is_dir(): return None, None
     state = read_state(directory)
     # A worker that died (crash, killed, machine slept through a reboot) must not stay "running" forever.
-    if state.get('state') in RUNNING and not pid_alive(state.get('pid')): state = write_state(directory, state='failed', error=state.get('error') or '识别进程意外退出，请重试')
+    if state.get('state') in RUNNING and not pid_alive(state.get('pid')):
+        # Process inspection can take seconds on Windows. The worker may have written its real
+        # terminal result and exited while we inspected the PID; do not overwrite that fresh result
+        # with an error derived from the stale state read before the inspection.
+        state = read_state(directory)
+        if state.get('state') in RUNNING:
+            state = write_state(directory, state='failed', stage='失败', error=state.get('error') or '字幕生成进程意外退出，请重试')
     return directory, state
 def active_job(base):
     jobs = asr_root(base) / 'jobs'
@@ -498,12 +532,14 @@ def start(base, message):
         return {'ok': False, 'error': 'busy', 'jobId': running_id, 'videoKey': running.get('videoKey')}
     job_id = uuid.uuid4().hex; directory = job_dir(base, job_id); directory.mkdir(parents=True, mode=0o700)
     cached = read_json(result_path(base, video_key))
-    if cached and cached.get('segments') and cached.get('version') == RESULT_VERSION and not message.get('force'):
+    engine = 'cloud' if cloud else info['engine']
+    # A previous cloud result is valid, but must not masquerade as a new local-engine result (or vice versa).
+    cached_language = (cached or {}).get('requestedLanguage', (cached or {}).get('language') or 'auto')
+    if cached and cached.get('segments') and cached.get('version') == RESULT_VERSION and cached.get('engine') == engine and cached_language == language and not message.get('force'):
         with (directory / 'segments.jsonl').open('w', encoding='utf8') as f:
             for segment in cached['segments']: f.write(json.dumps(segment, ensure_ascii=False) + '\n')
         state = write_state(directory, id=job_id, videoKey=video_key, state='completed', stage='已从本机缓存读取', progress=100, engine=cached.get('engine'), language=cached.get('language'), cached=True, segmentCount=len(cached['segments']), totalSec=cached.get('duration'), processedSec=cached.get('duration'))
         return view(directory, state)
-    engine = 'cloud' if cloud else info['engine']
     spec = {'id': job_id, 'videoKey': video_key, 'url': url, 'language': language, 'engine': engine, 'cookies': cookies, 'cloud': cloud, 'context': message.get('context') is not False, **({'rss': rss} if rss else {}), **({'mediaUrl': media_url} if media_url else {})}
     if cookie_text: write_private(directory / 'cookies.txt', cookie_text); spec['cookiesFile'] = True
     atomic_json(directory / 'spec.json', spec)
@@ -519,12 +555,7 @@ def cancel(base, message):
     directory, state = job_state(base, message.get('jobId'))
     if not state: return {'ok': False, 'error': 'unknown-job'}
     if state.get('state') in RUNNING:
-        pid = state.get('pid')
-        for sig in (signal.SIGTERM, signal.SIGKILL):
-            try: os.killpg(pid, sig)
-            except (OSError, TypeError): break
-            time.sleep(0.3)
-            if not pid_alive(pid): break
+        stop_worker(state.get('pid'))
         state = write_state(directory, state='cancelled', stage='已取消', error=None)
     for leftover in directory.glob('audio.*'): leftover.unlink(missing_ok=True)
     return view(directory, state)
@@ -601,7 +632,11 @@ def install_state(base, job_id):
     directory = installs_dir(base) / job_id
     if not directory.is_dir(): return None, None
     state = read_state(directory)
-    if state.get('state') in INSTALLING and not pid_alive(state.get('pid')): state = write_state(directory, state='failed', error=state.get('error') or '安装进程意外退出，请重试')
+    if state.get('state') in INSTALLING and not pid_alive(state.get('pid')):
+        # PID inspection may finish after the installer writes its terminal result.
+        state = read_state(directory)
+        if state.get('state') in INSTALLING:
+            state = write_state(directory, state='failed', stage='失败', error=state.get('error') or '安装进程意外退出，请重试')
     return directory, state
 def active_install(base):
     for entry in (installs_dir(base).iterdir() if installs_dir(base).is_dir() else []):
@@ -636,12 +671,7 @@ def install_cancel(base, message):
     directory, state = install_state(base, message.get('jobId'))
     if not state: return {'ok': False, 'error': 'unknown-job'}
     if state.get('state') in INSTALLING:
-        pid = state.get('pid')
-        for sig in (signal.SIGTERM, signal.SIGKILL):
-            try: os.killpg(pid, sig)
-            except (OSError, TypeError): break
-            time.sleep(0.3)
-            if not pid_alive(pid): break
+        stop_worker(state.get('pid'))
         state = write_state(directory, state='cancelled', stage='已取消', error=None)
         # A half-made environment is worse than none: the next attempt starts clean.
         if state.get('engine') and not (eng.base_installed() if state['engine'] == 'base' else eng.installed(state['engine'])): shutil.rmtree(eng.venv_dir(state['engine']), ignore_errors=True)
@@ -689,7 +719,7 @@ def unquarantine(path):
     except (OSError, subprocess.SubprocessError): pass
 def link_ffmpeg():
     """pip puts the bundled ffmpeg under an odd name; give it the plain one so every tool finds it."""
-    binary = eng.private_ffmpeg(); link = eng.venv_bin('base') / 'ffmpeg'
+    binary = eng.private_ffmpeg(); link = eng.venv_executable('base', 'ffmpeg')
     if binary and not link.exists():
         try: link.symlink_to(binary)
         except OSError: shutil.copy2(binary, link)
@@ -727,31 +757,60 @@ def download(directory, spec, env, tools):
     if spec['videoKey'].startswith('file:'): return copy_staged(directory, spec, directory.parent.parent.parent)
     if spec['videoKey'].startswith('web:') and spec.get('mediaUrl'): return download_page_media(directory, spec)
     command = [tools['yt-dlp'], '--no-playlist', '--no-warnings', '--newline', '--no-continue', '--retries', '4', '--fragment-retries', '4', '-f', 'bestaudio/best', '--write-info-json', '-o', str(directory / 'audio.%(ext)s')]
-    if spec.get('cookiesFile') and (directory / 'cookies.txt').is_file(): command += ['--cookies', str(directory / 'cookies.txt')]
-    elif spec.get('cookies') in COOKIE_BROWSERS: command += ['--cookies-from-browser', spec['cookies']]
+    cookie_args = []
+    if spec.get('cookiesFile') and (directory / 'cookies.txt').is_file(): cookie_args = ['--cookies', str(directory / 'cookies.txt')]
+    elif spec.get('cookies') in COOKIE_BROWSERS: cookie_args = ['--cookies-from-browser', spec['cookies']]
+    command += cookie_args
     command.append(spec['url'])
     def progress(line):
         match = pattern.search(line)
         if match: write_state(directory, state='downloading', stage='正在下载音频', progress=round(min(float(match.group(1)), 100) * 0.15, 1))
-    refreshed = False
-    for attempt in range(3):
+    refreshed = False; client_retry = False; anonymous_retry = False; network_retries = 0
+    # Only YouTube needs room for the extra client retry; preserve other sites' three-attempt limit.
+    for attempt in range((6 if cookie_args else 5) if spec['videoKey'].startswith('youtube:') else 3):
         for leftover in directory.glob('audio.*'): leftover.unlink(missing_ok=True)  # never resume a truncated CDN stream as if it were whole
-        write_state(directory, state='downloading', stage='正在下载音频', progress=0)
+        write_state(directory, state='downloading', stage='正在不使用登录状态重试视频下载' if anonymous_retry else '正在下载音频', progress=0)
         code, tail = stream(command, env, progress)
+        using_login = bool(cookie_args) and not anonymous_retry
+        print(f'[asr] Download attempt {attempt + 1}: client={"default,web_embedded" if client_retry and not anonymous_retry else "default"}, login={using_login}, exit={code}', flush=True)
         audio = next((p for p in directory.glob('audio.*') if p.suffix not in ('.part', '.ytdl', '.wav', '.json')), None)
         if code == 0 and audio:
             info = read_json(directory / 'audio.info.json')
             if info: save_meta(directory, asr_context.from_ytdlp(info))
             return audio
         text = ' '.join(tail).lower()
-        if attempt < 2 and (any(x in text for x in ('timed out', 'connection reset', 'incomplete read', 'unexpected end', 'http error 5')) or re.search(r'downloaded.{0,20}expected', text)): time.sleep(attempt + 1); continue
-        if NEEDS_LOGIN.search(text) and not spec.get('cookies'): raise Failed('这个平台要求登录状态才能下载这条视频的音频', code='needs-cookies')
+        if network_retries < 2 and (any(x in text for x in ('timed out', 'connection reset', 'winerror 10054', 'incomplete read', 'unexpected end', 'http error 5')) or re.search(r'downloaded.{0,20}expected', text)):
+            network_retries += 1; time.sleep(network_retries); continue
+        if NEEDS_LOGIN.search(text) and not using_login:
+            if anonymous_retry: raise Failed('YouTube 拒绝了当前登录状态，匿名下载也需要验证身份；请更新 YouTube 登录状态后重试', code='cookies-rejected')
+            raise Failed('这个平台要求登录状态才能下载这条视频的音频', code='needs-cookies')
         if COOKIES_UNREADABLE.search(text): raise Failed('没能读取浏览器的登录状态：系统不允许本地助手访问浏览器的数据', code='cookies-unreadable')
         if STALE_TOOL.search(text) and not refreshed:
             # The site changed under the downloader: update it once, then try again with the new one.
             refreshed = True
             if update_ytdlp(env, force=True, on_stage=lambda stage: write_state(directory, state='downloading', stage=stage)):
                 command[0] = tools['yt-dlp'] = find_tool('yt-dlp'); continue
+        if spec['videoKey'].startswith('youtube:') and YOUTUBE_CLIENT_ERROR.search(text) and not client_retry:
+            # Keep the user's explicit login choice and all other download arguments. This is only a
+            # bounded retry for YouTube player extraction failures, never a change for other sites.
+            client_retry = True
+            command[-1:-1] = ['--extractor-args', 'youtube:player_client=default,web_embedded']
+            write_state(directory, stage='正在重试 YouTube 音频下载')
+            continue
+        if spec['videoKey'].startswith('youtube:') and YOUTUBE_CLIENT_ERROR.search(text) and using_login and not anonymous_retry:
+            # Current authenticated defaults already contain web_embedded. A rejected cookie session
+            # can fail every signed-in client while the public video works anonymously. Try without
+            # credentials once, at lower privilege; never change the saved login choice or cookie file.
+            anonymous_retry = True
+            for flag in ('--cookies', '--cookies-from-browser'):
+                if flag in command:
+                    index = command.index(flag); del command[index:index + 2]
+            # Recompute defaults for an anonymous session; do not carry the authenticated client's
+            # embedded override into it (that client can fail fetching its config on Windows).
+            if '--extractor-args' in command:
+                index = command.index('--extractor-args'); del command[index:index + 2]
+            command[-1:-1] = ['--no-cookies', '--no-cookies-from-browser']
+            continue
         if STALE_TOOL.search(text): raise Failed('这个视频暂时下载不了：下载工具已是最新，但站点最近有变化，过几天更新后再试。（' + (tail[-1] if tail else '')[:160] + '）', code='tool-outdated')
         raise Failed('音频下载失败：' + (tail[-1] if tail else '未知错误')[:200])
     raise Failed('音频下载失败')
@@ -815,6 +874,7 @@ def recognise(directory, spec, wav, total, env, found, tools):
         command = [found['path'], '-m', found['model'], '-f', str(wav), '-l', language, '-sns']
     segments = []
     def on_line(line):
+        if line.startswith('[asr] '): print(line, flush=True)
         item = parse_line(line)
         if not item: return
         window = segments[-2:]; kept = clean_segments(window + [item])
@@ -866,7 +926,7 @@ def run_worker(base_dir):
         wav, total = convert(directory, audio, env, tools)
         segments, language = recognise_cloud(directory, spec, wav, total, env, tools) if spec.get('cloud') else recognise(directory, spec, wav, total, env, found, tools)
         (asr_root(base) / 'results').mkdir(parents=True, exist_ok=True)
-        atomic_json(result_path(base, spec['videoKey']), {'version': RESULT_VERSION, 'videoKey': spec['videoKey'], 'engine': 'cloud' if spec.get('cloud') else found['id'], 'language': language, 'duration': round(total, 1), 'createdAt': time.time(), 'segments': segments})
+        atomic_json(result_path(base, spec['videoKey']), {'version': RESULT_VERSION, 'videoKey': spec['videoKey'], 'engine': 'cloud' if spec.get('cloud') else found['id'], 'language': language, 'requestedLanguage': spec.get('language') or 'auto', 'duration': round(total, 1), 'createdAt': time.time(), 'segments': segments})
         with (directory / 'segments.jsonl').open('w', encoding='utf8') as f:
             for segment in segments: f.write(json.dumps(segment, ensure_ascii=False) + '\n')
         write_state(directory, state='completed', stage='字幕已生成', progress=100, language=language, segmentCount=len(segments), processedSec=round(total, 1), error=None)

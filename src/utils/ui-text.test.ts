@@ -65,3 +65,16 @@ it.each(['ja','ko','es','fr','de','pt_BR'])('keeps model-download progress and e
  expect(error).not.toContain('音频下载失败');
  expect(error).not.toMatch(/^Audio download failed/);
 });
+
+describe('Windows helper recovery messages', () => {
+ it.each(['en', 'zh_TW', 'ja', 'ko', 'es', 'fr', 'de', 'pt_BR'])('localizes recovery progress and errors in %s', language => {
+  setUiLanguage(language);
+  const messages = ['正在不使用登录状态重试视频下载', '正在重试 YouTube 音频下载', 'YouTube 拒绝了当前登录状态，匿名下载也需要验证身份；请更新 YouTube 登录状态后重试', '字幕生成进程意外退出，请重试'];
+  for (const message of messages) {
+   const reply = localizeHelperReply({stage: message, error: message, errorCode: 'cookies-rejected'});
+   expect(reply.stage).not.toBe(message);
+   expect(reply.error).toBe(reply.stage);
+   expect(reply.errorCode).toBe('cookies-rejected');
+  }
+ });
+});

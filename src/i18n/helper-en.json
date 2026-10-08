@@ -136,5 +136,9 @@
  "音频地址不在小宇宙的媒体域名下，已拒绝": "The audio address isn't on Xiaoyuzhou's media domain, so it was refused",
  "音频文件太大": "The audio file is too large",
  "音频转换失败：": "Audio conversion failed: ",
- "首次使用，正在下载识别模型（约 {0} GB），请稍候": "First use: downloading the recognition model (about {0} GB). Please wait"
+ "首次使用，正在下载识别模型（约 {0} GB），请稍候": "First use: downloading the recognition model (about {0} GB). Please wait",
+ "正在不使用登录状态重试视频下载": "Retrying the video download without browser sign-in",
+ "正在重试 YouTube 音频下载": "Retrying the YouTube audio download",
+ "YouTube 拒绝了当前登录状态，匿名下载也需要验证身份；请更新 YouTube 登录状态后重试": "YouTube rejected the current sign-in session, and downloading without it also requires verification. Sign in to YouTube again and retry.",
+ "字幕生成进程意外退出，请重试": "Subtitle generation stopped unexpectedly. Please retry."
 }
