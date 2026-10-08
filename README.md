@@ -18,7 +18,7 @@ Read, watch, listen, and turn what you learn into Obsidian notes.
 
 </div>
 
-> **安装建议（2026-10-08）：等新版商店上架后安装。** [Chrome 应用商店](https://chromewebstore.google.com/detail/jniolfihillilkoajpnonlbkhfkiicoo)当前公开版本仍为 **1.7.1**；**1.15.6 已提交审核，通过后自动发布**。本页介绍 GitHub 版 1.15.8 的功能；多语言版将在 1.15.6 审核通过后再提交商店，旧商店版不包含全部功能。想现在体验，将下面这段安装 prompt 复制给 Codex、Claude Code 等有本机终端权限的 Agent，插件和 helper 一起安装。
+> **安装建议（2026-10-08）：等新版商店上架后安装。** [Chrome 应用商店](https://chromewebstore.google.com/detail/jniolfihillilkoajpnonlbkhfkiicoo)当前公开版本仍为 **1.7.1**；**1.15.8 已提交审核，通过后自动发布**，包含九种界面语言和 Windows 助手修复。本页介绍 GitHub 版 1.15.8 的功能；旧商店版不包含全部功能。想现在体验，将下面这段安装 prompt 复制给 Codex、Claude Code 等有本机终端权限的 Agent，插件和 helper 一起安装。
 
 ```text
 请帮我安装或升级乔木剪藏：https://github.com/joeseesun/qiaomu-clipper 。先读 README.md 和 native/README.md，按我的系统与浏览器操作。
@@ -40,9 +40,9 @@ Read, watch, listen, and turn what you learn into Obsidian notes.
 
 ## 快速开始
 
-### 推荐：等 1.15.6 上架后，从商店安装
+### 推荐：等 1.15.8 上架后，从商店安装
 
-在[商店页面](https://chromewebstore.google.com/detail/jniolfihillilkoajpnonlbkhfkiicoo)确认版本已更新到 **1.15.6 或更高**，再安装。需要保存笔记时，请先安装 Obsidian 并创建或打开一个笔记库。
+在[商店页面](https://chromewebstore.google.com/detail/jniolfihillilkoajpnonlbkhfkiicoo)确认版本已更新到 **1.15.8 或更高**，再安装。需要保存笔记时，请先安装 Obsidian 并创建或打开一个笔记库。
 
 安装扩展后，打开文章或支持的视频、音频页面，在非输入框内连按三次 `A`。也可以点页面字幕栏的学习入口，或扩展弹窗里的「阅读」：文章进入阅读页，支持的媒体页面进入学习播放器。
 
@@ -223,7 +223,7 @@ node scripts/check-editions.mjs
 
 Qiaomu Clipper brings a clean reader, Markdown editor, media player, timed transcripts and contextual AI chat into one workflow. Study a passage, ask a question, and save your own understanding with its source.
 
-> **Installation recommendation, October 8, 2026:** wait for **1.15.6 or later** to appear on the [Chrome Web Store](https://chromewebstore.google.com/detail/jniolfihillilkoajpnonlbkhfkiicoo). The current published version is **1.7.1**; **1.15.6 is submitted for review and set to publish automatically after approval**. This README describes GitHub version 1.15.8. Its multilingual store update will be submitted after 1.15.6 passes review. For early access, ask an agent with local terminal access to read the repository and install the [GitHub release](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.15.8).
+> **Installation recommendation, October 8, 2026:** wait for **1.15.8 or later** to appear on the [Chrome Web Store](https://chromewebstore.google.com/detail/jniolfihillilkoajpnonlbkhfkiicoo). The current published version is **1.7.1**; **1.15.8 is submitted for review and set to publish automatically after approval**, including nine interface languages and Windows helper fixes. This README describes GitHub version 1.15.8. For early access, ask an agent with local terminal access to read the repository and install the [GitHub release](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.15.8).
 
 ### Quick start
 
