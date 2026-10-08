@@ -1321,10 +1321,10 @@
 		"message": "已加入笔记正文"
 	},
 	"qiaomuChatNoModel": {
-		"message": "还没有可用的模型。请先在设置的“AI 解读”里添加服务商和模型。"
+		"message": "还没有可用的 AI 模型。请先添加或启用一个模型，即可开始提问。"
 	},
 	"qiaomuChatOpenSettings": {
-		"message": "打开设置"
+		"message": "配置 AI 模型"
 	},
 	"qiaomuChatSuggestSummary": {
 		"message": "总结这篇文章"

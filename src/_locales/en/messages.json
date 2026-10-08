@@ -1321,10 +1321,10 @@
 		"message": "Added to the note"
 	},
 	"qiaomuChatNoModel": {
-		"message": "No model is available yet. Add a provider and model under AI settings first."
+		"message": "No AI model is available. Add or enable a model to start asking questions."
 	},
 	"qiaomuChatOpenSettings": {
-		"message": "Open settings"
+		"message": "Set up AI models"
 	},
 	"qiaomuChatSuggestSummary": {
 		"message": "Summarize this article"
