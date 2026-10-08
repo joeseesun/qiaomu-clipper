@@ -1,3 +1,4 @@
+import { nativeHelperRepairPrompt } from './native-helper-prompt';
 import { t } from './ui-text';
 // The local helper is the one piece a person cannot install from the browser. When it is missing, say why in plain words and
 // hand over a message an AI assistant can act on, with this browser's own extension ID so nobody has to find or guess it.
@@ -26,13 +27,5 @@ export const helperProblemText = (problem: HelperProblem): string => ({
 })[problem];
 
 export function helperInstallPrompt(extensionId: string): string {
-	return [
-		t('帮我安装乔木剪藏的本地助手（让扩展能把笔记写进 Obsidian 日记）。'),
-		'',
-		t('1. 获取代码：没有就 git clone {0} ，已有就 git pull，然后进入仓库目录。', [HELPER_REPO]),
-		t('2. 运行 python3 native/install.py --extension-id {0}（Windows 用 python native\\install.py）。扩展 ID 已经给你了，不要自己找或猜；Obsidian 库路径也不要编造。', [extensionId]),
-		t('3. 输出里 "ok": false 时，读 error 和 hint 照做。如果找到多个 Obsidian 库，把名字列给我，问我用哪个，再加 --vault 重新运行。'),
-		t('4. 成功后运行 python3 native/install.py --check，要看到 "ok": true。'),
-		t('5. 最后告诉我：打开 chrome://extensions，点「乔木剪藏」的重新加载，再回到笔记里点「重试」。')
-	].join('\n');
+	return t('帮我安装乔木剪藏的本地助手（让扩展能把笔记写进 Obsidian 日记）。') + '\n' + nativeHelperRepairPrompt(extensionId);
 }

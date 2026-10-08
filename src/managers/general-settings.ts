@@ -255,7 +255,7 @@ async function initializeLocalVaultSettings(): Promise<void> {
 		note.textContent = message;
 		if (help) help.hidden = false;
 		if (download) download.hidden = !isMac;
-		if (copy) copy.hidden = isMac;
+		if (copy) copy.hidden = isMac && !/forbidden|exited/i.test(reason || '');
 		if (more) more.hidden = false;
 	};
 	const showOnline = () => {

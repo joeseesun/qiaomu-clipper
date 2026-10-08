@@ -109,6 +109,7 @@ export function createBarGeneration(options: BarGenerationOptions): BarGeneratio
 			},
 			// Make them again another way (different engine or service); the new result replaces the old one.
 			regenerate() { force = true; request(true); },
+			setup(reason) { if (reason !== 'busy') void browser.runtime.sendMessage({ action: 'openSettings', section: reason === 'helper-offline' || reason === 'helper-outdated' ? 'clip' : 'asr-models' }); },
 			addService() { options.openSettings?.(); },
 			// The viewer closed the dialog without choosing: back to the plain offer.
 			dismiss() { const key = options.videoKey(); if (key) set(key, null); },

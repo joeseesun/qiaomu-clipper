@@ -48,7 +48,7 @@
 	.asr-modal-status { min-height: 1.4em; color: var(--text-muted); font-size: var(--font-ui-small); }
 	.asr-modal-group { margin: 14px 0 8px; font-size: var(--font-ui-small); font-weight: 600; color: var(--text-muted); }
 	.asr-presets { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
-	.asr-preset { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--background-modifier-border); border-radius: 10px; cursor: pointer; user-select: none; &:hover { background: var(--background-modifier-hover); } &:focus-visible { outline: 2px solid var(--interactive-accent); } .asr-icon { width: 30px; height: 30px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; background: hsl(var(--h, 220) 70% 93%); color: hsl(var(--h, 220) 55% 32%); } }
+	.asr-preset { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--background-modifier-border); border-radius: 10px; cursor: pointer; user-select: none; &:hover { background: var(--background-modifier-hover); } &:focus-visible { outline: 1px solid var(--text-muted); outline-offset: 2px; } .asr-icon { width: 30px; height: 30px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; background: hsl(var(--h, 220) 70% 93%); color: hsl(var(--h, 220) 55% 32%); } }
 	.modal-button-container { .asr-danger { margin-inline-end: auto; color: var(--text-error, #d33); } }
 	.asr-meter { height: 4px; border-radius: 2px; background: var(--background-secondary); overflow: hidden; i { display: block; height: 100%; background: var(--interactive-accent); transition: width .4s linear; } }
 }

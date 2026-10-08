@@ -167,3 +167,11 @@ it('sends the viewer to the settings when the permission to use the browser logi
 	expect(full.start).not.toHaveBeenCalled(); expect(openSettings).toHaveBeenCalled();
 	expect(shown[shown.length - 1]).toMatchObject({ kind: 'failed', code: 'cookies-permission' });
 });
+
+it.each([['helper-offline', 'clip'], ['helper-outdated', 'clip'], ['cloud-not-configured', 'asr-models'], ['missing', 'asr-models']] as const)('routes %s setup directly to %s', (reason, section) => {
+ const send = vi.spyOn(browser.runtime, 'sendMessage').mockResolvedValue(undefined as never);
+ const { gen, full } = make();
+ gen.actions.setup!(reason);
+ expect(send).toHaveBeenCalledWith({ action: 'openSettings', section });
+ expect(full.start).not.toHaveBeenCalled();
+});

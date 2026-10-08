@@ -128,7 +128,7 @@ it('makes an installed engine the default from its dialog, opens rows with the k
 });
 
 it('keeps working while the helper is missing or old, and says so', async () => {
-	state.send.mockResolvedValue({ ok: false, error: 'helper-offline' }); await open(); expect(el('asr-status').textContent).toContain('没连上本地助手'); expect(recLocal().textContent).toContain('Qwen3-ASR');
+	state.send.mockResolvedValue({ ok: false, error: 'helper-offline' }); await open(); expect(el('asr-status').textContent).toContain('没有连上本地助手'); expect(recLocal().textContent).toContain('Qwen3-ASR');
 	state.send.mockResolvedValue({ ok: false, error: 'helper-outdated' }); await open(); expect(el('asr-status').textContent).toContain('版本较旧');
 });
 
@@ -140,4 +140,22 @@ it('saves "start straight away" and shows the saved choices again when the page 
 it('turns settings saved with the single-service layout into a first saved service in the list', async () => {
 	state.store.qiaomuAsrSettings = { mode: 'cloud', provider: 'stepfun', baseUrl: 'https://api.stepfun.com/v1', model: 'step-asr', apiKey: 'sk-saved', protocol: 'openai-transcriptions' }; await open();
 	expect(row('cloud:p1').textContent).toContain('step-asr'); expect(el<HTMLSelectElement>('asr-default').value).toBe('cloud:p1');
+});
+
+ it('offers helper installation instead of trying to install a speech engine while the helper is offline', async () => {
+ state.send.mockResolvedValue({ ok: false, error: 'helper-offline' }); await open();
+ act(recLocal(), '安装');
+ expect(modalButtons().map(b => b.textContent)).not.toContain('下载并安装');
+ const setup = modalButtons().find(b => b.textContent === '安装或更新本地助手')!;
+ expect(setup.dataset.gotoSection).toBe('clip'); setup.click();
+ expect(el('asr-modal').style.display).toBe('none');
+ expect(state.send.mock.calls.some(([msg]) => msg.payload?.mode === 'install')).toBe(false);
+ });
+
+it('offers an actionable helper repair inside a cloud test failure, without saving the draft', async () => {
+ act(rec('siliconflow'), '配置'); field('asr-f-key').value = 'test-key';
+ state.send.mockResolvedValue({ ok: false, error: 'helper-offline' }); press('测试连接'); await settled();
+ const setup = el('asr-modal-body').querySelector<HTMLButtonElement>('[data-goto-section="clip"]')!;
+ expect(setup).not.toBeNull(); expect(saved()).toBeUndefined();
+ setup.click(); expect(el('asr-modal').style.display).toBe('none');
 });

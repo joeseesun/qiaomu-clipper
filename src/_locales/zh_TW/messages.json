@@ -1907,13 +1907,13 @@
 		"message": "AI 模型"
 	},
 	"aiModelsIntro": {
-		"message": "這裡的模型用於中文翻譯、AI 對話和 AI 解讀。給影片生成字幕用的是「字幕與轉寫」裡的語音識別。"
+		"message": "這裡的模型用於翻譯、AI 對話和 AI 解讀。產生字幕的辨識服務在「ASR 語音辨識」裡設定。"
 	},
 	"aiModelsGotoAsr": {
 		"message": "前往設定語音辨識"
 	},
 	"asrIntroOther": {
-		"message": "這裡只負責把聲音變成字幕。中文翻譯、AI 對話和解讀用的是 AI 模型，在「供應商與模型」裡設定。"
+		"message": "這裡負責把聲音變成字幕。翻譯、AI 對話和解讀使用的模型在「AI 模型設定」裡設定。"
 	},
 	"asrGotoModels": {
 		"message": "前往設定 AI 模型"
@@ -1961,7 +1961,7 @@
 		"message": "正在讀取這個網址…"
 	},
 	"subtitleGenOffline": {
-		"message": "沒有連上本地助手，需要先安裝或更新本地助手。"
+		"message": "沒有連上本機助手。請到「剪藏與儲存」安裝助手，或檢查已有助手的連線。"
 	},
 	"audioTabAbout": {
 		"message": "簡介"
@@ -2018,7 +2018,7 @@
 		"message": "影片裡說的語言"
 	},
 	"subtitleGenNeedsLogin": {
-		"message": "這個平臺要求登入狀態才允許下載音訊。可以讓本機助手借用這個瀏覽器的登入資訊，只用於這一次下載，不會儲存或上傳（macOS 可能彈出鑰匙串授權）。注意：用賬號頻繁下載有被平臺限制的風險，建議少量使用。"
+		"message": "平台要求登入後才能下載音訊。允許後，僅將目前網站所需的登入資訊交給本機助手用於這次下載；暫存檔案在任務結束、失敗或取消後刪除。"
 	},
 	"subtitleGenLoginRetry": {
 		"message": "用瀏覽器登入狀態重試"
@@ -2027,13 +2027,13 @@
 		"message": "字幕由語音識別生成，可能有識別錯誤"
 	},
 	"subtitleGenOutdated": {
-		"message": "本地助手版本較舊，請重新執行 python3 native/install.py 更新後再試。"
+		"message": "本機助手版本較舊。請到「剪藏與儲存」更新助手，再重新檢查。"
 	},
 	"subtitleGenMissing": {
-		"message": "還缺少生成字幕所需的工具。在終端執行下面的命令安裝後，點“重新檢查”："
+		"message": "還缺少產生字幕所需的工具。請設定語音辨識，安裝所需工具或本機引擎後重新檢查。"
 	},
 	"subtitleGenCloudSetup": {
-		"message": "雲端識別還沒配置好：請在擴充套件設定 → AI 模型設定 → ASR 語音識別 裡填寫服務和 API Key。"
+		"message": "雲端辨識尚未設定完成。請在「ASR 語音辨識」新增或補全服務，再重新檢查。"
 	},
 	"subtitleGenConfirmCloud": {
 		"message": "這個影片沒有字幕。可以生成：下載這條影片的音訊，上傳到「{service}」識別。音訊會離開本機，並按該服務的規則計費。"
@@ -2142,5 +2142,11 @@
 	},
 	"podcastBarNone": {
 		"message": "這集節目還沒有字幕，可以用語音識別生成"
+	},
+	"subtitleGenSetupHelper": {
+		"message": "安裝或更新本機助手"
+	},
+	"subtitleGenSetupRecognition": {
+		"message": "設定語音辨識"
 	}
 }
