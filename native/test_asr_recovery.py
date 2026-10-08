@@ -126,9 +126,18 @@ class DownloadTests(unittest.TestCase):
         for command in self.commands[:2]: self.assertIn('--cookies', command)
         anonymous = self.commands[2]
         self.assertNotIn('--cookies', anonymous); self.assertNotIn('--cookies-from-browser', anonymous)
+        self.assertNotIn('--extractor-args', anonymous)
         self.assertIn('--no-cookies', anonymous); self.assertIn('--no-cookies-from-browser', anonymous)
         self.assertEqual(cookie.read_text(), secret); self.assertEqual(self.spec['cookies'], 'edge')
         self.assertIn('login=False', log.getvalue()); self.assertNotIn(secret, log.getvalue())
+
+    def test_localized_windows_connection_reset_has_bounded_transport_retries(self):
+        self.spec.update(cookies='edge')
+        errors = ['[WinError 10054] 远程主机强迫关闭了一个现有的连接。'] * 2 + ['The page needs to be reloaded.'] * 2 + [None]
+        with self.attempt(errors), patch.object(asr.time, 'sleep') as sleep, patch.object(asr, 'update_ytdlp', return_value=False):
+            asr.download(self.directory, self.spec, {}, self.tools)
+        self.assertEqual(len(self.commands), 5); self.assertEqual(sleep.call_count, 2)
+        self.assertIn('--no-cookies', self.commands[-1])
 
     def test_anonymous_retry_is_bounded_and_cannot_access_login_required_content(self):
         self.spec.update(cookies='edge')

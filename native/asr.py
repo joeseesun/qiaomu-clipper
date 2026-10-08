@@ -768,14 +768,14 @@ def download(directory, spec, env, tools):
         write_state(directory, state='downloading', stage='正在不使用登录状态重试视频下载' if anonymous_retry else '正在下载音频', progress=0)
         code, tail = stream(command, env, progress)
         using_login = bool(cookie_args) and not anonymous_retry
-        print(f'[asr] Download attempt {attempt + 1}: client={"default,web_embedded" if client_retry else "default"}, login={using_login}, exit={code}', flush=True)
+        print(f'[asr] Download attempt {attempt + 1}: client={"default,web_embedded" if client_retry and not anonymous_retry else "default"}, login={using_login}, exit={code}', flush=True)
         audio = next((p for p in directory.glob('audio.*') if p.suffix not in ('.part', '.ytdl', '.wav', '.json')), None)
         if code == 0 and audio:
             info = read_json(directory / 'audio.info.json')
             if info: save_meta(directory, asr_context.from_ytdlp(info))
             return audio
         text = ' '.join(tail).lower()
-        if network_retries < 2 and (any(x in text for x in ('timed out', 'connection reset', 'incomplete read', 'unexpected end', 'http error 5')) or re.search(r'downloaded.{0,20}expected', text)):
+        if network_retries < 2 and (any(x in text for x in ('timed out', 'connection reset', 'winerror 10054', 'incomplete read', 'unexpected end', 'http error 5')) or re.search(r'downloaded.{0,20}expected', text)):
             network_retries += 1; time.sleep(network_retries); continue
         if NEEDS_LOGIN.search(text) and not using_login:
             if anonymous_retry: raise Failed('YouTube 拒绝了当前登录状态，匿名下载也需要验证身份；请更新 YouTube 登录状态后重试', code='cookies-rejected')
@@ -801,6 +801,10 @@ def download(directory, spec, env, tools):
             for flag in ('--cookies', '--cookies-from-browser'):
                 if flag in command:
                     index = command.index(flag); del command[index:index + 2]
+            # Recompute defaults for an anonymous session; do not carry the authenticated client's
+            # embedded override into it (that client can fail fetching its config on Windows).
+            if '--extractor-args' in command:
+                index = command.index('--extractor-args'); del command[index:index + 2]
             command[-1:-1] = ['--no-cookies', '--no-cookies-from-browser']
             continue
         if STALE_TOOL.search(text): raise Failed('这个视频暂时下载不了：下载工具已是最新，但站点最近有变化，过几天更新后再试。（' + (tail[-1] if tail else '')[:160] + '）', code='tool-outdated')
