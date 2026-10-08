@@ -94,7 +94,7 @@ Help users turn web articles and audio/video transcripts into Obsidian Markdown 
 | declarativeNetRequest | Apply bundled, narrowly filtered YouTube embed and youtubei header rules required by the inherited article-reader/video functionality. Not used to block advertising or track traffic. |
 | http://*/* and https://*/* | Support clipping and reading arbitrary websites, the persistent configurable triple-press shortcut listener/content loader, and requests to user-configured AI endpoints including local HTTP providers. The fixed RSS endpoint is rss.qiaomu.ai. The key listener does not upload keystrokes or browsing trails. Broad access enables these page features without asking users to add every site separately. |
 
-Commands are declared in the Manifest commands object, not the permissions list. No history, cookies, debugger or identity permission is requested.
+Commands are declared in the Manifest commands object, not the permissions list. No history, debugger or identity permission is requested. The cookies permission is optional in the store edition; see the updated justification below.
 
 Remote code: No. All extension executable JS, CSS and fonts are included in the uploaded ZIP. AI/RSS responses are content/data, not executed JavaScript. Original article images/media may be requested from their origins. The Python Native Messaging helper is separate local software invoked only after user installation.
 
@@ -190,3 +190,10 @@ References checked 2026-10-02:
 - Google 显示「已将您的扩展程序提交送审」，状态页确认「待审核」「该草稿尚待审核」。官方公开更新仍须等待审核，不等于新版已上架。
 - 真实安装/升级、实际 AI 账号调用及媒体站点验收仍未完成；包检查记录保留 false。
 - 后台状态原文仅保存在本机 builds/store-upload/submitted-1.14.2-status.txt，不提交账号信息。
+
+## 1.15.2 可选 Cookie 权限说明（2026-10-08）
+
+Optional cookies permission justification:
+When the user enables browser-login support and approves the optional permission, read cookies related to the requested media site (YouTube also uses Google login cookies) and pass them only to the separately installed local Native Messaging helper. The helper uses a temporary cookie file to authenticate the user-requested audio download with the original platform for subtitle generation, then deletes it on completion, failure or cancellation. Cookies are not sent to RSS, AI or cloud recognition providers, or used for advertising. Users can disable automatic login use in settings. The store edition does not offer media-file export.
+
+候选上传包：`builds/qiaomu-clipper-1.15.2-chrome.zip`。本节的权限说明不表示已经提交，提交状态以商店后台为准。
