@@ -7,11 +7,13 @@ node_modules/
 dev/
 dev_firefox/
 dev_safari/
+dev_local/
 
 # Prod
 dist/
 dist_firefox/
 dist_safari/
+dist_local/
 builds/
 changelogs/
 assets/shared

@@ -6,6 +6,7 @@ process.env.TZ = 'America/Los_Angeles';
 export default defineConfig({
 	define: {
 		DEBUG_MODE: false,
+		__LOCAL_EDITION__: true,
 	},
 	test: {
 		include: ['src/**/*.test.ts'],

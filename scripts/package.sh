@@ -23,16 +23,7 @@ pack chrome dist
 pack firefox dist_firefox
 pack safari dist_safari
 
-# The Web Store package (above) must not carry a "key": the store assigns its own. People who load the unpacked build from GitHub
-# get the same public key the store item has, so their extension ID equals the store's and the local helper can allow it up front.
-# Verified by src/utils/local-build-key.test.ts.
-pack_local() {
-	local out="$ROOT/builds/qiaomu-clipper-$VERSION-chrome-local.zip" tmp; tmp="$(mktemp -d)"
-	cp -R "$ROOT/dist/." "$tmp/"
-	node -e "const fs=require('fs');const p=process.argv[1]+'/manifest.json';const m=JSON.parse(fs.readFileSync(p,'utf8'));m.key=fs.readFileSync(process.argv[2],'utf8').trim();fs.writeFileSync(p,JSON.stringify(m,null,2)+'\\n')" "$tmp" "$ROOT/scripts/chrome-local-key.txt"
-	rm -f "$out"
-	( cd "$tmp" && zip -qr -X "$out" . -x '*.DS_Store' )
-	rm -rf "$tmp"
-	echo "$out (with the store's public key, for loading unpacked)"
-}
-pack_local
+# The local edition (loaded unpacked from GitHub) is a separate build: the store's public key in its manifest, so its extension ID equals the
+# store's, and features the Web Store would not accept. The store package above has neither. Checked by scripts/check-editions.mjs.
+pack chrome-local dist_local
+node "$ROOT/scripts/check-editions.mjs"

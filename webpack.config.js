@@ -24,17 +24,20 @@ module.exports = (env, argv) => {
 	const isFirefox = env.BROWSER === 'firefox';
 	const isSafari = env.BROWSER === 'safari';
 	const isProduction = argv.mode === 'production';
+	// The local edition is the Chrome build people load from GitHub: fixed extension ID, and features the Web Store would not accept
+	// (saving media files). The store edition is built from the same source with __LOCAL_EDITION__ false, so that code is not in it at all.
+	const isLocal = env.EDITION === 'local' && !isFirefox && !isSafari;
 
 	const getOutputDir = () => {
 		if (isProduction) {
-			return isFirefox ? 'dist_firefox' : (isSafari ? 'dist_safari' : 'dist');
+			return isFirefox ? 'dist_firefox' : (isSafari ? 'dist_safari' : (isLocal ? 'dist_local' : 'dist'));
 		} else {
-			return isFirefox ? 'dev_firefox' : (isSafari ? 'dev_safari' : 'dev');
+			return isFirefox ? 'dev_firefox' : (isSafari ? 'dev_safari' : (isLocal ? 'dev_local' : 'dev'));
 		}
 	};
 
 	const outputDir = getOutputDir();
-	const browserName = isFirefox ? 'firefox' : (isSafari ? 'safari' : 'chrome');
+	const browserName = isFirefox ? 'firefox' : (isSafari ? 'safari' : (isLocal ? 'chrome-local' : 'chrome'));
 
 	const mainConfig = {
 		mode: argv.mode,
@@ -61,6 +64,8 @@ module.exports = (env, argv) => {
 		},
 		output: {
 			path: path.resolve(__dirname, outputDir),
+			// Start from an empty folder: files left by older builds must not end up in a package.
+			clean: true,
 			filename: '[name].js',
 			module: false,
 		},
@@ -150,7 +155,9 @@ module.exports = (env, argv) => {
 					{ 
 						from: isFirefox ? "src/manifest.firefox.json" : 
 							  (isSafari ? "src/manifest.safari.json" : "src/manifest.chrome.json"), 
-						to: "manifest.json" 
+						to: "manifest.json",
+						// The store assigns its own key; the local edition carries the store item's public key so both get the same extension ID.
+						...(isLocal ? { transform: (content) => { const manifest = JSON.parse(content.toString()); manifest.key = fs.readFileSync(path.resolve(__dirname, 'scripts/chrome-local-key.txt'), 'utf8').trim(); return JSON.stringify(manifest, null, '\t'); } } : {})
 					},
 					{ from: "LICENSE", to: "LICENSE.txt" },
 					{ from: "src/popup.html", to: "popup.html" },
@@ -181,7 +188,8 @@ module.exports = (env, argv) => {
 			},
 			new webpack.DefinePlugin({
 				'process.env.NODE_ENV': JSON.stringify(argv.mode),
-				'DEBUG_MODE': JSON.stringify(!isProduction)
+				'DEBUG_MODE': JSON.stringify(!isProduction),
+				'__LOCAL_EDITION__': JSON.stringify(isLocal)
 			}),
 			...(isProduction ? [
 				new ZipPlugin({

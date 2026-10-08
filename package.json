@@ -21,7 +21,7 @@
 		"build:chrome": "webpack --env BROWSER=chrome --mode production",
 		"build:firefox": "webpack --env BROWSER=firefox --mode production",
 		"build:safari": "webpack --env BROWSER=safari --mode production",
-		"build": "npm run build:chrome && npm run build:firefox && npm run build:safari",
+		"build": "npm run build:chrome && npm run build:local && npm run build:firefox && npm run build:safari",
 		"package": "bash scripts/package.sh",
 		"build:cli": "node scripts/build-cli.mjs",
 		"build:api": "node scripts/build-api.mjs",
@@ -31,7 +31,9 @@
 		"update-locales": "ts-node --project scripts/tsconfig.json scripts/update-locales.ts",
 		"check-strings": "ts-node --project scripts/tsconfig.json scripts/check-unused-strings.ts",
 		"add-locale": "ts-node --project scripts/tsconfig.json scripts/add-locale.ts",
-		"prepublishOnly": "npm run build:cli && npm run build:api"
+		"prepublishOnly": "npm run build:cli && npm run build:api",
+		"dev:local": "webpack --watch --env BROWSER=chrome --env EDITION=local --mode development",
+		"build:local": "webpack --env BROWSER=chrome --env EDITION=local --mode production"
 	},
 	"devDependencies": {
 		"@types/chrome": "^0.0.270",
