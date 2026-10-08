@@ -116,15 +116,11 @@ html.qiaomu-audio-page .qa-tools{display:flex;flex-wrap:wrap;align-items:center;
 html.qiaomu-audio-page .qa-player .qa-skip{flex:none;width:38px;height:38px;padding:0;border:0;border-radius:50%;background:transparent;box-shadow:none;color:var(--text-muted,#6e6e73);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:background .12s,color .12s}
 html.qiaomu-audio-page .qa-player .qa-skip:hover{background:var(--background-modifier-hover,rgba(127,127,127,.16));color:var(--text-normal,#1d1d1f);box-shadow:none}
 html.qiaomu-audio-page .qa-player .qa-skip svg{width:26px;height:26px}
-html.qiaomu-audio-page .qa-speed{position:relative;margin-inline-start:auto}
-html.qiaomu-audio-page .qa-player .qa-chip{width:auto;height:34px;min-width:58px;padding:0 14px;border:0;border-radius:17px;background:var(--background-modifier-hover,rgba(127,127,127,.16));box-shadow:none;color:var(--text-normal,#1d1d1f);font:inherit;font-size:13.5px;font-weight:550;font-variant-numeric:tabular-nums;cursor:pointer}
-html.qiaomu-audio-page .qa-player .qa-chip:hover{background:var(--background-modifier-border,rgba(127,127,127,.26));box-shadow:none}
-html.qiaomu-audio-page .qa-menu{position:absolute;inset-inline-end:0;bottom:calc(100% + 8px);z-index:30;min-width:112px;padding:6px;border-radius:14px;background:var(--background-primary,#fff);box-shadow:0 12px 32px rgba(0,0,0,.2),0 0 0 1px var(--background-modifier-border,rgba(127,127,127,.2))}
-html.qiaomu-audio-page .qa-menu[hidden]{display:none}
-html.qiaomu-audio-page .qa-player .qa-menu-item{display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%;height:36px;padding:0 12px;border:0;border-radius:9px;background:transparent;box-shadow:none;color:var(--text-normal,#1d1d1f);font:inherit;font-size:14px;font-variant-numeric:tabular-nums;cursor:pointer}
-html.qiaomu-audio-page .qa-player .qa-menu-item:hover,html.qiaomu-audio-page .qa-player .qa-menu-item:focus-visible{background:var(--background-modifier-hover,rgba(127,127,127,.14));box-shadow:none;outline:none}
-html.qiaomu-audio-page .qa-menu-item[aria-checked=true]{font-weight:650}
-html.qiaomu-audio-page .qa-menu-item[aria-checked=true]::after{content:"✓";font-size:13px}
+html.qiaomu-audio-page .qa-speed{display:inline-flex;align-items:center;gap:2px;margin-inline-start:auto;padding:3px;border-radius:17px;background:var(--background-modifier-hover,rgba(127,127,127,.16))}
+html.qiaomu-audio-page .qa-player .qa-rate{width:auto;min-width:0;height:28px;padding:0 10px;border:0;border-radius:14px;background:transparent;box-shadow:none;color:var(--text-muted,#6e6e73);font:inherit;font-size:13px;font-variant-numeric:tabular-nums;cursor:pointer}
+html.qiaomu-audio-page .qa-player .qa-rate:hover{background:var(--background-modifier-border,rgba(127,127,127,.2));color:var(--text-normal,#1d1d1f);box-shadow:none}
+html.qiaomu-audio-page .qa-player .qa-rate[aria-checked=true]{background:var(--background-primary,#fff);color:var(--text-normal,#1d1d1f);font-weight:650;box-shadow:0 1px 2px rgba(0,0,0,.12)}
+html.qiaomu-audio-page .qa-player .qa-rate:focus-visible{outline:1px solid var(--text-muted,#6e6e73);outline-offset:2px}
 .qiaomu-audio-tabs{display:flex;gap:22px;margin:22px 0 14px;border-bottom:1px solid var(--background-modifier-border,rgba(127,127,127,.25))}
 .qiaomu-audio-tab{width:auto;height:auto;margin:0 0 -1px;padding:9px 0;border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;box-shadow:none;color:var(--text-muted,#666);font:inherit;font-size:14.5px;font-weight:500;cursor:pointer}
 html.qiaomu-audio-page .qiaomu-audio-tab:hover{background:transparent;box-shadow:none;color:var(--text-normal,#222)}

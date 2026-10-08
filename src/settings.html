@@ -47,10 +47,128 @@
 					</div>
 					<div id="general-section" class="settings-section">
 						<div class="settings-section-header">
-							<h2 data-i18n="generalSettings">General settings</h2>
+							<h2>通用</h2>
 						</div>
 						<form id="general-settings-form">
 							<div class="setting-group">
+								<div class="setting-items">
+									<div class="setting-item mod-horizontal">
+										<div class="setting-item-info">
+											<label for="language-select">语言</label>
+											<div class="setting-item-description">界面显示的语言。</div>
+										</div>
+										<div class="setting-item-control">
+											<select id="language-select">
+												<option value="" data-i18n="systemDefault">System default</option>
+												<option value="en">English</option>
+											</select>
+										</div>
+									</div>
+									<div class="setting-item mod-horizontal">
+										<div class="setting-item-info">
+											<label for="open-behavior-dropdown">点工具栏图标时</label>
+											<div class="setting-item-description">弹出窗口：先看一眼再剪藏。阅读模式：直接打开阅读页。</div>
+										</div>
+										<div class="setting-item-control">
+											<select id="open-behavior-dropdown">
+												<option value="popup" selected>弹出窗口</option>
+												<option value="reader">阅读模式</option>
+											</select>
+										</div>
+									</div>
+									<div class="setting-item mod-horizontal">
+										<div class="setting-item-info">
+											<label for="version">版本 <span id="version-number" class="version-tag"></span></label>
+											<div class="setting-item-description" id="version-status" role="status"></div>
+										</div>
+										<div class="setting-item-control">
+											<a href="https://github.com/joeseesun/qiaomu-clipper/releases" id="changelog-link" class="btn" target="_blank" rel="noopener noreferrer">更新记录</a>
+										</div>
+									</div>
+								</div>
+							</div>
+							<div class="setting-group" id="hotkeys-subsection">
+								<div class="setting-item setting-item-heading"><h3>三连击快捷键</h3></div>
+								<div class="setting-items">
+									<div class="setting-item mod-horizontal mod-toggle">
+										<div class="setting-item-info">
+											<label for="triple-key-toggle">在网页上连按 3 次字母</label>
+											<div class="setting-item-description">不用点图标：连按 3 次就阅读、编辑、剪藏，或弹出记笔记的小卡片。在输入框里打字时不会触发。</div>
+										</div>
+										<div class="setting-item-control">
+											<div class="checkbox-container">
+												<input type="checkbox" id="triple-key-toggle" />
+											</div>
+										</div>
+									</div>
+									<div class="setting-item" id="triple-key-keys">
+										<div class="setting-item-info">
+											<label>用哪个字母</label>
+											<div class="setting-item-description">每个动作一个字母或数字，留空就关闭它。默认连按 3 次 I，弹出记笔记小卡片。</div>
+										</div>
+										<div class="triple-key-fields">
+											<label class="triple-key-field"><span>阅读</span><input type="text" id="triple-key-read" maxlength="1" autocomplete="off" spellcheck="false" /></label>
+											<label class="triple-key-field"><span>编辑</span><input type="text" id="triple-key-edit" maxlength="1" autocomplete="off" spellcheck="false" /></label>
+											<label class="triple-key-field"><span>剪藏</span><input type="text" id="triple-key-clip" maxlength="1" autocomplete="off" spellcheck="false" /></label>
+											<label class="triple-key-field"><span>记笔记</span><input type="text" id="triple-key-note" maxlength="1" autocomplete="off" spellcheck="false" /></label>
+											<button type="button" id="triple-key-reset" class="btn">恢复默认</button>
+										</div>
+										<div class="setting-item-description triple-key-error" id="triple-key-error" role="alert" hidden></div>
+									</div>
+									<details class="setting-details">
+										<summary>在某些网站上不要触发</summary>
+										<div class="setting-item">
+											<div class="setting-item-info">
+												<div class="setting-item-description">每行一个网站，如 mail.google.com，它的子域名也一起关闭。也可以在剪藏菜单里，一键关闭当前网站。</div>
+											</div>
+											<textarea id="triple-key-sites" rows="3" spellcheck="false" autocomplete="off" placeholder="mail.google.com" aria-label="不触发的网站"></textarea>
+										</div>
+									</details>
+									<details class="setting-details">
+										<summary>浏览器自带的快捷键</summary>
+										<div class="setting-item-description shortcut-instructions"></div>
+										<div id="keyboard-shortcuts-list"></div>
+									</details>
+								</div>
+							</div>
+							<div class="setting-group">
+								<div class="setting-item setting-item-heading"><h3>备份与恢复</h3></div>
+								<div class="setting-items">
+									<div class="setting-item mod-horizontal">
+										<div class="setting-item-info">
+											<label for="export-all-settings-btn">导出全部设置</label>
+											<div class="setting-item-description">打包成一个文件，用来备份或换电脑，包括模版、属性、对话历史、划线和笔记草稿。文件里有 API Key，请妥善保管。</div>
+										</div>
+										<div class="setting-item-control">
+											<button type="button" id="export-all-settings-btn">导出</button>
+										</div>
+									</div>
+									<div class="setting-item mod-horizontal">
+										<div class="setting-item-info">
+											<label for="import-all-settings-btn">导入全部设置</label>
+											<div class="setting-item-description">从备份文件恢复，会覆盖现在的设置。</div>
+										</div>
+										<div class="setting-item-control">
+											<button type="button" id="import-all-settings-btn">导入</button>
+										</div>
+									</div>
+									<div class="setting-item mod-horizontal mod-toggle" style="display: none;">
+										<div class="setting-item-info">
+											<label for="beta-features-toggle" data-i18n="earlyAccessFeatures">Early access features</label>
+											<div class="setting-item-description" data-i18n="earlyAccessDescription">
+												Use features that require the latest <a href="https://help.obsidian.md/Obsidian/Early+access+versions" target="_blank">early access version</a> of Obsidian. Currently requires Obsidian 1.7.2 or later.
+											</div>
+										</div>
+										<div class="setting-item-control">
+											<div class="checkbox-container">
+												<input type="checkbox" id="beta-features-toggle" />
+											</div>
+										</div>
+									</div>
+								</div>
+							</div>
+							<div class="setting-group">
+								<div class="setting-item setting-item-heading"><h3>使用情况</h3></div>
 								<div class="setting-items">
 									<div id="usage-chart-container">
 										<div class="usage-chart-header">
@@ -74,130 +192,6 @@
 											</div>
 										</div>
 										<div id="usage-chart" class="usage-chart"></div>
-									</div>
-									<div class="setting-item mod-horizontal">
-										<div class="setting-item-info">
-											<label for="language-select" data-i18n="language">Language</label>
-											<div class="setting-item-description" data-i18n="languageDescription">
-												Choose the display language for the extension interface.
-											</div>
-										</div>
-								
-										<div class="setting-item-control">
-											<select id="language-select">
-												<option value="" data-i18n="systemDefault">System default</option>
-												<option value="en">English</option>
-											</select>
-										</div>
-									</div>
-								<div class="setting-item mod-horizontal">
-										<div class="setting-item-info">
-											<label for="open-behavior-dropdown">点工具栏图标时</label>
-											<div class="setting-item-description">弹出窗口：先看一眼再剪藏。阅读模式：直接打开阅读页。</div>
-										</div>
-										<div class="setting-item-control">
-											<select id="open-behavior-dropdown">
-												<option value="popup" selected>弹出窗口</option>
-												<option value="reader">阅读模式</option>
-											</select>
-										</div>
-									</div>
-									<div class="setting-item mod-horizontal">
-										<div class="setting-item-info">
-											<label for="version">
-													<span data-i18n="version">Version</span> <span id="version-number" class="version-tag"></span>
-											</label>
-											<div class="setting-item-description">
-												<span id="using-latest-version" data-i18n="usingLatestVersion">
-													You are using the latest version.
-												</span>
-												<span id="update-available" class="text-warning" style="display: none;" data-i18n="updateAvailable">
-													An update is available.
-												</span>
-											</div>
-										</div>
-										<div class="setting-item-control">
-											<a href="https://github.com/obsidianmd/obsidian-clipper/releases" id="changelog-link" data-i18n="changelog" class="btn" target="_blank">Changelog</a>
-										</div>
-									</div>
-									
-								</div>
-							</div>
-							<div class="setting-group" id="hotkeys-subsection">
-								<div class="setting-item setting-item-heading"><h3 data-i18n="hotkeys">Hotkeys</h3></div>
-								<div class="setting-items">
-								<div class="setting-item-description shortcut-instructions">
-								</div>
-								<div id="keyboard-shortcuts-list"></div>
-									<div class="setting-item mod-horizontal mod-toggle">
-										<div class="setting-item-info">
-											<label for="triple-key-toggle" data-i18n="tripleKeyTitle">Triple-press shortcuts</label>
-											<div class="setting-item-description" data-i18n="tripleKeyDescription">
-												On a web page, press A three times for reading mode, E for the editor, and Q to clip with the default template. Ignored while typing in text fields.
-											</div>
-										</div>
-										<div class="setting-item-control">
-											<div class="checkbox-container">
-												<input type="checkbox" id="triple-key-toggle" />
-											</div>
-										</div>
-									</div>
-									<div class="setting-item" id="triple-key-keys">
-										<div class="setting-item-info">
-											<label data-i18n="tripleKeyKeysTitle">Shortcut keys</label>
-											<div class="setting-item-description" data-i18n="tripleKeyKeysDescription">Choose one letter or digit for each action. Leave it empty to turn that action off.</div>
-										</div>
-										<div class="triple-key-fields">
-											<label class="triple-key-field"><span data-i18n="qiaomuActionReadShort">Read</span><input type="text" id="triple-key-read" maxlength="1" autocomplete="off" spellcheck="false" /></label>
-											<label class="triple-key-field"><span data-i18n="qiaomuActionEditShort">Edit</span><input type="text" id="triple-key-edit" maxlength="1" autocomplete="off" spellcheck="false" /></label>
-											<label class="triple-key-field"><span data-i18n="qiaomuEditorClip">Clip</span><input type="text" id="triple-key-clip" maxlength="1" autocomplete="off" spellcheck="false" /></label>
-											<label class="triple-key-field"><span data-i18n="qiaomuActionNoteShort">Note</span><input type="text" id="triple-key-note" maxlength="1" autocomplete="off" spellcheck="false" /></label>
-											<button type="button" id="triple-key-reset" class="btn" data-i18n="tripleKeyReset">Restore defaults</button>
-										</div>
-										<div class="setting-item-description triple-key-error" id="triple-key-error" role="alert" hidden></div>
-									</div>
-									<div class="setting-item">
-										<div class="setting-item-info">
-											<label for="triple-key-sites" data-i18n="tripleKeySitesTitle">Turn off on these sites</label>
-											<div class="setting-item-description" data-i18n="tripleKeySitesDescription">One site per line, for example mail.google.com. Subdomains are included. You can also turn it off for the current site from the clipper menu.</div>
-										</div>
-										<textarea id="triple-key-sites" rows="3" spellcheck="false" autocomplete="off" placeholder="mail.google.com"></textarea>
-									</div>
-								</div>
-							</div>
-							<div class="setting-group">
-								<div class="setting-item setting-item-heading"><h3 data-i18n="groupBackup">Backup and labs</h3></div>
-								<div class="setting-items">
-									<div class="setting-item mod-horizontal">
-										<div class="setting-item-info">
-											<label for="export-all-settings-btn" data-i18n="exportAllSettings">Export all settings</label>
-											<div class="setting-item-description" data-i18n="exportAllSettingsDescription">Export all settings including templates and properties.</div>
-										</div>
-										<div class="setting-item-control">
-											<button type="button" id="export-all-settings-btn" data-i18n="export">Export</button>
-										</div>
-									</div>
-									<div class="setting-item mod-horizontal">
-										<div class="setting-item-info">
-											<label for="import-all-settings-btn" data-i18n="importAllSettings">Import all settings</label>
-											<div class="setting-item-description" data-i18n="importAllSettingsDescription">Import all settings including templates and properties. This will replace your current configuration.</div>
-										</div>
-										<div class="setting-item-control">
-											<button type="button" id="import-all-settings-btn" data-i18n="import">Import</button>
-										</div>
-									</div>
-									<div class="setting-item mod-horizontal mod-toggle" style="display: none;">
-										<div class="setting-item-info">
-											<label for="beta-features-toggle" data-i18n="earlyAccessFeatures">Early access features</label>
-											<div class="setting-item-description" data-i18n="earlyAccessDescription">
-												Use features that require the latest <a href="https://help.obsidian.md/Obsidian/Early+access+versions" target="_blank">early access version</a> of Obsidian. Currently requires Obsidian 1.7.2 or later.
-											</div>
-										</div>
-										<div class="setting-item-control">
-											<div class="checkbox-container">
-												<input type="checkbox" id="beta-features-toggle" />
-											</div>
-										</div>
 									</div>
 								</div>
 							</div>
@@ -466,14 +460,20 @@
 
 					<div id="highlighter-section" class="settings-section">
 						<div class="settings-section-header">
-							<h2 data-i18n="highlighterSettings">Highlighter</h2>
-							<div class="settings-section-actions">
-								<a href="highlights.html" id="view-highlights" class="btn" target="_blank" data-i18n="openHighlights">Open highlights</a>
-							</div>
+							<h2>划线</h2>
 						</div>
 						<form id="highlighter-settings-form">
 							<div class="setting-group">
 								<div class="setting-items">
+									<div class="setting-item mod-horizontal">
+										<div class="setting-item-info">
+											<label for="view-highlights">你的划线</label>
+											<div class="setting-item-description">所有划线集中在一个页面：按网页查看、搜索、复制和导出。</div>
+										</div>
+										<div class="setting-item-control">
+											<a href="highlights.html" id="view-highlights" class="btn" target="_blank" rel="noopener noreferrer">查看全部划线</a>
+										</div>
+									</div>
 									<div class="setting-item mod-horizontal mod-toggle">
 										<div class="setting-item-info">
 											<label for="highlighter-visibility" data-i18n="alwaysShowHighlights">Always show highlights</label>

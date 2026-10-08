@@ -7,6 +7,7 @@ import { detectBrowser } from '../utils/browser-detection';
 import { createElementWithClass, createElementWithHTML } from '../utils/dom-utils';
 import { createDefaultTemplate, getTemplates, saveTemplateSettings } from '../managers/template-manager';
 import { updateTemplateList, showTemplateEditor } from '../managers/template-ui';
+import { checkForUpdate } from '../utils/update-check';
 import { exportAllSettings, importAllSettings } from '../utils/import-export';
 import { Settings, Template } from '../types/types';
 import { exportHighlights, importHighlights } from './highlights-manager';
@@ -140,31 +141,18 @@ export async function setShortcutInstructions() {
 async function initializeVersionDisplay(): Promise<void> {
 	const manifest = browser.runtime.getManifest();
 	const versionNumber = document.getElementById('version-number');
-	const updateAvailable = document.getElementById('update-available');
-	const usingLatestVersion = document.getElementById('using-latest-version');
-
-	if (versionNumber) {
-		versionNumber.textContent = manifest.version;
-	}
-
-	// Only add update listener for browsers that support it
-	const currentBrowser = await detectBrowser();
-	if (currentBrowser !== 'safari' && currentBrowser !== 'mobile-safari' && browser.runtime.onUpdateAvailable) {
-		browser.runtime.onUpdateAvailable.addListener((details) => {
-			if (updateAvailable && usingLatestVersion) {
-				updateAvailable.style.display = 'block';
-				usingLatestVersion.style.display = 'none';
-			}
-		});
-	} else {
-		// For Safari, just hide the update status elements
-		if (updateAvailable) {
-			updateAvailable.style.display = 'none';
-		}
-		if (usingLatestVersion) {
-			usingLatestVersion.style.display = 'none';
-		}
-	}
+	const status = document.getElementById('version-status');
+	const link = document.getElementById('changelog-link') as HTMLAnchorElement | null;
+	if (versionNumber) versionNumber.textContent = manifest.version;
+	if (!status) return;
+	// The store edition is updated by the store. The local edition checks the project's releases once per visit and says so only when it read the answer.
+	if (!__LOCAL_EDITION__) { status.textContent = '商店会自动更新这个插件。'; return; }
+	status.textContent = '正在检查更新…';
+	const result = await checkForUpdate(manifest.version);
+	if (result.state === 'newer') {
+		status.textContent = `有新版本 ${result.version}，点右边去下载。`;
+		if (link) { link.textContent = '下载新版'; link.href = result.url; link.classList.add('mod-cta'); }
+	} else status.textContent = result.state === 'current' ? '已是最新版本。' : '暂时没能检查更新，可以到右边看看最新发布。';
 }
 
 export function initializeGeneralSettings(): void {

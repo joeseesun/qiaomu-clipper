@@ -1248,6 +1248,13 @@ async function runTripleKeyAction(action: string, tabId: number): Promise<void> 
 			return;
 		}
 	}
+	// Reading and editing need no window of their own: an invisible copy of the clipper in the page does the work and opens our page.
+	// Where the page cannot host one (browser pages, a page that was open before an update), fall back to the popup.
+	const windowless = action === 'read' || action === 'edit';
+	if (windowless) {
+		await browser.storage.local.set({ qiaomuPendingAction: { action, at: Date.now(), hidden: true } });
+		try { const answer = await sendMessageToContentScript(tabId, { action: 'run-hidden-iframe' }) as { success?: boolean } | undefined; if (answer?.success) return; } catch { /* no content script here */ }
+	}
 	await browser.storage.local.set({ qiaomuPendingAction: { action, at: Date.now() } });
 	try {
 		await openPopup();

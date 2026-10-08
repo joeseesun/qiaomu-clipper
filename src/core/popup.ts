@@ -415,12 +415,14 @@ document.addEventListener('DOMContentLoaded', async function() {
 // Triple-press shortcuts (read / edit / clip) open the popup and leave the action here; run it once the clip is ready.
 async function consumePendingAction() {
 	const data = await browser.storage.local.get('qiaomuPendingAction');
-	const pending = data.qiaomuPendingAction as { action: 'read' | 'edit' | 'clip'; at: number } | undefined;
+	const pending = data.qiaomuPendingAction as { action: 'read' | 'edit' | 'clip'; at: number; hidden?: boolean } | undefined;
 	if (!pending) return;
 	await browser.storage.local.remove('qiaomuPendingAction');
 	if (Date.now() - pending.at > 15000) return;
 	if (pending.action === 'edit' || pending.action === 'read') {
 		document.getElementById(pending.action === 'edit' ? 'open-editor' : 'preview-clip')?.click();
+		// Run from the page's invisible copy: once our page is open there is nothing left for it to do.
+		if (pending.hidden) setTimeout(() => { void browser.runtime.sendMessage({ action: 'closeIframe' }).catch(() => {}); }, 4000);
 		return;
 	}
 	// Never save raw {{"prompt"}} text when the AI step failed.

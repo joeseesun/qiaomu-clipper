@@ -686,3 +686,15 @@ label {
 	#new-template-btn { width: auto; margin: 0; }
 }
 .template-back { display: inline-flex; align-items: center; margin: 0 0 6px; font-size: 13px; color: var(--text-muted); text-decoration: none; cursor: pointer; &:hover { color: var(--text-normal); } }
+
+// Settings kept out of the way until asked for (a quiet one-line disclosure under a group).
+.setting-details {
+	border-top: 1px solid var(--background-modifier-border);
+	> summary { display: flex; align-items: center; gap: 6px; padding: 12px 0; font-size: 13px; color: var(--text-muted); cursor: pointer; list-style: none;
+		&::-webkit-details-marker { display: none; }
+		&::before { content: ''; width: 6px; height: 6px; border-inline-end: 1.5px solid currentColor; border-block-end: 1.5px solid currentColor; transform: rotate(-45deg); transition: transform .12s; }
+		&:hover { color: var(--text-normal); }
+		&:focus-visible { outline: 1px solid var(--text-muted); outline-offset: 2px; border-radius: 4px; } }
+	&[open] > summary::before { transform: rotate(45deg); }
+	@media (prefers-reduced-motion: reduce) { > summary::before { transition: none; } }
+}
