@@ -1094,5 +1094,1083 @@
 	},
 	"version": {
 		"message": "Versión"
+	},
+	"navClip": {
+		"message": "Recortar y guardar"
+	},
+	"navLearning": {
+		"message": "Notas de aprendizaje"
+	},
+	"groupSaving": {
+		"message": "Guardar"
+	},
+	"groupSharing": {
+		"message": "Compartir"
+	},
+	"groupBackup": {
+		"message": "Respaldo y laboratorios"
+	},
+	"headingClip": {
+		"message": "Recortar"
+	},
+	"headingRead": {
+		"message": "Lectura y aprendizaje"
+	},
+	"headingAI": {
+		"message": "IA"
+	},
+	"navStudyHome": {
+		"message": "Transcribir y estudiar"
+	},
+	"navAsr": {
+		"message": "Reconocimiento de voz"
+	},
+	"navVideoSites": {
+		"message": "Barra de transcripción y sitios"
+	},
+	"headingLearn": {
+		"message": "Aprendizaje"
+	},
+	"videoSubtitles": {
+		"message": "Subtítulos de video"
+	},
+	"providerModels": {
+		"message": "Modelos del proveedor"
+	},
+	"providerModelsDescription": {
+		"message": "Elige un modelo de tu proveedor configurado o ingresa un ID de modelo personalizado."
+	},
+	"providerModelsLoading": {
+		"message": "Obteniendo modelos del proveedor…"
+	},
+	"providerModelsRefresh": {
+		"message": "Actualizar lista de modelos"
+	},
+	"providerModelsEmpty": {
+		"message": "El proveedor no devolvió modelos. Puedes ingresar un ID de modelo manualmente."
+	},
+	"providerModelsFallback": {
+		"message": "No se pudo leer la lista más reciente, se muestran modelos comunes. Actualiza para intentar de nuevo."
+	},
+	"providerModelsFailed": {
+		"message": "No se pudieron obtener los modelos. Verifica la URL del proveedor, la clave API y la red, luego actualiza, o ingresa un ID de modelo manualmente."
+	},
+	"providerModelsMissingKey": {
+		"message": "Configura primero la clave API del proveedor, o ingresa un ID de modelo manualmente."
+	},
+	"providerModelsDeployment": {
+		"message": "Ingresa el nombre de tu implementación de Azure como el ID de modelo."
+	},
+	"qiaomuPreviewClip": {
+		"message": "Vista previa del contenido recortado"
+	},
+	"qiaomuEditMarkdown": {
+		"message": "Editar Markdown"
+	},
+	"qiaomuPublicRss": {
+		"message": "Ver el RSS público"
+	},
+	"qiaomuCopyProperty": {
+		"message": "Copiar valor de propiedad"
+	},
+	"qiaomuCopyFailed": {
+		"message": "Falló al copiar; inténtalo de nuevo"
+	},
+	"qiaomuCharacters": {
+		"message": "caracteres"
+	},
+	"qiaomuClip": {
+		"message": "Recortar"
+	},
+	"qiaomuReadingMode": {
+		"message": "Modo lectura"
+	},
+	"qiaomuCopyMarkdown": {
+		"message": "Copiar Markdown"
+	},
+	"qiaomuSaveMarkdown": {
+		"message": "Guardar como Markdown"
+	},
+	"rssShareTitle": {
+		"message": "Compartir recortes a Qiaomu RSS"
+	},
+	"rssShareDescription": {
+		"message": "Desactivado por defecto. Cuando está activado, la opción de compartir en el recortador está marcada automáticamente y los recortes se envían públicamente al feed de Envíos de Lectores."
+	},
+	"saveSelectionToDiary": {
+		"message": "Guardar selección en nota diaria"
+	},
+	"qiaomuShareRss": {
+		"message": "Compartir a Qiaomu RSS"
+	},
+	"qiaomuClipToObsidian": {
+		"message": "Recortar a Obsidian"
+	},
+	"qiaomuContentActions": {
+		"message": "Acciones de contenido recortado"
+	},
+	"qiaomuAiRetry": {
+		"message": "Reintentar"
+	},
+	"qiaomuAiFailed": {
+		"message": "Falló el procesamiento de IA. Reintenta, o elige una plantilla sin indicaciones de IA."
+	},
+	"qiaomuActionRead": {
+		"message": "Leer"
+	},
+	"qiaomuActionCopy": {
+		"message": "Copiar"
+	},
+	"qiaomuActionDownload": {
+		"message": "Descargar"
+	},
+	"qiaomuDestination": {
+		"message": "Guardar en"
+	},
+	"qiaomuActionEdit": {
+		"message": "Editar"
+	},
+	"qiaomuEditClip": {
+		"message": "Editar propiedades y contenido"
+	},
+	"qiaomuTemplate": {
+		"message": "Plantilla"
+	},
+	"qiaomuEditorBody": {
+		"message": "Contenido"
+	},
+	"qiaomuEditorDone": {
+		"message": "Listo"
+	},
+	"qiaomuEditorCopied": {
+		"message": "Copiado"
+	},
+	"qiaomuEditorProperties": {
+		"message": "Propiedades"
+	},
+	"qiaomuEditorClip": {
+		"message": "Recortar"
+	},
+	"qiaomuEditorClipped": {
+		"message": "Recortado"
+	},
+	"defaultTemplateTitle": {
+		"message": "Plantilla predeterminada"
+	},
+	"defaultTemplateDescription": {
+		"message": "Se usa cuando ningún activador de plantilla coincide con la página, y para recortar con atajo de teclado."
+	},
+	"tripleKeyTitle": {
+		"message": "Atajos de triple pulsación"
+	},
+	"tripleKeyDescription": {
+		"message": "Pulsa una letra tres veces rápidamente en una página web para abrir el modo lectura, abrir el editor, recortar con la plantilla predeterminada o abrir la tarjeta de nota rápida. Se ignora mientras escribes en campos de texto."
+	},
+	"qiaomuActionPreview": {
+		"message": "Vista previa"
+	},
+	"qiaomuActionEditShort": {
+		"message": "Editar"
+	},
+	"qiaomuActionNoteShort": {
+		"message": "Nota"
+	},
+	"qiaomuActionReadShort": {
+		"message": "Leer"
+	},
+	"commandOpenEditor": {
+		"message": "Editar el recorte de esta página"
+	},
+	"readerFontZhuque": {
+		"message": "Zhuque Fangsong"
+	},
+	"readerFontSongti": {
+		"message": "Songti"
+	},
+	"readerFontKaiti": {
+		"message": "Kaiti"
+	},
+	"readerFontPingfang": {
+		"message": "PingFang / Hei"
+	},
+	"qiaomuHighlightCount": {
+		"message": "$1 destacados en esta página"
+	},
+	"qiaomuChatTitle": {
+		"message": "Chat IA"
+	},
+	"qiaomuChatPlaceholder": {
+		"message": "Pregunta sobre este artículo… (Enter para enviar, Shift+Enter para nueva línea)"
+	},
+	"qiaomuChatNew": {
+		"message": "Nuevo chat"
+	},
+	"qiaomuChatSend": {
+		"message": "Enviar"
+	},
+	"qiaomuChatStop": {
+		"message": "Detener"
+	},
+	"qiaomuChatContext": {
+		"message": "Las respuestas usan este artículo ($1 caracteres)"
+	},
+	"qiaomuChatInsert": {
+		"message": "Añadir a nota"
+	},
+	"qiaomuChatInserted": {
+		"message": "Añadido a la nota"
+	},
+	"qiaomuChatNoModel": {
+		"message": "No hay ningún modelo de IA disponible. Añade o habilita un modelo para empezar a hacer preguntas."
+	},
+	"qiaomuChatOpenSettings": {
+		"message": "Configurar modelos de IA"
+	},
+	"qiaomuChatSuggestSummary": {
+		"message": "Resumir este artículo"
+	},
+	"qiaomuChatSuggestPoints": {
+		"message": "Extraer puntos clave y datos"
+	},
+	"qiaomuChatSuggestTranslate": {
+		"message": "Traducir al chino"
+	},
+	"qiaomuChatSuggestCritic": {
+		"message": "¿Qué merece escepticismo?"
+	},
+	"qiaomuChatTruncated": {
+		"message": "artículo truncado"
+	},
+	"qiaomuChatSystem": {
+		"message": "Eres un asistente de lectura. Responde usando el artículo de abajo; di cuándo el artículo no cubre algo y nunca inventes hechos. Responde en el idioma de la pregunta, en Markdown conciso."
+	},
+	"qiaomuChatError": {
+		"message": "No se pudo responder:"
+	},
+	"qiaomuChatHistory": {
+		"message": "Historial de conversación"
+	},
+	"qiaomuChatNoHistory": {
+		"message": "No hay conversaciones anteriores sobre este artículo"
+	},
+	"qiaomuChatAskSelection": {
+		"message": "Preguntar a IA"
+	},
+	"qiaomuChatAboutSelection": {
+		"message": "Sobre este pasaje seleccionado del artículo:"
+	},
+	"qiaomuChatQuoteExplain": {
+		"message": "Explicar este pasaje"
+	},
+	"qiaomuChatQuoteTranslate": {
+		"message": "Traducir este pasaje"
+	},
+	"qiaomuChatQuoteSummary": {
+		"message": "Resumir este pasaje"
+	},
+	"qiaomuChatQuoteRewrite": {
+		"message": "Reescribir más concisamente"
+	},
+	"youtubeAutoTranscriptTitle": {
+		"message": "Abrir la transcripción de YouTube automáticamente"
+	},
+	"youtubeAutoTranscriptDescription": {
+		"message": "Cuando se abre un video, expandir la transcripción una vez para que los subtítulos puedan copiarse, descargarse y estudiarse de inmediato. Si la cierras, no se reabrirá para ese video."
+	},
+	"youtubeHideNativeTitle": {
+		"message": "Ocultar el panel de transcripción propio de YouTube"
+	},
+	"youtubeHideNativeDescription": {
+		"message": "Después de que la transcripción se abra automáticamente, ocultar el panel propio de YouTube en la columna derecha, ya que la barra de subtítulos ya muestra las mismas líneas. Un panel que abres tú mismo nunca se oculta."
+	},
+	"learningNotesTitle": {
+		"message": "Tomar notas en las páginas de lectura y video"
+	},
+	"learningNotesDescription": {
+		"message": "Muestra un botón \"Nota\"; la tecla N también funciona. Las notas se añaden a la nota diaria de hoy en tu bóveda; primero debe instalarse el asistente local."
+	},
+	"learningIncludeQuoteTitle": {
+		"message": "Incluir el texto seleccionado"
+	},
+	"learningIncludeQuoteDescription": {
+		"message": "Cuando hay texto seleccionado al tomar una nota, escríbelo en la nota diaria como una cita. También puedes cambiarlo por nota."
+	},
+	"learningIncludeSourceTitle": {
+		"message": "Incluir la fuente y el tiempo del video"
+	},
+	"learningIncludeSourceDescription": {
+		"message": "Escribir el enlace de la página o video en la nota diaria, y para videos también el punto de tiempo. También puedes cambiarlo por nota."
+	},
+	"youtubePanelReload": {
+		"message": "La extensión se actualizó — recarga esta página e inténtalo de nuevo"
+	},
+	"youtubeBarSubtitles": {
+		"message": "Subtítulos"
+	},
+	"youtubeBarSettings": {
+		"message": "Ajustes"
+	},
+	"youtubeBarExpand": {
+		"message": "Mostrar transcripción"
+	},
+	"youtubeBarCollapse": {
+		"message": "Contraer"
+	},
+	"youtubeBarMore": {
+		"message": "Abre el modo de estudio para leer el resto"
+	},
+	"studyPinVideo": {
+		"message": "Fijar video"
+	},
+	"studyScrollTranscript": {
+		"message": "Desplazar transcripción"
+	},
+	"transcriptSearch": {
+		"message": "Buscar en transcripción"
+	},
+	"transcriptSearchClear": {
+		"message": "Limpiar búsqueda"
+	},
+	"transcriptSearchNone": {
+		"message": "Sin resultados"
+	},
+	"youtubeBarSearch": {
+		"message": "Buscar en transcripción"
+	},
+	"youtubeBarClear": {
+		"message": "Limpiar búsqueda"
+	},
+	"youtubeBarNoMatch": {
+		"message": "Sin resultados"
+	},
+	"youtubeBarFollow": {
+		"message": "Siguiendo reproducción — clic para desactivar"
+	},
+	"youtubeBarFollowOff": {
+		"message": "Sin seguimiento — clic para seguir reproducción"
+	},
+	"youtubeBarHere": {
+		"message": "Volver a línea actual"
+	},
+	"youtubeBarRetry": {
+		"message": "Reintentar"
+	},
+	"youtubePanelCardTitle": {
+		"message": "Qiaomu · Estudio"
+	},
+	"youtubePanelCardLoading": {
+		"message": "Leyendo la transcripción…"
+	},
+	"youtubePanelCardReady": {
+		"message": "Transcripción lista — clic en un tiempo para saltar"
+	},
+	"youtubePanelCardNone": {
+		"message": "No se encontró transcripción. Intenta abrir \"Transcripción\" en YouTube."
+	},
+	"bilibiliBarNone": {
+		"message": "Este video no tiene subtítulos"
+	},
+	"bilibiliBarLogin": {
+		"message": "Bilibili solo proporciona subtítulos a cuentas con sesión iniciada. Inicia sesión y pulsa Reintentar"
+	},
+	"youtubePanelActionsTitle": {
+		"message": "Barra de transcripción en YouTube y Bilibili"
+	},
+	"youtubePanelActionsDescription": {
+		"message": "Añade una barra de subtítulos a las páginas de video: lee junto al video, copia, descarga, abre la página de estudio; cuando un video no tiene subtítulos, generarlos directamente."
+	},
+	"youtubePanelCopy": {
+		"message": "Copiar"
+	},
+	"youtubePanelDownload": {
+		"message": "Descargar"
+	},
+	"youtubePanelStudy": {
+		"message": "Estudiar"
+	},
+	"youtubePanelCopied": {
+		"message": "Copiado"
+	},
+	"youtubePanelEmpty": {
+		"message": "No se encontraron líneas de transcripción. Abre primero la transcripción."
+	},
+	"readerAutoChatTitle": {
+		"message": "Abrir chat de IA con la página de lectura"
+	},
+	"readerAutoChatDescription": {
+		"message": "Mostrar el panel de chat de IA en cuanto se abra la página de lectura."
+	},
+	"selectionToolbarTitle": {
+		"message": "Barra de herramientas de selección"
+	},
+	"selectionToolbarDescription": {
+		"message": "Muestra una pequeña barra de herramientas junto al texto seleccionado en las páginas de lectura y edición, con Resaltar y Preguntar a IA."
+	},
+	"tripleKeyKeysTitle": {
+		"message": "Teclas de atajo"
+	},
+	"tripleKeyKeysDescription": {
+		"message": "Elige una letra o dígito para cada acción; déjalo vacío para desactivar la acción. Predeterminadas: Leer A, Editar E, Recortar Q, Nota I."
+	},
+	"tripleKeyReset": {
+		"message": "Restaurar predeterminadas"
+	},
+	"tripleKeyInvalid": {
+		"message": "Usa una sola letra o dígito."
+	},
+	"tripleKeyDuplicate": {
+		"message": "La misma tecla no puede usarse para dos acciones."
+	},
+	"tripleKeySitesTitle": {
+		"message": "Desactivar en estos sitios"
+	},
+	"tripleKeySitesDescription": {
+		"message": "Un sitio por línea, por ejemplo mail.google.com. Se incluyen subdominios. También puedes desactivarlo para el sitio actual desde el menú del recortador."
+	},
+	"tripleKeySiteOff": {
+		"message": "Desactivar teclas triple-pulsación en $1"
+	},
+	"tripleKeySiteOn": {
+		"message": "Reactivar teclas triple-pulsación para $1"
+	},
+	"tripleKeySiteDisabled": {
+		"message": "Las teclas triple-pulsación están desactivadas en $1"
+	},
+	"tripleKeySiteEnabled": {
+		"message": "Las teclas triple-pulsación están activas de nuevo para $1"
+	},
+	"qiaomuChatPreferences": {
+		"message": "Configuración de chat"
+	},
+	"qiaomuChatPreferencesScope": {
+		"message": "La configuración guardada se aplica a todos los chats de artículos y videos. La apariencia solo afecta al panel de IA."
+	},
+	"qiaomuChatFont": {
+		"message": "Fuente del chat"
+	},
+	"qiaomuChatFontsystem": {
+		"message": "Predeterminada del sistema"
+	},
+	"qiaomuChatFontserif": {
+		"message": "Serif"
+	},
+	"qiaomuChatFontmono": {
+		"message": "Monoespaciada"
+	},
+	"qiaomuChatFontcustom": {
+		"message": "Fuente personalizada"
+	},
+	"qiaomuChatCustomFont": {
+		"message": "Nombre de fuente instalada (vuelve a fuente del sistema)"
+	},
+	"qiaomuChatFontSize": {
+		"message": "Tamaño de fuente del chat"
+	},
+	"qiaomuChatFontPreview": {
+		"message": "Aprende a tu propio ritmo. 阅读、提问、理解。"
+	},
+	"qiaomuChatPromptEnabled": {
+		"message": "Usar instrucciones globales"
+	},
+	"qiaomuChatCustomPrompt": {
+		"message": "Texto de instrucciones"
+	},
+	"qiaomuChatPromptPlaceholder": {
+		"message": "Por ejemplo: resume primero, luego explica. Incluye marcas de tiempo al citar subtítulos."
+	},
+	"qiaomuChatPromptScope": {
+		"message": "Se aplica a tu siguiente pregunta después de guardar; las respuestas existentes no cambian. Las instrucciones se envían al modelo de IA seleccionado con el contenido fuente. Se mantienen las instrucciones de lectura integradas."
+	},
+	"qiaomuChatPreferencesReset": {
+		"message": "Restaurar predeterminadas"
+	},
+	"qiaomuChatPreferencesSaveError": {
+		"message": "No se pudo guardar. Por favor reintenta; las preferencias no han cambiado."
+	},
+	"qiaomuExpandSidebar": {
+		"message": "Expandir esquema y barra lateral"
+	},
+	"qiaomuCollapseSidebar": {
+		"message": "Contraer esquema y barra lateral"
+	},
+	"qiaomuToc": {
+		"message": "Esquema"
+	},
+	"qiaomuVideoSize": {
+		"message": "Tamaño de video"
+	},
+	"qiaomuTranslateChinese": {
+		"message": "Traducción al chino"
+	},
+	"qiaomuTranslationRetry": {
+		"message": "Reintentar traducción"
+	},
+	"qiaomuTranslationFormatRetry": {
+		"message": "Reintentando este grupo de traducciones…"
+	},
+	"qiaomuTranslationInvalid": {
+		"message": "El modelo devolvió datos de segmento incompletos. Por favor reintenta."
+	},
+	"qiaomuTranslationProgress": {
+		"message": "Traduciendo"
+	},
+	"qiaomuTranslationNoModel": {
+		"message": "La traducción necesita un modelo de IA, que no es lo mismo que el reconocimiento de voz usado para subtítulos."
+	},
+	"qiaomuTranslationDone": {
+		"message": "Traducción completada"
+	},
+	"qiaomuTranslationTimeout": {
+		"message": "La traducción agotó el tiempo. Reintenta para continuar."
+	},
+	"qiaomuTranslationError": {
+		"message": "La traducción falló. Reintenta para continuar."
+	},
+	"qiaomuTranslationService": {
+		"message": "Traduce subtítulos con tu modelo de IA configurado; recorta subtítulos originales, traducidos o bilingües."
+	},
+	"qiaomuChatSectionAppearance": {
+		"message": "Apariencia"
+	},
+	"qiaomuChatSectionInstructions": {
+		"message": "Instrucciones globales"
+	},
+	"qiaomuChatInstructionsNote": {
+		"message": "Se añade a cada pregunta. Úsalo para fijar el idioma, tono y formato de las respuestas."
+	},
+	"qiaomuChatExamples": {
+		"message": "Prueba:"
+	},
+	"qiaomuChatExampleLang": {
+		"message": "Responde en español"
+	},
+	"qiaomuChatExampleConclusion": {
+		"message": "Conclusión primero, luego detalles"
+	},
+	"qiaomuChatExampleTimestamp": {
+		"message": "Incluye marcas de tiempo al citar subtítulos"
+	},
+	"qiaomuChatExampleConcise": {
+		"message": "Sé conciso, sin relleno"
+	},
+	"qiaomuQuickTitle": {
+		"message": "Prompts rápidos"
+	},
+	"qiaomuQuickNote": {
+		"message": "Se muestran sobre la entrada; un toque lo envía. Añade, edita, elimina u ocúltalos."
+	},
+	"qiaomuQuickNew": {
+		"message": "Nuevo"
+	},
+	"qiaomuQuickEdit": {
+		"message": "Editar \"$1\""
+	},
+	"qiaomuQuickDelete": {
+		"message": "Eliminar \"$1\""
+	},
+	"qiaomuQuickShow": {
+		"message": "Mostrar \"$1\""
+	},
+	"qiaomuQuickName": {
+		"message": "Nombre"
+	},
+	"qiaomuQuickBody": {
+		"message": "Prompt enviado al tocar"
+	},
+	"qiaomuQuickScope": {
+		"message": "Se muestra al"
+	},
+	"qiaomuQuickScopeArticle": {
+		"message": "Preguntar sobre el artículo"
+	},
+	"qiaomuQuickScopeSelection": {
+		"message": "Después de seleccionar texto"
+	},
+	"qiaomuQuickDone": {
+		"message": "Listo"
+	},
+	"qiaomuQuickRequired": {
+		"message": "Introduce un nombre y un prompt."
+	},
+	"qiaomuQuickEmpty": {
+		"message": "Aún no hay prompts rápidos."
+	},
+	"qiaomuQuickLimit": {
+		"message": "Puedes mantener hasta 30 prompts rápidos."
+	},
+	"qiaomuQuickResetDefaults": {
+		"message": "Restaurar prompts integrados"
+	},
+	"qiaomuQuickUnfinished": {
+		"message": "Termina o cancela el prompt que estás editando primero."
+	},
+	"qiaomuChatFontreader": {
+		"message": "Igual que fuente de lectura"
+	},
+	"providerSignInLabel": {
+		"message": "Cuenta"
+	},
+	"providerSignInButton": {
+		"message": "Iniciar sesión"
+	},
+	"providerSignInPaste": {
+		"message": "Pega la dirección de la página en la que terminó"
+	},
+	"providerSignInPasteButton": {
+		"message": "Continuar"
+	},
+	"providerSignInOpen": {
+		"message": "Esperando a que termines en la pestaña del navegador…"
+	},
+	"providerSignInDone": {
+		"message": "Sesión iniciada como $1",
+		"placeholders": {
+			"1": {
+				"content": "$1"
+			}
+		}
+	},
+	"providerSignInChatGPT": {
+		"message": "Iniciar sesión en ChatGPT"
+	},
+	"providerSignInCodex": {
+		"message": "Iniciar sesión en Codex"
+	},
+	"providerSignInTokenDance": {
+		"message": "Autorizar 词元跳动"
+	},
+	"providerSignInNoteChatGPT": {
+		"message": "Usa tu cuota del plan de ChatGPT. No se necesita clave de API."
+	},
+	"providerSignInNoteCodex": {
+		"message": "Usa tu cuota del plan de Codex. No se necesita clave de API."
+	},
+	"providerSignInNoteTokenDance": {
+		"message": "Confirma en el navegador y se crea una clave para ti."
+	},
+	"providerSignInOpenRouter": {
+		"message": "Iniciar sesión con OpenRouter"
+	},
+	"providerSignInNoteOpenRouter": {
+		"message": "Confirma en el navegador y se crea una clave para ti. No es necesario copiar una."
+	},
+	"qiaomuModelSearch": {
+		"message": "Buscar modelos"
+	},
+	"qiaomuModelNone": {
+		"message": "No hay modelos coincidentes"
+	},
+	"qiaomuModelManage": {
+		"message": "Añadir o gestionar proveedores"
+	},
+	"qiaomuModelPlan": {
+		"message": "Plan"
+	},
+	"providerSignInAgain": {
+		"message": "Iniciar sesión de nuevo"
+	},
+	"pdAddProviderTitle": {
+		"message": "Añadir proveedor"
+	},
+	"pdEditProviderTitle": {
+		"message": "Editar proveedor"
+	},
+	"pdSearchProviders": {
+		"message": "Buscar proveedores…"
+	},
+	"pdGroupAccount": {
+		"message": "Inicia sesión con tu cuenta · sin necesidad de clave"
+	},
+	"pdGroupRelay": {
+		"message": "Gateways · una clave, muchos modelos"
+	},
+	"pdGroupProvider": {
+		"message": "Proveedores"
+	},
+	"pdGroupLocal": {
+		"message": "En este equipo"
+	},
+	"pdGroupCustom": {
+		"message": "Otro"
+	},
+	"pdCustomName": {
+		"message": "Personalizado"
+	},
+	"pdCustomSub": {
+		"message": "Cualquier endpoint compatible"
+	},
+	"pdAdded": {
+		"message": "Añadido"
+	},
+	"pdNoMatch": {
+		"message": "No coincide ningún proveedor"
+	},
+	"pdFieldNamePlaceholder": {
+		"message": "Nombre del proveedor"
+	},
+	"pdPasteWrong": {
+		"message": "Esa no es la dirección donde terminó el inicio de sesión. Cópiala de nuevo."
+	},
+	"pdLocalNote": {
+		"message": "Se ejecuta en este equipo. No se necesita clave."
+	},
+	"pdGetKey": {
+		"message": "Obtener una clave de API"
+	},
+	"pdFieldUrl": {
+		"message": "Dirección del endpoint"
+	},
+	"pdUrlHintCustom": {
+		"message": "El endpoint de chat, por ejemplo https://example.com/v1/chat/completions"
+	},
+	"pdUrlHint": {
+		"message": "Normalmente no es necesario cambiar."
+	},
+	"pdFieldKey": {
+		"message": "Clave de API"
+	},
+	"pdFieldKeyOr": {
+		"message": "Clave de API (completada automáticamente tras autorizar)"
+	},
+	"pdShow": {
+		"message": "Mostrar"
+	},
+	"pdHide": {
+		"message": "Ocultar"
+	},
+	"pdAdvanced": {
+		"message": "Dirección del endpoint"
+	},
+	"pdNeedName": {
+		"message": "Ingresa un nombre."
+	},
+	"pdNeedUrl": {
+		"message": "Ingresa la dirección del endpoint."
+	},
+	"pdNeedLogin": {
+		"message": "Inicia sesión primero."
+	},
+	"pdNeedKey": {
+		"message": "Ingresa una clave de API."
+	},
+	"pdBack": {
+		"message": "Atrás"
+	},
+	"pdAddProviderButton": {
+		"message": "Agregar proveedor"
+	},
+	"pdAddModelTitle": {
+		"message": "Agregar modelos"
+	},
+	"pdNoProviders": {
+		"message": "Agrega un proveedor primero, luego selecciona sus modelos."
+	},
+	"pdPickProvider": {
+		"message": "Proveedor"
+	},
+	"pdSearchModels": {
+		"message": "Buscar modelos…"
+	},
+	"pdManual": {
+		"message": "Ingresar un ID de modelo manualmente"
+	},
+	"pdManualNamePlaceholder": {
+		"message": "Igual que el ID"
+	},
+	"pdManualName": {
+		"message": "Nombre para mostrar (opcional)"
+	},
+	"pdAddModels": {
+		"message": "Agregar $1 modelos",
+		"placeholders": {
+			"1": {
+				"content": "$1"
+			}
+		}
+	},
+	"pdAddModelsNone": {
+		"message": "Agregar modelos"
+	},
+	"pdRecommended": {
+		"message": "Recomendado"
+	},
+	"pdPickProviderFirst": {
+		"message": "Elige un proveedor arriba."
+	},
+	"pdReasonTimeout": {
+		"message": "tiempo agotado"
+	},
+	"pdReasonFormat": {
+		"message": "no es una lista de modelos"
+	},
+	"pdReasonNetwork": {
+		"message": "bloqueado o inaccesible"
+	},
+	"pdEdit": {
+		"message": "Editar"
+	},
+	"pdDelete": {
+		"message": "Eliminar"
+	},
+	"pdDuplicate": {
+		"message": "Duplicar"
+	},
+	"failedToSaveModel": {
+		"message": "No se pudo guardar el modelo. Inténtalo de nuevo."
+	},
+	"navAiModels": {
+		"message": "Modelos de IA"
+	},
+	"aiModelsIntro": {
+		"message": "Estos modelos impulsan la traducción, el chat de IA y la interpretación de IA. Configura los servicios de reconocimiento de subtítulos en reconocimiento de voz ASR."
+	},
+	"aiModelsGotoAsr": {
+		"message": "Configurar reconocimiento de voz"
+	},
+	"asrIntroOther": {
+		"message": "Esta sección convierte el habla en subtítulos. Configura los modelos para traducción, chat de IA e interpretación en la configuración de modelos de IA."
+	},
+	"asrGotoModels": {
+		"message": "Configurar modelos de IA"
+	},
+	"qiaomuTranslationSetupModel": {
+		"message": "Configurar un modelo de traducción"
+	},
+	"subtitleLanguage": {
+		"message": "Idioma de los subtítulos"
+	},
+	"subtitleGenFromAudio": {
+		"message": "Reconocer el audio…"
+	},
+	"audioPlay": {
+		"message": "Reproducir"
+	},
+	"audioPause": {
+		"message": "Pausar"
+	},
+	"audioBack": {
+		"message": "Retroceder 15 s"
+	},
+	"audioForward": {
+		"message": "Avanzar 30 s"
+	},
+	"audioSpeed": {
+		"message": "Velocidad de reproducción"
+	},
+	"audioSeek": {
+		"message": "Posición"
+	},
+	"audioRefreshing": {
+		"message": "La nueva transcripción está lista — actualizando…"
+	},
+	"audioStudyNone": {
+		"message": "Aún no hay subtítulos para este medio. Una vez creados, las líneas siguen la reproducción."
+	},
+	"audioTabTranscript": {
+		"message": "Transcripción"
+	},
+	"audioTabNotes": {
+		"message": "Mostrar notas"
+	},
+	"webReading": {
+		"message": "Leyendo esta dirección…"
+	},
+	"subtitleGenOffline": {
+		"message": "El asistente local no está conectado. Instálalo o verifica su conexión en Recortar y guardar."
+	},
+	"audioTabAbout": {
+		"message": "Descripción"
+	},
+	"audioChooseFile": {
+		"message": "Elegir un archivo de audio o video…"
+	},
+	"audioChooseHint": {
+		"message": "También puedes arrastrar un archivo aquí. Solo se entrega al asistente local, nunca se sube; funcionan mp3, m4a, wav, flac, mp4 y formatos similares."
+	},
+	"audioBadType": {
+		"message": "Este tipo de archivo no es compatible."
+	},
+	"audioSending": {
+		"message": "Entregando el archivo al asistente local…"
+	},
+	"audioSendFailed": {
+		"message": "No se pudo entregar el archivo"
+	},
+	"subtitleGenOffer": {
+		"message": "Generar subtítulos"
+	},
+	"subtitleGenChecking": {
+		"message": "Verificando este equipo…"
+	},
+	"subtitleGenConfirm": {
+		"message": "Este video no tiene subtítulos. Se pueden generar en este equipo: el audio se descarga y es reconocido por un modelo de voz en este equipo, y nada se sube."
+	},
+	"subtitleGenConfirmModel": {
+		"message": "La primera ejecución también descarga un modelo de reconocimiento (aproximadamente 1.6 GB)."
+	},
+	"subtitleGenStart": {
+		"message": "Generar subtítulos"
+	},
+	"subtitleGenCancel": {
+		"message": "Cancelar"
+	},
+	"subtitleGenRunning": {
+		"message": "Generando subtítulos"
+	},
+	"subtitleGenModel": {
+		"message": "Primer uso: descargando el modelo de reconocimiento (aproximadamente 1.6 GB)…"
+	},
+	"subtitleGenFailed": {
+		"message": "No se pudieron generar los subtítulos"
+	},
+	"subtitleGenRetry": {
+		"message": "Reintentar"
+	},
+	"subtitleGenLangAuto": {
+		"message": "Detectar idioma"
+	},
+	"subtitleGenLangLabel": {
+		"message": "Idioma hablado en el video"
+	},
+	"subtitleGenNeedsLogin": {
+		"message": "El sitio requiere una sesión iniciada para descargar audio. Con tu permiso, solo la información de inicio de sesión necesaria para el sitio actual se pasa al asistente local para esta descarga. Su archivo temporal se elimina cuando la tarea se completa, falla o se cancela."
+	},
+	"subtitleGenLoginRetry": {
+		"message": "Reintentar con mi inicio de sesión del navegador"
+	},
+	"subtitleGenGenerated": {
+		"message": "Generado por reconocimiento de voz; puede contener errores de reconocimiento"
+	},
+	"subtitleGenOutdated": {
+		"message": "El asistente local está desactualizado. Actualízalo en Recortar y guardar, luego verifica de nuevo."
+	},
+	"subtitleGenMissing": {
+		"message": "Faltan herramientas necesarias para generar subtítulos. Configura el reconocimiento de voz, instala las herramientas requeridas o un motor local, luego verifica de nuevo."
+	},
+	"subtitleGenCloudSetup": {
+		"message": "El reconocimiento en la nube no está configurado. Agrega o completa un servicio en reconocimiento de voz ASR, luego verifica de nuevo."
+	},
+	"subtitleGenConfirmCloud": {
+		"message": "Este video no tiene subtítulos. Se pueden generar: el audio se descarga y se envía a {service} para reconocimiento. El audio sale de este equipo y ese servicio lo factura."
+	},
+	"subtitleGenConfirmLocalService": {
+		"message": "Este video no tiene subtítulos. Se pueden generar: el audio se descarga y se entrega a un servicio de reconocimiento que se ejecuta en este equipo. No sale de este equipo."
+	},
+	"subtitleGenBusy": {
+		"message": "Se está procesando otro video. Inténtalo de nuevo cuando termine."
+	},
+	"subtitleGenCopy": {
+		"message": "Copiar comando"
+	},
+	"subtitleGenCopied": {
+		"message": "Copiado"
+	},
+	"subtitleGenRecheck": {
+		"message": "Verificar de nuevo"
+	},
+	"subtitleGenConfirmInstall": {
+		"message": "Esto necesita \"{name}\" instalado en este equipo primero (aproximadamente {size}, incluyendo el modelo de reconocimiento). La generación comienza automáticamente cuando esté listo; no se sube audio."
+	},
+	"subtitleGenInstallStart": {
+		"message": "Instalar y generar subtítulos"
+	},
+	"subtitleGenInstalling": {
+		"message": "Instalando"
+	},
+	"subtitleGenInstallFailed": {
+		"message": "Falló la instalación"
+	},
+	"subtitleGenEngine": {
+		"message": "Motor de reconocimiento"
+	},
+	"subtitleGenDlgTitle": {
+		"message": "Generar subtítulos"
+	},
+	"subtitleGenDlgSub": {
+		"message": "Elige cómo convertir el habla en subtítulos con marcas de tiempo."
+	},
+	"subtitleGenRememberHint": {
+		"message": "Omitir este diálogo de ahora en adelante"
+	},
+	"subtitleGenAsk": {
+		"message": "Elige cómo reconocerlo"
+	},
+	"subtitleGenStartCloud": {
+		"message": "Generar subtítulos"
+	},
+	"subtitleGenAddService": {
+		"message": "+ Agregar un servicio en la nube…"
+	},
+	"subtitleGenRemember": {
+		"message": "Comenzar inmediatamente"
+	},
+	"subtitleGenRegenerate": {
+		"message": "Generar de nuevo con otro modelo"
+	},
+	"subtitleGenGeneratedVia": {
+		"message": "Generado por {via}; puede contener errores de reconocimiento"
+	},
+	"Language": {
+		"message": "javascript"
+	},
+	"Attribute": {
+		"message": "style"
+	},
+	"Tag": {
+		"message": "span"
+	},
+	"Format": {
+		"message": "D [de] MMMM [de] YYYY"
+	},
+	"Search": {
+		"message": "/[aeiou]/g"
+	},
+	"Replacement": {
+		"message": ""
+	},
+	"Suffix": {
+		"message": "..."
+	},
+	"Type": {
+		"message": "note"
+	},
+	"Title": {
+		"message": ""
+	},
+	"Expression": {
+		"message": "-10"
+	},
+	"Separator": {
+		"message": ","
+	},
+	"Mode": {
+		"message": "values"
+	},
+	"Direction": {
+		"message": "desc"
+	},
+	"Selector": {
+		"message": ".ad"
+	},
+	"xBarNone": {
+		"message": "Aún no hay subtítulos — se pueden generar por reconocimiento de voz"
+	},
+	"podcastBarNone": {
+		"message": "Aún no hay subtítulos — se pueden generar por reconocimiento de voz"
+	},
+	"subtitleGenSetupHelper": {
+		"message": "Instalar o actualizar el asistente local"
+	},
+	"subtitleGenSetupRecognition": {
+		"message": "Configurar reconocimiento de voz"
+	},
+	"subtitleAutoGenerated": {
+		"message": "generado automáticamente"
+	},
+	"contextSavePage": {
+		"message": "Guardar esta página"
+	},
+	"contextAddHighlight": {
+		"message": "Añadir a los resaltados"
 	}
 }

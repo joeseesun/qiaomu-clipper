@@ -103,8 +103,10 @@ export async function initializeAsrSettings(): Promise<void> {
 	const save = (patch: Partial<AsrSettings>) => queue(() => saveAsrSettings(patch));
 	const refreshEngines = async () => {
 		const reply = await asrStatus();
-		if (reply.ok) { engines = reply.local; helperProblem = ''; } else helperProblem = reply.error === 'helper-offline' ? t('没连上本地助手：安装和使用本机引擎需要先装好本地助手（见 README）。') : reply.error === 'helper-outdated' ? t('本地助手版本较旧，请重新运行 python3 native/install.py。') : '';
-		say(helperProblem); paint();
+		if (reply.ok) { engines = reply.local; helperProblem = ''; } else helperProblem = reply.error === 'helper-offline' ? t('没有连上本地助手。请到「剪藏与保存」安装助手，或检查已有助手的连接。') : reply.error === 'helper-outdated' ? t('本地助手版本较旧。请到「剪藏与保存」更新助手，再重新检查。') : '';
+		say(helperProblem);
+		if (helperProblem) { const setup = helperSetupButton('btn'); status.append(document.createTextNode(' '), setup); }
+		paint();
 	};
 
 	// ---- the dialog ---------------------------------------------------------------------------------------------------
@@ -116,6 +118,7 @@ export async function initializeAsrSettings(): Promise<void> {
 	};
 	modal.querySelector('.modal-bg')?.addEventListener('click', closeModal);
 	const button = (label: string, className: string, onClick: () => void) => { const item = node('button', className, label); item.type = 'button'; item.addEventListener('click', onClick); return item; };
+	const helperSetupButton = (className = 'mod-cta') => { const setup = button(t('安装或更新本地助手'), className, closeModal); setup.dataset.gotoSection = 'clip'; return setup; };
 	const head = (iconId: string, name: string, note?: string) => { const wrap = node('div'), row = node('div', 'asr-modal-head'); row.append(icon(iconId), node('strong', '', name)); wrap.append(row); if (note) wrap.append(node('p', 'asr-modal-note', note)); return wrap; };
 	const field = (labelText: string, control: HTMLElement, id: string) => { const wrap = node('div', 'asr-modal-field'), label = node('label', '', labelText); label.htmlFor = id; control.id = id; wrap.append(label, control); return wrap; };
 	const input = (value: string, placeholder = '', type = 'text') => { const item = node('input'); item.type = type; item.value = value; item.placeholder = placeholder; item.autocomplete = 'off'; item.spellcheck = false; return item; };
@@ -141,8 +144,8 @@ export async function initializeAsrSettings(): Promise<void> {
 				if (!trial.apiKey && !isLocalService(trial.baseUrl)) { result.textContent = t('请先填写 API Key'); return; }
 				const config = cloudConfig(trial, settings.profiles); if (!config) { result.textContent = t('设置还不完整'); return; }
 				test.disabled = true; result.textContent = t('正在测试…');
-				try { const reply = await asrTest({ ...config }, trial.apiKey || 'none'); result.textContent = reply.ok ? t('连接正常（{0} ms）。', [reply.ms ?? '?']) : t('测试失败：{0}', [reply.error || t('未知错误')]); }
-				catch { result.textContent = t('测试失败：没连上本地助手'); }
+				try { const reply = await asrTest({ ...config }, trial.apiKey || 'none'); result.textContent = reply.ok ? t('连接正常（{0} ms）。', [reply.ms ?? '?']) : t('测试失败：{0}', [reply.error || t('未知错误')]); if (!reply.ok && reply.code?.startsWith('helper-')) result.append(document.createTextNode(' '), helperSetupButton('btn')); }
+				catch { result.textContent = t('测试失败：没连上本地助手'); result.append(document.createTextNode(' '), helperSetupButton('btn')); }
 				finally { test.disabled = false; }
 			});
 			const saveButton = button(t('保存'), 'mod-cta', () => { const next = read(); closeModal(); void queue(() => saveProfile(next)); });
@@ -173,7 +176,8 @@ export async function initializeAsrSettings(): Promise<void> {
 			}));
 			actions.push(button(t('关闭'), '', closeModal));
 			if (here && recognizerFor(settings) !== `local:${id}`) actions.push(button(t('设为默认'), '', () => { closeModal(); void save(choosePatch(settings, `local:${id}`)); }));
-			if (!here || busy) actions.push(button(busy ? t('取消安装') : t('下载并安装'), 'mod-cta', () => { if (busy) void asrInstallCancel(installing!.jobId); else void install(id as InstallTarget); }));
+			if (helperProblem && !busy) actions.push(helperSetupButton());
+			else if (!here || busy) actions.push(button(busy ? t('取消安装') : t('下载并安装'), 'mod-cta', () => { if (busy) void asrInstallCancel(installing!.jobId); else void install(id as InstallTarget); }));
 			openModal(meta.name, head(id, meta.name, t('{0}。本机运行，音频不会离开这台电脑。', [meta.note])), [state, meter], actions);
 		};
 		redraw = render; render();

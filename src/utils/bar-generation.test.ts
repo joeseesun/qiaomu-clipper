@@ -190,3 +190,11 @@ it('OpenAI only installs the 60 MB base tools and continues without a local mode
     expect(full.start).toHaveBeenCalledWith(KEY, 'auto');
     expect(saved).toEqual([[KEY, 1]]);
 });
+
+it.each([['helper-offline', 'clip'], ['helper-outdated', 'clip'], ['cloud-not-configured', 'asr-models'], ['missing', 'asr-models']] as const)('routes %s setup directly to %s', (reason, section) => {
+ const send = vi.spyOn(browser.runtime, 'sendMessage').mockResolvedValue(undefined as never);
+ const { gen, full } = make();
+ gen.actions.setup!(reason);
+ expect(send).toHaveBeenCalledWith({ action: 'openSettings', section });
+ expect(full.start).not.toHaveBeenCalled();
+});

@@ -632,7 +632,11 @@ def install_state(base, job_id):
     directory = installs_dir(base) / job_id
     if not directory.is_dir(): return None, None
     state = read_state(directory)
-    if state.get('state') in INSTALLING and not pid_alive(state.get('pid')): state = write_state(directory, state='failed', error=state.get('error') or '安装进程意外退出，请重试')
+    if state.get('state') in INSTALLING and not pid_alive(state.get('pid')):
+        # PID inspection may finish after the installer writes its terminal result.
+        state = read_state(directory)
+        if state.get('state') in INSTALLING:
+            state = write_state(directory, state='failed', stage='失败', error=state.get('error') or '安装进程意外退出，请重试')
     return directory, state
 def active_install(base):
     for entry in (installs_dir(base).iterdir() if installs_dir(base).is_dir() else []):
@@ -791,7 +795,7 @@ def download(directory, spec, env, tools):
             # bounded retry for YouTube player extraction failures, never a change for other sites.
             client_retry = True
             command[-1:-1] = ['--extractor-args', 'youtube:player_client=default,web_embedded']
-            write_state(directory, stage='正在尝试 YouTube 备用下载客户端')
+            write_state(directory, stage='正在重试 YouTube 音频下载')
             continue
         if spec['videoKey'].startswith('youtube:') and YOUTUBE_CLIENT_ERROR.search(text) and using_login and not anonymous_retry:
             # Current authenticated defaults already contain web_embedded. A rejected cookie session

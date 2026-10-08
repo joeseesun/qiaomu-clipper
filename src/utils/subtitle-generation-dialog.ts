@@ -71,7 +71,7 @@ html.theme-light .qiaomu-dlg-wrap{--d-fg:#1d1d1f;--d-fg2:#6e6e73;--d-bg:#fff;--d
 .qiaomu-dlg-choice{display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border-radius:12px;box-shadow:inset 0 0 0 1px var(--d-line);cursor:pointer;user-select:none;transition:box-shadow .12s,background .12s}
 .qiaomu-dlg-choice:hover{background:var(--d-hover)}
 .qiaomu-dlg-choice[aria-checked=true]{box-shadow:inset 0 0 0 2px var(--d-accent)}
-.qiaomu-dlg-choice:focus-visible{outline:2px solid var(--d-accent);outline-offset:2px}
+.qiaomu-dlg-choice:focus-visible{outline:1px solid var(--d-fg2);outline-offset:2px}
 .qiaomu-dlg-radio{flex:none;width:18px;height:18px;margin-top:1px;border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--d-fg2);transition:box-shadow .12s}
 .qiaomu-dlg-choice[aria-checked=true] .qiaomu-dlg-radio{box-shadow:inset 0 0 0 5.5px var(--d-accent)}
 .qiaomu-dlg-choice-text{display:flex;flex-direction:column;gap:1px;min-width:0}
@@ -83,7 +83,7 @@ html.theme-light .qiaomu-dlg-wrap{--d-fg:#1d1d1f;--d-fg2:#6e6e73;--d-bg:#fff;--d
 .qiaomu-dlg-field label{font-size:14px;font-weight:500;color:var(--d-fg)}
 .qiaomu-dlg-wrap .qiaomu-dlg .qiaomu-dlg-select{appearance:none;-webkit-appearance:none;width:auto;min-width:150px;height:36px;padding:0 34px 0 14px;border:0;border-radius:10px;background:var(--d-field) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 12px center;color:var(--d-fg);font:inherit;font-size:13.5px;cursor:pointer;box-shadow:none;transition:background-color .12s}
 .qiaomu-dlg-wrap .qiaomu-dlg .qiaomu-dlg-select:hover{background-color:var(--d-hover)}
-.qiaomu-dlg-wrap .qiaomu-dlg .qiaomu-dlg-select:focus-visible{outline:2px solid var(--d-accent);outline-offset:2px}
+.qiaomu-dlg-wrap .qiaomu-dlg .qiaomu-dlg-select:focus-visible{outline:1px solid var(--d-fg2);outline-offset:2px}
 .qiaomu-dlg-wrap .qiaomu-dlg .qiaomu-dlg-select option{color:#1d1d1f;background:#fff}
 .qiaomu-dlg-switchrow{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:16px}
 .qiaomu-dlg-switchtext{display:flex;flex-direction:column;gap:1px;min-width:0}
@@ -93,12 +93,12 @@ html.theme-light .qiaomu-dlg-wrap{--d-fg:#1d1d1f;--d-fg2:#6e6e73;--d-bg:#fff;--d
 .qiaomu-dlg-wrap .qiaomu-dlg .qiaomu-dlg-switch::after{content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .15s}
 .qiaomu-dlg-wrap .qiaomu-dlg .qiaomu-dlg-switch[aria-checked=true]{background:var(--d-accent);box-shadow:none}
 .qiaomu-dlg-wrap .qiaomu-dlg .qiaomu-dlg-switch[aria-checked=true]::after{transform:translateX(16px);background:var(--d-on-accent)}
-.qiaomu-dlg-wrap .qiaomu-dlg .qiaomu-dlg-switch:focus-visible{outline:2px solid var(--d-accent);outline-offset:2px}
+.qiaomu-dlg-wrap .qiaomu-dlg .qiaomu-dlg-switch:focus-visible{outline:1px solid var(--d-fg2);outline-offset:2px}
 .qiaomu-dlg-foot{display:flex;justify-content:flex-end;gap:10px;margin-top:24px}
 .qiaomu-dlg-wrap .qiaomu-dlg .qiaomu-dlg-btn{width:auto;height:40px;padding:0 20px;border:0;border-radius:11px;background:var(--d-field);box-shadow:none;color:var(--d-fg);font:inherit;font-size:14px;font-weight:550;cursor:pointer;transition:background .12s,opacity .12s}
 .qiaomu-dlg-wrap .qiaomu-dlg .qiaomu-dlg-btn:hover{background:var(--d-hover);box-shadow:inset 0 0 0 1px var(--d-line)}
 .qiaomu-dlg-wrap .qiaomu-dlg .qiaomu-dlg-btn.is-primary{background:var(--d-accent);color:var(--d-on-accent)}
 .qiaomu-dlg-wrap .qiaomu-dlg .qiaomu-dlg-btn.is-primary:hover{opacity:.88;box-shadow:none}
-.qiaomu-dlg-wrap .qiaomu-dlg .qiaomu-dlg-btn:focus-visible{outline:2px solid var(--d-accent);outline-offset:2px}
+.qiaomu-dlg-wrap .qiaomu-dlg .qiaomu-dlg-btn:focus-visible{outline:1px solid var(--d-fg2);outline-offset:2px}
 @media (max-width:480px){.qiaomu-dlg{padding:22px 18px 18px}.qiaomu-dlg-foot{flex-direction:column-reverse}.qiaomu-dlg-btn{width:100%}}
 `;

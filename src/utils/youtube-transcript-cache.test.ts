@@ -45,3 +45,12 @@ it('keeps a transcript per subtitle language the viewer chose, next to the defau
 	await cache.write('abcdefghijk#ZH', lines); await cache.write('abcdefghijk#zh-CN', lines); await cache.write('abcdefghijk#', lines); await cache.write('abcdefghijk#../x', lines);
 	expect(Object.keys(data).filter(key => key.startsWith('qiaomuTranscript2:')).sort()).toEqual(['qiaomuTranscript2:abcdefghijk', 'qiaomuTranscript2:abcdefghijk#zh', 'qiaomuTranscript2:bilibili:BV1GJ411x7h7:2#en', 'qiaomuTranscript2:generated:youtube:abcdefghijk#ja']);
 });
+
+ it('caches the new original-caption default separately from the legacy default', async () => {
+ const data: Record<string, any> = {};
+ const cache = createTranscriptCache({get:async key => typeof key === 'string' ? {[key]:data[key]} : data, set:async values=>{Object.assign(data,values);}, remove:async keys=>{for(const key of typeof keys === 'string' ? [keys] : keys) delete data[key];}});
+ const old=[{time:'0:00',text:'old dubbed captions'}], current=[{time:'0:00',text:'original captions'}];
+ await cache.write('abcdefghijk',old); await cache.write('abcdefghijk#original',current);
+ expect(await cache.read('abcdefghijk#original')).toEqual(current);
+ expect(await cache.read('abcdefghijk')).toEqual(old);
+ });

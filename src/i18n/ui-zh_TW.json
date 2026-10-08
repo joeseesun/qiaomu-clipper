@@ -124,7 +124,7 @@
  "从备份文件恢复，会覆盖现在的设置。": "從備份檔案恢復，會覆蓋現在的設定。",
  "从已有高亮选择摘录": "從已有高亮選擇摘錄",
  "以下是视频字幕文稿，时间戳对应播放位置。仅依据文稿回答；文稿没有的信息请明确说明。\n\n{0}": "以下是影片字幕文稿，時間戳對應播放位置。僅依據文稿回答；文稿沒有的資訊請明確說明。\n\n{0}",
- "任何兼容 /audio/transcriptions 的服务都行。地址填 http://127.0.0.1:端口/v1 就是本机上的识别服务（如 whisper.cpp server、faster-whisper-server），音频不会离开这台电脑。": "任何相容 /audio/transcriptions 的服務都行。地址填 http://127.0.0.1:埠/v1 就是本機上的識別服務（如 whisper.cpp server、faster-whisper-server），音訊不會離開這臺電腦。",
+ "任何兼容 /audio/transcriptions 的服务都行。地址填 http://127.0.0.1:端口/v1 就是本机上的识别服务（如 whisper.cpp server、faster-whisper-server），音频不会离开这台电脑。": "任何相容 /audio/transcriptions 的服務都行。地址填 http://127.0.0.1:port/v1 就是本機上的識別服務（如 whisper.cpp server、faster-whisper-server），音訊不會離開這臺電腦。",
  "任何兼容 OpenAI 转写接口的服务": "任何相容 OpenAI 轉寫介面的服務",
  "任何电脑都能用，没有 GPU 也行，较慢": "任何電腦都能用，沒有 GPU 也行，較慢",
  "你的划线": "你的劃線",
@@ -655,5 +655,14 @@
  "＋ 添加其他": "＋ 新增其他",
  "，模型已就绪": "，模型已就緒",
  "，首次使用时会下载模型": "，首次使用時會下載模型",
- "；当前窗口已达最小可用尺寸": "；當前視窗已達最小可用尺寸"
+ "；当前窗口已达最小可用尺寸": "；當前視窗已達最小可用尺寸",
+ "没有连上本地助手。请到「剪藏与保存」安装助手，或检查已有助手的连接。": "沒有連上本機助手。請到「剪藏與儲存」安裝助手，或檢查已有助手的連線。",
+ "本地助手版本较旧。请到「剪藏与保存」更新助手，再重新检查。": "本機助手版本較舊。請到「剪藏與儲存」更新助手，再重新檢查。",
+ "本地保存助手已安装但启动失败。请到「剪藏与保存」检查连接，或更新助手后重试。": "本機儲存助手已安裝但啟動失敗。請到「剪藏與儲存」檢查連線，或更新助手後重試。",
+ "安装或更新本地助手": "安裝或更新本機助手",
+ "1. 先阅读 https://github.com/joeseesun/qiaomu-clipper 的 README。macOS 优先下载并安装最新发布页的 qiaomu-clipper-helper.pkg；安装时需要我操作系统授权的话，请提醒我完成。": "1. 先閱讀 https://github.com/joeseesun/qiaomu-clipper 的 README。macOS 優先下載並安裝最新發布頁的 qiaomu-clipper-helper.pkg；安裝時需要我操作系統授權的話，請提醒我完成。",
+ "2. macOS 安装包版使用 /Library/QiaomuClipper/bin/qiaomu-helper --check 诊断，并用 /Library/QiaomuClipper/bin/qiaomu-helper --extension-id {0} 注册当前扩展。其他系统或源码安装按 README 操作，在仓库目录运行 python3 native/install.py --extension-id {0}；Windows 可用 python 或 py -3。": "2. macOS 安裝包版使用 /Library/QiaomuClipper/bin/qiaomu-helper --check 診斷，並用 /Library/QiaomuClipper/bin/qiaomu-helper --extension-id {0} 註冊目前擴充功能。其他系統或原始碼安裝按 README 操作，在倉庫目錄執行 python3 native/install.py --extension-id {0}；Windows 可用 python 或 py -3。",
+ "3. 不要编造扩展 ID 或 Obsidian 库路径。多个库时先让我选择；诊断失败时读取 error、hint 和 problems 处理。用当前安装方式对应的 --check 命令确认 \"ok\": true，再提醒我重新加载扩展并重试。": "3. 不要編造擴充功能 ID 或 Obsidian 庫路徑。多個庫時先讓我選擇；診斷失敗時讀取 error、hint 和 problems 處理。用目前安裝方式對應的 --check 命令確認 \"ok\": true，再提醒我重新載入擴充功能並重試。",
+ "本地保存助手已安装，但尚未允许当前扩展 ID。请到「剪藏与保存」复制修复提示，让 Agent 注册当前扩展。": "本機儲存助手已安裝，但尚未允許目前擴充功能 ID。請到「剪藏與儲存」複製修復提示，讓 Agent 註冊目前擴充功能。",
+ "（部分翻译）": "（部分翻譯）"
 }

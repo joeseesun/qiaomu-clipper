@@ -2,11 +2,26 @@ import en from '../i18n/ui-en.json';
 import zhTW from '../i18n/ui-zh_TW.json';
 import helperEn from '../i18n/helper-en.json';
 import helperZhTW from '../i18n/helper-zh_TW.json';
+import { matchLocale, type UiLanguage } from './locale';
+export type { UiLanguage } from './locale';
+import ui_ja from '../i18n/ui-ja.json';
+import helper_ja from '../i18n/helper-ja.json';
+import ui_ko from '../i18n/ui-ko.json';
+import helper_ko from '../i18n/helper-ko.json';
+import ui_es from '../i18n/ui-es.json';
+import helper_es from '../i18n/helper-es.json';
+import ui_fr from '../i18n/ui-fr.json';
+import helper_fr from '../i18n/helper-fr.json';
+import ui_de from '../i18n/ui-de.json';
+import helper_de from '../i18n/helper-de.json';
+import ui_pt_BR from '../i18n/ui-pt_BR.json';
+import helper_pt_BR from '../i18n/helper-pt_BR.json';
+
 
 // The interface was written in Chinese. A string is looked up by its own Chinese text, so the source stays readable:
 //   t('已保存到 {0}', [vault])
-// Simplified Chinese shows the text as written; Traditional Chinese and English have a catalog; every other language shows English.
-// A test checks that each string used in the source (and in the HTML pages) has an entry in both catalogs.
+// Simplified Chinese shows the text as written; Traditional Chinese and English have a catalog; six additional languages have complete catalogs; unsupported text falls back to English.
+// Tests check every active source and HTML string in all complete catalogs.
 type Catalog = Record<string, string>;
 
 let override: string | undefined;
@@ -18,18 +33,12 @@ function browserLanguage(): string {
 	try { return (typeof navigator !== 'undefined' && navigator.language) || 'en'; } catch { return 'en'; }
 }
 
-export type UiLanguage = 'zh_CN' | 'zh_TW' | 'en';
+export function uiLanguage(): UiLanguage { return matchLocale(override || browserLanguage()) as UiLanguage; }
 
-export function uiLanguage(): UiLanguage {
-	const code = (override || browserLanguage()).replace('-', '_').toLowerCase();
-	if (code.startsWith('zh')) return /tw|hk|mo|hant/.test(code) ? 'zh_TW' : 'zh_CN';
-	return 'en';
-}
-
-const catalogs: Record<UiLanguage, Catalog | undefined> = { zh_CN: undefined, zh_TW: zhTW as Catalog, en: en as Catalog };
+const catalogs: Record<UiLanguage, Catalog | undefined> = { zh_CN: undefined, zh_TW: zhTW as Catalog, en: en as Catalog, ja: ui_ja as Catalog, ko: ui_ko as Catalog, es: ui_es as Catalog, fr: ui_fr as Catalog, de: ui_de as Catalog, pt_BR: ui_pt_BR as Catalog };
 
 export function t(source: string, args?: ReadonlyArray<string | number | null | undefined>): string {
-	const text = catalogs[uiLanguage()]?.[source] ?? source;
+	const text = catalogs[uiLanguage()]?.[source] ?? (uiLanguage() === 'zh_CN' ? source : (en as Catalog)[source] ?? source);
 	return args ? text.replace(/\{(\d+)\}/g, (_, index) => String(args[Number(index)] ?? '')) : text;
 }
 
@@ -87,7 +96,7 @@ export function translateStatic(root: ParentNode = document): void {
 // The helper (Python) writes its messages in Chinese. They are shown in the person's language by matching them against the
 // helper catalogs: a whole message, a message with values in it ({0}), or the fixed beginning or end of a message that a
 // detail was added to.
-const helperCatalogs: Record<UiLanguage, Catalog | undefined> = { zh_CN: undefined, zh_TW: helperZhTW as Catalog, en: helperEn as Catalog };
+const helperCatalogs: Record<UiLanguage, Catalog | undefined> = { zh_CN: undefined, zh_TW: helperZhTW as Catalog, en: helperEn as Catalog, ja: { ...helperEn, ...helper_ja } as Catalog, ko: { ...helperEn, ...helper_ko } as Catalog, es: { ...helperEn, ...helper_es } as Catalog, fr: { ...helperEn, ...helper_fr } as Catalog, de: { ...helperEn, ...helper_de } as Catalog, pt_BR: { ...helperEn, ...helper_pt_BR } as Catalog };
 type Compiled = { templates: Array<[RegExp, string]>; fragments: Array<[string, string]> };
 const compiled = new WeakMap<Catalog, Compiled>();
 
@@ -116,7 +125,7 @@ export function translateHelperText(text: string): string {
 		if (match) return value.replace(/\{(\d+)\}/g, (_, index) => match[Number(index) + 1] ?? '');
 	}
 	// A detail after a fixed beginning (or before a fixed end) is kept as it was, with the full-width marks of Chinese made plain for English.
-	const tidy = (rest: string) => uiLanguage() === 'en' ? rest.replace(/（/g, ' (').replace(/）/g, ')').replace(/：/g, ': ').replace(/，/g, ', ').replace(/。/g, '. ').trim() : rest;
+	const tidy = (rest: string) => !uiLanguage().startsWith('zh') ? rest.replace(/（/g, ' (').replace(/）/g, ')').replace(/：/g, ': ').replace(/，/g, ', ').replace(/。/g, '. ').trim() : rest;
 	for (const [key, value] of fragments) {
 		if (text.startsWith(key)) return value + tidy(text.slice(key.length));
 		if (text.endsWith(key)) return tidy(text.slice(0, text.length - key.length)) + value;

@@ -17,7 +17,7 @@ describe('t', () => {
 		expect(t('剪藏模版')).toBe('剪藏範本');
 	});
 	it('picks the language from codes the way browsers write them', () => {
-		for (const [code, want] of [['zh-TW', 'zh_TW'], ['zh_HK', 'zh_TW'], ['zh-Hant', 'zh_TW'], ['zh-CN', 'zh_CN'], ['ja', 'en'], ['de_DE', 'en']] as const) { setUiLanguage(code); expect(uiLanguage()).toBe(want); }
+		for (const [code, want] of [['zh-TW', 'zh_TW'], ['zh_HK', 'zh_TW'], ['zh-Hant', 'zh_TW'], ['zh-CN', 'zh_CN'], ['ja', 'ja'], ['de_DE', 'de'], ['pt-BR', 'pt_BR'], ['fr-CA', 'fr'], ['ar', 'en']] as const) { setUiLanguage(code); expect(uiLanguage()).toBe(want); }
 	});
 });
 
@@ -51,4 +51,30 @@ describe('messages from the local helper', () => {
 		setUiLanguage('en');
 		expect(localizeHelperReply({ ok: false, error: '复制不完整', vault: '复制不完整', problems: ['复制不完整'] })).toEqual({ ok: false, error: 'The copy is incomplete', vault: '复制不完整', problems: ['The copy is incomplete'] });
 	});
+});
+
+it.each(['ja','ko','es','fr','de','pt_BR'])('keeps model-download progress and error details intact in %s', locale => {
+ setUiLanguage(locale);
+ const progress = translateHelperText('正在下载识别模型（12 / 1300 MB）');
+ expect(progress).toMatch(/12 \/ 1300 (?:MB|Mo)/);
+ expect(progress).not.toContain('正在下载识别模型');
+ expect(progress).not.toMatch(/^Downloading/);
+ const error = translateHelperText('音频下载失败：HTTP 403（Forbidden）');
+ expect(error).toContain('HTTP 403');
+ expect(error).toContain('Forbidden');
+ expect(error).not.toContain('音频下载失败');
+ expect(error).not.toMatch(/^Audio download failed/);
+});
+
+describe('Windows helper recovery messages', () => {
+ it.each(['en', 'zh_TW', 'ja', 'ko', 'es', 'fr', 'de', 'pt_BR'])('localizes recovery progress and errors in %s', language => {
+  setUiLanguage(language);
+  const messages = ['正在不使用登录状态重试视频下载', '正在重试 YouTube 音频下载', 'YouTube 拒绝了当前登录状态，匿名下载也需要验证身份；请更新 YouTube 登录状态后重试', '字幕生成进程意外退出，请重试'];
+  for (const message of messages) {
+   const reply = localizeHelperReply({stage: message, error: message, errorCode: 'cookies-rejected'});
+   expect(reply.stage).not.toBe(message);
+   expect(reply.error).toBe(reply.stage);
+   expect(reply.errorCode).toBe('cookies-rejected');
+  }
+ });
 });

@@ -259,10 +259,12 @@ label {
 
 		li {
 			justify-content: space-between;
+			&[data-section] > span { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.35; }
 		}
 	}
 
 	.nav-item-icon {
+		flex-shrink: 0;
 		width: 16px;
 		height: 16px;
 	}

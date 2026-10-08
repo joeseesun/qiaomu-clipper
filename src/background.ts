@@ -1,3 +1,4 @@
+import { createContentText } from './utils/content-i18n';
 import { getWebPageMedia, isTikTokMedia, snapshotDouyinPlayer, snapshotTikTokPlayer, tabMayLendTikTokMedia, tiktokVideoPath, validateDouyinTracks } from './utils/web-page-media';
 import { submitQiaomuClip, QiaomuClip } from './utils/qiaomu-rss';
 import browser from 'webextension-polyfill';
@@ -922,6 +923,8 @@ const debouncedUpdateContextMenu = debounce(async (tabId: number) => {
 	isContextMenuCreating = true;
 
 	try {
+		const text = await createContentText(browser, browser.i18n.getUILanguage());
+		const message = (key: string) => text(key, key, browser.i18n.getMessage(key) || key);
 		await browser.contextMenus.removeAll();
 
 		let currentTabId = tabId;
@@ -942,42 +945,42 @@ const debouncedUpdateContextMenu = debounce(async (tabId: number) => {
 		}[] = [
 				{
 					id: "open-obsidian-clipper",
-					title: "Save this page",
+					title: text('contextSavePage', '剪藏这个网页', 'Save this page'),
 					contexts: ["page", "selection", "image", "video", "audio"]
 				},
 				{
 					id: 'copy-markdown-to-clipboard',
-					title: browser.i18n.getMessage('copyToClipboard'),
+					title: message('copyToClipboard'),
 					contexts: ["page", "selection"]
 				},
 				{
 					id: isReaderMode ? "exit-reader" : "enter-reader",
-					title: isReaderMode ? browser.i18n.getMessage('disableReader') : browser.i18n.getMessage('readerOn'),
+					title: isReaderMode ? message('disableReader') : message('readerOn'),
 					contexts: ["page", "selection"]
 				},
 				{
 					id: isHighlighterMode ? "exit-highlighter" : "enter-highlighter",
-					title: isHighlighterMode ? browser.i18n.getMessage('disableHighlighter') : browser.i18n.getMessage('highlighterOn'),
+					title: isHighlighterMode ? message('disableHighlighter') : message('highlighterOn'),
 					contexts: ["page","image", "video", "audio"]
 				},
 				{
 					id: "highlight-selection",
-					title: "Add to highlights",
+					title: text('contextAddHighlight', '加入划线', 'Add to highlights'),
 					contexts: ["selection"]
 				},
 				{
 					id: "highlight-element",
-					title: "Add to highlights",
+					title: text('contextAddHighlight', '加入划线', 'Add to highlights'),
 					contexts: ["image", "video", "audio"]
 				},
 				{
 					id: 'save-selection-to-diary',
-					title: browser.i18n.getMessage('saveSelectionToDiary'),
+					title: message('saveSelectionToDiary'),
 					contexts: ["selection"]
 				},
 				{
 					id: 'open-embedded',
-					title: browser.i18n.getMessage('openEmbedded'),
+					title: message('openEmbedded'),
 					contexts: ["page", "selection"]
 				}
 			];
@@ -986,7 +989,7 @@ const debouncedUpdateContextMenu = debounce(async (tabId: number) => {
 		if (browserType === 'chrome') {
 			menuItems.push({
 				id: 'open-side-panel',
-				title: browser.i18n.getMessage('openSidePanel'),
+				title: message('openSidePanel'),
 				contexts: ["page", "selection"]
 			});
 		}
@@ -1299,6 +1302,7 @@ browser.action.onClicked.addListener(async (tab) => {
 });
 
 browser.storage.onChanged.addListener((changes, area) => {
+	if (area === 'local' && changes.language) debouncedUpdateContextMenu(-1);
 	if (area === 'sync' && changes.general_settings) {
 		updateActionPopup(parseOpenBehavior((changes.general_settings.newValue as Record<string, string>)?.openBehavior));
 	}

@@ -210,6 +210,32 @@ class ResultTests(unittest.TestCase):
         self.assertEqual(state['state'], 'failed'); self.assertEqual(state['stage'], '失败')
         self.assertIn('字幕生成进程意外退出', state['error'])
 
+    def test_install_exit_during_poll_preserves_fresh_terminal_state(self):
+        directory = asr.installs_dir(self.base) / self.job
+        directory.mkdir(parents=True)
+        for terminal in ('completed', 'failed', 'cancelled'):
+            with self.subTest(terminal=terminal):
+                asr.write_state(directory, state='installing', pid=4242, error=None)
+                def exit_during_probe(pid):
+                    asr.write_state(directory, state=terminal, stage='actual install result',
+                                    error='actual install error' if terminal == 'failed' else None)
+                    return False
+                with patch.object(asr, 'pid_alive', side_effect=exit_during_probe):
+                    _, state = asr.install_state(self.base, self.job)
+                self.assertEqual(state['state'], terminal)
+                self.assertEqual(state['stage'], 'actual install result')
+                self.assertEqual(state['error'], 'actual install error' if terminal == 'failed' else None)
+
+    def test_dead_install_without_terminal_state_is_reported(self):
+        directory = asr.installs_dir(self.base) / self.job
+        directory.mkdir(parents=True)
+        asr.write_state(directory, state='installing', pid=4242, error=None)
+        with patch.object(asr, 'pid_alive', return_value=False):
+            _, state = asr.install_state(self.base, self.job)
+        self.assertEqual(state['state'], 'failed')
+        self.assertEqual(state['stage'], '失败')
+        self.assertIn('安装进程意外退出', state['error'])
+
     def test_cloud_cache_is_not_returned_as_local_and_language_changes_require_new_job(self):
         for cached, language, reused in [(self.cached, 'auto', False), ({**self.cached, 'engine':'faster-whisper'}, 'auto', True),
                                          ({**self.cached, 'engine':'faster-whisper', 'requestedLanguage':'zh'}, 'auto', False),

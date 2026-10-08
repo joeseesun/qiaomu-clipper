@@ -16,7 +16,7 @@
  "5 分钟音频约 15–20 秒。": "About 15–20 seconds for 5 minutes of audio.",
  "5. 成功后再运行一次 python3 native/install.py --check 确认，并告诉我去 chrome://extensions 重新加载「乔木剪藏」，不需要重启浏览器。": "5. After success, run python3 native/install.py --check once more to confirm, and tell me to reload “Qiaomu Clipper” in chrome://extensions; no browser restart is needed.",
  "5. 最后告诉我：打开 chrome://extensions，点「乔木剪藏」的重新加载，再回到笔记里点「重试」。": "5. Finally tell me: open chrome://extensions, click reload on “Qiaomu Clipper”, then go back to the note and click “Retry”.",
- "<em>文件优先于应用</em>是一种理念：想让数字作品<strong>长久留存</strong>，它们就该是你能掌控、格式也容易读取的文件。选那些能给你这份<a class=\"reader-preview-link\" href=\"https://stephango.com/file-over-app\" target=\"_blank\">自由</a>的工具。": "<em>File over app</em> is a philosophy: if you want to create digital artifacts that last, they have to be files you can control, in formats that are easy to retrieve and read. Use tools that give you this <a class=\"reader-preview-link\" href=\"https://stephango.com/file-over-app\" target=\"_blank\">freedom</a>.",
+ "<em>文件优先于应用</em>是一种理念：想让数字作品<strong>长久留存</strong>，它们就该是你能掌控、格式也容易读取的文件。选那些能给你这份<a class=\"reader-preview-link\" href=\"https://stephango.com/file-over-app\" target=\"_blank\">自由</a>的工具。": "<em>File over app</em> is a philosophy: if you want to create digital artifacts that <strong>last</strong>, they have to be files you can control, in formats that are easy to retrieve and read. Use tools that give you this <a class=\"reader-preview-link\" href=\"https://stephango.com/file-over-app\" target=\"_blank\">freedom</a>.",
  "<span class=\"learn-num\">1</span>连按三次 I": "<span class=\"learn-num\">1</span>Press I three times",
  "<span class=\"learn-num\">2</span>写下想法": "<span class=\"learn-num\">2</span>Write your thought",
  "<span class=\"learn-num\">3</span>存进今天的日记": "<span class=\"learn-num\">3</span>Save to today's daily note",
@@ -655,5 +655,14 @@
  "＋ 添加其他": "+ Add another",
  "，模型已就绪": ", model ready",
  "，首次使用时会下载模型": ", the model downloads on first use",
- "；当前窗口已达最小可用尺寸": "; the window is already at its smallest usable size"
+ "；当前窗口已达最小可用尺寸": "; the window is already at its smallest usable size",
+ "没有连上本地助手。请到「剪藏与保存」安装助手，或检查已有助手的连接。": "The local helper is not connected. Install it or check its connection under Clipping and saving.",
+ "本地助手版本较旧。请到「剪藏与保存」更新助手，再重新检查。": "The local helper is out of date. Update it under Clipping and saving, then check again.",
+ "本地保存助手已安装但启动失败。请到「剪藏与保存」检查连接，或更新助手后重试。": "The local saving helper is installed but could not start. Check its connection under Clipping and saving, or update it and retry.",
+ "安装或更新本地助手": "Install or update the local helper",
+ "1. 先阅读 https://github.com/joeseesun/qiaomu-clipper 的 README。macOS 优先下载并安装最新发布页的 qiaomu-clipper-helper.pkg；安装时需要我操作系统授权的话，请提醒我完成。": "1. Read the README at https://github.com/joeseesun/qiaomu-clipper first. On macOS, download and install qiaomu-clipper-helper.pkg from the latest release. Ask me to complete any required system authorization.",
+ "2. macOS 安装包版使用 /Library/QiaomuClipper/bin/qiaomu-helper --check 诊断，并用 /Library/QiaomuClipper/bin/qiaomu-helper --extension-id {0} 注册当前扩展。其他系统或源码安装按 README 操作，在仓库目录运行 python3 native/install.py --extension-id {0}；Windows 可用 python 或 py -3。": "2. For the macOS package, diagnose with /Library/QiaomuClipper/bin/qiaomu-helper --check and register this extension with /Library/QiaomuClipper/bin/qiaomu-helper --extension-id {0}. For other systems or source installations, follow the README and run python3 native/install.py --extension-id {0} in the repository; on Windows, use python or py -3.",
+ "3. 不要编造扩展 ID 或 Obsidian 库路径。多个库时先让我选择；诊断失败时读取 error、hint 和 problems 处理。用当前安装方式对应的 --check 命令确认 \"ok\": true，再提醒我重新加载扩展并重试。": "3. Do not invent extension IDs or Obsidian vault paths. Ask me to choose if there are multiple vaults. Handle diagnosis failures using error, hint and problems. Verify \"ok\": true with the --check command for the installed method, then remind me to reload the extension and retry.",
+ "本地保存助手已安装，但尚未允许当前扩展 ID。请到「剪藏与保存」复制修复提示，让 Agent 注册当前扩展。": "The local saving helper is installed but has not allowed this extension ID. Copy the repair prompt under Clipping and saving and ask an agent to register this extension.",
+ "（部分翻译）": " (partially translated)"
 }

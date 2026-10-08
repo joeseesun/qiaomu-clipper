@@ -57,7 +57,7 @@ function selectedArticleText(): string {
 	return selection.toString().trim();
 }
 
-// Side panel for asking questions about the article, using the models configured under "AI 解读".
+// Side panel using the models configured under LLM providers and models.
 export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boolean) => boolean } {
 	const root = document.documentElement;
 	const panel = el('aside', 'clip-chat');
@@ -71,7 +71,7 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 		getModels: enabledChatModels,
 		getProviders: () => generalSettings.providers,
 		onSelect: id => { void setLocalStorage('qiaomuChatModel', id); },
-		onManage: () => { void browser.runtime.openOptionsPage(); }
+		onManage: () => { void browser.tabs.create({ url: browser.runtime.getURL('settings.html?section=interpreter') }); }
 	});
 	const historyButton = iconButton('clip-chat-icon', History, getMessage('qiaomuChatHistory'));
 	const newChat = iconButton('clip-chat-icon', Plus, getMessage('qiaomuChatNew'));
@@ -399,9 +399,9 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 		if (!models.length) {
 			const empty = el('div', 'clip-chat-empty');
 			empty.append(el('p', '', getMessage('qiaomuChatNoModel')));
-			const open = el('button', 'clip-chat-link', getMessage('qiaomuChatOpenSettings'));
+			const open = el('button', 'clip-chat-link clip-chat-model-setup', getMessage('qiaomuChatOpenSettings'));
 			open.type = 'button';
-			open.addEventListener('click', () => { void browser.runtime.openOptionsPage(); });
+			open.addEventListener('click', () => { void browser.tabs.create({ url: browser.runtime.getURL('settings.html?section=interpreter') }); });
 			empty.appendChild(open);
 			messagesEl.appendChild(empty);
 			input.disabled = true; send.disabled = true;
