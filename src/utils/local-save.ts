@@ -149,7 +149,7 @@ export function handleAsrMessage(request: unknown, sender: { id?: string; url?: 
         } else if (chosen && chosen.engine !== 'auto') body.engine = chosen.engine;
         const result = await invokeLearningNative(body)
             // A helper from before this feature answers every unknown request with an "unsupported" error.
-            .then(answer => { const reply = answer as { ok?: boolean; error?: string }; return reply && typeof reply.ok === 'boolean' ? (reply.ok === false && /不支持|unsupported/i.test(reply.error || '') ? { ok: false, error: 'helper-outdated' } : answer) : { ok: false, error: 'helper-outdated' }; })
+            .then(answer => { const reply = answer as { ok?: boolean; error?: string; message?: string }; return reply && typeof reply.ok === 'boolean' ? (reply.ok === false && /不支持|unsupported/i.test(reply.error || '') && !reply.message ? { ok: false, error: 'helper-outdated' } : answer) : { ok: false, error: 'helper-outdated' }; })
             .catch(() => ({ ok: false, error: 'helper-offline' }));
         return payload.mode === 'status' && (result as { ok?: boolean }).ok ? { ...(result as object), mode: chosen?.mode ?? 'local', ...(label ? { cloudLabel: label, cloudLocal: here } : {}), choices: summary(chosen!) } : result;
     });

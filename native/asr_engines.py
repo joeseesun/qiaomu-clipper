@@ -27,17 +27,25 @@ ENGINES = {
 ORDER = ['mlx', 'mlx-qwen3', 'faster-whisper']
 
 def venv_dir(name): return tools_home() / name
-def venv_python(name): return venv_dir(name) / 'bin' / 'python'
-def venv_bin(name): return venv_dir(name) / 'bin'
+def venv_python(name):
+    if sys.platform == 'win32': return venv_dir(name) / 'Scripts' / 'python.exe'
+    return venv_dir(name) / 'bin' / 'python'
+def venv_bin(name):
+    if sys.platform == 'win32': return venv_dir(name) / 'Scripts'
+    return venv_dir(name) / 'bin'
 def private_bin_dirs():
     return [str(venv_bin(name)) for name in ['base'] + ORDER if venv_bin(name).is_dir()]
 def private_ffmpeg():
-    """ffmpeg inside the base environment's imageio-ffmpeg package."""
-    for path in sorted(venv_dir('base').glob('lib/python*/site-packages/imageio_ffmpeg/binaries/ffmpeg-*')):
-        if path.is_file() and os.access(path, os.X_OK): return str(path)
-    return None
+    """ffmpeg inside the base environment's imageio-ffmpeg package or installed imageio_ffmpeg."""
+    for path in sorted(venv_dir('base').glob('**/ffmpeg-*')):
+        if path.is_file() and (os.access(path, os.X_OK) or path.suffix.lower() == '.exe'): return str(path)
+    try:
+        import imageio_ffmpeg
+        return imageio_ffmpeg.get_ffmpeg_exe()
+    except Exception: pass
+    return shutil.which('ffmpeg')
 def has_module(name, module):
-    return any(p.is_dir() for p in venv_dir(name).glob(f'lib/python*/site-packages/{module}'))
+    return any(p.is_dir() for p in venv_dir(name).glob(f'**/site-packages/{module}'))
 def model_ready(model):
     snapshots = hf_home() / 'hub' / ('models--' + model.replace('/', '--')) / 'snapshots'
     return snapshots.is_dir() and any(snapshots.iterdir())
@@ -91,7 +99,8 @@ def ytdlp_binary_url():
     else: return None
     return 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/' + name
 def base_installed():
-    return venv_bin('base').joinpath('yt-dlp').exists() and private_ffmpeg() is not None
+    yt_name = 'yt-dlp.exe' if sys.platform == 'win32' else 'yt-dlp'
+    return (venv_bin('base').joinpath(yt_name).exists() or shutil.which('yt-dlp') is not None) and private_ffmpeg() is not None
 
 # ---- installing ---------------------------------------------------------------------------------------------------
 def plan(engine_id, python=None):

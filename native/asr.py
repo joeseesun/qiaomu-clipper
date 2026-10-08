@@ -63,9 +63,18 @@ def tool_dirs():
     return extra + eng.private_bin_dirs() + TOOL_DIRS
 def find_tool(name):
     found = shutil.which(name, path=os.pathsep.join(tool_dirs() + [os.environ.get('PATH', '')]))
+    if not found and name == 'ffmpeg':
+        try:
+            import imageio_ffmpeg
+            return imageio_ffmpeg.get_ffmpeg_exe()
+        except Exception: pass
     return found or (eng.private_ffmpeg() if name == 'ffmpeg' else None)
 def tool_env():
     env = dict(os.environ); env['PATH'] = os.pathsep.join(tool_dirs() + [env.get('PATH', '')]); env['PYTHONUNBUFFERED'] = '1'; env['PYTHONIOENCODING'] = 'utf-8'
+    if 'NO_PROXY' in env: env['NO_PROXY'] = ','.join(x for x in env['NO_PROXY'].split(',') if '::' not in x)
+    if 'no_proxy' in env: env['no_proxy'] = ','.join(x for x in env['no_proxy'].split(',') if '::' not in x)
+    env.setdefault('HF_ENDPOINT', 'https://hf-mirror.com')
+    env['HF_HUB_DISABLE_SYMLINKS_WARNING'] = '1'
     return env
 def tool_version(path, flag='--version'):
     try: return subprocess.run([path, flag], capture_output=True, text=True, timeout=10).stdout.strip().splitlines()[0][:60]
@@ -101,12 +110,13 @@ def pick_engine(found, wanted=None):
     return found[0] if found else None
 def local_catalogue(found):
     """Every local engine this computer could use, installed or not, so a page can offer to install the missing ones."""
-    listing = [eng.describe(engine_id) for engine_id in eng.ORDER if eng.supported(engine_id)]
+    listing = [eng.describe(engine_id) for engine_id in eng.ORDER]
     for item in listing:
         # An engine found outside the private folder (Homebrew, uv tool) counts as installed too.
         if not item['installed'] and any(e['id'] == item['id'] for e in found): item['installed'] = True; item['managed'] = False
-    # What to suggest installing first: the fastest one this machine can run.
-    if listing: listing[0]['recommended'] = True
+    # What to suggest installing first: the fastest supported one this machine can run.
+    supported_items = [x for x in listing if x.get('supported')]
+    if supported_items: supported_items[0]['recommended'] = True
     cpp = next((e for e in found if e['id'] == 'whispercpp'), None)
     if cpp: listing.append({'id': 'whispercpp', 'name': cpp['name'], 'sizeMb': 0, 'note': '已在本机检测到', 'supported': True, 'installed': True, 'modelReady': True, 'managed': False})
     return listing
@@ -505,7 +515,9 @@ def cancel(base, message):
     if state.get('state') in RUNNING:
         pid = state.get('pid')
         for sig in (signal.SIGTERM, signal.SIGKILL):
-            try: os.killpg(pid, sig)
+            try:
+                if sys.platform == 'win32': os.kill(pid, signal.SIGTERM)
+                else: os.killpg(pid, sig)
             except (OSError, TypeError): break
             time.sleep(0.3)
             if not pid_alive(pid): break
@@ -614,7 +626,9 @@ def install_cancel(base, message):
     if state.get('state') in INSTALLING:
         pid = state.get('pid')
         for sig in (signal.SIGTERM, signal.SIGKILL):
-            try: os.killpg(pid, sig)
+            try:
+                if sys.platform == 'win32': os.kill(pid, signal.SIGTERM)
+                else: os.killpg(pid, sig)
             except (OSError, TypeError): break
             time.sleep(0.3)
             if not pid_alive(pid): break
@@ -665,7 +679,7 @@ def unquarantine(path):
     except (OSError, subprocess.SubprocessError): pass
 def link_ffmpeg():
     """pip puts the bundled ffmpeg under an odd name; give it the plain one so every tool finds it."""
-    binary = eng.private_ffmpeg(); link = eng.venv_bin('base') / 'ffmpeg'
+    binary = eng.private_ffmpeg(); link = eng.venv_bin('base') / ('ffmpeg.exe' if sys.platform == 'win32' else 'ffmpeg')
     if binary and not link.exists():
         try: link.symlink_to(binary)
         except OSError: shutil.copy2(binary, link)
