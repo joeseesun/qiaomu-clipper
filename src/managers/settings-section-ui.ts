@@ -77,7 +77,7 @@ export function initializeSidebar(): void {
 	document.addEventListener('click', event => {
 		const link = (event.target as HTMLElement).closest<HTMLElement>('[data-goto-section]');
 		const section = link?.dataset.gotoSection;
-		if (section === 'asr' || section === 'interpreter' || section === 'templates-home') { event.preventDefault(); showSettingsSection(section); }
+		if (section === 'asr' || section === 'interpreter' || section === 'templates-home') { event.preventDefault(); showSettingsSection(section); const target = link?.dataset.gotoTarget; if (target) document.getElementById(target)?.scrollIntoView({ block: 'start' }); }
 	});
 
 	if (sidebar) {

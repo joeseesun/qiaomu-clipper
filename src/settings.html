@@ -377,9 +377,20 @@
 
 					<div id="asr-section" class="settings-section">
 						<div class="settings-section-header">
-							<h2>字幕与转写</h2>
+							<h2>字幕</h2>
 						</div>
 						
+						<div class="setting-group" id="asr-pointer">
+							<div class="setting-items">
+								<div class="setting-item mod-horizontal">
+									<div class="setting-item-info">
+										<label>生成字幕用</label>
+										<div class="setting-item-description"><span id="asr-current-label">…</span><span id="asr-current-note"></span></div>
+									</div>
+									<div class="setting-item-control"><button type="button" class="btn" data-goto-section="interpreter" data-goto-target="asr-settings">更改</button></div>
+								</div>
+							</div>
+						</div>
 						<div id="video-settings-form">
 							<div class="setting-group" id="video-bar-settings">
 								<div class="setting-item setting-item-heading"><h3>视频页的字幕条</h3></div>
@@ -433,32 +444,6 @@
 								</div>
 							</div>
 						</div>
-						<p class="settings-section-note"><span data-i18n="asrIntroOther">This only turns sound into subtitles. Chinese translation, chat and AI interpretation use AI models, set up separately.</span> <a href="#" data-goto-section="interpreter" data-i18n="asrGotoModels">Set up AI models</a></p>
-						<form id="asr-settings-form">
-							<div class="setting-group" id="asr-settings">
-								<div class="setting-item setting-item-heading"><h3>语音识别</h3></div>
-								<div class="setting-items">
-									<div class="setting-item-description">视频或音频没有字幕时，用语音识别生成带时间的字幕。本机识别免费、音频不离开这台电脑；云端更快，但音频会上传并按量计费。</div>
-									<div class="asr-current">
-										<div class="asr-current-row"><label for="asr-default">用哪个生成字幕</label><select id="asr-default" class="dropdown"></select></div>
-										<details class="asr-sites"><summary>每个网站单独设置</summary><div class="asr-routes" id="asr-routes"></div></details>
-										<div class="asr-auto">
-											<div class="asr-auto-text"><label for="asr-use-context">参考视频简介，少写错人名和术语</label><span>把标题、作者和简介交给识别当参考。简介里的错别字可能被照抄；用云端时，这些公开信息会随音频一起发送。</span></div>
-											<div class="checkbox-container"><input type="checkbox" id="asr-use-context" /></div>
-										</div>
-									<div class="asr-auto">
-											<div class="asr-auto-text"><label for="asr-auto-start">点「生成字幕」就直接开始</label><span>不再每次确认。用云端时音频会直接上传；需要先安装，或要换个模型重新生成时，仍会先问。</span></div>
-											<div class="checkbox-container"><input type="checkbox" id="asr-auto-start" /></div>
-										</div>
-									</div>
-									<div class="asr-block-title">推荐</div>
-									<div class="asr-rec" id="asr-rec"></div>
-									<div class="asr-block-title"><span>我的识别方式</span><button type="button" id="asr-add" class="asr-link">＋ 添加其他</button></div>
-									<div class="asr-list" id="asr-grid"></div>
-									<div id="asr-status" class="setting-item-description" role="status" aria-live="polite"></div>
-								</div>
-							</div>
-						</form>
 					</div>
 
 					<div id="highlighter-section" class="settings-section">
@@ -743,7 +728,6 @@
 						<div class="settings-section-header">
 							<h2>供应商与模型</h2>
 						</div>
-						<p class="settings-section-note"><span data-i18n="aiModelsIntro">Models here power Chinese translation, chat and AI interpretation. Making subtitles from audio uses Speech recognition, set up separately.</span> <a href="#" data-goto-section="asr" data-i18n="aiModelsGotoAsr">Set up speech recognition</a></p>
 						<form id="interpreter-settings-form">
 							<div class="setting-group">
 								<div class="setting-items">
@@ -814,6 +798,31 @@
 									<textarea id="default-prompt-context" rows="4" placeholder="{{fullHtml}}" spellcheck="false"></textarea>
 								</div>
 								
+								</div>
+							</div>
+						</form>
+						<form id="asr-settings-form">
+							<div class="setting-group" id="asr-settings">
+								<div class="setting-item setting-item-heading"><h3>语音识别模型</h3></div>
+								<div class="setting-items">
+									<div class="setting-item-description">视频或音频没有字幕时，用语音识别生成带时间的字幕。本机识别免费、音频不离开这台电脑；云端更快，但音频会上传并按量计费。</div>
+									<div class="asr-current">
+										<div class="asr-current-row"><label for="asr-default">用哪个生成字幕</label><select id="asr-default" class="dropdown"></select></div>
+										<details class="asr-sites"><summary>每个网站单独设置</summary><div class="asr-routes" id="asr-routes"></div></details>
+										<div class="asr-auto">
+											<div class="asr-auto-text"><label for="asr-use-context">参考视频简介，少写错人名和术语</label><span>把标题、作者和简介交给识别当参考。简介里的错别字可能被照抄；用云端时，这些公开信息会随音频一起发送。</span></div>
+											<div class="checkbox-container"><input type="checkbox" id="asr-use-context" /></div>
+										</div>
+									<div class="asr-auto">
+											<div class="asr-auto-text"><label for="asr-auto-start">点「生成字幕」就直接开始</label><span>不再每次确认。用云端时音频会直接上传；需要先安装，或要换个模型重新生成时，仍会先问。</span></div>
+											<div class="checkbox-container"><input type="checkbox" id="asr-auto-start" /></div>
+										</div>
+									</div>
+									<div class="asr-block-title">推荐</div>
+									<div class="asr-rec" id="asr-rec"></div>
+									<div class="asr-block-title"><span>我的识别方式</span><button type="button" id="asr-add" class="asr-link">＋ 添加其他</button></div>
+									<div class="asr-list" id="asr-grid"></div>
+									<div id="asr-status" class="setting-item-description" role="status" aria-live="polite"></div>
 								</div>
 							</div>
 						</form>

@@ -43,6 +43,8 @@ export async function initializeAsrSettings(): Promise<void> {
 	const routeWith = (platform: AsrPlatform, value: string) => { const next = { ...settings.routes }; if (value) next[platform] = value; else delete next[platform]; return next; };
 	const paintDefaults = () => {
 		fill(defaultSelect, options(), defaultRecognizer(settings));
+		const nowLabel = document.getElementById('asr-current-label'), nowNote = document.getElementById('asr-current-note');
+		if (nowLabel) { nowLabel.textContent = defaultSelect.selectedOptions[0]?.textContent ?? ''; if (nowNote) nowNote.textContent = defaultSelect.value.startsWith('cloud') ? ' · 音频会上传，按量计费' : ' · 音频不上传'; }
 		routes.replaceChildren(...SITES.map(([platform, label]) => {
 			const wrap = node('div', 'asr-field'), caption = node('label', '', label), select = node('select', 'dropdown'); select.id = `asr-route-${platform}`; caption.htmlFor = select.id;
 			fill(select, [['', '跟随默认'], ...options()], settings.routes[platform] ?? '');
