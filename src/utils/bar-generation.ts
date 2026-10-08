@@ -4,6 +4,8 @@ import type { GenChoice, GenerationActions, GenUi } from './subtitle-generation-
 import { createGeneration, type Generation, type GenerationDeps, type GenerationEvent } from './subtitle-generation';
 import { asrChoose, thisBrowser, type AsrStatus, type InstallTarget } from './asr-client';
 
+import browser from './browser-polyfill';
+import { t } from './ui-text';
 // Connects "generate subtitles" to a page's transcript bar. The page script says how to read the current video key, how to
 // put lines into its own transcript store, and where to keep a finished result; this keeps the flow and the bar in step and
 // makes sure a job that belongs to another video never paints on this one.
@@ -24,9 +26,9 @@ export interface BarGenerationOptions {
 const sizeText = (mb: number) => mb >= 1000 ? (mb / 1000).toFixed(1) + ' GB' : mb + ' MB';
 // Which engine or service is doing the work, in words for the progress line and the note on the result.
 export function viaOf(status: AsrStatus): string {
-	if (status.mode === 'cloud') return status.cloudLocal ? status.cloudLabel || '本机服务' : `${status.cloudLabel || '云端服务'} · 云端`;
+	if (status.mode === 'cloud') return status.cloudLocal ? status.cloudLabel || t('本机服务') : t('{0} · 云端', [status.cloudLabel || t('云端服务')]);
 	const engine = (status.local ?? []).find(item => item.id === status.engine) ?? (status.local ?? []).find(item => item.id === status.choices?.engine);
-	return engine ? `${engine.name} · 本机` : '本机识别';
+	return engine ? t('{0} · 本机', [engine.name]) : t('本机识别');
 }
 // What the confirm step shows for a status: the ways to make the subtitles (each with what it costs and where the audio goes), which one is selected, and what would have to be installed first.
 export function confirmFor(status: AsrStatus): Extract<GenUi, { kind: 'confirm' }> & { target?: InstallTarget } {
@@ -34,16 +36,16 @@ export function confirmFor(status: AsrStatus): Extract<GenUi, { kind: 'confirm' 
 	const recommended = locals.find(item => item.recommended)?.id ?? locals[0]?.id;
 	const chosenLocal = status.choices && status.choices.engine !== 'auto' ? status.choices.engine : (status.engine && status.engine !== 'cloud' ? status.engine : recommended);
 	const choices: GenChoice[] = [
-		...locals.map(item => ({ value: 'local:' + item.id, kind: 'local' as const, label: item.name, note: item.installed ? '本机 · 音频不上传 · 免费' : `本机 · 音频不上传 · 需先下载 ${sizeText(item.sizeMb)}` })),
-		...(status.choices?.profiles ?? []).filter(item => item.configured).map(item => ({ value: 'cloud:' + item.id, kind: 'cloud' as const, label: item.label + (item.local ? '（本机服务）' : ''), note: item.local ? '本机服务 · 音频不离开这台电脑' : '云端 · 音频会上传到该服务并按其规则计费' })),
+		...locals.map(item => ({ value: 'local:' + item.id, kind: 'local' as const, label: item.name, note: item.installed ? t('本机 · 音频不上传 · 免费') : t('本机 · 音频不上传 · 需先下载 {0}', [sizeText(item.sizeMb)]) })),
+		...(status.choices?.profiles ?? []).filter(item => item.configured).map(item => ({ value: 'cloud:' + item.id, kind: 'cloud' as const, label: item.label + (item.local ? t('（本机服务）') : ''), note: item.local ? t('本机服务 · 音频不离开这台电脑') : t('云端 · 音频会上传到该服务并按其规则计费') })),
 	];
 	const picked = cloud ? 'cloud:' + status.choices?.active : 'local:' + chosenLocal;
 	// What is missing: the engine the viewer picked (a cloud service needs none), or just the download and audio tools.
 	let target: InstallTarget | undefined, install: { name: string; sizeMb: number } | undefined;
 	const engine = locals.find(item => item.id === chosenLocal);
 	if (!cloud && engine && !engine.installed && engine.managed) { target = engine.id as InstallTarget; install = { name: engine.name, sizeMb: engine.sizeMb + (status.installable?.base ? 60 : 0) }; }
-	else if (status.installable?.base && (status.missing.includes('yt-dlp') || status.missing.includes('ffmpeg'))) { target = 'base'; install = { name: '下载与音频工具（yt-dlp、ffmpeg）', sizeMb: 60 }; }
-	return { kind: 'confirm', modelDownload: status.modelDownloadNeeded, ...(cloud ? { cloud: status.cloudLabel || '云端服务', localService: status.cloudLocal === true } : {}), ...(choices.length ? { choices } : {}), ...(choices.some(item => item.value === picked) ? { selected: picked } : {}), ...(install ? { install } : {}), ...(target ? { target } : {}) };
+	else if (status.installable?.base && (status.missing.includes('yt-dlp') || status.missing.includes('ffmpeg'))) { target = 'base'; install = { name: t('下载与音频工具（yt-dlp、ffmpeg）'), sizeMb: 60 }; }
+	return { kind: 'confirm', modelDownload: status.modelDownloadNeeded, ...(cloud ? { cloud: status.cloudLabel || t('云端服务'), localService: status.cloudLocal === true } : {}), ...(choices.length ? { choices } : {}), ...(choices.some(item => item.value === picked) ? { selected: picked } : {}), ...(install ? { install } : {}), ...(target ? { target } : {}) };
 }
 const choiceOf = (value: string): { engine: string } | { profile: string } | undefined => { const at = value.indexOf(':'), id = value.slice(at + 1); return at < 0 || !id ? undefined : value.startsWith('cloud:') ? { profile: id } : { engine: id }; };
 const LANGUAGE_KEY = 'qiaomuAsrLanguage';
@@ -112,7 +114,11 @@ export function createBarGeneration(options: BarGenerationOptions): BarGeneratio
 			dismiss() { const key = options.videoKey(); if (key) set(key, null); },
 			cancel() { generation.cancel(); },
 			// The viewer agreed to lend this browser's login for this one download.
-			confirmWithLogin() { const key = options.videoKey(); if (!key) return; jobKey = key; set(key, { kind: 'running', stage: '', progress: 0, modelDownload: false, via }); generation.run(key, { cookies: thisBrowser(), ...language() }); },
+			async confirmWithLogin() { const key = options.videoKey(); if (!key) return;
+				// Lending the browser's login needs a permission the viewer gives once, in the settings (the local edition already has it).
+				const ready = await Promise.resolve(browser.runtime.sendMessage({ action: 'qiaomuCookiesReady' })).then(answer => (answer as { ready?: boolean } | undefined)?.ready === true, () => false);
+				if (!ready) { set(key, { kind: 'failed', error: t('要先在设置里允许使用浏览器的登录状态：ASR 语音识别页，打开「下载要验证身份时…」。'), code: 'cookies-permission' }); options.openSettings?.(); return; }
+				jobKey = key; set(key, { kind: 'running', stage: '', progress: 0, modelDownload: false, via }); generation.run(key, { cookies: thisBrowser(), ...language() }); },
 		},
 	};
 }

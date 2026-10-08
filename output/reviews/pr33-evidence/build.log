@@ -1,0 +1,196 @@
+
+> qiaomu-clipper@1.11.2 build
+> npm run build:chrome && npm run build:firefox && npm run build:safari
+
+
+> qiaomu-clipper@1.11.2 build:chrome
+> webpack --env BROWSER=chrome --mode production
+
+assets by path _locales/ 1.1 MiB 36 assets
+assets by path *.js 20.2 MiB 18 assets
+assets by path *.html 74.8 KiB 6 assets
+assets by path *.css 310 KiB
+  asset style.css 179 KiB [emitted] (name: style)
+  + 3 assets
+assets by path icons/*.png 8.04 KiB 3 assets
+assets by path fonts/ 5.69 MiB
+  asset fonts/ZhuqueFangsong-Regular.woff 5.68 MiB [emitted] [from: src/fonts/ZhuqueFangsong-Regular.woff] [copied] [big]
+  asset fonts/ZhuqueFangsong-OFL.txt 4.29 KiB [emitted] [from: src/fonts/ZhuqueFangsong-OFL.txt] [copied]
+asset ../builds/qiaomu-clipper-1.11.2-chrome.zip 10.6 MiB [emitted] [big]
+asset manifest.json 2.57 KiB [emitted] [from: src/manifest.chrome.json] [copied]
+asset LICENSE.txt 1.04 KiB [emitted] [from: LICENSE] [copied]
+orphan modules 3.64 MiB (javascript) 3.73 KiB (runtime) [orphan] 1617 modules
+runtime modules 6.37 KiB 29 modules
+built modules 11.4 MiB (javascript) 310 KiB (css/mini-extract) [built]
+  modules by path ./node_modules/ 2.65 MiB 238 modules
+  modules by path ./src/ 8.73 MiB (javascript) 310 KiB (css/mini-extract)
+    optional modules 846 KiB [optional] 37 modules
+    modules by path ./src/*.ts 1.38 MiB 8 modules
+    modules by path ./src/*.scss 200 bytes (javascript) 310 KiB (css/mini-extract) 8 modules
+    modules by path ./src/core/*.ts 6.52 MiB
+      ./src/core/popup.ts + 117 modules 1.83 MiB [built] [code generated]
+      + 4 modules
+
+WARNING in asset size limit: The following asset(s) exceed the recommended size limit (244 KiB).
+This can impact web performance.
+Assets: 
+  popup.js (2.84 MiB)
+  settings.js (2.28 MiB)
+  highlights.js (2.59 MiB)
+  reader-page.js (4.47 MiB)
+  clip-editor.js (1.59 MiB)
+  content.js (2.58 MiB)
+  reader-script.js (3.62 MiB)
+  fonts/ZhuqueFangsong-Regular.woff (5.68 MiB)
+  ../builds/qiaomu-clipper-1.11.2-chrome.zip (10.6 MiB)
+
+WARNING in entrypoint size limit: The following entrypoint(s) combined asset size exceeds the recommended limit (244 KiB). This can impact web performance.
+Entrypoints:
+  popup (2.84 MiB)
+      popup.js
+  settings (2.28 MiB)
+      settings.js
+  highlights (2.59 MiB)
+      highlights.js
+  reader-page (4.47 MiB)
+      reader-page.js
+  clip-editor (1.59 MiB)
+      clip-editor.js
+  content (2.58 MiB)
+      content.js
+  reader-script (3.62 MiB)
+      reader-script.js
+
+WARNING in webpack performance recommendations: 
+You can limit the size of your bundles by using import() or require.ensure to lazy load some parts of your application.
+For more info visit https://webpack.js.org/guides/code-splitting/
+
+webpack 5.105.4 compiled with 3 warnings in 12298 ms
+
+> qiaomu-clipper@1.11.2 build:firefox
+> webpack --env BROWSER=firefox --mode production
+
+assets by path _locales/ 1.1 MiB 36 assets
+assets by path *.js 20.2 MiB 18 assets
+assets by path *.html 74.8 KiB 6 assets
+assets by path *.css 310 KiB
+  asset style.css 179 KiB [emitted] (name: style)
+  + 3 assets
+assets by path icons/*.png 8.04 KiB 3 assets
+assets by path fonts/ 5.69 MiB
+  asset fonts/ZhuqueFangsong-Regular.woff 5.68 MiB [emitted] [from: src/fonts/ZhuqueFangsong-Regular.woff] [copied] [big]
+  asset fonts/ZhuqueFangsong-OFL.txt 4.29 KiB [emitted] [from: src/fonts/ZhuqueFangsong-OFL.txt] [copied]
+asset ../builds/qiaomu-clipper-1.11.2-firefox.zip 10.6 MiB [emitted] [big]
+asset manifest.json 2.84 KiB [emitted] [from: src/manifest.firefox.json] [copied]
+asset LICENSE.txt 1.04 KiB [emitted] [from: LICENSE] [copied]
+orphan modules 3.64 MiB (javascript) 3.73 KiB (runtime) [orphan] 1617 modules
+runtime modules 6.37 KiB 29 modules
+built modules 11.4 MiB (javascript) 310 KiB (css/mini-extract) [built]
+  modules by path ./node_modules/ 2.65 MiB 238 modules
+  modules by path ./src/ 8.73 MiB (javascript) 310 KiB (css/mini-extract)
+    optional modules 846 KiB [optional] 37 modules
+    modules by path ./src/*.ts 1.38 MiB 8 modules
+    modules by path ./src/*.scss 200 bytes (javascript) 310 KiB (css/mini-extract) 8 modules
+    modules by path ./src/core/*.ts 6.52 MiB
+      ./src/core/popup.ts + 117 modules 1.83 MiB [built] [code generated]
+      + 4 modules
+
+WARNING in asset size limit: The following asset(s) exceed the recommended size limit (244 KiB).
+This can impact web performance.
+Assets: 
+  popup.js (2.84 MiB)
+  settings.js (2.28 MiB)
+  highlights.js (2.59 MiB)
+  reader-page.js (4.47 MiB)
+  clip-editor.js (1.59 MiB)
+  content.js (2.58 MiB)
+  reader-script.js (3.62 MiB)
+  fonts/ZhuqueFangsong-Regular.woff (5.68 MiB)
+  ../builds/qiaomu-clipper-1.11.2-firefox.zip (10.6 MiB)
+
+WARNING in entrypoint size limit: The following entrypoint(s) combined asset size exceeds the recommended limit (244 KiB). This can impact web performance.
+Entrypoints:
+  popup (2.84 MiB)
+      popup.js
+  settings (2.28 MiB)
+      settings.js
+  highlights (2.59 MiB)
+      highlights.js
+  reader-page (4.47 MiB)
+      reader-page.js
+  clip-editor (1.59 MiB)
+      clip-editor.js
+  content (2.58 MiB)
+      content.js
+  reader-script (3.62 MiB)
+      reader-script.js
+
+WARNING in webpack performance recommendations: 
+You can limit the size of your bundles by using import() or require.ensure to lazy load some parts of your application.
+For more info visit https://webpack.js.org/guides/code-splitting/
+
+webpack 5.105.4 compiled with 3 warnings in 12113 ms
+
+> qiaomu-clipper@1.11.2 build:safari
+> webpack --env BROWSER=safari --mode production
+
+assets by path _locales/ 1.1 MiB 36 assets
+assets by path *.js 20.2 MiB 18 assets
+assets by path *.html 74.8 KiB 6 assets
+assets by path *.css 310 KiB
+  asset style.css 179 KiB [emitted] (name: style)
+  + 3 assets
+assets by path icons/*.png 8.04 KiB 3 assets
+assets by path fonts/ 5.69 MiB
+  asset fonts/ZhuqueFangsong-Regular.woff 5.68 MiB [emitted] [from: src/fonts/ZhuqueFangsong-Regular.woff] [copied] [big]
+  asset fonts/ZhuqueFangsong-OFL.txt 4.29 KiB [emitted] [from: src/fonts/ZhuqueFangsong-OFL.txt] [copied]
+asset ../builds/qiaomu-clipper-1.11.2-safari.zip 10.6 MiB [emitted] [big]
+asset manifest.json 2.52 KiB [emitted] [from: src/manifest.safari.json] [copied]
+asset LICENSE.txt 1.04 KiB [emitted] [from: LICENSE] [copied]
+orphan modules 3.64 MiB (javascript) 3.73 KiB (runtime) [orphan] 1617 modules
+runtime modules 6.37 KiB 29 modules
+built modules 11.4 MiB (javascript) 310 KiB (css/mini-extract) [built]
+  modules by path ./node_modules/ 2.65 MiB 238 modules
+  modules by path ./src/ 8.73 MiB (javascript) 310 KiB (css/mini-extract)
+    optional modules 846 KiB [optional] 37 modules
+    modules by path ./src/*.ts 1.38 MiB 8 modules
+    modules by path ./src/*.scss 200 bytes (javascript) 310 KiB (css/mini-extract) 8 modules
+    modules by path ./src/core/*.ts 6.52 MiB
+      ./src/core/popup.ts + 117 modules 1.83 MiB [built] [code generated]
+      + 4 modules
+
+WARNING in asset size limit: The following asset(s) exceed the recommended size limit (244 KiB).
+This can impact web performance.
+Assets: 
+  popup.js (2.84 MiB)
+  settings.js (2.28 MiB)
+  highlights.js (2.59 MiB)
+  reader-page.js (4.47 MiB)
+  clip-editor.js (1.59 MiB)
+  content.js (2.58 MiB)
+  reader-script.js (3.62 MiB)
+  fonts/ZhuqueFangsong-Regular.woff (5.68 MiB)
+  ../builds/qiaomu-clipper-1.11.2-safari.zip (10.6 MiB)
+
+WARNING in entrypoint size limit: The following entrypoint(s) combined asset size exceeds the recommended limit (244 KiB). This can impact web performance.
+Entrypoints:
+  popup (2.84 MiB)
+      popup.js
+  settings (2.28 MiB)
+      settings.js
+  highlights (2.59 MiB)
+      highlights.js
+  reader-page (4.47 MiB)
+      reader-page.js
+  clip-editor (1.59 MiB)
+      clip-editor.js
+  content (2.58 MiB)
+      content.js
+  reader-script (3.62 MiB)
+      reader-script.js
+
+WARNING in webpack performance recommendations: 
+You can limit the size of your bundles by using import() or require.ensure to lazy load some parts of your application.
+For more info visit https://webpack.js.org/guides/code-splitting/
+
+webpack 5.105.4 compiled with 3 warnings in 12298 ms

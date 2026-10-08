@@ -7,6 +7,7 @@ import { detectBrowser } from '../utils/browser-detection';
 import { createElementWithClass, createElementWithHTML } from '../utils/dom-utils';
 import { createDefaultTemplate, getTemplates, saveTemplateSettings } from '../managers/template-manager';
 import { updateTemplateList, showTemplateEditor } from '../managers/template-ui';
+import { checkForUpdate } from '../utils/update-check';
 import { exportAllSettings, importAllSettings } from '../utils/import-export';
 import { Settings, Template } from '../types/types';
 import { exportHighlights, importHighlights } from './highlights-manager';
@@ -22,9 +23,11 @@ import dayjs from 'dayjs';
 import weekOfYear from 'dayjs/plugin/weekOfYear';
 import { showModal, hideModal } from '../utils/modal-utils';
 import { LocalSaveResult } from '../utils/local-save';
+import { releaseNotesView } from './release-notes-view';
 import { describeHelperFailure, nativeHelperRepairPrompt } from '../utils/native-helper-prompt';
 import { DEFAULT_TRIPLE_KEYS, TRIPLE_COMMANDS, TripleCommand, normalizeTripleKeys, normalizeSites } from '../utils/triple-key';
 
+import { t } from '../utils/ui-text';
 dayjs.extend(weekOfYear);
 
 export function updateVaultList(): void {
@@ -140,31 +143,19 @@ export async function setShortcutInstructions() {
 async function initializeVersionDisplay(): Promise<void> {
 	const manifest = browser.runtime.getManifest();
 	const versionNumber = document.getElementById('version-number');
-	const updateAvailable = document.getElementById('update-available');
-	const usingLatestVersion = document.getElementById('using-latest-version');
-
-	if (versionNumber) {
-		versionNumber.textContent = manifest.version;
-	}
-
-	// Only add update listener for browsers that support it
-	const currentBrowser = await detectBrowser();
-	if (currentBrowser !== 'safari' && currentBrowser !== 'mobile-safari' && browser.runtime.onUpdateAvailable) {
-		browser.runtime.onUpdateAvailable.addListener((details) => {
-			if (updateAvailable && usingLatestVersion) {
-				updateAvailable.style.display = 'block';
-				usingLatestVersion.style.display = 'none';
-			}
-		});
-	} else {
-		// For Safari, just hide the update status elements
-		if (updateAvailable) {
-			updateAvailable.style.display = 'none';
-		}
-		if (usingLatestVersion) {
-			usingLatestVersion.style.display = 'none';
-		}
-	}
+	const status = document.getElementById('version-status');
+	const link = document.getElementById('changelog-link') as HTMLAnchorElement | null;
+	if (versionNumber) versionNumber.textContent = manifest.version;
+	if (!status) return;
+	// The store edition is updated by the store. The local edition checks the project's releases once per visit and says so only when it read the answer.
+	if (!__LOCAL_EDITION__) { status.textContent = t('商店会自动更新这个插件。'); return; }
+	status.textContent = t('正在检查更新…');
+	void releaseNotesView();
+	const result = await checkForUpdate(manifest.version);
+	if (result.state === 'newer') {
+		status.textContent = t('有新版本 {0}，点右边去下载。', [result.version]);
+		if (link) { link.textContent = t('下载新版'); link.href = result.url; link.classList.add('mod-cta'); }
+	} else status.textContent = result.state === 'current' ? t('已是最新版本。') : t('暂时没能检查更新，可以到右边看看最新发布。');
 }
 
 export function initializeGeneralSettings(): void {
@@ -242,67 +233,109 @@ function initializeShowMoreActionsToggle(): void {
 }
 
 async function initializeLocalVaultSettings(): Promise<void> {
-	const input = document.getElementById('local-vault-path') as HTMLInputElement | null;
-	const button = document.getElementById('local-vault-save') as HTMLButtonElement | null;
-	const choose = document.getElementById('local-vault-choose') as HTMLButtonElement | null;
+	const row = document.getElementById('local-vault-row');
+	const select = document.getElementById('local-vault-select') as HTMLSelectElement | null;
 	const status = document.getElementById('local-vault-status');
-	if (!input || !button || !status) return;
-	let edited = false;
-	let failure: string | undefined;
+	const note = document.getElementById('local-helper-note');
 	const help = document.getElementById('local-helper-help');
+	const download = document.getElementById('local-helper-download');
+	const more = document.getElementById('local-helper-more');
 	const copy = document.getElementById('local-helper-copy') as HTMLButtonElement | null;
-	const offline = (message: string, reason?: string) => { failure = reason; status.textContent = message; if (help) help.hidden = false; };
+	const uriVaults = document.getElementById('uri-vaults');
+	if (!row || !select || !status || !note) return;
+	const OTHER = '__other__';
+	let failure: string | undefined;
+	let current = '';
+	const isMac = /Mac/i.test(navigator.platform || navigator.userAgent);
+
+	const showOffline = (message: string, reason?: string) => {
+		failure = reason;
+		row.hidden = true;
+		if (uriVaults) uriVaults.hidden = false;
+		note.textContent = message;
+		if (help) help.hidden = false;
+		if (download) download.hidden = !isMac;
+		if (copy) copy.hidden = isMac;
+		if (more) more.hidden = false;
+	};
+	const showOnline = () => {
+		row.hidden = false;
+		if (uriVaults) uriVaults.hidden = true;
+		note.textContent = t('已连接 ✓');
+		if (help) help.hidden = true;
+	};
 	copy?.addEventListener('click', async () => {
-		try { await navigator.clipboard.writeText(nativeHelperRepairPrompt(browser.runtime.id, failure)); copy.textContent = '已复制，去发给 AI 助手（Codex、Claude Code 等）'; }
-		catch { copy.textContent = '复制失败，请点“查看安装说明”'; }
+		try { await navigator.clipboard.writeText(nativeHelperRepairPrompt(browser.runtime.id, failure)); copy.textContent = t('已复制，去发给 AI 助手'); }
+		catch { copy.textContent = t('复制失败，请点“所有安装包”'); }
 	});
-	input.addEventListener('input', () => { edited = true; });
-	choose?.addEventListener('click', async () => {
-		choose.disabled = true;
-		button.disabled = true;
-		edited = true;
+
+	const fill = (vaults: { name: string; path: string }[], active: string) => {
+		select.textContent = '';
+		const known = vaults.some(v => v.path === active);
+		const options = known || !active ? vaults : [{ name: active.split(/[\\/]/).pop() || active, path: active }, ...vaults];
+		for (const v of options) {
+			const option = document.createElement('option');
+			option.value = v.path;
+			option.textContent = v.name;
+			option.title = v.path;
+			select.appendChild(option);
+		}
+		const other = document.createElement('option');
+		other.value = OTHER;
+		other.textContent = t('选择其他文件夹…');
+		select.appendChild(other);
+		if (active) select.value = active;
+		if (!select.value && options.length) select.value = options[0].path;
+	};
+	const remember = async (result: LocalSaveResult) => {
+		if (!result.vault || !result.vaultPath) return;
+		if (!generalSettings.vaults.includes(result.vault)) {
+			generalSettings.vaults.push(result.vault);
+			await saveSettings();
+			updateVaultList();
+		}
+		await browser.storage.local.set({ qiaomuNativeConfigured: true });
+		await setLocalStorage('lastSelectedVault', result.vault);
+		current = result.vaultPath;
+	};
+	let vaultList: { name: string; path: string }[] = [];
+	select.addEventListener('change', async () => {
+		const wanted = select.value;
+		select.disabled = true;
 		try {
-			const result = await browser.runtime.sendMessage({ action: 'qiaomuLocalChooseVault' }) as LocalSaveResult;
-			if (result?.cancelled) return;
-			if (!result?.ok || !result.vaultPath) { status.textContent = result?.error || '文件夹选择失败'; return; }
-			input.value = result.vaultPath;
-			status.textContent = `已选择 ${result.vault}，点击“保存库地址”生效。`;
-		} catch { offline('本地保存助手未连接，请先安装或更新助手'); }
-		finally { choose.disabled = false; button.disabled = false; }
-	});
-	const configure = async () => {
-		if (button.disabled) return;
-		button.disabled = true;
-		if (choose) choose.disabled = true;
-		edited = true;
-		status.textContent = '正在验证笔记库地址…';
-		try {
-			const result = await browser.runtime.sendMessage({ action: 'qiaomuLocalConfigure', payload: { vaultPath: input.value.trim() } }) as LocalSaveResult;
+			const result = (wanted === OTHER
+				? await browser.runtime.sendMessage({ action: 'qiaomuLocalChooseVault' })
+				: await browser.runtime.sendMessage({ action: 'qiaomuLocalConfigure', payload: { vaultPath: wanted } })) as LocalSaveResult;
+			if (result?.cancelled) { fill(vaultList, current); return; }
 			if (!result?.ok || !result.vault || !result.vaultPath) {
-				status.textContent = result?.error || '库地址保存失败，请检查本地保存助手';
+				fill(vaultList, current);
+				status.textContent = result?.error || t('没能保存，请再试一次');
+				if (result?.reason) showOffline(result.error || t('本地助手没有响应'), result.reason);
 				return;
 			}
-			if (!generalSettings.vaults.includes(result.vault)) {
-				generalSettings.vaults.push(result.vault);
-				await saveSettings();
-				updateVaultList();
+			if (wanted === OTHER) {
+				const saved = await browser.runtime.sendMessage({ action: 'qiaomuLocalConfigure', payload: { vaultPath: result.vaultPath } }) as LocalSaveResult;
+				if (!saved?.ok) { fill(vaultList, current); status.textContent = saved?.error || t('没能保存，请再试一次'); return; }
+				if (!vaultList.some(v => v.path === result.vaultPath)) vaultList = [{ name: result.vault, path: result.vaultPath }, ...vaultList];
 			}
-			await browser.storage.local.set({ qiaomuNativeConfigured: true });
-			await setLocalStorage('lastSelectedVault', result.vault);
-			input.value = result.vaultPath;
-			status.textContent = `已保存：${result.vaultPath}。重新打开剪藏弹窗即可使用，失败的笔记可点击“重试本地保存”。`;
-		} catch {
-			offline('本地保存助手未连接，请先安装或更新助手');
-		} finally { button.disabled = false; if (choose) choose.disabled = false; }
-	};
-	button.addEventListener('click', configure);
-	input.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); configure(); } });
+			await remember(result);
+			fill(vaultList, current);
+			status.textContent = t('已保存到 {0}', [result.vault]);
+		} catch { showOffline(t('本地助手没有响应，请先安装或更新')); }
+		finally { select.disabled = false; }
+	});
+
 	try {
-		const result = await browser.runtime.sendMessage({ action: 'qiaomuLocalStatus' }) as LocalSaveResult;
-		if (edited) return;
-		if (result?.ok && result.vaultPath) { input.value = result.vaultPath; status.textContent = `当前保存到：${result.vaultPath}`; }
-		else { offline(`${describeHelperFailure(result?.reason)}安装后可在这里切换笔记库地址。`, result?.reason); }
-	} catch { if (!edited) offline('本地保存助手未连接。安装助手后可在这里切换笔记库地址。'); }
+		const state = await browser.runtime.sendMessage({ action: 'qiaomuLocalStatus' }) as LocalSaveResult;
+		if (!state?.ok) { showOffline(`${describeHelperFailure(state?.reason)}`, state?.reason); return; }
+		const listed = await browser.runtime.sendMessage({ action: 'qiaomuLocalListVaults' }) as { ok?: boolean; vaults?: { name: string; path: string }[] };
+		vaultList = listed?.ok && Array.isArray(listed.vaults) ? listed.vaults : [];
+		current = state.vaultPath || '';
+		showOnline();
+		fill(vaultList, current);
+		status.textContent = current ? current : t('选一个库，之后一键保存，不用打开 Obsidian。');
+		if (!current && vaultList.length) status.textContent = t('选一个库，之后一键保存，不用打开 Obsidian。');
+	} catch { showOffline(t('还没有安装本地助手。')); }
 }
 
 function initializeVaultInput(): void {
@@ -456,6 +489,12 @@ function initializeDefaultTemplateDropdown(): void {
 	});
 	initializeSettingToggle('selection-toolbar-toggle', generalSettings.selectionToolbar !== false, (checked) => {
 		saveSettings({ ...generalSettings, selectionToolbar: checked });
+	});
+	initializeSettingToggle('reader-auto-chat-toggle', generalSettings.readerAutoChat === true, (checked) => {
+		saveSettings({ ...generalSettings, readerAutoChat: checked });
+	});
+	initializeSettingToggle('editor-auto-chat-toggle', generalSettings.editorAutoChat === true, (checked) => {
+		saveSettings({ ...generalSettings, editorAutoChat: checked });
 	});
 	initializeTripleKeyFields();
 	const sites = document.getElementById('triple-key-sites') as HTMLTextAreaElement | null;

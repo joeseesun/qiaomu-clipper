@@ -2,6 +2,7 @@ import dayjs from 'dayjs';
 import browser from './browser-polyfill';
 import { getLocalStorage, setLocalStorage } from './storage-utils';
 import DOMPurify from 'dompurify';
+import { setUiLanguage, translateStatic } from './ui-text';
 
 // Import dayjs locales that match our supported languages
 import 'dayjs/locale/ar';
@@ -144,6 +145,7 @@ export function matchBrowserLanguage(): string {
 export async function initializeI18n() {
 	const { code } = await getEffectiveLanguage();
 	currentLanguage = code;
+	setUiLanguage(code);
 	setDayjsLocale(code);
 }
 
@@ -222,6 +224,9 @@ export async function translatePage() {
 			}
 		}
 	});
+
+	// Pages written in Chinese: show them in the person's language.
+	translateStatic(document);
 
 	// Translate elements with data-i18n-title attribute
 	document.querySelectorAll('[data-i18n-title]').forEach(element => {

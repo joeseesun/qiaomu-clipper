@@ -6,7 +6,7 @@ import { chooseTrack, languageBase, type TrackInfo } from './subtitle-language';
 // caption track list as a mobile client (these are not gated by a player token, unlike the web client), then
 // download the chosen track. A track whose URL carries `exp=xpe` is token-gated and is skipped. Runs inside the
 // YouTube tab so the request carries the viewer's cookies and origin.
-export interface CaptionTrack { baseUrl: string; languageCode: string; kind?: string; name?: unknown }
+export interface CaptionTrack { baseUrl: string; languageCode: string; kind?: string; name?: unknown; vssId?: string }
 
 const CLIENTS: Array<Record<string, unknown>> = [
 	{ clientName: 'ANDROID', clientVersion: '20.10.38', androidSdkVersion: 34 },
@@ -52,10 +52,11 @@ export async function fetchCaptionTracks(videoId: string, doc: Document, request
 
 export interface YouTubeTrack extends TrackInfo { track: CaptionTrack }
 const nameOf = (name: any): string => (typeof name?.simpleText === 'string' ? name.simpleText : Array.isArray(name?.runs) ? name.runs.map((run: { text?: string }) => run.text || '').join('') : '').trim();
-// Every caption track the video offers (token-gated ones left out), with its language and whether YouTube made it from the audio.
-export function trackInfos(tracks: CaptionTrack[]): YouTubeTrack[] {
+// Every caption track the video offers, with its language and whether YouTube made it from the audio.
+// A track whose address carries exp=xpe needs the player's proof; it is left out unless the caller can supply that (the player route).
+export function trackInfos(tracks: CaptionTrack[], includeGated = false): YouTubeTrack[] {
 	const seen = new Map<string, number>();
-	return tracks.filter(track => !/[?&]exp=xpe\b/.test(track.baseUrl)).map(track => {
+	return tracks.filter(track => includeGated || !/[?&]exp=xpe\b/.test(track.baseUrl)).map(track => {
 		const auto = track.kind === 'asr', base = `${track.languageCode || 'und'}${auto ? '-auto' : ''}`, count = (seen.get(base) ?? 0) + 1; seen.set(base, count);
 		return { id: count > 1 ? `${base}~${count}` : base, label: nameOf(track.name) || `${track.languageCode}${auto ? ' (auto-generated)' : ''}`, language: languageBase(track.languageCode), auto, track };
 	});
@@ -87,7 +88,8 @@ export async function fetchTrackSegments(track: CaptionTrack, request: Request =
 	return [];
 }
 
-export interface CaptionResult { segments: PanelSegment[]; tracks: YouTubeTrack[]; selected?: string }
+// `fetchTrack` is there when the tracks were read through the player: a track other than the chosen one needs the same proof.
+export interface CaptionResult { segments: PanelSegment[]; tracks: YouTubeTrack[]; selected?: string; fetchTrack?: (track: CaptionTrack) => Promise<PanelSegment[]> }
 export async function fetchCaptionResult(videoId: string, doc: Document, request: Request = (...args) => fetch(...args), preferred?: string): Promise<CaptionResult> {
 	const tracks = trackInfos(await fetchCaptionTracks(videoId, doc, request)), chosen = chooseTrack(tracks, preferred);
 	if (!chosen) return { segments: [], tracks };

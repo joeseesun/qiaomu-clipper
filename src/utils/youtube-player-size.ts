@@ -2,6 +2,7 @@ import { PLAYER_SELECTOR } from './video-source';
 import { getLocalStorage, setLocalStorage } from './storage-utils';
 import { LAYOUT_EVENT, maxPlayerWidth, type PlayerLayout } from './youtube-player-mode';
 
+import { t } from './ui-text';
 export const normalizePlayerSize = (value: unknown): number => typeof value === 'number' && Number.isFinite(value) ? Math.max(35, Math.min(100, Math.round(value))) : 100;
 
 // Change geometry only: never move, replace or reload the live player.
@@ -23,9 +24,9 @@ export function mountPlayerSize(article: HTMLElement): void {
 	if (!player.id) player.id = `youtube-player-${Math.random().toString(36).slice(2, 10)}`;
 	const handle = doc.createElement('div'); handle.className = 'youtube-player-resize';
 	handle.tabIndex = 0; handle.setAttribute('role', 'slider'); handle.setAttribute('aria-orientation', 'horizontal');
-	handle.setAttribute('aria-label', '拖动调整视频尺寸'); handle.setAttribute('aria-valuemin', '35'); handle.setAttribute('aria-valuemax', '100');
+	handle.setAttribute('aria-label', t('拖动调整视频尺寸')); handle.setAttribute('aria-valuemin', '35'); handle.setAttribute('aria-valuemax', '100');
 	handle.setAttribute('aria-controls', player.id);
-	handle.title = '向上拖动缩小，向下拖动放大；方向键微调，Home 最小，End 最大';
+	handle.title = t('向上拖动缩小，向下拖动放大；方向键微调，Home 最小，End 最大');
 	player.after(handle);
 	const layoutOf = (): PlayerLayout => (article.dataset.ytLayout as PlayerLayout | undefined) || 'theater';
 	let preferredSize = 100, minimum = 35;
@@ -34,7 +35,7 @@ export function mountPlayerSize(article: HTMLElement): void {
 		displayedSize = Math.max(minimum, preferredSize); applySize(displayedSize);
 		handle.setAttribute('aria-valuemin', String(minimum));
 		handle.setAttribute('aria-valuenow', String(displayedSize));
-		handle.setAttribute('aria-valuetext', `${displayedSize}%，相对于当前可用区域最大尺寸${minimum === 100 ? '；当前窗口已达最小可用尺寸' : ''}`);
+		handle.setAttribute('aria-valuetext', t('{0}%，相对于当前可用区域最大尺寸{1}', [displayedSize, minimum === 100 ? t('；当前窗口已达最小可用尺寸') : '']));
 	};
 	let touched = false;
 	const commit = () => { void setLocalStorage('qiaomuYouTubePlayerSize', preferredSize).catch(() => {}); };

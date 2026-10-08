@@ -22,6 +22,8 @@ elif sys.platform=='win32':
 else: BROWSERS=[];HOSTS=None
 REGISTRY={'Chrome':'Google\\Chrome','Chrome Beta':'Google\\Chrome','Chromium':'Chromium','Edge':'Microsoft\\Edge','Brave':'BraveSoftware\\Brave-Browser','Vivaldi':'Google\\Chrome'}
 NAME='ai.qiaomu.clipper';BASE=HOME/'.local/share/qiaomu-clipper'
+# The Chrome Web Store build always has this ID, so it is allowed even before the store version is installed.
+STORE_ID='jniolfihillilkoajpnonlbkhfkiicoo'
 def fail(error,hint,**extra):
     print(json.dumps({'ok':False,'error':error,'hint':hint,**extra},ensure_ascii=False,indent=2));sys.exit(1)
 def is_ours(entry):
@@ -85,25 +87,39 @@ def main():
     for i in ids:
         if not re.fullmatch('[a-p]{32}',i): fail(f'扩展 ID 格式无效：{i}','在 chrome://extensions 打开开发者模式，复制「乔木剪藏」卡片上的 32 位小写字母 ID')
     for _,(_,found) in detected.items(): ids+=[i for i in found if i not in ids]
-    if not ids: fail('没有找到已安装的「乔木剪藏」扩展','请先在浏览器里安装并启用扩展（Chrome 应用商店或「加载已解压的扩展程序」），再重新运行；或用 --extension-id 手动指定',browsers_scanned=[b for b,_ in BROWSERS])
+    if not ids: ids=[STORE_ID]
+    elif STORE_ID not in ids: ids.append(STORE_ID)
+    notes=[]
+    if not detected and not a.extension_id: notes.append('没有在已知浏览器里找到「乔木剪藏」；已按商店版 ID 放行。若用的是本地加载版，请带 --extension-id 重新运行')
+    # The vault never blocks the install: a connected helper with an unchosen vault beats "helper not connected".
+    vault=None;choices=[]
+    previous=BASE/'config.json'
     if a.vault: vault=Path(a.vault).resolve()
     else:
-        vaults=find_vaults()
-        if not vaults: fail('没有找到 Obsidian 笔记库','请用 --vault /绝对路径 指定包含 .obsidian 文件夹的库目录')
-        if len(vaults)>1: fail('找到多个 Obsidian 笔记库，无法判断用哪个','请询问用户要保存到哪一个，然后用 --vault 指定',vaults=[str(v) for v in vaults])
-        vault=vaults[0].resolve()
-    if not (vault/'.obsidian').is_dir(): fail(f'{vault} 不是 Obsidian 库（缺少 .obsidian）','请指定库的根目录')
+        try: kept=Path(json.loads(previous.read_text(encoding='utf8')).get('vault',''))
+        except (OSError,ValueError): kept=None
+        if kept and (kept/'.obsidian').is_dir(): vault=kept.resolve()
+        else:
+            vaults=find_vaults()
+            if vaults: vault=vaults[0].resolve()
+            if len(vaults)>1: choices=[str(v) for v in vaults];notes.append('找到多个 Obsidian 库，先用了最近打开的一个；请问用户要用哪个，再用 --vault 重新运行')
+            if not vaults: notes.append('没有找到 Obsidian 库，助手已装好但还没选库；请用 --vault /绝对路径 指定，或在扩展设置 → 剪藏与保存里选择文件夹')
+    if vault and not (vault/'.obsidian').is_dir(): fail(f'{vault} 不是 Obsidian 库（缺少 .obsidian）','请指定库的根目录')
     BASE.mkdir(parents=True,exist_ok=True)
     source=Path(__file__).with_name('host.py').read_text(encoding='utf8').split('\n',1)[1]
     script=BASE/'host.py';script.write_text('#!'+sys.executable+'\n'+source,encoding='utf8');script.chmod(0o700)
     host=script
+    if sys.platform!='win32': (BASE/'host').unlink(missing_ok=True)
+    if sys.platform!='win32' and re.search(r'\s',sys.executable):
+        # A #! line cannot hold a path with spaces, so Chrome starts a tiny launcher that runs the same host.
+        host=BASE/'host';host.write_text('#!/bin/sh\nexec "'+sys.executable+'" "'+str(script)+'" "$@"\n',encoding='utf8');host.chmod(0o700)
     if sys.platform=='win32':
         # Chrome on Windows can't run a .py directly; it launches this wrapper, which forwards the origin argument.
         host=BASE/'host.bat';host.write_text(f'@echo off\r\n"{sys.executable}" "{script}" %*\r\n',encoding='utf8')
     # Subtitle generation (yt-dlp + ffmpeg + Whisper) lives next to the host; the host imports it from its own folder.
     for module in ('asr.py','asr_cloud.py','asr_engines.py','asr_runner.py','asr_context.py'): (BASE/module).write_text(Path(__file__).with_name(module).read_text(encoding='utf8'),encoding='utf8');(BASE/module).chmod(0o600)
     origins=[f'chrome-extension://{i}/' for i in ids]
-    config=BASE/'config.json';config.write_text(json.dumps({'vault':str(vault),'origins':origins},ensure_ascii=False,indent=2),encoding='utf8');config.chmod(0o600)
+    config=BASE/'config.json';config.write_text(json.dumps({**({'vault':str(vault)} if vault else {}),'origins':origins},ensure_ascii=False,indent=2),encoding='utf8');config.chmod(0o600)
     manifest={'name':NAME,'description':'Save clipped Markdown silently to the configured Obsidian vault','path':str(host),'type':'stdio','allowed_origins':origins}
     # Register for every browser that has the extension, plus Chrome if present (a not-yet-run profile may still need it).
     targets={label:data for label,(data,_) in detected.items()}
@@ -115,7 +131,7 @@ def main():
         written[label]=register(label,data,manifest)
     test=self_test(host,origins[0])
     if not test.get('ok'): fail('助手已安装，但自检未通过：'+str(test.get('error')),'按错误信息处理（例如库路径失效），再重新运行安装',host=str(host))
-    print(json.dumps({'ok':True,'host':str(host),'vault':str(vault),'extensionIds':ids,'registeredFor':written,'selfTest':test,'next':'在浏览器扩展管理页重新加载「乔木剪藏」，再重新打开剪藏弹窗；无需重启浏览器'},ensure_ascii=False,indent=2))
+    print(json.dumps({'ok':True,'host':str(host),'vault':str(vault) if vault else None,'vaultChoices':choices,'notes':notes,'extensionIds':ids,'registeredFor':written,'selfTest':test,'next':'在浏览器扩展管理页重新加载「乔木剪藏」，再重新打开剪藏弹窗；无需重启浏览器'},ensure_ascii=False,indent=2))
 def self_asr(host,origin):
     """Ask the installed host which of yt-dlp / ffmpeg / a Whisper engine are present (optional: only 生成字幕 needs them)."""
     body=json.dumps({'action':'asrStatus'}).encode()
@@ -127,7 +143,7 @@ def self_asr(host,origin):
     except Exception as e: return {'ready':False,'error':str(e)[:200]}
 def check(detected):
     report={'python':sys.executable,'extension':{b:ids for b,(_,ids) in detected.items()}}
-    host=BASE/('host.bat' if sys.platform=='win32' else 'host.py');cfg=BASE/'config.json'
+    host=BASE/('host.bat' if sys.platform=='win32' else ('host' if (BASE/'host').is_file() else 'host.py'));cfg=BASE/'config.json'
     if not host.is_file() or not cfg.is_file(): fail('助手尚未安装','运行 python3 native/install.py（无需参数）',**report)
     config=json.loads(cfg.read_text(encoding='utf8'));origins=([config['origin']] if 'origin' in config else [])+list(config.get('origins',[]))
     problems=[]
@@ -136,6 +152,7 @@ def check(detected):
         if allowed is None: problems.append(f'{label}：未注册（缺少 {where}）');continue
         for i in ids:
             if f'chrome-extension://{i}/' not in allowed: problems.append(f'{label}：扩展 ID {i} 不在允许列表（商店版与本地加载版 ID 不同）')
+    if not config.get('vault'): problems.append('还没选 Obsidian 库：重新运行 python3 native/install.py --vault /库的绝对路径，或在扩展设置 → 剪藏与保存里选择文件夹')
     if not detected: problems.append('没有在任何浏览器里找到「乔木剪藏」扩展')
     if not (BASE/'asr.py').is_file(): problems.append('缺少 asr.py（无字幕视频的「生成字幕」不可用）；重新运行 python3 native/install.py')
     test=self_test(host,origins[0]) if origins else {'ok':False,'error':'config 缺少扩展来源'}

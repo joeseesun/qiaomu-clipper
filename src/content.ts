@@ -55,6 +55,19 @@ declare global {
 		}, { once: true });
 	}
 
+	// Reading and editing run the same clip pipeline as the popup but need no window: an invisible copy of the clipper does the work,
+	// opens our reading page in a new tab, and is removed again (by itself after a while at the latest).
+	const hiddenIframeId = 'obsidian-clipper-hidden-iframe';
+	function runHiddenIframe() {
+		document.getElementById(hiddenIframeId)?.remove();
+		const iframe = document.createElement('iframe');
+		iframe.id = hiddenIframeId; iframe.setAttribute('aria-hidden', 'true'); iframe.tabIndex = -1;
+		iframe.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;border:0;opacity:0;pointer-events:none;';
+		iframe.src = browser.runtime.getURL('side-panel.html?context=iframe');
+		document.body.appendChild(iframe);
+		setTimeout(() => iframe.remove(), 90000);
+	}
+
 	async function toggleIframe() {
 		const existingContainer = document.getElementById(containerId);
 		if (existingContainer) {
@@ -140,7 +153,14 @@ declare global {
 			return true;
 		}
 
+		if (request.action === "run-hidden-iframe") {
+			runHiddenIframe();
+			sendResponse({ success: true });
+			return true;
+		}
+
 		if (request.action === "close-iframe") {
+			document.getElementById(hiddenIframeId)?.remove();
 			const existingContainer = document.getElementById(containerId);
 			if (existingContainer) {
 				removeContainer(existingContainer);

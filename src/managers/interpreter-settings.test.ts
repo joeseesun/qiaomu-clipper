@@ -13,7 +13,7 @@ vi.mock('../utils/storage-utils', () => ({
 vi.mock('../utils/ui-utils', () => ({ initializeToggles: vi.fn(), initializeSettingToggle: vi.fn() }));
 vi.mock('../icons/icons', () => ({ initializeIcons: vi.fn() }));
 vi.mock('../utils/i18n', () => ({ getMessage: (key: string, sub?: string) => sub ? `${key}:${sub}` : key, translatePage: vi.fn() }));
-vi.mock('../utils/provider-models', () => ({ fetchProviderModels: vi.fn() }));
+vi.mock('../utils/provider-models', () => ({ fetchProviderModels: vi.fn(), fallbackModels: vi.fn(() => []) }));
 vi.mock('../utils/oauth/accounts', () => ({ startSignIn: vi.fn(), CHATGPT_BASE: 'https://api.openai.com/v1', CODEX_BASE: 'https://chatgpt.com/backend-api/codex' }));
 
 const tick = async () => { await new Promise(resolve => setTimeout(resolve, 0)); };

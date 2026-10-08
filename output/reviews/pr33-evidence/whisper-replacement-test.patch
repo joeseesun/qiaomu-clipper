@@ -1,0 +1,20 @@
+diff --git a/src/utils/youtube-study.test.ts b/src/utils/youtube-study.test.ts
+index 8d3261c..93a5324 100644
+--- a/src/utils/youtube-study.test.ts
++++ b/src/utils/youtube-study.test.ts
+@@ -154,3 +154,15 @@ it('does not embed lookalike hosts or malformed video IDs', async () => {
+ 	expect(restoreYouTubePlayer(node, 'https://www.youtube.com/watch?v=invalid')).toBe(false);
+ 	expect(node.querySelector('iframe')).toBeNull();
+ });
++
++it('review regression: confirmed Whisper replaces original transcript', async () => {
++ const node = article(subtitles);
++ await mountYouTubeStudy(document,node,'Video','https://www.youtube.com/watch?v=example');
++ const fileInput = node.querySelector<HTMLInputElement>('input[type=file]')!;
++ Object.defineProperty(fileInput, 'files', {value:[new File(['audio'],'test.wav',{type:'audio/wav'})]});
++ fileInput.dispatchEvent(new Event('change'));
++ await new Promise(resolve => setTimeout(resolve,0));
++ node.querySelector<HTMLButtonElement>('.youtube-whisper-confirm')!.click();
++ expect(node.querySelectorAll('.youtube.transcript')).toHaveLength(1);
++ expect(transcriptText(node)).toBe('[0:01] Local caption');
++});

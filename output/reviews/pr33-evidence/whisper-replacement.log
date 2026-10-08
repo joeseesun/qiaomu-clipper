@@ -1,0 +1,45 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 /private/tmp/qiaomu-clipper-pr33
+
+ ❯ src/utils/youtube-study.test.ts (13 tests | 1 failed) 105ms
+   × review regression: confirmed Whisper replaces original transcript 9ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/utils/youtube-study.test.ts > review regression: confirmed Whisper replaces original transcript
+AssertionError: expected <div …(3)><h2></h2>
+…(3)</div>
+…(1) to have a length of 1 but got 2
+
+- Expected
++ Received
+
+- 1
++ 2
+
+ ❯ src/utils/youtube-study.test.ts:166:55
+    164|  await new Promise(resolve => setTimeout(resolve,0));
+    165|  node.querySelector<HTMLButtonElement>('.youtube-whisper-confirm')!.cl…
+    166|  expect(node.querySelectorAll('.youtube.transcript')).toHaveLength(1);
+       |                                                       ^
+    167|  expect(transcriptText(node)).toBe('[0:01] Local caption');
+    168| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 12 passed (13)
+   Start at  02:29:54
+   Duration  540ms (transform 101ms, setup 0ms, import 153ms, tests 105ms, environment 218ms)
+
+TypeError: doc.defaultView?.removeEventListener is not a function
+    at dispose (/private/tmp/qiaomu-clipper-pr33/src/utils/youtube-study.ts:330:20)
+    at MutationObserver.<anonymous> (/private/tmp/qiaomu-clipper-pr33/src/utils/youtube-study.ts:332:74)
+    at MutationObserver.invokeTheCallbackFunction (/private/tmp/qiaomu-clipper-pr33/node_modules/jsdom/lib/generated/idl/MutationCallback.js:19:26)
+    at notifyMutationObservers (/private/tmp/qiaomu-clipper-pr33/node_modules/jsdom/lib/jsdom/living/helpers/mutation-observers.js:160:22)
+    at /private/tmp/qiaomu-clipper-pr33/node_modules/jsdom/lib/jsdom/living/helpers/mutation-observers.js:133:5
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)

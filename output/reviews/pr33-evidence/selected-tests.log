@@ -1,0 +1,16 @@
+
+> qiaomu-clipper@1.11.2 test
+> vitest run
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 /private/tmp/qiaomu-clipper-pr33-selected
+
+
+ Test Files  55 passed (55)
+      Tests  479 passed (479)
+   Start at  02:30:07
+   Duration  5.96s (transform 2.74s, setup 0ms, import 5.16s, tests 9.28s, environment 13.80s)
+

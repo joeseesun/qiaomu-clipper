@@ -7,11 +7,13 @@ node_modules/
 dev/
 dev_firefox/
 dev_safari/
+dev_local/
 
 # Prod
 dist/
 dist_firefox/
 dist_safari/
+dist_local/
 builds/
 changelogs/
 assets/shared
@@ -48,3 +50,4 @@ integration/qmreader/unified-submissions.test.cjs
 # Full-window acceptance captures may contain unrelated browser context.
 docs/reader-preview-acceptance.png
 docs/popup-compact-acceptance.png
+build/

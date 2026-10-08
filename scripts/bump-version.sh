@@ -20,6 +20,7 @@ ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 # JSON files to update
 JSON_FILES=(
 	"package.json"
+	"package-lock.json"
 	"src/manifest.chrome.json"
 	"src/manifest.firefox.json"
 	"src/manifest.safari.json"
@@ -31,12 +32,20 @@ PBXPROJ="xcode/Obsidian Web Clipper/Obsidian Web Clipper.xcodeproj/project.pbxpr
 echo "Bumping version to $NEW_VERSION"
 echo ""
 
-# Update JSON files
+# Update only the project's version fields. Dependency versions and URLs must stay intact.
 for file in "${JSON_FILES[@]}"; do
 	filepath="$ROOT_DIR/$file"
-	old_version=$(grep -o '"version": "[^"]*"' "$filepath" | head -1 | sed 's/"version": "//;s/"//')
-	sed -i '' "s/\"version\": \"$old_version\"/\"version\": \"$NEW_VERSION\"/" "$filepath"
-	echo "Updated $file: $old_version -> $NEW_VERSION"
+	if [ ! -f "$filepath" ] && [ "$file" = "dev/manifest.json" ]; then continue; fi
+	node - "$filepath" "$NEW_VERSION" <<'JS'
+const fs = require('node:fs');
+const [file, version] = process.argv.slice(2);
+const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+const old = data.version;
+data.version = version;
+if (data.packages?.['']) data.packages[''].version = version;
+fs.writeFileSync(file, JSON.stringify(data, null, '\t') + '\n');
+console.log(`Updated ${file}: ${old} -> ${version}`);
+JS
 done
 
 # Update MARKETING_VERSION in Xcode project

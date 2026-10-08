@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { freshOAuth, oauthModelsRequest, responsesRequest, responsesText } from './accounts';
+import { freshOAuth, openRouterAuthUrl, oauthModelsRequest, responsesRequest, responsesText } from './accounts';
 import { jwtClaims, pkcePair } from './core';
 import type { ModelConfig, OAuthCredentials, Provider } from '../../types/types';
 
@@ -17,6 +17,11 @@ describe('oauth accounts', () => {
 		expect(verifier).toMatch(/^[A-Za-z0-9\-._~]{43,128}$/);
 		const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier)));
 		expect(challenge).toBe(btoa(String.fromCharCode(...digest)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''));
+	});
+	it('builds the OpenRouter sign-in address with a localhost return and a PKCE challenge', () => {
+		const url = new URL(openRouterAuthUrl('http://localhost:50000/callback', 'chal', 'st'));
+		expect(url.origin + url.pathname).toBe('https://openrouter.ai/auth');
+		expect(Object.fromEntries(url.searchParams)).toMatchObject({ callback_url: 'http://localhost:50000/callback', code_challenge: 'chal', code_challenge_method: 'S256', state: 'st' });
 	});
 	it('reads token claims', () => expect(jwtClaims(jwt({ email: 'a@b.c' })).email).toBe('a@b.c'));
 	it('sends Codex requests to the ChatGPT backend with the account id', () => {

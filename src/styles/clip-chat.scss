@@ -10,11 +10,15 @@
 	.clip-chat-resize { position: absolute; top: 0; bottom: 0; inset-inline-start: -4px; width: 8px; cursor: col-resize; z-index: 2; touch-action: none;
 		&::after { content: ''; position: absolute; top: 0; bottom: 0; inset-inline-start: 3px; width: 2px; background: var(--text-accent, var(--text-muted)); opacity: 0; transition: opacity .15s; }
 		&:hover::after, &.is-dragging::after { opacity: .5; } }
-	.clip-chat-header { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 10px 12px; border-bottom: 1px solid var(--divider-color, var(--background-modifier-border, rgb(128 128 128 / 35%))); }
+	.clip-chat-header { display: flex; flex-wrap: nowrap; align-items: center; gap: 6px; padding: 10px 12px; container-type: inline-size; border-bottom: 1px solid var(--divider-color, var(--background-modifier-border, rgb(128 128 128 / 35%))); }
 	// The reading page loads neither inputs.scss, dropdowns.scss nor toggles.scss, so the settings page carries its own controls.
-	.clip-chat-settings { position: absolute; inset: 49px 0 0; z-index: 4; overflow-y: auto; padding: 16px 16px 28px; background: var(--background-primary);
+	.clip-chat-backdrop { position: fixed; inset: 0; z-index: 6; background: rgb(0 0 0 / 38%); animation: clip-chat-fade .14s ease-out; &[hidden] { display: none; } }
+	// A dialog, not a drawer: the side panel is too narrow for these controls. Solid background; it floats above the page.
+	.clip-chat-settings { position: fixed; z-index: 7; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(680px, calc(100vw - 32px)); max-height: min(780px, calc(100vh - 48px)); overflow-y: auto; padding: 24px 28px 28px; border: 1px solid var(--divider-color, var(--background-modifier-border, rgb(128 128 128 / 35%))); border-radius: 14px; background: var(--background-primary); box-shadow: 0 24px 64px rgb(0 0 0 / 28%), 0 4px 12px rgb(0 0 0 / 12%); animation: clip-chat-dialog-in .16s ease-out;
+		.clip-chat-settings-close { position: absolute; top: 14px; inset-inline-end: 14px; }
+		h3 { padding-inline-end: 32px; }
 		&[hidden] { display: none; }
-		h3 { margin: 0 0 4px; font-size: 16px; }
+		h3 { margin: 0 0 4px; font-size: 17px; }
 		h4 { margin: 0 0 4px; font-size: 13px; font-weight: 600; }
 		.clip-chat-settings-note { margin: 4px 0 0; font-size: 12px; line-height: 1.6; color: var(--text-muted); }
 		.clip-chat-section { padding-block: 16px; border-top: 1px solid var(--divider-color, var(--background-modifier-border, rgb(128 128 128 / 35%))); &:first-of-type { margin-top: 12px; } }
@@ -36,7 +40,7 @@
 		.clip-chat-settings-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 10px 0 8px; font-size: 13px; }
 		.clip-chat-examples { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; > span { font-size: 12px; color: var(--text-muted); }
 			.clip-chat-chip { height: 26px; padding: 0 10px; font-size: 12px; } }
-		.clip-chat-settings-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; &.is-footer { margin-top: 8px; padding-top: 16px; border-top: 1px solid var(--divider-color, var(--background-modifier-border, rgb(128 128 128 / 35%))); } }
+		.clip-chat-settings-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; &.is-footer { position: sticky; bottom: -28px; z-index: 1; margin: 8px -28px -28px; padding: 14px 28px; background: var(--background-primary); border-top: 1px solid var(--divider-color, var(--background-modifier-border, rgb(128 128 128 / 35%))); } }
 		.clip-chat-link { display: inline-flex; align-items: center; gap: 4px; svg { width: 14px; height: 14px; } &[hidden] { display: none; } &:disabled { opacity: .45; cursor: default; }
 			&:hover:not(:disabled) { background: var(--background-modifier-hover, rgb(128 128 128 / 14%)); }
 			&.is-primary { background: var(--background-secondary, rgb(128 128 128 / 12%)); font-weight: 600; } }
@@ -55,8 +59,45 @@
 		[dir=rtl] & input:checked + .clip-chat-switch-track::after { transform: translateX(-14px); }
 		input:focus-visible + .clip-chat-switch-track { outline: 2px solid var(--text-muted); outline-offset: 2px; } }
 	button:focus-visible, select:focus-visible,  .clip-chat-settings input[type=range]:focus-visible { outline: 2px solid var(--text-muted); outline-offset: 2px; box-shadow: none; }
-	.clip-chat-title { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; font-weight: 600; svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--text-muted); } span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } }
-	.clip-chat-model { width: auto; max-width: 120px; height: 28px; text-overflow: ellipsis; padding: 0 22px 0 8px; border: none; background-color: transparent; box-shadow: none; font-size: 13px; color: var(--text-muted); &[hidden] { display: none; } }
+	.clip-chat-title { flex: 1; min-width: 16px; display: flex; align-items: center; gap: 8px; font-weight: 600; svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--text-muted); } span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } }
+	// The model button in the header; the list it opens is .clip-chat-picker. Scoped under the panel so the app's global button style cannot stretch it.
+	button.clip-chat-model { display: inline-flex; align-items: center; gap: 4px; flex: 0 1 auto; width: auto; min-width: 56px; max-width: 190px; height: 28px; margin: 0; padding: 0 6px 0 8px; border: 0; border-radius: 6px; background: transparent; box-shadow: none; font-size: 13px; font-weight: 500; color: var(--text-muted); cursor: pointer; transition: background-color .12s, color .12s;
+		.clip-chat-model-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+		svg { flex: none; width: 12px; height: 12px; opacity: .7; }
+		&:hover, &[aria-expanded=true] { background: var(--background-modifier-hover, rgb(128 128 128 / 14%)); color: var(--text-normal); }
+		&:focus-visible { outline: 1px solid var(--text-muted); outline-offset: 2px; }
+		&[hidden] { display: none; } }
+	.clip-chat-picker { position: absolute; top: 49px; inset-inline: 10px; z-index: 5; display: flex; flex-direction: column; max-height: min(440px, calc(100% - 64px)); overflow: hidden;
+		background: var(--background-primary); border: 1px solid var(--divider-color, var(--background-modifier-border, rgb(128 128 128 / 35%))); border-radius: 12px;
+		box-shadow: 0 12px 32px rgb(0 0 0 / 14%), 0 2px 6px rgb(0 0 0 / 8%); animation: clip-chat-picker-in .12s ease-out;
+		&[hidden] { display: none; }
+		.clip-chat-picker-search { display: flex; align-items: center; gap: 8px; flex: none; height: 44px; padding: 0 14px; border-bottom: 1px solid var(--divider-color, var(--background-modifier-border, rgb(128 128 128 / 35%)));
+			svg { flex: none; width: 15px; height: 15px; color: var(--text-muted); }
+			input { flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; outline: none; font-size: 14px; color: var(--text-normal);
+				&:hover, &:focus { border: 0; box-shadow: none; outline: none; background: transparent; }
+				&::placeholder { color: var(--text-faint, var(--text-muted)); } } }
+		.clip-chat-picker-list { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 0 6px; }
+		// A solid background: the group names stay put over the rows that scroll beneath them.
+		.clip-chat-picker-group { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 8px; padding: 12px 14px 5px; background: var(--background-primary); font-size: 12px; font-weight: 500; color: var(--text-muted);
+			.clip-chat-picker-provider { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+			.clip-chat-picker-note { margin-inline-start: auto; flex: none; font-size: 11px; font-weight: 400; color: var(--text-faint, var(--text-muted)); } }
+		.provider-tile { flex: none; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; width: 18px; height: 18px; border-radius: 5px; border: 1px solid var(--background-modifier-border, rgb(128 128 128 / 30%)); background: var(--background-primary); color: var(--text-normal); font-size: 10px; font-weight: 700; line-height: 1;
+			svg { width: 68%; height: 68%; mix-blend-mode: normal !important; }
+			&.is-letter { border-color: transparent; background: hsl(var(--h, 220) 70% 93%); color: hsl(var(--h, 220) 55% 32%); } }
+		// Rows are divs; the current model is set apart by weight and a check mark, never by a tinted card or a side bar.
+		.clip-chat-picker-row { display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 0 14px; font-size: 13.5px; color: var(--text-normal); cursor: pointer;
+			&.is-active { background: var(--background-modifier-hover, rgb(128 128 128 / 10%)); }
+			&.is-current .clip-chat-picker-name { font-weight: 600; }
+			.clip-chat-picker-check { flex: none; display: inline-flex; width: 18px; justify-content: center; svg { width: 14px; height: 14px; } }
+			.clip-chat-picker-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } }
+		.clip-chat-picker-empty { padding: 24px 14px; text-align: center; font-size: 13px; color: var(--text-muted); }
+		.clip-chat-picker-footer { flex: none; padding: 8px; border-top: 1px solid var(--divider-color, var(--background-modifier-border, rgb(128 128 128 / 35%))); }
+		button.clip-chat-picker-manage { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; height: 32px; margin: 0; padding: 0 12px; border: 0; border-radius: 8px; background: var(--background-secondary, rgb(128 128 128 / 12%)); box-shadow: none; font-size: 13px; color: var(--text-normal); cursor: pointer; transition: background-color .12s;
+			svg { flex: none; width: 14px; height: 14px; }
+			&:hover { background: var(--background-modifier-hover, rgb(128 128 128 / 20%)); color: var(--text-normal); }
+			&:focus-visible { outline: 1px solid var(--text-muted); outline-offset: 2px; } } }
+	@media (prefers-color-scheme: dark) { .clip-chat-picker .provider-tile:not(.is-letter) { background: var(--background-secondary); } }
+	.theme-dark & .clip-chat-picker .provider-tile.is-letter, body.theme-dark & .clip-chat-picker .provider-tile.is-letter { background: hsl(var(--h, 220) 35% 24%); color: hsl(var(--h, 220) 70% 85%); }
 	.clip-chat-icon { display: flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 28px; height: 28px; padding: 0; border: none; border-radius: 6px; background: transparent; box-shadow: none; color: var(--text-muted); cursor: pointer;
 		svg { width: 16px; height: 16px; } &:hover { background: var(--background-modifier-hover, rgb(128 128 128 / 14%)); color: var(--text-normal); } }
 	.clip-chat-history { position: absolute; top: 49px; inset-inline: 0; z-index: 3; max-height: 50%; overflow-y: auto; padding: 6px; background: var(--background-primary); border-bottom: 1px solid var(--divider-color, var(--background-modifier-border, rgb(128 128 128 / 35%))); box-shadow: 0 8px 20px rgb(0 0 0 / 12%);
@@ -123,3 +164,11 @@ html.clip-chat-resizing { cursor: col-resize; user-select: none; -webkit-user-se
 	.clip-ask-pill-button + .clip-ask-pill-button { margin-inline-start: 2px; position: relative;
 		&::before { content: ''; position: absolute; inset-inline-start: -2px; top: 6px; bottom: 6px; width: 1px; background: currentColor; opacity: .3; } }
 }
+
+@keyframes clip-chat-picker-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .clip-chat .clip-chat-picker { animation: none; } }
+@keyframes clip-chat-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes clip-chat-dialog-in { from { opacity: 0; transform: translate(-50%, calc(-50% + 8px)); } to { opacity: 1; transform: translate(-50%, -50%); } }
+@media (prefers-reduced-motion: reduce) { .clip-chat .clip-chat-backdrop, .clip-chat .clip-chat-settings { animation: none; } }
+// Narrow panel: the heading text gives way first, then the model name shrinks; nothing wraps to a second row.
+@container (max-width: 359px) { .clip-chat-title span { display: none; } }
