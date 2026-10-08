@@ -755,3 +755,24 @@ label {
 .learn-diary-new { font-weight: 600; }
 @media (max-width: 720px) { .learn-how { grid-template-columns: 1fr; } }
 #templates-home-section > .settings-section-header:not(:first-child) h2 { font-size: var(--font-ui-medium, 16px); margin: 0 0 0.75rem; }
+
+.settings-section [hidden] { display: none !important; }
+
+// About and backup
+.about-hero { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px 16px; padding: 18px 24px; background-color: var(--settings-items-backgroud); border-radius: var(--radius-m); }
+.about-version { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.about-label { color: var(--text-muted); font-size: var(--font-ui-small); }
+.about-number { font-size: 22px; font-weight: 600; color: var(--text-normal); }
+.about-status { color: var(--text-muted); font-size: var(--font-ui-small); }
+.about-actions { display: flex; flex-wrap: wrap; gap: 8px; a.btn { width: auto; text-decoration: none; } }
+.release-notes { list-style: none; margin: 0; padding: 0.5rem 0; font-size: var(--font-ui-small); line-height: 1.6; color: var(--text-muted);
+	li { margin: 2px 0; }
+	.release-heading { margin-top: 10px; font-weight: 600; color: var(--text-normal); &:first-child { margin-top: 0; } }
+	.release-item { padding-inline-start: 14px; position: relative; &::before { content: '·'; position: absolute; inset-inline-start: 4px; } } }
+.about-support { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: 24px 0; }
+.about-qr { display: flex; flex-direction: column; align-items: center; gap: 12px; margin: 0; padding: 20px 16px 16px; background-color: var(--settings-items-backgroud); border-radius: var(--radius-m); text-align: center;
+	img { display: block; width: 148px; height: 148px; padding: 8px; box-sizing: content-box; background: #fff; border: 1px solid var(--background-modifier-border); border-radius: 10px; object-fit: contain; mix-blend-mode: normal; }
+	figcaption { display: flex; flex-direction: column; gap: 3px; b { font-size: var(--font-ui-small); color: var(--text-normal); } span { font-size: var(--font-ui-small); color: var(--text-muted); } } }
+.about-footer { margin-top: 24px; color: var(--text-muted); font-size: var(--font-ui-small); line-height: 1.6; p { margin: 0; } }
+.about-links { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-bottom: 6px; a { color: var(--text-muted); text-decoration: underline; text-underline-offset: 3px; &:hover { color: var(--text-normal); } } }
+@media (max-width: 720px) { .about-support { grid-template-columns: 1fr; } }

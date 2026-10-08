@@ -23,6 +23,7 @@ import dayjs from 'dayjs';
 import weekOfYear from 'dayjs/plugin/weekOfYear';
 import { showModal, hideModal } from '../utils/modal-utils';
 import { LocalSaveResult } from '../utils/local-save';
+import { releaseNotesView } from './release-notes-view';
 import { describeHelperFailure, nativeHelperRepairPrompt } from '../utils/native-helper-prompt';
 import { DEFAULT_TRIPLE_KEYS, TRIPLE_COMMANDS, TripleCommand, normalizeTripleKeys, normalizeSites } from '../utils/triple-key';
 
@@ -148,6 +149,7 @@ async function initializeVersionDisplay(): Promise<void> {
 	// The store edition is updated by the store. The local edition checks the project's releases once per visit and says so only when it read the answer.
 	if (!__LOCAL_EDITION__) { status.textContent = '商店会自动更新这个插件。'; return; }
 	status.textContent = '正在检查更新…';
+	void releaseNotesView();
 	const result = await checkForUpdate(manifest.version);
 	if (result.state === 'newer') {
 		status.textContent = `有新版本 ${result.version}，点右边去下载。`;

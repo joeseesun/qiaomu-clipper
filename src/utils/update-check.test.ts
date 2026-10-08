@@ -25,3 +25,17 @@ describe('update check', () => {
 		expect(foreign).toEqual({ state: 'newer', version: '1.15.0', url: RELEASES_URL });
 	});
 });
+
+import { releaseNoteLines, latestReleaseNotes } from './update-check';
+describe('release notes', () => {
+	it('keeps headings, items and text as plain words', () => {
+		const lines = releaseNoteLines('## 新增\n- **下载**：[详情](https://x.y/z) 可用\n\n---\n普通一句\n**Full Changelog**: https://github.com/a/b/compare/1...2');
+		expect(lines).toEqual([{ kind: 'heading', text: '新增' }, { kind: 'item', text: '下载：详情 可用' }, { kind: 'text', text: '普通一句' }]);
+	});
+	it('says nothing for a draft, a prerelease or a failed request', async () => {
+		const reply = (body: unknown, ok = true) => (async () => ({ ok, json: async () => body })) as unknown as typeof fetch;
+		expect(await latestReleaseNotes(reply({ tag_name: '1.2.0', body: '- a', draft: true }))).toBeUndefined();
+		expect(await latestReleaseNotes(reply({}, false))).toBeUndefined();
+		expect((await latestReleaseNotes(reply({ tag_name: 'v1.2.0', body: '- a', published_at: '2026-10-01T00:00:00Z' })))?.version).toBe('1.2.0');
+	});
+});

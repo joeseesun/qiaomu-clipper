@@ -24,3 +24,35 @@ export async function checkForUpdate(current: string, fetcher: typeof fetch = fe
 		return compareVersions(tag, current) > 0 ? { state: 'newer', version: tag.replace(/^v/i, ''), url } : { state: 'current', version: current };
 	} catch { return { state: 'unknown' }; }
 }
+
+export interface ReleaseNotes { version: string; date: string; lines: { kind: 'heading' | 'item' | 'text'; text: string }[] }
+
+// A release body is Markdown. The page shows plain text only: headings, bullet items and short paragraphs, links and emphasis stripped.
+export function releaseNoteLines(body: string, max = 14): ReleaseNotes['lines'] {
+	const lines: ReleaseNotes['lines'] = [];
+	for (const raw of body.replace(/<[^>]*>/g, '').split(/\r?\n/)) {
+		const line = raw.trim();
+		if (!line || /^(-{3,}|\*{3,}|_{3,})$/.test(line) || /^\*\*full changelog\*\*/i.test(line)) continue;
+		const clean = (value: string) => value.replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/[*_`]+/g, '').replace(/https?:\/\/\S+/g, '').trim();
+		const heading = /^#{1,6}\s+(.*)$/.exec(line), item = /^[-*+]\s+(.*)$/.exec(line) ?? /^\d+[.)]\s+(.*)$/.exec(line);
+		const text = clean(heading?.[1] ?? item?.[1] ?? line);
+		if (!text) continue;
+		lines.push({ kind: heading ? 'heading' : item ? 'item' : 'text', text: text.slice(0, 160) });
+		if (lines.length >= max) break;
+	}
+	return lines;
+}
+
+// The latest published release, for the About page. Local edition only: the store edition makes no request.
+export async function latestReleaseNotes(fetcher: typeof fetch = fetch): Promise<ReleaseNotes | undefined> {
+	try {
+		const response = await fetcher(LATEST_API, { headers: { Accept: 'application/vnd.github+json' }, credentials: 'omit' });
+		if (!response.ok) return undefined;
+		const release = await response.json() as { tag_name?: unknown; body?: unknown; published_at?: unknown; draft?: unknown; prerelease?: unknown };
+		const tag = typeof release.tag_name === 'string' ? release.tag_name : '';
+		if (!/^v?\d+(\.\d+)*$/.test(tag) || release.draft || release.prerelease || typeof release.body !== 'string') return undefined;
+		const lines = releaseNoteLines(release.body);
+		if (!lines.length) return undefined;
+		return { version: tag.replace(/^v/i, ''), date: typeof release.published_at === 'string' ? release.published_at.slice(0, 10) : '', lines };
+	} catch { return undefined; }
+}

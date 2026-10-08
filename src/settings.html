@@ -17,16 +17,18 @@
 						<span data-i18n="settings">Settings</span>
 					</div>
 					<ul>
-					<li data-section="general"><div class="nav-item-icon"><i data-lucide="settings"></i></div><span>通用</span></li>
+					<li class="sidebar-heading">通用</li>
+					<li data-section="general"><div class="nav-item-icon"><i data-lucide="keyboard"></i></div><span>语言和快捷键</span></li>
+					<li data-section="about"><div class="nav-item-icon"><i data-lucide="info"></i></div><span>关于与备份</span></li>
 					<li class="sidebar-heading">剪藏</li>
 					<li data-section="clip"><div class="nav-item-icon"><i data-lucide="paperclip"></i></div><span>剪藏与保存</span></li>
 					<li data-section="templates-home"><div class="nav-item-icon"><i data-lucide="layout-template"></i></div><span>剪藏模版</span></li>
 					<li data-section="highlighter"><div class="nav-item-icon"><i data-lucide="highlighter"></i></div><span>划线</span></li>
 					<li class="sidebar-heading">阅读与学习</li>
-					<li data-section="study"><div class="nav-item-icon"><i data-lucide="headphones"></i></div><span>转写学习</span></li>
-					<li data-section="asr"><div class="nav-item-icon"><i data-lucide="captions"></i></div><span>字幕</span></li>
-					<li data-section="reader"><div class="nav-item-icon"><i data-lucide="book-open"></i></div><span>阅读页</span></li>
+					<li data-section="asr"><div class="nav-item-icon"><i data-lucide="captions"></i></div><span>字幕识别</span></li>
 					<li data-section="learning"><div class="nav-item-icon"><i data-lucide="notebook-pen"></i></div><span>学习笔记</span></li>
+					<li data-section="reader"><div class="nav-item-icon"><i data-lucide="book-open"></i></div><span>阅读样式</span></li>
+					<li data-section="study"><div class="nav-item-icon"><i data-lucide="headphones"></i></div><span>转写学习</span></li>
 					<li class="sidebar-heading">AI 模型设置</li>
 					<li data-section="interpreter"><div class="nav-item-icon"><i data-lucide="sparkles"></i></div><span>LLM 提供商与模型</span></li>
 					<li data-section="asr-models"><div class="nav-item-icon"><i data-lucide="mic"></i></div><span>ASR 语音识别</span></li>
@@ -47,7 +49,7 @@
 					</div>
 					<div id="general-section" class="settings-section">
 						<div class="settings-section-header">
-							<h2>通用</h2>
+							<h2>语言和快捷键</h2>
 						</div>
 						<form id="general-settings-form">
 							<div class="setting-group">
@@ -74,15 +76,6 @@
 												<option value="popup" selected>弹出窗口</option>
 												<option value="reader">阅读模式</option>
 											</select>
-										</div>
-									</div>
-									<div class="setting-item mod-horizontal">
-										<div class="setting-item-info">
-											<label for="version">版本 <span id="version-number" class="version-tag"></span></label>
-											<div class="setting-item-description" id="version-status" role="status"></div>
-										</div>
-										<div class="setting-item-control">
-											<a href="https://github.com/joeseesun/qiaomu-clipper/releases" id="changelog-link" class="btn" target="_blank" rel="noopener noreferrer">更新记录</a>
 										</div>
 									</div>
 								</div>
@@ -131,6 +124,34 @@
 									</details>
 								</div>
 							</div>
+						</form>
+					</div>
+
+					<div id="about-section" class="settings-section">
+						<div class="settings-section-header">
+							<h2>关于与备份</h2>
+						</div>
+						<div class="about-hero">
+							<div class="about-version">
+								<span class="about-label">乔木剪藏 · 当前版本</span>
+								<span class="about-number" id="version-number"></span>
+								<span class="about-status" id="version-status" role="status"></span>
+							</div>
+							<div class="about-actions">
+								<a id="changelog-link" class="btn" href="https://github.com/joeseesun/qiaomu-clipper/releases" target="_blank" rel="noopener noreferrer">更新日志</a>
+								<a class="btn" href="https://github.com/joeseesun/qiaomu-clipper/issues/new" target="_blank" rel="noopener noreferrer">反馈问题</a>
+								<a class="btn" href="https://github.com/joeseesun/qiaomu-clipper#readme" target="_blank" rel="noopener noreferrer">使用说明</a>
+							</div>
+						</div>
+						<div class="setting-group" id="release-notes" hidden>
+							<div class="setting-item setting-item-heading"><h3 id="release-notes-title">最近更新</h3></div>
+							<div class="setting-items" id="release-notes-body"></div>
+						</div>
+						<div class="about-support">
+							<figure class="about-qr"><img src="assets/about/wechat-public-account.jpg" alt="向阳乔木推荐看公众号二维码" width="148" height="148"><figcaption><b>关注公众号</b><span>微信搜索「向阳乔木推荐看」</span></figcaption></figure>
+							<figure class="about-qr"><img src="assets/about/reward.png" alt="向阳乔木打赏二维码" width="148" height="148"><figcaption><b>请我喝杯咖啡</b><span>微信扫码，支持持续更新</span></figcaption></figure>
+						</div>
+						<form id="about-settings-form">
 							<div class="setting-group">
 								<div class="setting-item setting-item-heading"><h3>备份与恢复</h3></div>
 								<div class="setting-items">
@@ -196,6 +217,10 @@
 								</div>
 							</div>
 						</form>
+						<div class="about-footer">
+							<div class="about-links"><a href="https://qiaomu.ai/" target="_blank" rel="noopener noreferrer">qiaomu.ai</a><a href="https://blog.qiaomu.ai/" target="_blank" rel="noopener noreferrer">博客</a><a href="https://x.com/vista8" target="_blank" rel="noopener noreferrer">X</a><a href="https://github.com/joeseesun" target="_blank" rel="noopener noreferrer">GitHub</a><a href="mailto:vista8@gmail.com">邮箱</a></div>
+							<p>© 向阳乔木 · MIT 许可 · 基于 Obsidian Web Clipper</p>
+						</div>
 					</div>
 
 					<div id="clip-section" class="settings-section">
@@ -407,7 +432,7 @@
 
 					<div id="asr-section" class="settings-section">
 						<div class="settings-section-header">
-							<h2>字幕</h2>
+							<h2>字幕识别</h2>
 						</div>
 						
 						<div class="setting-group" id="asr-pointer">
@@ -552,7 +577,7 @@
 
 					<div id="reader-section" class="settings-section">
 						<div class="settings-section-header">
-							<h2>阅读页</h2>
+							<h2>阅读样式</h2>
 							<div class="settings-section-actions">
 								<a href="reader.html" id="open-reader" class="btn" target="_blank" data-i18n="openReader">Open Reader</a>
 							</div>
@@ -791,17 +816,6 @@
 								</div>
 								</div>
 							</div>
-							<div class="setting-group">
-								<div class="setting-item setting-item-heading"><h3 data-i18n="advanced">Advanced</h3></div>
-								<div class="setting-items">
-								<div class="setting-item">
-									<label for="default-prompt-context" data-i18n="defaultInterpreterContext">Default interpreter context</label>
-									<div class="setting-item-description" data-i18n="defaultInterpreterContextDescription">Override the context used to interpret prompt variables. Variables can be used here.</div>
-									<textarea id="default-prompt-context" rows="4" placeholder="{{fullHtml}}" spellcheck="false"></textarea>
-								</div>
-								
-								</div>
-							</div>
 						</form>
 					</div>
 
@@ -885,6 +899,11 @@
 										<div class="setting-item-description">模版里有这样的句子时，一打开面板就调用模型，会消耗你的模型额度。关掉则手动点「提取」。</div>
 									</div>
 									<div class="setting-item-control"><div class="checkbox-container"><input type="checkbox" id="interpreter-auto-run-toggle" /></div></div>
+								</div>
+								<div class="setting-item" id="default-context-row" hidden>
+									<label for="default-prompt-context">AI 读到的内容</label>
+									<div class="setting-item-description">AI 回答模版里的这类句子时，默认读哪些内容。留空就读清理过的整个网页，一般不用改；只想让它读某部分时，可以写模版变量，如 {{content}}。</div>
+									<textarea id="default-prompt-context" rows="3" placeholder="{{content}}" spellcheck="false"></textarea>
 								</div>
 							</div>
 						</div>

@@ -170,6 +170,7 @@ module.exports = (env, argv) => {
 					{ from: "node_modules/webextension-polyfill/dist/browser-polyfill.min.js", to: "browser-polyfill.min.js" },
 					{ from: "src/flatten-shadow-dom.js", to: "flatten-shadow-dom.js" },
 					{ from: "src/fonts", to: "fonts" },
+					{ from: "src/assets/about", to: "assets/about" },
 					{
 						from: 'src/_locales',
 						to: '_locales'
