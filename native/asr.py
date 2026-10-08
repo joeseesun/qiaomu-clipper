@@ -29,6 +29,7 @@ COOKIES_UNREADABLE = re.compile(r'cookies? database|could not (find|decrypt).{0,
 NEEDS_LOGIN = re.compile(r'sign in to confirm|not a bot|use --cookies|fresh cookies|login required|412|ip address is blocked|blocked from accessing', re.I)  # TikTok answers an anonymous download with "IP address is blocked"; a signed-in browser is let through
 # What a downloader that has fallen behind the site looks like (YouTube changes its player every few weeks). Worth one update and one retry.
 STALE_TOOL = re.compile(r'needs to be reloaded|unable to extract|nsig|signature|player response|precondition check failed|requested format is not available|http error 403|sabr|po token|js runtime|challenge', re.I)
+YOUTUBE_CLIENT_ERROR = re.compile(r'needs to be reloaded|player response|precondition check failed|unable to extract.{0,40}(?:player|initial)', re.I)
 UPDATE_EVERY = 12 * 3600
 # Lines Whisper tends to invent over silence or music. Only dropped when they stand alone in a short segment.
 HALLUCINATIONS = ('谢谢观看', '感谢观看', '请不吝点赞', '字幕由', '字幕 by', '字幕by', '订阅', 'thanks for watching', 'thank you for watching', 'subtitles by', 'amara.org')
@@ -525,12 +526,14 @@ def start(base, message):
         return {'ok': False, 'error': 'busy', 'jobId': running_id, 'videoKey': running.get('videoKey')}
     job_id = uuid.uuid4().hex; directory = job_dir(base, job_id); directory.mkdir(parents=True, mode=0o700)
     cached = read_json(result_path(base, video_key))
-    if cached and cached.get('segments') and cached.get('version') == RESULT_VERSION and not message.get('force'):
+    engine = 'cloud' if cloud else info['engine']
+    # A previous cloud result is valid, but must not masquerade as a new local-engine result (or vice versa).
+    cached_language = (cached or {}).get('requestedLanguage', (cached or {}).get('language') or 'auto')
+    if cached and cached.get('segments') and cached.get('version') == RESULT_VERSION and cached.get('engine') == engine and cached_language == language and not message.get('force'):
         with (directory / 'segments.jsonl').open('w', encoding='utf8') as f:
             for segment in cached['segments']: f.write(json.dumps(segment, ensure_ascii=False) + '\n')
         state = write_state(directory, id=job_id, videoKey=video_key, state='completed', stage='已从本机缓存读取', progress=100, engine=cached.get('engine'), language=cached.get('language'), cached=True, segmentCount=len(cached['segments']), totalSec=cached.get('duration'), processedSec=cached.get('duration'))
         return view(directory, state)
-    engine = 'cloud' if cloud else info['engine']
     spec = {'id': job_id, 'videoKey': video_key, 'url': url, 'language': language, 'engine': engine, 'cookies': cookies, 'cloud': cloud, 'context': message.get('context') is not False, **({'rss': rss} if rss else {}), **({'mediaUrl': media_url} if media_url else {})}
     if cookie_text: write_private(directory / 'cookies.txt', cookie_text); spec['cookiesFile'] = True
     atomic_json(directory / 'spec.json', spec)
@@ -750,18 +753,21 @@ def download(directory, spec, env, tools):
     def progress(line):
         match = pattern.search(line)
         if match: write_state(directory, state='downloading', stage='正在下载音频', progress=round(min(float(match.group(1)), 100) * 0.15, 1))
-    refreshed = False
-    for attempt in range(3):
+    refreshed = False; client_retry = False; network_retries = 0
+    # At most the initial request, two transport retries, one updated-tool retry and one client retry.
+    for attempt in range(5):
         for leftover in directory.glob('audio.*'): leftover.unlink(missing_ok=True)  # never resume a truncated CDN stream as if it were whole
         write_state(directory, state='downloading', stage='正在下载音频', progress=0)
         code, tail = stream(command, env, progress)
+        print(f'[asr] Download attempt {attempt + 1}: client={"default,web_embedded" if client_retry else "default"}, login={bool(spec.get("cookies"))}, exit={code}', flush=True)
         audio = next((p for p in directory.glob('audio.*') if p.suffix not in ('.part', '.ytdl', '.wav', '.json')), None)
         if code == 0 and audio:
             info = read_json(directory / 'audio.info.json')
             if info: save_meta(directory, asr_context.from_ytdlp(info))
             return audio
         text = ' '.join(tail).lower()
-        if attempt < 2 and (any(x in text for x in ('timed out', 'connection reset', 'incomplete read', 'unexpected end', 'http error 5')) or re.search(r'downloaded.{0,20}expected', text)): time.sleep(attempt + 1); continue
+        if network_retries < 2 and (any(x in text for x in ('timed out', 'connection reset', 'incomplete read', 'unexpected end', 'http error 5')) or re.search(r'downloaded.{0,20}expected', text)):
+            network_retries += 1; time.sleep(network_retries); continue
         if NEEDS_LOGIN.search(text) and not spec.get('cookies'): raise Failed('这个平台要求登录状态才能下载这条视频的音频', code='needs-cookies')
         if COOKIES_UNREADABLE.search(text): raise Failed('没能读取浏览器的登录状态：系统不允许本地助手访问浏览器的数据', code='cookies-unreadable')
         if STALE_TOOL.search(text) and not refreshed:
@@ -769,6 +775,13 @@ def download(directory, spec, env, tools):
             refreshed = True
             if update_ytdlp(env, force=True, on_stage=lambda stage: write_state(directory, state='downloading', stage=stage)):
                 command[0] = tools['yt-dlp'] = find_tool('yt-dlp'); continue
+        if spec['videoKey'].startswith('youtube:') and YOUTUBE_CLIENT_ERROR.search(text) and not client_retry:
+            # Keep the user's explicit login choice and all other download arguments. This is only a
+            # bounded retry for YouTube player extraction failures, never a change for other sites.
+            client_retry = True
+            command[-1:-1] = ['--extractor-args', 'youtube:player_client=default,web_embedded']
+            write_state(directory, stage='正在尝试 YouTube 备用下载客户端')
+            continue
         if STALE_TOOL.search(text): raise Failed('这个视频暂时下载不了：下载工具已是最新，但站点最近有变化，过几天更新后再试。（' + (tail[-1] if tail else '')[:160] + '）', code='tool-outdated')
         raise Failed('音频下载失败：' + (tail[-1] if tail else '未知错误')[:200])
     raise Failed('音频下载失败')
@@ -832,6 +845,7 @@ def recognise(directory, spec, wav, total, env, found, tools):
         command = [found['path'], '-m', found['model'], '-f', str(wav), '-l', language, '-sns']
     segments = []
     def on_line(line):
+        if line.startswith('[asr] '): print(line, flush=True)
         item = parse_line(line)
         if not item: return
         window = segments[-2:]; kept = clean_segments(window + [item])
@@ -883,7 +897,7 @@ def run_worker(base_dir):
         wav, total = convert(directory, audio, env, tools)
         segments, language = recognise_cloud(directory, spec, wav, total, env, tools) if spec.get('cloud') else recognise(directory, spec, wav, total, env, found, tools)
         (asr_root(base) / 'results').mkdir(parents=True, exist_ok=True)
-        atomic_json(result_path(base, spec['videoKey']), {'version': RESULT_VERSION, 'videoKey': spec['videoKey'], 'engine': 'cloud' if spec.get('cloud') else found['id'], 'language': language, 'duration': round(total, 1), 'createdAt': time.time(), 'segments': segments})
+        atomic_json(result_path(base, spec['videoKey']), {'version': RESULT_VERSION, 'videoKey': spec['videoKey'], 'engine': 'cloud' if spec.get('cloud') else found['id'], 'language': language, 'requestedLanguage': spec.get('language') or 'auto', 'duration': round(total, 1), 'createdAt': time.time(), 'segments': segments})
         with (directory / 'segments.jsonl').open('w', encoding='utf8') as f:
             for segment in segments: f.write(json.dumps(segment, ensure_ascii=False) + '\n')
         write_state(directory, state='completed', stage='字幕已生成', progress=100, language=language, segmentCount=len(segments), processedSec=round(total, 1), error=None)

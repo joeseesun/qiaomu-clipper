@@ -42,6 +42,17 @@ it('reverts to "no subtitles" on failure or cancel, and a failure offers a retry
 	expect(slow.full.cancel).toHaveBeenCalledWith(ID); expect(reverted).toEqual([KEY]); expect(shown[shown.length - 1]).toBeNull();
 });
 
+it('never saves a failed partial transcript, including a failed regeneration over an existing result', async () => {
+	for (const regenerate of [false, true]) {
+		saved = []; reverted = []; applied = [];
+		const { gen } = make({ start: vi.fn(async () => job({ segments: [{ start: 0, end: 2, text: 'partial' }], next: 1 })), poll: vi.fn(async () => job({ state: 'failed', error: 'CUDA failure', next: 1 })) });
+		if (regenerate) { gen.actions.regenerate!(); await settle(); }
+		gen.actions.confirm(); await settle();
+		expect(saved).toEqual([]); expect(applied.some(([, , done]) => done)).toBe(false);
+		expect(reverted).toEqual(regenerate ? [] : [KEY]); expect(shown[shown.length - 1]).toMatchObject({ kind: 'failed' });
+	}
+});
+
 it('keeps each video\'s state apart: a job for one video never paints on another', async () => {
 	const { gen } = make({ poll: vi.fn(async () => job({ state: 'completed', progress: 100, segments: [{ start: 0, end: 1, text: 'x' }], next: 1 })) });
 	gen.actions.confirm(); await settle();

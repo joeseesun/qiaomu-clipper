@@ -4,7 +4,7 @@ the other engines print, so the job reads every engine the same way.
 
     asr_runner.py <engine> <wav> <language> --model ID --ffmpeg PATH
 """
-import argparse, os, subprocess, sys, tempfile
+import argparse, gc, os, re, subprocess, sys, tempfile
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -17,20 +17,61 @@ def emit(start, end, text):
 
 NAMES = {'zh': 'Chinese', 'en': 'English', 'ja': 'Japanese', 'ko': 'Korean', 'de': 'German', 'fr': 'French', 'es': 'Spanish', 'ru': 'Russian', 'pt': 'Portuguese', 'it': 'Italian'}
 
+def diagnostic(message):
+    print('[asr] ' + message, file=sys.stderr, flush=True)
+
+def compute_candidates(ctranslate2):
+    """Probe actual backend support, not just the presence of a CUDA device."""
+    candidates = []
+    try:
+        if ctranslate2.get_cuda_device_count() > 0:
+            supported = ctranslate2.get_supported_compute_types('cuda')
+            diagnostic('CUDA supports: ' + ', '.join(sorted(supported)))
+            precision = next((p for p in ('float16', 'int8_float16', 'int8_float32', 'int8', 'float32') if p in supported), None)
+            if precision: candidates.append(('cuda', precision))
+    except (RuntimeError, ValueError):
+        diagnostic('CUDA capability probe failed; using CPU fallback')
+    # CPU float32 remains a safe last attempt when the capability probe itself fails.
+    try:
+        supported = ctranslate2.get_supported_compute_types('cpu')
+        diagnostic('CPU supports: ' + ', '.join(sorted(supported)))
+    except (RuntimeError, ValueError):
+        diagnostic('CPU capability probe failed; trying float32')
+        supported = {'float32'}
+    candidates.extend(('cpu', p) for p in ('int8', 'float32') if p in supported)
+    if not candidates: raise RuntimeError('No supported CUDA/CPU compute type for faster-whisper')
+    return candidates
+
+BACKEND_ERROR = re.compile(r'cuda|cudnn|cublas|compute type|out of memory', re.I)
+
+def transcribe_faster(args, samples, model_factory, candidates):
+    for index, (device, precision) in enumerate(candidates):
+        emitted = False; model = None
+        diagnostic(f'Using {device} compute_type={precision}')
+        try:
+            model = model_factory(args.model, device=device, compute_type=precision)
+            segments, _ = model.transcribe(samples, language=None if args.language == 'auto' else args.language, vad_filter=True, condition_on_previous_text=False, beam_size=5,
+                                          initial_prompt=' '.join(x for x in (args.context, '以下是普通话的句子。' if args.language == 'zh' else '') if x) or None)
+            for segment in segments:
+                emit(segment.start, segment.end, segment.text)
+                emitted = True
+            return
+        except (RuntimeError, ValueError) as error:
+            # A lazy CUDA failure may appear on the first segment. Never restart after emitting subtitles:
+            # that would duplicate a partial transcript. Model/file/download errors are not backend failures.
+            if emitted or index + 1 == len(candidates) or not BACKEND_ERROR.search(str(error)): raise
+            diagnostic(f'{device}/{precision} backend failed ({type(error).__name__}: {str(error)[:200]}); falling back to CPU')
+            model = None; gc.collect()
+
 def faster_whisper(args):
     from faster_whisper import WhisperModel
-    try:
-        import ctranslate2
-        cuda = ctranslate2.get_cuda_device_count() > 0
-    except Exception: cuda = False
-    model = WhisperModel(args.model, device='cuda' if cuda else 'cpu', compute_type='float16' if cuda else 'int8')
+    import ctranslate2
+    candidates = compute_candidates(ctranslate2)
     # The job's audio is already 16 kHz mono PCM: read it directly instead of letting the library decode it with PyAV
     # (faster-whisper 1.2 and PyAV 19 disagree about an argument, and the decoder is not needed here).
     import numpy, wave
     with wave.open(args.wav, 'rb') as audio: samples = numpy.frombuffer(audio.readframes(audio.getnframes()), dtype=numpy.int16).astype(numpy.float32) / 32768.0
-    segments, _ = model.transcribe(samples, language=None if args.language == 'auto' else args.language, vad_filter=True, condition_on_previous_text=False, beam_size=5,
-                                   initial_prompt=' '.join(x for x in (args.context, '以下是普通话的句子。' if args.language == 'zh' else '') if x) or None)
-    for segment in segments: emit(segment.start, segment.end, segment.text)
+    transcribe_faster(args, samples, WhisperModel, candidates)
 
 def qwen3(args):
     # Qwen3-ASR returns text for a piece of audio, not timing: cut at pauses like a cloud service and put the pieces back.
