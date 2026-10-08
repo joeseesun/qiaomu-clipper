@@ -156,6 +156,13 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 	const holder = document.createElement('div'); holder.className = 'qiaomu-audio-study';
 	const status = document.createElement('p'); status.className = 'youtube-study-status qiaomu-audio-status'; status.setAttribute('role', 'status');
 	article.prepend(holder); holder.append(status);
+	const setupFromStatus = (reason: 'helper-offline' | 'helper-outdated' | 'missing') => {
+		const words = generationStrings(text), helper = reason !== 'missing';
+		status.textContent = reason === 'helper-outdated' ? words.setupOutdated : helper ? words.setupOffline : words.setupMissing;
+		const setup = document.createElement('button'); setup.type = 'button'; setup.className = 'qiaomu-yt-gen-button'; setup.textContent = helper ? words.setupHelper : words.setupRecognition;
+		setup.addEventListener('click', () => { void browser.runtime.sendMessage({ action: 'openSettings', section: helper ? 'clip' : 'asr-models' }); });
+		status.append(document.createTextNode(' '), setup);
+	};
 	let sourceHtml = '';
 	let key = options.key || '', title = initialTitle, attached = false, remade = false; // `remade`: this transcript replaces one already on the page
 
@@ -280,6 +287,7 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 			: await probeWebStudy(address, status, holder);
 		if (!info.ok) {
 			status.textContent = info.error === 'unsupported' ? t('这个网址读不了：下载工具不支持这个网站，或这个页面里没有音视频。') : info.error === 'needs-cookies' ? t('这个网站需要有效的浏览器状态才能读取。') : info.error === 'helper-offline' || info.error === 'helper-outdated' ? text('subtitleGenOffline', '没有连上本地助手，需要先安装或更新本地助手。', 'The local helper is not connected or is out of date.') : info.error === 'missing' ? t('还没有安装下载工具（yt-dlp），请先在「ASR 语音识别」里安装，或运行 brew install yt-dlp。') : info.error === 'timeout' ? t('读取超时，请稍后重试。') : t('读取失败') + ((info as { message?: string }).message ? '：' + (info as { message?: string }).message : '');
+			if (info.error === 'helper-offline' || info.error === 'helper-outdated' || info.error === 'missing') setupFromStatus(info.error);
 			return;
 		}
 		// TikTok: the file address the download tool reports does not play outside its own session. Play the file TikTok's page loaded
@@ -335,6 +343,7 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 		const sent = await asrUpload(file, fraction => { status.textContent = t('{0} {1}%', [text('audioSending', '正在把文件交给本机助手…', 'Handing the file to the local helper…'), Math.round(fraction * 100)]); });
 		if (!sent.ok) {
 			status.textContent = sent.error === 'helper-offline' || sent.error === 'helper-outdated' ? text('subtitleGenOffline', '没有连上本地助手，需要先安装或更新本地助手。', 'The local helper is not connected or is out of date.') : sent.error === 'no-space' ? t('磁盘空间不足') : t('{0}：{1}', [text('audioSendFailed', '交给本机助手失败', 'Could not hand the file over'), sent.error]);
+			if (sent.error === 'helper-offline' || sent.error === 'helper-outdated') setupFromStatus(sent.error);
 			chooser.hidden = false; return;
 		}
 		key = sent.key; await begin();

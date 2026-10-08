@@ -57,8 +57,8 @@
 			&::after { content: ''; position: absolute; top: 2px; inset-inline-start: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgb(0 0 0 / 30%); transition: transform .15s; } }
 		input:checked + .clip-chat-switch-track { background: var(--interactive-accent, #3b82f6); &::after { transform: translateX(14px); } }
 		[dir=rtl] & input:checked + .clip-chat-switch-track::after { transform: translateX(-14px); }
-		input:focus-visible + .clip-chat-switch-track { outline: 2px solid var(--text-muted); outline-offset: 2px; } }
-	button:focus-visible, select:focus-visible,  .clip-chat-settings input[type=range]:focus-visible { outline: 2px solid var(--text-muted); outline-offset: 2px; box-shadow: none; }
+		input:focus-visible + .clip-chat-switch-track { outline: 1px solid var(--text-muted); outline-offset: 2px; } }
+	button:focus-visible, select:focus-visible,  .clip-chat-settings input[type=range]:focus-visible { outline: 1px solid var(--text-muted); outline-offset: 2px; box-shadow: none; }
 	.clip-chat-title { flex: 1; min-width: 16px; display: flex; align-items: center; gap: 8px; font-weight: 600; svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--text-muted); } span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } }
 	// The model button in the header; the list it opens is .clip-chat-picker. Scoped under the panel so the app's global button style cannot stretch it.
 	button.clip-chat-model { display: inline-flex; align-items: center; gap: 4px; flex: 0 1 auto; width: auto; min-width: 56px; max-width: 190px; height: 28px; margin: 0; padding: 0 6px 0 8px; border: 0; border-radius: 6px; background: transparent; box-shadow: none; font-size: 13px; font-weight: 500; color: var(--text-muted); cursor: pointer; transition: background-color .12s, color .12s;

@@ -71,10 +71,10 @@ export const asrCancel = (jobId: string) => ask<AsrJob>({ mode: 'cancel', jobId 
 
 // The settings page tries a service with the form's values (a short tone: any answer means the key and model are accepted).
 export interface AsrTestResult { ok: boolean; ms?: number; sample?: string; error?: string; code?: string }
-const TEST_ERRORS: Record<string, string> = { get 'helper-offline'() { return t('没连上本地助手'); }, get 'helper-outdated'() { return t('本地助手版本较旧，请重新运行 python3 native/install.py'); }, get 'bad-request'() { return t('设置不完整或无效'); } };
+const TEST_ERRORS: Record<string, string> = { get 'helper-offline'() { return t('没连上本地助手'); }, get 'helper-outdated'() { return t('本地助手版本较旧。请到「剪藏与保存」更新助手，再重新检查。'); }, get 'bad-request'() { return t('设置不完整或无效'); } };
 export const asrTest = async (cloud: Record<string, unknown>, apiKey: string): Promise<AsrTestResult> => {
 	const reply = await ask<AsrTestResult>({ mode: 'test', cloud, apiKey }) as AsrTestResult | AsrFailure;
 	if ('ok' in reply && reply.ok === true) return reply as AsrTestResult;
 	const failure = reply as AsrTestResult & AsrFailure;
-	return { ok: false, error: TEST_ERRORS[failure.error ?? ''] || failure.error || t('测试失败'), code: failure.code };
+	return { ok: false, error: TEST_ERRORS[failure.error ?? ''] || failure.error || t('测试失败'), code: failure.code || (/^helper-(offline|outdated)$/.test(failure.error || '') ? failure.error : undefined) };
 };
