@@ -35,17 +35,24 @@ it('jumps back 15 and forward 30 seconds, within the audio', () => {
 	media.currentTime = 5; back.click(); expect(media.currentTime).toBe(0); media.currentTime = 90; forward.click(); expect(media.currentTime).toBe(100);
 });
 
-it('chooses the speed from a small menu, closes it again, and remembers the choice', () => {
-	const { media, root } = make(); const chip = q<HTMLButtonElement>(root, '.qa-chip'), menu = q(root, '.qa-menu');
-	expect(chip.textContent).toBe('1×'); expect(menu.hidden).toBe(true); chip.click(); expect(menu.hidden).toBe(false); expect(chip.getAttribute('aria-expanded')).toBe('true');
-	expect(Array.from(menu.querySelectorAll('button')).map(b => b.textContent)).toEqual(SPEEDS.map(s => `${s}×`)); expect(Array.from(menu.querySelectorAll('button')).map(b => b.getAttribute('aria-checked'))).toEqual(['false', 'true', 'false', 'false', 'false', 'false']);
-	menu.querySelector<HTMLButtonElement>('[data-rate="1.5"]')!.click(); expect([chip.textContent, media.playbackRate, menu.hidden]).toEqual(['1.5×', 1.5, true]); expect(localStorage.getItem('qiaomuAudioRate')).toBe('1.5');
+it('shows every speed at once, picks one with a press, and remembers the choice', () => {
+	const { media, root } = make(); const group = q(root, '.qa-speed'); const rates = () => Array.from(group.querySelectorAll<HTMLButtonElement>('[role=radio]'));
+	expect(group.getAttribute('role')).toBe('radiogroup'); expect(rates().map(b => b.textContent)).toEqual(SPEEDS.map(s => `${s}×`));
+	expect(rates().map(b => b.getAttribute('aria-checked'))).toEqual(['false', 'true', 'false', 'false', 'false', 'false']);   // 1× is the start
+	expect(root.querySelector('.qa-menu')).toBeNull();                                                                       // nothing pops up, so nothing can be cut off
+	group.querySelector<HTMLButtonElement>('[data-rate="1.5"]')!.click();
+	expect(media.playbackRate).toBe(1.5); expect(localStorage.getItem('qiaomuAudioRate')).toBe('1.5'); expect(rates().filter(b => b.getAttribute('aria-checked') === 'true').map(b => b.textContent)).toEqual(['1.5×']);
 	expect(make().media.playbackRate).toBe(1.5);
-	chip.click(); document.body.dispatchEvent(new Event('pointerdown', { bubbles: true })); expect(menu.hidden).toBe(true); // a press elsewhere closes it
-	chip.click(); document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); expect(menu.hidden).toBe(true);
+});
+
+it('moves along the speeds with the arrow keys', () => {
+	const { media, root } = make(); const first = q<HTMLButtonElement>(root, '[data-rate="1"]');
+	first.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true })); expect(media.playbackRate).toBe(1.25);
+	q<HTMLButtonElement>(root, '[data-rate="1.25"]').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true, cancelable: true })); expect(media.playbackRate).toBe(1);
+	q<HTMLButtonElement>(root, '[data-rate="0.75"]').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true, cancelable: true })); expect(media.playbackRate).toBe(2);   // wraps round
 });
 
 it('follows a speed changed with the browser\'s own means, and starts a new source at the remembered speed', () => {
 	const { media, root } = make(); media.playbackRate = 1.75; media.dispatchEvent(new Event('ratechange'));
-	expect(q(root, '.qa-chip').textContent).toBe('1.75×'); expect(localStorage.getItem('qiaomuAudioRate')).toBe('1.75'); expect(media.defaultPlaybackRate).toBe(1.75);
+	expect(q(root, '[data-rate="1.75"]').getAttribute('aria-checked')).toBe('true'); expect(localStorage.getItem('qiaomuAudioRate')).toBe('1.75'); expect(media.defaultPlaybackRate).toBe(1.75);
 });

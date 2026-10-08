@@ -14,6 +14,7 @@ def tools_home():
 def hf_home():
     return Path(os.environ.get('HF_HOME') or Path.home() / '.cache/huggingface')
 def apple_silicon(): return sys.platform == 'darwin' and platform.machine() == 'arm64'
+def windows(): return sys.platform == 'win32'
 
 # Fetching the video and cutting the audio. imageio-ffmpeg ships a static ffmpeg, so ffmpeg needs no system install.
 BASE = {'id': 'base', 'name': '下载与音频工具（yt-dlp、ffmpeg）', 'packages': ['yt-dlp', 'imageio-ffmpeg'], 'sizeMb': 60}
@@ -27,17 +28,23 @@ ENGINES = {
 ORDER = ['mlx', 'mlx-qwen3', 'faster-whisper']
 
 def venv_dir(name): return tools_home() / name
-def venv_python(name): return venv_dir(name) / 'bin' / 'python'
-def venv_bin(name): return venv_dir(name) / 'bin'
+def executable_name(name): return name + '.exe' if windows() and not name.lower().endswith('.exe') else name
+def venv_bin(name): return venv_dir(name) / ('Scripts' if windows() else 'bin')
+def venv_python(name): return venv_bin(name) / executable_name('python')
+def venv_executable(name, executable): return venv_bin(name) / executable_name(executable)
+def site_packages(name):
+    root = venv_dir(name)
+    return [root / 'Lib' / 'site-packages'] if windows() else sorted(root.glob('lib/python*/site-packages'))
 def private_bin_dirs():
     return [str(venv_bin(name)) for name in ['base'] + ORDER if venv_bin(name).is_dir()]
 def private_ffmpeg():
     """ffmpeg inside the base environment's imageio-ffmpeg package."""
-    for path in sorted(venv_dir('base').glob('lib/python*/site-packages/imageio_ffmpeg/binaries/ffmpeg-*')):
-        if path.is_file() and os.access(path, os.X_OK): return str(path)
+    for packages in site_packages('base'):
+        for path in sorted((packages / 'imageio_ffmpeg' / 'binaries').glob('ffmpeg-*')):
+            if path.is_file() and (path.suffix.lower() == '.exe' if windows() else os.access(path, os.X_OK)): return str(path)
     return None
 def has_module(name, module):
-    return any(p.is_dir() for p in venv_dir(name).glob(f'lib/python*/site-packages/{module}'))
+    return any((packages / module).is_dir() for packages in site_packages(name))
 def model_ready(model):
     snapshots = hf_home() / 'hub' / ('models--' + model.replace('/', '--')) / 'snapshots'
     return snapshots.is_dir() and any(snapshots.iterdir())
@@ -55,7 +62,7 @@ def supported(engine_id):
 def installed(engine_id):
     spec = ENGINES[engine_id]
     if not venv_python(engine_id).exists(): return False
-    return (venv_bin(engine_id) / spec['binary']).exists() if spec['kind'] == 'cli' else has_module(engine_id, spec['module'])
+    return venv_executable(engine_id, spec['binary']).exists() if spec['kind'] == 'cli' else has_module(engine_id, spec['module'])
 def describe(engine_id):
     spec = ENGINES[engine_id]
     return {'id': engine_id, 'name': spec['name'], 'sizeMb': spec['sizeMb'], 'note': spec['note'], 'supported': supported(engine_id), 'installed': installed(engine_id), 'modelReady': model_ready(spec['model']), 'managed': True}
@@ -88,10 +95,11 @@ def ytdlp_binary_url():
     """The program yt-dlp publishes for people without a recent Python (it carries its own)."""
     if sys.platform == 'darwin': name = 'yt-dlp_macos'
     elif sys.platform.startswith('linux'): name = 'yt-dlp_linux_aarch64' if platform.machine() in ('aarch64', 'arm64') else 'yt-dlp_linux'
+    elif windows(): name = 'yt-dlp.exe'
     else: return None
     return 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/' + name
 def base_installed():
-    return venv_bin('base').joinpath('yt-dlp').exists() and private_ffmpeg() is not None
+    return venv_executable('base', 'yt-dlp').is_file() and private_ffmpeg() is not None
 
 # ---- installing ---------------------------------------------------------------------------------------------------
 def plan(engine_id, python=None):
@@ -105,8 +113,27 @@ def plan(engine_id, python=None):
     if not venv_python(spec['id'] if engine_id == 'base' else engine_id).exists(): steps.append(('正在创建独立的 Python 环境', 5, [python, '-m', 'venv', str(venv_dir(engine_id))]))
     steps.append(('正在安装 ' + ', '.join(packages), 55 if engine_id != 'base' else (60 if standalone else 90), [str(venv_python(engine_id)), '-m', 'pip', 'install', '--progress-bar', 'off', '--disable-pip-version-check', '-U', *packages]))
     if standalone and ytdlp_binary_url():
-        target = str(venv_bin('base') / 'yt-dlp')
-        steps.append(('正在下载 yt-dlp', 30, ['/bin/sh', '-c', f'curl -fL --retry 3 --connect-timeout 20 -o "$0.part" "{ytdlp_binary_url()}" && chmod 755 "$0.part" && mv -f "$0.part" "$0"', target]))
+        target = str(venv_executable('base', 'yt-dlp'))
+        if windows():
+            code = '''import os, shutil, sys, time, urllib.request
+tmp = sys.argv[2] + '.part'
+try:
+    for attempt in range(4):
+        try:
+            with urllib.request.urlopen(sys.argv[1], timeout=20) as response, open(tmp, 'wb') as output:
+                shutil.copyfileobj(response, output)
+            os.replace(tmp, sys.argv[2])
+            break
+        except OSError:
+            if attempt == 3: raise
+            time.sleep(attempt + 1)
+finally:
+    if os.path.exists(tmp): os.unlink(tmp)
+'''
+            command = [python, '-c', code, ytdlp_binary_url(), target]
+        else:
+            command = ['/bin/sh', '-c', f'curl -fL --retry 3 --connect-timeout 20 -o "$0.part" "{ytdlp_binary_url()}" && chmod 755 "$0.part" && mv -f "$0.part" "$0"', target]
+        steps.append(('正在下载 yt-dlp', 30, command))
     model = None if engine_id == 'base' else spec['model']
     return steps, model
 def required_free_mb(engine_id):

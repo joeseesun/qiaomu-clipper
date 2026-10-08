@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { confirmFor, createBarGeneration, viaOf } from './bar-generation';
+import browser from './browser-polyfill';
 import type { AsrJob } from './asr-client';
 import type { GenerationDeps } from './subtitle-generation';
 import type { GenUi } from './subtitle-generation-panel';
@@ -7,10 +8,10 @@ import type { GenUi } from './subtitle-generation-panel';
 const KEY = 'bilibili:BV1hM4m1U7rA:20', OTHER = 'youtube:dbqweBCynuI', ID = 'b'.repeat(32);
 const job = (over: Partial<AsrJob> = {}): AsrJob => ({ ok: true, id: ID, videoKey: KEY, state: 'transcribing', stage: 'x', progress: 10, segments: [], next: 0, ...over });
 let current: string | null, shown: Array<GenUi | null>, applied: Array<[string, number, boolean]>, saved: Array<[string, number]>, reverted: string[];
-const make = (deps: Partial<GenerationDeps> = {}) => {
+const make = (deps: Partial<GenerationDeps> = {}, extra: { openSettings?: () => void } = {}) => {
 	const full: GenerationDeps = { status: vi.fn(async () => ({ ok: true as const, ready: true, missing: [], hints: [], engine: 'mlx', modelDownloadNeeded: true })), start: vi.fn(async () => job()), poll: vi.fn(async () => job({ state: 'completed', progress: 100, segments: [{ start: 0, end: 2, text: '你好' }], next: 1, language: 'zh' })), cancel: vi.fn(async () => job({ state: 'cancelled' })), ...deps };
 	const bar = { setGeneration: (ui: GenUi | null) => shown.push(ui) } as any;
-	const gen = createBarGeneration({ videoKey: () => current, bar: () => bar, apply: (k, lines, done) => applied.push([k, lines.length, done]), revert: k => reverted.push(k), save: (k, lines) => saved.push([k, lines.length]), deps: full, intervalMs: 5 });
+	const gen = createBarGeneration({ videoKey: () => current, bar: () => bar, apply: (k, lines, done) => applied.push([k, lines.length, done]), revert: k => reverted.push(k), save: (k, lines) => saved.push([k, lines.length]), deps: full, intervalMs: 5, ...extra });
 	return { gen, full };
 };
 const settle = async () => { for (let i = 0; i < 20; i++) await vi.advanceTimersByTimeAsync(5); };
@@ -41,6 +42,17 @@ it('reverts to "no subtitles" on failure or cancel, and a failure offers a retry
 	expect(slow.full.cancel).toHaveBeenCalledWith(ID); expect(reverted).toEqual([KEY]); expect(shown[shown.length - 1]).toBeNull();
 });
 
+it('never saves a failed partial transcript, including a failed regeneration over an existing result', async () => {
+	for (const regenerate of [false, true]) {
+		saved = []; reverted = []; applied = [];
+		const { gen } = make({ start: vi.fn(async () => job({ segments: [{ start: 0, end: 2, text: 'partial' }], next: 1 })), poll: vi.fn(async () => job({ state: 'failed', error: 'CUDA failure', next: 1 })) });
+		if (regenerate) { gen.actions.regenerate!(); await settle(); }
+		gen.actions.confirm(); await settle();
+		expect(saved).toEqual([]); expect(applied.some(([, , done]) => done)).toBe(false);
+		expect(reverted).toEqual(regenerate ? [] : [KEY]); expect(shown[shown.length - 1]).toMatchObject({ kind: 'failed' });
+	}
+});
+
 it('keeps each video\'s state apart: a job for one video never paints on another', async () => {
 	const { gen } = make({ poll: vi.fn(async () => job({ state: 'completed', progress: 100, segments: [{ start: 0, end: 1, text: 'x' }], next: 1 })) });
 	gen.actions.confirm(); await settle();
@@ -56,7 +68,9 @@ it('stops watching when the page moves to another video; the job carries on in t
 	expect((full.poll as any).mock.calls.length).toBe(calls); expect(full.cancel).not.toHaveBeenCalled();
 });
 
+const lend = (ready: boolean) => vi.spyOn(browser.runtime, 'sendMessage').mockResolvedValue({ ready } as never);
 it('asks for the browser login only through its own explicit action, and then tells the helper which browser', async () => {
+	lend(true);
 	const failing = job({ state: 'failed', error: '需要登录', errorCode: 'needs-cookies' });
 	const { gen, full } = make({ start: vi.fn(async () => failing) });
 	gen.actions.confirm(); await settle();
@@ -66,6 +80,7 @@ it('asks for the browser login only through its own explicit action, and then te
 });
 
 it('passes the spoken language chosen in the confirm step to the helper, and keeps it for a retry with the browser login', async () => {
+	lend(true);
 	const failing = job({ state: 'failed', error: '需要登录', errorCode: 'needs-cookies' });
 	const { gen, full } = make({ start: vi.fn(async () => failing) });
 	gen.actions.confirm('en'); await settle(); expect(full.start).toHaveBeenLastCalledWith(KEY, 'en');
@@ -152,4 +167,34 @@ it('remaking the subtitles keeps the existing lines until the new ones are done,
 	gen.actions.regenerate!(); await settle(); gen.actions.confirm(); await settle();
 	expect(full.start).toHaveBeenCalledWith(KEY, 'auto', true); expect(applied).toEqual([]); // nothing painted while it runs
 	gen.actions.cancel(); await settle(); expect(reverted).toEqual([]); expect(shown[shown.length - 1]).toMatchObject({ kind: 'generated' });
+});
+
+it('sends the viewer to the settings when the permission to use the browser login has not been given yet', async () => {
+	lend(false);
+	const failing = job({ state: 'failed', error: '需要登录', errorCode: 'needs-cookies' }), openSettings = vi.fn();
+	const { gen, full } = make({ start: vi.fn(async () => failing) }, { openSettings });
+	gen.actions.confirm(); await settle(); (full.start as ReturnType<typeof vi.fn>).mockClear();
+	gen.actions.confirmWithLogin!(); await settle();
+	expect(full.start).not.toHaveBeenCalled(); expect(openSettings).toHaveBeenCalled();
+	expect(shown[shown.length - 1]).toMatchObject({ kind: 'failed', code: 'cookies-permission' });
+});
+
+
+it('OpenAI only installs the 60 MB base tools and continues without a local model', async () => {
+    const install = vi.fn(async () => ({ ok: true as const, jobId: 'i'.repeat(32), engine: 'base', state: 'queued' as const, stage: '', progress: 0 }));
+    const { gen, full } = make({ install, installPoll: vi.fn(async () => ({ ok: true as const, jobId: 'i'.repeat(32), engine: 'base', state: 'completed' as const, stage: 'done', progress: 100 })), status: vi.fn(async () => ({ ...base, mode: 'cloud' as const, cloudLabel: 'OpenAI', ready: false, engine: 'cloud', missing: ['yt-dlp', 'ffmpeg'], local: [engine('faster-whisper', { installed: false, sizeMb: 1700, modelReady: false, recommended: true })], choices: { mode: 'cloud' as const, engine: 'faster-whisper', active: 'openai', profiles: [{ id: 'openai', label: 'OpenAI', local: false, configured: true }] }, installable: { base: true, engines: ['faster-whisper'] } })) });
+    gen.actions.request(); await settle();
+    expect(shown[shown.length - 1]).toMatchObject({ kind: 'confirm', selected: 'cloud:openai', cloud: 'OpenAI', modelDownload: false, install: { sizeMb: 60 } });
+    gen.actions.confirm(); await settle();
+    expect(install).toHaveBeenCalledExactlyOnceWith('base');
+    expect(full.start).toHaveBeenCalledWith(KEY, 'auto');
+    expect(saved).toEqual([[KEY, 1]]);
+});
+
+it.each([['helper-offline', 'clip'], ['helper-outdated', 'clip'], ['cloud-not-configured', 'asr-models'], ['missing', 'asr-models']] as const)('routes %s setup directly to %s', (reason, section) => {
+ const send = vi.spyOn(browser.runtime, 'sendMessage').mockResolvedValue(undefined as never);
+ const { gen, full } = make();
+ gen.actions.setup!(reason);
+ expect(send).toHaveBeenCalledWith({ action: 'openSettings', section });
+ expect(full.start).not.toHaveBeenCalled();
 });

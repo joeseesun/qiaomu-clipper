@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fetchProviderModels, modelListRequest } from './provider-models';
+import { fallbackModels, fetchProviderModels, modelListRequest, readableName } from './provider-models';
 import { Provider } from '../types/types';
 
 const provider: Provider = { id: 'one', name: 'Renamed gateway', baseUrl: 'https://gateway.example/proxy/v1/chat/completions', apiKey: 'test-key', apiKeyRequired: true };
@@ -72,5 +72,18 @@ describe('provider model discovery', () => {
 		expect(request.headers['x-opencode-session']).toBeTruthy();
 		expect(request.headers['x-opencode-client']).toBe('qiaomu-clipper');
 		expect(request.headers.Authorization).toBe('Bearer test-key');
+	});
+	it('names a model the vendor lists by id only, and never overrides a name the vendor gave', () => {
+		expect(readableName('kimi-k2.6')).toBe('Kimi K2.6');
+		expect(readableName('kimi-k2.6', 'kimi-k2.6')).toBe('Kimi K2.6');
+		expect(readableName('moonshotai/kimi-k2.6')).toBe('Kimi K2.6');
+		expect(readableName('kimi-k2.6', 'My Kimi')).toBe('My Kimi');
+		expect(readableName('totally-unknown-model')).toBe('totally-unknown-model');
+	});
+	it('falls back to the catalogue\'s common models, led by the current DeepSeek id', () => {
+		const common = fallbackModels({ presetId: 'deepseek', name: 'DeepSeek', baseUrl: 'https://api.deepseek.com/v1/chat/completions' });
+		expect(common.map(m => m.id)).toEqual(['deepseek-flash', 'deepseek-v4-pro']);
+		expect(common[0].name).toBe('DeepSeek V4.1 Flash');
+		expect(fallbackModels({ name: 'My gateway', baseUrl: 'https://gw.example/v1/chat/completions' })).toEqual([]);
 	});
 });

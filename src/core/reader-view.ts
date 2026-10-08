@@ -26,6 +26,7 @@ import { loadSettings, generalSettings } from '../utils/storage-utils';
 import Defuddle from 'defuddle';
 import { withReliableBilibili } from '../utils/bilibili-captions';
 
+import { t } from '../utils/ui-text';
 type MessageListener = (request: any, sender: any, sendResponse: (response?: any) => void) => true | undefined;
 let readerPageMessageListener: MessageListener | null = null;
 
@@ -466,7 +467,7 @@ async function setupReaderPageMessageHandler(articleUrl: string, defuddleResult:
 
 async function showClipPreview(id: string) {
     const draft = await loadClipPreview(id);
-    if (!draft) { document.body.textContent = '剪藏预览已过期，请重新打开预览'; return; }
+    if (!draft) { document.body.textContent = t('剪藏预览已过期，请重新打开预览'); return; }
     const rendered = DOMPurify.sanitize(await marked.parse(draft.clip.markdown));
     const container = document.createElement('div');
     container.innerHTML = rendered;

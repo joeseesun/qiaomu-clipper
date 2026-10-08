@@ -45,6 +45,7 @@ import { mountSidebarToggle } from './sidebar-toggle';
 import { mountLearningNotes, learningSelection, learningNotes } from './learning-composer';
 import { withReliableBilibili } from './bilibili-captions';
 
+import { t } from './ui-text';
 interface ReaderContent {
 	content: string;
 	title?: string;
@@ -2462,7 +2463,7 @@ export class Reader {
 			hide();
 		});
  const menu = doc.createElement('div'); menu.className = 'learning-selection-menu'; menu.style.display = 'none';
- const diary = doc.createElement('button'); diary.type = 'button'; diary.textContent = '记笔记'; diary.className = 'obsidian-selection-action learning-selection-action';
+ const diary = doc.createElement('button'); diary.type = 'button'; diary.textContent = t('记笔记'); diary.className = 'obsidian-selection-action learning-selection-action';
 		diary.addEventListener('mousedown', event => event.preventDefault());
  diary.addEventListener('click', () => { const quote = learningSelection(doc); if (quote) void learningNotes(doc)?.open({quote}); hide(); });
  menu.append(btn, diary); doc.body.append(menu);
@@ -2682,7 +2683,7 @@ export class Reader {
 		const footer = doc.querySelector('.obsidian-reader-footer') as HTMLElement | null;
 		if (footer) {
 			const footerItems = [
-				'向阳乔木@2026',
+				t('向阳乔木@2026'),
 				content.wordCount ? new Intl.NumberFormat().format(content.wordCount) + ' words' : '',
 				content.parseTime ? 'parsed in ' + new Intl.NumberFormat().format(content.parseTime) + ' ms' : '',
 			].filter(Boolean);

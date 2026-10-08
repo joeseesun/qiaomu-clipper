@@ -1,0 +1,54 @@
+name: Native ASR compatibility
+on:
+  push:
+    paths:
+      - 'native/asr*.py'
+      - 'native/test_asr*.py'
+      - '.github/workflows/native-asr.yml'
+      - 'src/utils/bar-generation.test.ts'
+      - 'package*.json'
+  pull_request:
+    paths:
+      - 'native/asr*.py'
+      - 'native/test_asr*.py'
+      - '.github/workflows/native-asr.yml'
+      - 'src/utils/bar-generation.test.ts'
+      - 'package*.json'
+permissions:
+  contents: read
+jobs:
+  install:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest discover -s native -p 'test_asr_install.py'
+      - run: python -m unittest discover -s native -p 'test_asr_recovery.py'
+      - if: runner.os == 'Linux'
+        run: python -m unittest discover -s native -p 'test_*.py'
+  extension:
+    runs-on: ubuntu-latest
+    env:
+      TZ: America/Los_Angeles
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npx tsc --noEmit
+      - run: npm run build:chrome
+      - run: npm run build:local
+      - run: node scripts/check-editions.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-asr-chrome-local
+          path: builds/*chrome-local.zip

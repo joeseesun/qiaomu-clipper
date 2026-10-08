@@ -15,7 +15,7 @@ export interface PresetProvider {
 	apiKeyUrl?: string;
 	apiKeyRequired?: boolean;
 	modelsList?: string;
-	signIn?: 'tokendance' | 'chatgpt' | 'codex';
+	signIn?: 'tokendance' | 'openrouter' | 'chatgpt' | 'codex';
 	popularModels?: Array<{
 		id: string;
 		name: string;
@@ -266,8 +266,11 @@ export async function initializeInterpreterSettings(): Promise<void> {
 }
 
 function initializeInterpreterToggles(): void {
+	const contextRow = document.getElementById('default-context-row');
+	if (contextRow) contextRow.hidden = !generalSettings.interpreterEnabled;
 	initializeSettingToggle('interpreter-toggle', generalSettings.interpreterEnabled, (checked) => {
 		saveSettings({ ...generalSettings, interpreterEnabled: checked });
+		if (contextRow) contextRow.hidden = !checked;
 		updatePromptContextVisibility();
 	});
 

@@ -3,6 +3,7 @@ import { freshOAuth, responsesRequest, responsesText } from './oauth/accounts';
 import browser from './browser-polyfill';
 import type { ModelConfig, Provider } from '../types/types';
 
+import { t } from './ui-text';
 export interface ChatTurn { role: 'user' | 'assistant'; content: string }
 
 interface StreamOptions {
@@ -130,7 +131,7 @@ function streamViaBackground(options: StreamOptions): Promise<string> {
 			if (message.error) finish(new Error(message.error));
 			else if (message.done) finish();
 		});
-		port.onDisconnect.addListener(() => finish(new Error('AI 连接已中断，请重试')));
+		port.onDisconnect.addListener(() => finish(new Error(t('AI 连接已中断，请重试'))));
 		if (options.signal?.aborted) { abort(); return; }
 		options.signal?.addEventListener('abort', abort, { once: true });
 		port.postMessage({ modelId: options.model.id, system: options.system, messages: options.messages });
@@ -151,7 +152,7 @@ export async function streamChat({ model, system, messages, signal, onDelta }: S
 	const response = await fetch(url, { ...init, signal });
 	if (!response.ok) {
 		const text = (await response.text()).slice(0, 300);
-		if (kindOf(provider) === 'ollama' && response.status === 403) throw new Error('Ollama 拒绝了来自浏览器扩展的请求，请设置 OLLAMA_ORIGINS 后重试。');
+		if (kindOf(provider) === 'ollama' && response.status === 403) throw new Error(t('Ollama 拒绝了来自浏览器扩展的请求，请设置 OLLAMA_ORIGINS 后重试。'));
 		throw new Error(`${provider.name} ${response.status}: ${text}`);
 	}
 	if (!response.body) throw new Error('The provider returned an empty response.');

@@ -1,5 +1,6 @@
 import browser from '../browser-polyfill';
 
+import { t } from '../ui-text';
 export function randomString(length: number): string {
 	const bytes = crypto.getRandomValues(new Uint8Array(length));
 	return Array.from(bytes, b => 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~'[b % 66]).join('');
@@ -37,14 +38,14 @@ export function openSignIn(authorizeUrl: string, redirectPrefix: string, timeout
 	let resolve!: (url: URL) => void;
 	let reject!: (error: Error) => void;
 	const result = new Promise<URL>((res, rej) => { resolve = res; reject = rej; });
-	const timer = setTimeout(() => end(new Error('登录超时，请重试')), timeoutMs);
+	const timer = setTimeout(() => end(new Error(t('登录超时，请重试'))), timeoutMs);
 
 	const onUpdated = (id: number, info: { url?: string }, tab: { url?: string }) => {
 		if (id !== tabId) return;
 		const url = info.url || tab.url;
 		if (url && url.startsWith(redirectPrefix)) end(undefined, new URL(url));
 	};
-	const onRemoved = (id: number) => { if (id === tabId) end(new Error('登录窗口已关闭')); };
+	const onRemoved = (id: number) => { if (id === tabId) end(new Error(t('登录窗口已关闭'))); };
 
 	function end(error?: Error, url?: URL) {
 		if (finished) return;
@@ -53,7 +54,7 @@ export function openSignIn(authorizeUrl: string, redirectPrefix: string, timeout
 		browser.tabs.onUpdated.removeListener(onUpdated as any);
 		browser.tabs.onRemoved.removeListener(onRemoved);
 		if (tabId !== undefined) void browser.tabs.remove(tabId).catch(() => {});
-		if (url) resolve(url); else reject(error || new Error('登录已取消'));
+		if (url) resolve(url); else reject(error || new Error(t('登录已取消')));
 	}
 
 	browser.tabs.onUpdated.addListener(onUpdated as any);
@@ -70,6 +71,6 @@ export function openSignIn(authorizeUrl: string, redirectPrefix: string, timeout
 				return true;
 			} catch { return false; }
 		},
-		cancel: () => end(new Error('登录已取消'))
+		cancel: () => end(new Error(t('登录已取消')))
 	};
 }

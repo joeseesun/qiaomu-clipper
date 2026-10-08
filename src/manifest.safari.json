@@ -2,7 +2,7 @@
 	"manifest_version": 3,
 	"name": "乔木剪藏 · Obsidian + RSS",
 	"homepage_url": "https://github.com/joeseesun/qiaomu-clipper",
-	"version": "1.14.2",
+	"version": "1.15.8",
 	"description": "Save web pages to Obsidian and optionally submit their URL, title and content to Qiaomu RSS reader submissions.",
 	"permissions": [
 		"activeTab",

@@ -461,7 +461,7 @@
 				"content": "</a>"
 			},
 			"link_start": {
-				"content": "<a href=\"?section=interpreter\">"
+				"content": "<a href=\"?section=templates-home\">"
 			}
 		}
 	},
@@ -1074,7 +1074,7 @@
 				"content": "</a>"
 			},
 			"link_start": {
-				"content": "<a href=\"?section=general\">"
+				"content": "<a href=\"?section=clip\">"
 			}
 		}
 	},
@@ -1094,5 +1094,1083 @@
 	},
 	"version": {
 		"message": "バージョン"
+	},
+	"navClip": {
+		"message": "クリップと保存"
+	},
+	"navLearning": {
+		"message": "学習ノート"
+	},
+	"groupSaving": {
+		"message": "保存"
+	},
+	"groupSharing": {
+		"message": "共有"
+	},
+	"groupBackup": {
+		"message": "バックアップとラボ"
+	},
+	"headingClip": {
+		"message": "クリップ"
+	},
+	"headingRead": {
+		"message": "読書と学習"
+	},
+	"headingAI": {
+		"message": "AI"
+	},
+	"navStudyHome": {
+		"message": "文字起こしと学習"
+	},
+	"navAsr": {
+		"message": "音声認識"
+	},
+	"navVideoSites": {
+		"message": "トランスクリプトバーとサイト"
+	},
+	"headingLearn": {
+		"message": "学習"
+	},
+	"videoSubtitles": {
+		"message": "動画字幕"
+	},
+	"providerModels": {
+		"message": "プロバイダーモデル"
+	},
+	"providerModelsDescription": {
+		"message": "設定されたプロバイダーからモデルを選択するか、カスタムモデルIDを入力してください。"
+	},
+	"providerModelsLoading": {
+		"message": "プロバイダーモデルを取得中…"
+	},
+	"providerModelsRefresh": {
+		"message": "モデルリストを更新"
+	},
+	"providerModelsEmpty": {
+		"message": "プロバイダーがモデルを返しませんでした。モデルIDを手動で入力できます。"
+	},
+	"providerModelsFallback": {
+		"message": "最新のリストを読み込めなかったため、一般的なモデルが表示されています。更新して再試行してください。"
+	},
+	"providerModelsFailed": {
+		"message": "モデルを取得できませんでした。プロバイダーURL、APIキー、ネットワークを確認してから更新するか、モデルIDを手動で入力してください。"
+	},
+	"providerModelsMissingKey": {
+		"message": "最初にプロバイダーAPIキーを設定するか、モデルIDを手動で入力してください。"
+	},
+	"providerModelsDeployment": {
+		"message": "Azureデプロイメント名をモデルIDとして入力してください。"
+	},
+	"qiaomuPreviewClip": {
+		"message": "クリップ内容をプレビュー"
+	},
+	"qiaomuEditMarkdown": {
+		"message": "Markdownを編集"
+	},
+	"qiaomuPublicRss": {
+		"message": "公開RSSを表示"
+	},
+	"qiaomuCopyProperty": {
+		"message": "プロパティ値をコピー"
+	},
+	"qiaomuCopyFailed": {
+		"message": "コピーに失敗しました。もう一度お試しください"
+	},
+	"qiaomuCharacters": {
+		"message": "文字"
+	},
+	"qiaomuClip": {
+		"message": "クリップ"
+	},
+	"qiaomuReadingMode": {
+		"message": "読書モード"
+	},
+	"qiaomuCopyMarkdown": {
+		"message": "Markdownをコピー"
+	},
+	"qiaomuSaveMarkdown": {
+		"message": "Markdownとして保存"
+	},
+	"rssShareTitle": {
+		"message": "クリップをQiaomu RSSに共有"
+	},
+	"rssShareDescription": {
+		"message": "デフォルトでオフ。オンにすると、クリッパーの共有オプションが自動的にチェックされ、クリップが読者投稿フィードに公開されます。"
+	},
+	"saveSelectionToDiary": {
+		"message": "選択範囲をデイリーノートに保存"
+	},
+	"qiaomuShareRss": {
+		"message": "Qiaomu RSSに共有"
+	},
+	"qiaomuClipToObsidian": {
+		"message": "Obsidianにクリップ"
+	},
+	"qiaomuContentActions": {
+		"message": "クリップ内容アクション"
+	},
+	"qiaomuAiRetry": {
+		"message": "再試行"
+	},
+	"qiaomuAiFailed": {
+		"message": "AI処理に失敗しました。再試行するか、AIプロンプトのないテンプレートを選択してください。"
+	},
+	"qiaomuActionRead": {
+		"message": "読む"
+	},
+	"qiaomuActionCopy": {
+		"message": "コピー"
+	},
+	"qiaomuActionDownload": {
+		"message": "ダウンロード"
+	},
+	"qiaomuDestination": {
+		"message": "保存先"
+	},
+	"qiaomuActionEdit": {
+		"message": "編集"
+	},
+	"qiaomuEditClip": {
+		"message": "プロパティと内容を編集"
+	},
+	"qiaomuTemplate": {
+		"message": "テンプレート"
+	},
+	"qiaomuEditorBody": {
+		"message": "内容"
+	},
+	"qiaomuEditorDone": {
+		"message": "完了"
+	},
+	"qiaomuEditorCopied": {
+		"message": "コピーしました"
+	},
+	"qiaomuEditorProperties": {
+		"message": "プロパティ"
+	},
+	"qiaomuEditorClip": {
+		"message": "クリップ"
+	},
+	"qiaomuEditorClipped": {
+		"message": "クリップしました"
+	},
+	"defaultTemplateTitle": {
+		"message": "デフォルトテンプレート"
+	},
+	"defaultTemplateDescription": {
+		"message": "テンプレートトリガーがページに一致しない場合、およびキーボードショートカットによるクリップに使用されます。"
+	},
+	"tripleKeyTitle": {
+		"message": "トリプルプレスショートカット"
+	},
+	"tripleKeyDescription": {
+		"message": "Webページで文字を3回素早く押すと、読書モードを開く、エディタを開く、デフォルトテンプレートでクリップ、またはクイックノートカードを開きます。テキストフィールドへの入力中は無視されます。"
+	},
+	"qiaomuActionPreview": {
+		"message": "プレビュー"
+	},
+	"qiaomuActionEditShort": {
+		"message": "編集"
+	},
+	"qiaomuActionNoteShort": {
+		"message": "ノート"
+	},
+	"qiaomuActionReadShort": {
+		"message": "読む"
+	},
+	"commandOpenEditor": {
+		"message": "このページのクリップを編集"
+	},
+	"readerFontZhuque": {
+		"message": "朱雀仿宋"
+	},
+	"readerFontSongti": {
+		"message": "宋体"
+	},
+	"readerFontKaiti": {
+		"message": "楷体"
+	},
+	"readerFontPingfang": {
+		"message": "PingFang / 黒体"
+	},
+	"qiaomuHighlightCount": {
+		"message": "このページに$1件のハイライト"
+	},
+	"qiaomuChatTitle": {
+		"message": "AIチャット"
+	},
+	"qiaomuChatPlaceholder": {
+		"message": "この記事について質問…（Enterで送信、Shift+Enterで改行）"
+	},
+	"qiaomuChatNew": {
+		"message": "新しいチャット"
+	},
+	"qiaomuChatSend": {
+		"message": "送信"
+	},
+	"qiaomuChatStop": {
+		"message": "停止"
+	},
+	"qiaomuChatContext": {
+		"message": "この記事を使用して回答します（$1文字）"
+	},
+	"qiaomuChatInsert": {
+		"message": "ノートに追加"
+	},
+	"qiaomuChatInserted": {
+		"message": "ノートに追加しました"
+	},
+	"qiaomuChatNoModel": {
+		"message": "利用可能なAIモデルがありません。質問を開始するには、モデルを追加または有効化してください。"
+	},
+	"qiaomuChatOpenSettings": {
+		"message": "AIモデルを設定"
+	},
+	"qiaomuChatSuggestSummary": {
+		"message": "この記事を要約"
+	},
+	"qiaomuChatSuggestPoints": {
+		"message": "重要なポイントとデータを抽出"
+	},
+	"qiaomuChatSuggestTranslate": {
+		"message": "中国語に翻訳"
+	},
+	"qiaomuChatSuggestCritic": {
+		"message": "疑問視すべき点は？"
+	},
+	"qiaomuChatTruncated": {
+		"message": "記事が切り詰められました"
+	},
+	"qiaomuChatSystem": {
+		"message": "あなたは読書アシスタントです。以下の記事を使用して回答してください。記事にない内容は明示し、事実を創作しないでください。質問と同じ言語で、簡潔なMarkdownで返答してください。"
+	},
+	"qiaomuChatError": {
+		"message": "回答できませんでした："
+	},
+	"qiaomuChatHistory": {
+		"message": "会話履歴"
+	},
+	"qiaomuChatNoHistory": {
+		"message": "この記事についての以前の会話はありません"
+	},
+	"qiaomuChatAskSelection": {
+		"message": "AIに質問"
+	},
+	"qiaomuChatAboutSelection": {
+		"message": "記事から選択されたこの一節について："
+	},
+	"qiaomuChatQuoteExplain": {
+		"message": "この一節を説明"
+	},
+	"qiaomuChatQuoteTranslate": {
+		"message": "この一節を翻訳"
+	},
+	"qiaomuChatQuoteSummary": {
+		"message": "この一節を要約"
+	},
+	"qiaomuChatQuoteRewrite": {
+		"message": "より簡潔に書き直す"
+	},
+	"youtubeAutoTranscriptTitle": {
+		"message": "YouTubeトランスクリプトを自動的に開く"
+	},
+	"youtubeAutoTranscriptDescription": {
+		"message": "動画が開くと、トランスクリプトを一度展開し、字幕をすぐにコピー、ダウンロード、学習できるようにします。閉じた場合、その動画では再度開きません。"
+	},
+	"youtubeHideNativeTitle": {
+		"message": "YouTube独自のトランスクリプトパネルを非表示"
+	},
+	"youtubeHideNativeDescription": {
+		"message": "トランスクリプトが自動的に開いた後、字幕バーに同じ行が既に表示されているため、右列のYouTube独自のパネルを非表示にします。自分で開いたパネルは非表示になりません。"
+	},
+	"learningNotesTitle": {
+		"message": "読書ページと動画ページでノートを取る"
+	},
+	"learningNotesDescription": {
+		"message": "「ノート」ボタンを表示します。Nキーも使用できます。ノートはVault内の今日のデイリーノートに追加されます。最初にローカルヘルパーをインストールする必要があります。"
+	},
+	"learningIncludeQuoteTitle": {
+		"message": "選択されたテキストを含める"
+	},
+	"learningIncludeQuoteDescription": {
+		"message": "ノートを取るときにテキストが選択されている場合、それを引用としてデイリーノートに書き込みます。ノートごとに切り替えることもできます。"
+	},
+	"learningIncludeSourceTitle": {
+		"message": "ソースと動画の時間を含める"
+	},
+	"learningIncludeSourceDescription": {
+		"message": "ページまたは動画のリンクをデイリーノートに書き込み、動画の場合は時間ポイントも記録します。ノートごとに切り替えることもできます。"
+	},
+	"youtubePanelReload": {
+		"message": "拡張機能が更新されました — このページをリロードして再試行してください"
+	},
+	"youtubeBarSubtitles": {
+		"message": "字幕"
+	},
+	"youtubeBarSettings": {
+		"message": "設定"
+	},
+	"youtubeBarExpand": {
+		"message": "トランスクリプトを表示"
+	},
+	"youtubeBarCollapse": {
+		"message": "折りたたむ"
+	},
+	"youtubeBarMore": {
+		"message": "残りを読むには学習モードを開く"
+	},
+	"studyPinVideo": {
+		"message": "動画を固定"
+	},
+	"studyScrollTranscript": {
+		"message": "文字起こしをスクロール"
+	},
+	"transcriptSearch": {
+		"message": "文字起こしを検索"
+	},
+	"transcriptSearchClear": {
+		"message": "検索をクリア"
+	},
+	"transcriptSearchNone": {
+		"message": "結果なし"
+	},
+	"youtubeBarSearch": {
+		"message": "文字起こしを検索"
+	},
+	"youtubeBarClear": {
+		"message": "検索をクリア"
+	},
+	"youtubeBarNoMatch": {
+		"message": "結果なし"
+	},
+	"youtubeBarFollow": {
+		"message": "再生に追従中 — クリックで解除"
+	},
+	"youtubeBarFollowOff": {
+		"message": "追従していません — クリックで再生に追従"
+	},
+	"youtubeBarHere": {
+		"message": "現在の行に戻る"
+	},
+	"youtubeBarRetry": {
+		"message": "再試行"
+	},
+	"youtubePanelCardTitle": {
+		"message": "Qiaomu · 学習"
+	},
+	"youtubePanelCardLoading": {
+		"message": "文字起こしを読み込み中…"
+	},
+	"youtubePanelCardReady": {
+		"message": "文字起こし準備完了 — 時間をクリックでジャンプ"
+	},
+	"youtubePanelCardNone": {
+		"message": "文字起こしが見つかりません。YouTubeで「文字起こし」を開いてみてください。"
+	},
+	"bilibiliBarNone": {
+		"message": "この動画には字幕がありません"
+	},
+	"bilibiliBarLogin": {
+		"message": "Bilibiliはログインしたアカウントにのみ字幕を提供します。ログイン後、再試行を押してください"
+	},
+	"youtubePanelActionsTitle": {
+		"message": "YouTubeとBilibiliの文字起こしバー"
+	},
+	"youtubePanelActionsDescription": {
+		"message": "動画ページに字幕バーを追加：読みながら確認、コピー、ダウンロード、学習ページを開く；動画に字幕がない場合はその場で字幕を生成します。"
+	},
+	"youtubePanelCopy": {
+		"message": "コピー"
+	},
+	"youtubePanelDownload": {
+		"message": "ダウンロード"
+	},
+	"youtubePanelStudy": {
+		"message": "学習"
+	},
+	"youtubePanelCopied": {
+		"message": "コピーしました"
+	},
+	"youtubePanelEmpty": {
+		"message": "文字起こし行が見つかりません。まず文字起こしを開いてください。"
+	},
+	"readerAutoChatTitle": {
+		"message": "読書ページでAIチャットを開く"
+	},
+	"readerAutoChatDescription": {
+		"message": "読書ページが開いたらすぐにAIチャットパネルを表示します。"
+	},
+	"selectionToolbarTitle": {
+		"message": "選択ツールバー"
+	},
+	"selectionToolbarDescription": {
+		"message": "読書ページと編集ページで選択したテキストの横に、ハイライトとAIに質問を含む小さなツールバーを表示します。"
+	},
+	"tripleKeyKeysTitle": {
+		"message": "ショートカットキー"
+	},
+	"tripleKeyKeysDescription": {
+		"message": "各アクションに文字または数字を1つ選択してください；空欄にするとそのアクションはオフになります。初期設定：読む A、編集 E、クリップ Q、ノート I。"
+	},
+	"tripleKeyReset": {
+		"message": "初期設定に戻す"
+	},
+	"tripleKeyInvalid": {
+		"message": "文字または数字を1つ使用してください。"
+	},
+	"tripleKeyDuplicate": {
+		"message": "同じキーを2つのアクションに使用できません。"
+	},
+	"tripleKeySitesTitle": {
+		"message": "これらのサイトでオフにする"
+	},
+	"tripleKeySitesDescription": {
+		"message": "1行に1サイト、例えばmail.google.com。サブドメインも含まれます。クリッパーメニューから現在のサイトをオフにすることもできます。"
+	},
+	"tripleKeySiteOff": {
+		"message": "$1でトリプルプレスキーをオフにする"
+	},
+	"tripleKeySiteOn": {
+		"message": "$1のトリプルプレスキーをオンに戻す"
+	},
+	"tripleKeySiteDisabled": {
+		"message": "$1でトリプルプレスキーがオフになっています"
+	},
+	"tripleKeySiteEnabled": {
+		"message": "$1のトリプルプレスキーが再びオンになりました"
+	},
+	"qiaomuChatPreferences": {
+		"message": "チャット設定"
+	},
+	"qiaomuChatPreferencesScope": {
+		"message": "保存した設定はすべての記事と動画のチャットに適用されます。外観はAIパネルのみに影響します。"
+	},
+	"qiaomuChatFont": {
+		"message": "チャットフォント"
+	},
+	"qiaomuChatFontsystem": {
+		"message": "システム標準"
+	},
+	"qiaomuChatFontserif": {
+		"message": "セリフ"
+	},
+	"qiaomuChatFontmono": {
+		"message": "等幅"
+	},
+	"qiaomuChatFontcustom": {
+		"message": "カスタムフォント"
+	},
+	"qiaomuChatCustomFont": {
+		"message": "インストールされているフォント名（システムフォントにフォールバック）"
+	},
+	"qiaomuChatFontSize": {
+		"message": "チャットフォントサイズ"
+	},
+	"qiaomuChatFontPreview": {
+		"message": "自分のペースで学習。阅读、提问、理解。"
+	},
+	"qiaomuChatPromptEnabled": {
+		"message": "グローバル指示を使用"
+	},
+	"qiaomuChatCustomPrompt": {
+		"message": "指示テキスト"
+	},
+	"qiaomuChatPromptPlaceholder": {
+		"message": "例：まず要約してから説明。字幕を引用する際はタイムスタンプを含める。"
+	},
+	"qiaomuChatPromptScope": {
+		"message": "保存後の次の質問に適用されます；既存の回答は変更されません。指示はソースと共に選択したAIモデルに送信されます。組み込みの読書指示は保持されます。"
+	},
+	"qiaomuChatPreferencesReset": {
+		"message": "初期設定にリセット"
+	},
+	"qiaomuChatPreferencesSaveError": {
+		"message": "保存できませんでした。再試行してください；設定は変更されていません。"
+	},
+	"qiaomuExpandSidebar": {
+		"message": "アウトラインとサイドバーを展開"
+	},
+	"qiaomuCollapseSidebar": {
+		"message": "アウトラインとサイドバーを折りたたむ"
+	},
+	"qiaomuToc": {
+		"message": "アウトライン"
+	},
+	"qiaomuVideoSize": {
+		"message": "動画サイズ"
+	},
+	"qiaomuTranslateChinese": {
+		"message": "中国語翻訳"
+	},
+	"qiaomuTranslationRetry": {
+		"message": "翻訳を再試行"
+	},
+	"qiaomuTranslationFormatRetry": {
+		"message": "この翻訳グループを再試行中…"
+	},
+	"qiaomuTranslationInvalid": {
+		"message": "モデルが不完全なセグメントデータを返しました。再試行してください。"
+	},
+	"qiaomuTranslationProgress": {
+		"message": "翻訳中"
+	},
+	"qiaomuTranslationNoModel": {
+		"message": "翻訳にはAIモデルが必要です。これは字幕に使用される音声認識とは異なります。"
+	},
+	"qiaomuTranslationDone": {
+		"message": "翻訳完了"
+	},
+	"qiaomuTranslationTimeout": {
+		"message": "翻訳がタイムアウトしました。再試行して続けてください。"
+	},
+	"qiaomuTranslationError": {
+		"message": "翻訳が失敗しました。再試行して続けてください。"
+	},
+	"qiaomuTranslationService": {
+		"message": "設定したAIモデルで字幕を翻訳；原文、翻訳、またはバイリンガルキャプションをクリップします。"
+	},
+	"qiaomuChatSectionAppearance": {
+		"message": "外観"
+	},
+	"qiaomuChatSectionInstructions": {
+		"message": "グローバル指示"
+	},
+	"qiaomuChatInstructionsNote": {
+		"message": "すべての質問に追加されます。回答の言語、トーン、形式を調整するために使用します。"
+	},
+	"qiaomuChatExamples": {
+		"message": "試してみる："
+	},
+	"qiaomuChatExampleLang": {
+		"message": "中国語で回答"
+	},
+	"qiaomuChatExampleConclusion": {
+		"message": "結論を先に、その後詳細"
+	},
+	"qiaomuChatExampleTimestamp": {
+		"message": "字幕を引用する際はタイムスタンプを含める"
+	},
+	"qiaomuChatExampleConcise": {
+		"message": "簡潔に、余分な言葉なし"
+	},
+	"qiaomuQuickTitle": {
+		"message": "クイックプロンプト"
+	},
+	"qiaomuQuickNote": {
+		"message": "入力欄の上に表示；ワンタップで送信。追加、編集、削除、または非表示にできます。"
+	},
+	"qiaomuQuickNew": {
+		"message": "新規"
+	},
+	"qiaomuQuickEdit": {
+		"message": "「$1」を編集"
+	},
+	"qiaomuQuickDelete": {
+		"message": "「$1」を削除"
+	},
+	"qiaomuQuickShow": {
+		"message": "「$1」を表示"
+	},
+	"qiaomuQuickName": {
+		"message": "名前"
+	},
+	"qiaomuQuickBody": {
+		"message": "タップ時に送信されるプロンプト"
+	},
+	"qiaomuQuickScope": {
+		"message": "表示タイミング"
+	},
+	"qiaomuQuickScopeArticle": {
+		"message": "記事について質問するとき"
+	},
+	"qiaomuQuickScopeSelection": {
+		"message": "テキストを選択した後"
+	},
+	"qiaomuQuickDone": {
+		"message": "完了"
+	},
+	"qiaomuQuickRequired": {
+		"message": "名前とプロンプトを入力してください。"
+	},
+	"qiaomuQuickEmpty": {
+		"message": "クイックプロンプトはまだありません。"
+	},
+	"qiaomuQuickLimit": {
+		"message": "クイックプロンプトは30個まで保存できます。"
+	},
+	"qiaomuQuickResetDefaults": {
+		"message": "組み込みプロンプトを復元"
+	},
+	"qiaomuQuickUnfinished": {
+		"message": "編集中のプロンプトを完了またはキャンセルしてください。"
+	},
+	"qiaomuChatFontreader": {
+		"message": "読書フォントと同じ"
+	},
+	"providerSignInLabel": {
+		"message": "アカウント"
+	},
+	"providerSignInButton": {
+		"message": "サインイン"
+	},
+	"providerSignInPaste": {
+		"message": "終了したページのアドレスを貼り付けてください"
+	},
+	"providerSignInPasteButton": {
+		"message": "続ける"
+	},
+	"providerSignInOpen": {
+		"message": "ブラウザタブでの完了を待っています…"
+	},
+	"providerSignInDone": {
+		"message": "$1としてサインイン済み",
+		"placeholders": {
+			"1": {
+				"content": "$1"
+			}
+		}
+	},
+	"providerSignInChatGPT": {
+		"message": "ChatGPTにサインイン"
+	},
+	"providerSignInCodex": {
+		"message": "Codexにサインイン"
+	},
+	"providerSignInTokenDance": {
+		"message": "词元跳动を認証"
+	},
+	"providerSignInNoteChatGPT": {
+		"message": "ChatGPTプランの利用枠を使用します。APIキーは不要です。"
+	},
+	"providerSignInNoteCodex": {
+		"message": "Codexプランの利用枠を使用します。APIキーは不要です。"
+	},
+	"providerSignInNoteTokenDance": {
+		"message": "ブラウザで確認するとキーが作成されます。"
+	},
+	"providerSignInOpenRouter": {
+		"message": "OpenRouterでサインイン"
+	},
+	"providerSignInNoteOpenRouter": {
+		"message": "ブラウザで確認するとキーが作成されます。コピー不要です。"
+	},
+	"qiaomuModelSearch": {
+		"message": "モデルを検索"
+	},
+	"qiaomuModelNone": {
+		"message": "一致するモデルがありません"
+	},
+	"qiaomuModelManage": {
+		"message": "プロバイダーを追加または管理"
+	},
+	"qiaomuModelPlan": {
+		"message": "プラン"
+	},
+	"providerSignInAgain": {
+		"message": "再度サインイン"
+	},
+	"pdAddProviderTitle": {
+		"message": "プロバイダーを追加"
+	},
+	"pdEditProviderTitle": {
+		"message": "プロバイダーを編集"
+	},
+	"pdSearchProviders": {
+		"message": "プロバイダーを検索…"
+	},
+	"pdGroupAccount": {
+		"message": "アカウントでサインイン · キー不要"
+	},
+	"pdGroupRelay": {
+		"message": "ゲートウェイ · 1つのキーで複数のモデル"
+	},
+	"pdGroupProvider": {
+		"message": "プロバイダー"
+	},
+	"pdGroupLocal": {
+		"message": "このコンピューター上"
+	},
+	"pdGroupCustom": {
+		"message": "その他"
+	},
+	"pdCustomName": {
+		"message": "カスタム"
+	},
+	"pdCustomSub": {
+		"message": "互換性のある任意のエンドポイント"
+	},
+	"pdAdded": {
+		"message": "追加済み"
+	},
+	"pdNoMatch": {
+		"message": "一致するプロバイダーがありません"
+	},
+	"pdFieldNamePlaceholder": {
+		"message": "プロバイダー名"
+	},
+	"pdPasteWrong": {
+		"message": "サインイン完了時のアドレスではありません。もう一度コピーしてください。"
+	},
+	"pdLocalNote": {
+		"message": "このコンピュータ上で動作します。キーは不要です。"
+	},
+	"pdGetKey": {
+		"message": "APIキーを取得"
+	},
+	"pdFieldUrl": {
+		"message": "エンドポイントアドレス"
+	},
+	"pdUrlHintCustom": {
+		"message": "チャットエンドポイント、例: https://example.com/v1/chat/completions"
+	},
+	"pdUrlHint": {
+		"message": "通常、変更する必要はありません。"
+	},
+	"pdFieldKey": {
+		"message": "APIキー"
+	},
+	"pdFieldKeyOr": {
+		"message": "APIキー（認証後に自動入力されます）"
+	},
+	"pdShow": {
+		"message": "表示"
+	},
+	"pdHide": {
+		"message": "非表示"
+	},
+	"pdAdvanced": {
+		"message": "エンドポイントアドレス"
+	},
+	"pdNeedName": {
+		"message": "名前を入力してください。"
+	},
+	"pdNeedUrl": {
+		"message": "エンドポイントアドレスを入力してください。"
+	},
+	"pdNeedLogin": {
+		"message": "先にサインインしてください。"
+	},
+	"pdNeedKey": {
+		"message": "APIキーを入力してください。"
+	},
+	"pdBack": {
+		"message": "戻る"
+	},
+	"pdAddProviderButton": {
+		"message": "プロバイダーを追加"
+	},
+	"pdAddModelTitle": {
+		"message": "モデルを追加"
+	},
+	"pdNoProviders": {
+		"message": "まずプロバイダーを追加してから、そのモデルを選択してください。"
+	},
+	"pdPickProvider": {
+		"message": "プロバイダー"
+	},
+	"pdSearchModels": {
+		"message": "モデルを検索…"
+	},
+	"pdManual": {
+		"message": "モデルIDを手動で入力"
+	},
+	"pdManualNamePlaceholder": {
+		"message": "IDと同じ"
+	},
+	"pdManualName": {
+		"message": "表示名（任意）"
+	},
+	"pdAddModels": {
+		"message": "$1個のモデルを追加",
+		"placeholders": {
+			"1": {
+				"content": "$1"
+			}
+		}
+	},
+	"pdAddModelsNone": {
+		"message": "モデルを追加"
+	},
+	"pdRecommended": {
+		"message": "推奨"
+	},
+	"pdPickProviderFirst": {
+		"message": "上でプロバイダーを選択してください。"
+	},
+	"pdReasonTimeout": {
+		"message": "タイムアウト"
+	},
+	"pdReasonFormat": {
+		"message": "モデルリストではありません"
+	},
+	"pdReasonNetwork": {
+		"message": "ブロックされているか到達不能"
+	},
+	"pdEdit": {
+		"message": "編集"
+	},
+	"pdDelete": {
+		"message": "削除"
+	},
+	"pdDuplicate": {
+		"message": "複製"
+	},
+	"failedToSaveModel": {
+		"message": "モデルを保存できませんでした。もう一度お試しください。"
+	},
+	"navAiModels": {
+		"message": "AIモデル"
+	},
+	"aiModelsIntro": {
+		"message": "これらのモデルは翻訳、AIチャット、AI解釈を実行します。字幕認識サービスはASR音声認識で設定してください。"
+	},
+	"aiModelsGotoAsr": {
+		"message": "音声認識を設定"
+	},
+	"asrIntroOther": {
+		"message": "このセクションは音声を字幕に変換します。翻訳、AIチャット、解釈用のモデルはAIモデル設定で構成してください。"
+	},
+	"asrGotoModels": {
+		"message": "AIモデルを設定"
+	},
+	"qiaomuTranslationSetupModel": {
+		"message": "翻訳モデルを設定"
+	},
+	"subtitleLanguage": {
+		"message": "字幕言語"
+	},
+	"subtitleGenFromAudio": {
+		"message": "音声を認識…"
+	},
+	"audioPlay": {
+		"message": "再生"
+	},
+	"audioPause": {
+		"message": "一時停止"
+	},
+	"audioBack": {
+		"message": "15秒戻る"
+	},
+	"audioForward": {
+		"message": "30秒進む"
+	},
+	"audioSpeed": {
+		"message": "再生速度"
+	},
+	"audioSeek": {
+		"message": "位置"
+	},
+	"audioRefreshing": {
+		"message": "新しいトランスクリプトの準備ができました — 更新中…"
+	},
+	"audioStudyNone": {
+		"message": "このメディアにはまだ字幕がありません。作成されると、再生に合わせて行が表示されます。"
+	},
+	"audioTabTranscript": {
+		"message": "トランスクリプト"
+	},
+	"audioTabNotes": {
+		"message": "メモを表示"
+	},
+	"webReading": {
+		"message": "このアドレスを読み込み中…"
+	},
+	"subtitleGenOffline": {
+		"message": "ローカルヘルパーが接続されていません。クリッピングと保存でインストールまたは接続を確認してください。"
+	},
+	"audioTabAbout": {
+		"message": "説明"
+	},
+	"audioChooseFile": {
+		"message": "音声または動画ファイルを選択…"
+	},
+	"audioChooseHint": {
+		"message": "ここにファイルをドロップすることもできます。ローカルヘルパーにのみ渡され、アップロードされません。mp3、m4a、wav、flac、mp4などの形式が使用できます。"
+	},
+	"audioBadType": {
+		"message": "このファイル形式はサポートされていません。"
+	},
+	"audioSending": {
+		"message": "ファイルをローカルヘルパーに渡しています…"
+	},
+	"audioSendFailed": {
+		"message": "ファイルを渡せませんでした"
+	},
+	"subtitleGenOffer": {
+		"message": "字幕を生成"
+	},
+	"subtitleGenChecking": {
+		"message": "このコンピュータを確認中…"
+	},
+	"subtitleGenConfirm": {
+		"message": "この動画には字幕がありません。このコンピュータ上で生成できます: 音声がダウンロードされ、このコンピュータ上の音声モデルによって認識され、アップロードされません。"
+	},
+	"subtitleGenConfirmModel": {
+		"message": "初回実行時には認識モデルもダウンロードされます（約1.6 GB）。"
+	},
+	"subtitleGenStart": {
+		"message": "字幕を生成"
+	},
+	"subtitleGenCancel": {
+		"message": "キャンセル"
+	},
+	"subtitleGenRunning": {
+		"message": "字幕を生成中"
+	},
+	"subtitleGenModel": {
+		"message": "初回使用: 認識モデルをダウンロード中（約1.6 GB）…"
+	},
+	"subtitleGenFailed": {
+		"message": "字幕を生成できませんでした"
+	},
+	"subtitleGenRetry": {
+		"message": "再試行"
+	},
+	"subtitleGenLangAuto": {
+		"message": "言語を検出"
+	},
+	"subtitleGenLangLabel": {
+		"message": "動画内の話し言葉"
+	},
+	"subtitleGenNeedsLogin": {
+		"message": "このサイトは音声をダウンロードするためにサインインセッションが必要です。許可をいただければ、現在のサイトに必要なログイン情報のみがこのダウンロードのためにローカルヘルパーに渡されます。一時ファイルはタスクの完了、失敗、またはキャンセル時に削除されます。"
+	},
+	"subtitleGenLoginRetry": {
+		"message": "ブラウザのログインで再試行"
+	},
+	"subtitleGenGenerated": {
+		"message": "音声認識により生成。認識エラーが含まれる場合があります"
+	},
+	"subtitleGenOutdated": {
+		"message": "ローカルヘルパーが古くなっています。クリッピングと保存で更新してから、もう一度確認してください。"
+	},
+	"subtitleGenMissing": {
+		"message": "字幕を生成するために必要なツールがありません。音声認識を設定し、必要なツールまたはローカルエンジンをインストールしてから、もう一度確認してください。"
+	},
+	"subtitleGenCloudSetup": {
+		"message": "クラウド認識が設定されていません。ASR音声認識でサービスを追加または完了してから、もう一度確認してください。"
+	},
+	"subtitleGenConfirmCloud": {
+		"message": "この動画には字幕がありません。生成できます: 音声がダウンロードされ、{service}に送信されて認識されます。音声はこのコンピュータから送出され、そのサービスによって課金されます。"
+	},
+	"subtitleGenConfirmLocalService": {
+		"message": "この動画には字幕がありません。生成できます: 音声がダウンロードされ、このコンピュータ上で実行されている認識サービスに渡されます。このコンピュータから送出されません。"
+	},
+	"subtitleGenBusy": {
+		"message": "別の動画を処理中です。完了後にもう一度お試しください。"
+	},
+	"subtitleGenCopy": {
+		"message": "コマンドをコピー"
+	},
+	"subtitleGenCopied": {
+		"message": "コピーしました"
+	},
+	"subtitleGenRecheck": {
+		"message": "もう一度確認"
+	},
+	"subtitleGenConfirmInstall": {
+		"message": "これにはまず「{name}」をこのコンピュータにインストールする必要があります（約{size}、認識モデルを含む）。準備ができると自動的に生成が開始されます。音声はアップロードされません。"
+	},
+	"subtitleGenInstallStart": {
+		"message": "インストールして字幕を生成"
+	},
+	"subtitleGenInstalling": {
+		"message": "インストール中"
+	},
+	"subtitleGenInstallFailed": {
+		"message": "インストールに失敗しました"
+	},
+	"subtitleGenEngine": {
+		"message": "認識エンジン"
+	},
+	"subtitleGenDlgTitle": {
+		"message": "字幕を生成"
+	},
+	"subtitleGenDlgSub": {
+		"message": "音声をタイムスタンプ付き字幕に変換する方法を選択してください。"
+	},
+	"subtitleGenRememberHint": {
+		"message": "今後このダイアログをスキップ"
+	},
+	"subtitleGenAsk": {
+		"message": "認識方法を選択"
+	},
+	"subtitleGenStartCloud": {
+		"message": "字幕を生成"
+	},
+	"subtitleGenAddService": {
+		"message": "+ クラウドサービスを追加…"
+	},
+	"subtitleGenRemember": {
+		"message": "すぐに開始"
+	},
+	"subtitleGenRegenerate": {
+		"message": "別のモデルで再生成"
+	},
+	"subtitleGenGeneratedVia": {
+		"message": "{via}により生成。認識エラーが含まれる場合があります"
+	},
+	"Language": {
+		"message": "javascript"
+	},
+	"Attribute": {
+		"message": "style"
+	},
+	"Tag": {
+		"message": "span"
+	},
+	"Format": {
+		"message": "YYYY年M月D日"
+	},
+	"Search": {
+		"message": "/[aeiou]/g"
+	},
+	"Replacement": {
+		"message": ""
+	},
+	"Suffix": {
+		"message": "..."
+	},
+	"Type": {
+		"message": "note"
+	},
+	"Title": {
+		"message": ""
+	},
+	"Expression": {
+		"message": "-10"
+	},
+	"Separator": {
+		"message": "、"
+	},
+	"Mode": {
+		"message": "values"
+	},
+	"Direction": {
+		"message": "desc"
+	},
+	"Selector": {
+		"message": ".ad"
+	},
+	"xBarNone": {
+		"message": "まだ字幕がありません — 音声認識で生成できます"
+	},
+	"podcastBarNone": {
+		"message": "まだ字幕がありません — 音声認識で生成できます"
+	},
+	"subtitleGenSetupHelper": {
+		"message": "ローカルヘルパーをインストールまたは更新"
+	},
+	"subtitleGenSetupRecognition": {
+		"message": "音声認識を設定"
+	},
+	"subtitleAutoGenerated": {
+		"message": "自動生成"
+	},
+	"contextSavePage": {
+		"message": "このページを保存"
+	},
+	"contextAddHighlight": {
+		"message": "ハイライトに追加"
 	}
 }

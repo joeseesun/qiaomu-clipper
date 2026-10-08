@@ -1,4 +1,5 @@
-import { getWebPageMedia, snapshotDouyinPlayer, validateDouyinTracks } from './utils/web-page-media';
+import { createContentText } from './utils/content-i18n';
+import { getWebPageMedia, isTikTokMedia, snapshotDouyinPlayer, snapshotTikTokPlayer, tabMayLendTikTokMedia, tiktokVideoPath, validateDouyinTracks } from './utils/web-page-media';
 import { submitQiaomuClip, QiaomuClip } from './utils/qiaomu-rss';
 import browser from 'webextension-polyfill';
 import { detectBrowser } from './utils/browser-detection';
@@ -7,43 +8,50 @@ import { TextHighlightData } from './utils/highlighter';
 import { debounce } from './utils/debounce';
 import { Settings } from './types/types';
 import { debugLog } from './utils/debug';
+import { describeHelperFailure } from './utils/native-helper-prompt';
+import { callHelper } from './utils/native-helper-call';
 import { incrementStat, loadSettings } from './utils/storage-utils';
 import { enabledChatModels, streamChat } from './utils/chat-llm';
 import { audioStudyPath, videoKey, videoStudyPath } from './utils/video-source';
 import { isSiteOn, loadStudySites, siteOf } from './utils/study-sites';
 import { isMediaItemAddress, webMediaAddress } from './utils/web-media-page';
 import { hasStoredHighlights } from './utils/url-utils';
-import { handleAsrMessage, handleLearningNativeMessage } from './utils/local-save';
+import { cookiesGranted, handleAsrMessage, handleLearningNativeMessage } from './utils/local-save';
 import { enableYouTubeEmbedRule, disableYouTubeEmbedRule } from './utils/youtube-embed-rules';
 
+import { t } from './utils/ui-text';
 browser.runtime.onMessage.addListener(handleLearningNativeMessage);
 browser.runtime.onMessage.addListener(handleAsrMessage);
 
 // Accept RSS writes only from our own extension pages, never a website content script.
 const qiaomuInFlight = new Map<string, Promise<unknown>>();
 const qiaomuLocalInFlight = new Map<string, Promise<unknown>>();
+// A failed native call says why (not installed, extension not allowed, helper cannot start) instead of one generic line.
+const helperDown = (error: unknown) => { const reason = error instanceof Error ? error.message : String(error); return { ok: false, reason, error: describeHelperFailure(reason) }; };
+
 browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime.MessageSender) => {
 	const message = request as { action?: string; payload?: { requestId?: string; vaultPath?: string; vault?: string; folder?: string } };
-	if (!['qiaomuLocalStatus', 'qiaomuLocalSave', 'qiaomuLocalConfigure', 'qiaomuLocalChooseVault', 'qiaomuLocalChooseFolder'].includes(message?.action || '')) return;
-	if (sender.id !== browser.runtime.id || !sender.url?.startsWith(browser.runtime.getURL(''))) return Promise.resolve({ ok: false, error: '无效的本地保存请求' });
-	if (message.action === 'qiaomuLocalStatus') return browser.runtime.sendNativeMessage('ai.qiaomu.clipper', { action: 'status' }).catch((error: unknown) => ({ ok: false, reason: error instanceof Error ? error.message : String(error) }));
-	if (message.action === 'qiaomuLocalChooseFolder') return browser.runtime.sendNativeMessage('ai.qiaomu.clipper', { action: 'chooseNoteFolder', vault: message.payload?.vault, folder: message.payload?.folder })
-		.catch(() => ({ ok: false, error: '浏览文件夹需要本地保存助手，请先安装或更新助手，也可手动填写相对路径' }));
-	if (message.action === 'qiaomuLocalChooseVault') return browser.runtime.sendNativeMessage('ai.qiaomu.clipper', { action: 'chooseVault' })
-		.catch(() => ({ ok: false, error: '本地保存助手未连接，请先安装或更新助手' }));
+	if (!['qiaomuLocalStatus', 'qiaomuLocalSave', 'qiaomuLocalConfigure', 'qiaomuLocalChooseVault', 'qiaomuLocalChooseFolder', 'qiaomuLocalListVaults'].includes(message?.action || '')) return;
+	if (sender.id !== browser.runtime.id || !sender.url?.startsWith(browser.runtime.getURL(''))) return Promise.resolve({ ok: false, error: t('无效的本地保存请求') });
+	if (message.action === 'qiaomuLocalStatus') return callHelper({ action: 'status' }).catch((error: unknown) => ({ ok: false, reason: error instanceof Error ? error.message : String(error) }));
+	if (message.action === 'qiaomuLocalChooseFolder') return callHelper({ action: 'chooseNoteFolder', vault: message.payload?.vault, folder: message.payload?.folder })
+		.catch(error => ({ ...helperDown(error), error: t('{0}也可以手动填写相对路径。', [describeHelperFailure(error instanceof Error ? error.message : String(error))]) }));
+	if (message.action === 'qiaomuLocalListVaults') return callHelper({ action: 'listVaults' }).catch(helperDown);
+	if (message.action === 'qiaomuLocalChooseVault') return callHelper({ action: 'chooseVault' })
+		.catch(helperDown);
 	if (message.action === 'qiaomuLocalConfigure') {
-		if (typeof message.payload?.vaultPath !== 'string') return Promise.resolve({ ok: false, error: '请输入笔记库路径' });
-		return browser.runtime.sendNativeMessage('ai.qiaomu.clipper', { action: 'configure', vaultPath: message.payload.vaultPath })
-			.catch(() => ({ ok: false, error: '本地保存助手未连接，请先安装或更新助手' }));
+		if (typeof message.payload?.vaultPath !== 'string') return Promise.resolve({ ok: false, error: t('请输入笔记库路径') });
+		return callHelper({ action: 'configure', vaultPath: message.payload.vaultPath })
+			.catch(helperDown);
 	}
 	const payload = message.payload;
-	if (!payload || !/^[a-zA-Z0-9-]{8,80}$/.test(payload.requestId || '')) return Promise.resolve({ ok: false, error: '保存请求标识无效' });
+	if (!payload || !/^[a-zA-Z0-9-]{8,80}$/.test(payload.requestId || '')) return Promise.resolve({ ok: false, error: t('保存请求标识无效') });
 	const key = `qiaomuLocalPending:${payload.requestId}`;
 	if (qiaomuLocalInFlight.has(key)) return qiaomuLocalInFlight.get(key);
 	const job = browser.storage.local.set({ [key]: payload })
-		.then(() => browser.runtime.sendNativeMessage('ai.qiaomu.clipper', { ...payload, action: 'save' }))
+		.then(() => callHelper({ ...payload, action: 'save' }))
 		.then(async result => { if ((result as { ok?: boolean })?.ok) await browser.storage.local.remove(key); return result; })
-		.catch(() => ({ ok: false, error: '本地保存助手未连接，请检查安装后重试' }))
+		.catch(() => ({ ok: false, error: t('本地保存助手未连接，请检查安装后重试') }))
 		.finally(() => qiaomuLocalInFlight.delete(key));
 	qiaomuLocalInFlight.set(key, job);
 	return job;
@@ -51,7 +59,7 @@ browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime
 browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime.MessageSender) => {
 	const message = request as { action?: string; clip?: QiaomuClip };
 	if (message?.action !== 'qiaomuSubmitClip') return;
-	if (sender.id !== browser.runtime.id || !sender.url?.startsWith(browser.runtime.getURL('')) || !message.clip) return Promise.resolve({ error: '无效的剪藏请求' });
+	if (sender.id !== browser.runtime.id || !sender.url?.startsWith(browser.runtime.getURL('')) || !message.clip) return Promise.resolve({ error: t('无效的剪藏请求') });
 	const clip = message.clip;
 	const key = clip.url;
 	if (qiaomuInFlight.has(key)) return qiaomuInFlight.get(key);
@@ -59,7 +67,7 @@ browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime
 	const job = browser.storage.local.set({ [pendingKey]: clip })
 		.then(() => submitQiaomuClip(clip))
 		.then(async result => { if (result.accepted) await browser.storage.local.remove(pendingKey); return result; })
-		.catch(error => ({ error: error instanceof Error ? error.message : 'RSS 同步失败' }))
+		.catch(error => ({ error: error instanceof Error ? error.message : t('RSS 同步失败') }))
 		.finally(() => qiaomuInFlight.delete(key));
 	qiaomuInFlight.set(key, job);
 	return job;
@@ -96,19 +104,24 @@ async function enableYouTubeInnertubeRule(): Promise<void> {
 	} catch { /* Firefox/Safari use webRequest or native messaging instead */ }
 }
 
-// Douyin's video host only serves pages it knows: the study reader plays the original file as if from douyin.com.
-const DOUYIN_MEDIA_RULE_ID = 9004;
-async function enableDouyinMediaRule(): Promise<void> {
+// Some video hosts only serve a request that names their own site as the referrer, so the study reader plays their files as if from that site.
+// One row per site, only for hosts that need it (checked on live items): sending a referrer to a host that does not ask for one is pointless,
+// and sending the wrong one is refused by some. Add a row when a site's video turns out not to play in the reader.
+const MEDIA_REFERERS: Array<{ id: number; referer: string; domains: string[] }> = [
+	{ id: 9004, referer: 'https://www.douyin.com/', domains: ['douyinvod.com'] },
+	{ id: 9005, referer: 'https://www.tiktok.com/', domains: ['tiktok.com', 'tiktokcdn.com', 'tiktokcdn-us.com'] },
+];
+async function enableMediaRefererRules(): Promise<void> {
 	const dnr = typeof chrome !== 'undefined' ? chrome.declarativeNetRequest : undefined;
 	if (!dnr || !chrome.runtime?.id) return;
 	try {
 		await dnr.updateSessionRules({
-			removeRuleIds: [DOUYIN_MEDIA_RULE_ID],
-			addRules: [{
-				id: DOUYIN_MEDIA_RULE_ID, priority: 1,
-				action: { type: 'modifyHeaders' as chrome.declarativeNetRequest.RuleActionType, requestHeaders: [{ header: 'Referer', operation: 'set' as chrome.declarativeNetRequest.HeaderOperation, value: 'https://www.douyin.com/' }] },
-				condition: { requestDomains: ['douyinvod.com'], resourceTypes: ['media' as chrome.declarativeNetRequest.ResourceType], initiatorDomains: [chrome.runtime.id] },
-			}],
+			removeRuleIds: MEDIA_REFERERS.map(row => row.id),
+			addRules: MEDIA_REFERERS.map(row => ({
+				id: row.id, priority: 1,
+				action: { type: 'modifyHeaders' as chrome.declarativeNetRequest.RuleActionType, requestHeaders: [{ header: 'Referer', operation: 'set' as chrome.declarativeNetRequest.HeaderOperation, value: row.referer }] },
+				condition: { requestDomains: row.domains, resourceTypes: ['media' as chrome.declarativeNetRequest.ResourceType, 'xmlhttprequest' as chrome.declarativeNetRequest.ResourceType], initiatorDomains: [chrome.runtime.id] },
+			})),
 		});
 	} catch { /* other browsers */ }
 }
@@ -353,7 +366,7 @@ async function initialize() {
 		// Origin headers for YouTube innertube API requests.
 		await enableYouTubeEmbedRule();
 		await enableYouTubeInnertubeRule();
-		await enableDouyinMediaRule();
+		await enableMediaRefererRules();
 
 		// Set up action popup based on openBehavior setting
 		await updateActionPopup();
@@ -625,6 +638,19 @@ browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime
 			return undefined;
 		}
 
+		if (typedRequest.action === "qiaomuCookiesReady") {
+			cookiesGranted().then(ready => sendResponse({ ready }));
+			return true;
+		}
+
+		if (typedRequest.action === "qiaomuOpenStudy") {
+			browser.tabs.query({ active: true, currentWindow: true })
+				.then(tabs => tabs[0]?.id ? openStudyForTab(tabs[0].id) : false)
+				.then(opened => sendResponse({ opened }))
+				.catch(() => sendResponse({ opened: false }));
+			return true;
+		}
+
 		if (typedRequest.action === "qiaomuTripleKey") {
 			const tab = sender.tab;
 			if (tab?.id && tab.url && isValidUrl(tab.url) && !isBlankPage(tab.url)) {
@@ -884,8 +910,9 @@ browser.commands.onCommand.addListener(async (command, tab) => {
 	if (command === "open_editor" && tab?.id) {
 		await runTripleKeyAction('edit', tab.id);
 	}
+	// The reading shortcut opens our reading page, the same as the Read button.
 	if (command === "toggle_reader" && tab?.id) {
-		await toggleReaderModeInTab(tab.id);
+		await runTripleKeyAction('read', tab.id);
 	}
 });
 
@@ -896,6 +923,8 @@ const debouncedUpdateContextMenu = debounce(async (tabId: number) => {
 	isContextMenuCreating = true;
 
 	try {
+		const text = await createContentText(browser, browser.i18n.getUILanguage());
+		const message = (key: string) => text(key, key, browser.i18n.getMessage(key) || key);
 		await browser.contextMenus.removeAll();
 
 		let currentTabId = tabId;
@@ -916,42 +945,42 @@ const debouncedUpdateContextMenu = debounce(async (tabId: number) => {
 		}[] = [
 				{
 					id: "open-obsidian-clipper",
-					title: "Save this page",
+					title: text('contextSavePage', '剪藏这个网页', 'Save this page'),
 					contexts: ["page", "selection", "image", "video", "audio"]
 				},
 				{
 					id: 'copy-markdown-to-clipboard',
-					title: browser.i18n.getMessage('copyToClipboard'),
+					title: message('copyToClipboard'),
 					contexts: ["page", "selection"]
 				},
 				{
 					id: isReaderMode ? "exit-reader" : "enter-reader",
-					title: isReaderMode ? browser.i18n.getMessage('disableReader') : browser.i18n.getMessage('readerOn'),
+					title: isReaderMode ? message('disableReader') : message('readerOn'),
 					contexts: ["page", "selection"]
 				},
 				{
 					id: isHighlighterMode ? "exit-highlighter" : "enter-highlighter",
-					title: isHighlighterMode ? browser.i18n.getMessage('disableHighlighter') : browser.i18n.getMessage('highlighterOn'),
+					title: isHighlighterMode ? message('disableHighlighter') : message('highlighterOn'),
 					contexts: ["page","image", "video", "audio"]
 				},
 				{
 					id: "highlight-selection",
-					title: "Add to highlights",
+					title: text('contextAddHighlight', '加入划线', 'Add to highlights'),
 					contexts: ["selection"]
 				},
 				{
 					id: "highlight-element",
-					title: "Add to highlights",
+					title: text('contextAddHighlight', '加入划线', 'Add to highlights'),
 					contexts: ["image", "video", "audio"]
 				},
 				{
 					id: 'save-selection-to-diary',
-					title: browser.i18n.getMessage('saveSelectionToDiary'),
+					title: message('saveSelectionToDiary'),
 					contexts: ["selection"]
 				},
 				{
 					id: 'open-embedded',
-					title: browser.i18n.getMessage('openEmbedded'),
+					title: message('openEmbedded'),
 					contexts: ["page", "selection"]
 				}
 			];
@@ -960,7 +989,7 @@ const debouncedUpdateContextMenu = debounce(async (tabId: number) => {
 		if (browserType === 'chrome') {
 			menuItems.push({
 				id: 'open-side-panel',
-				title: browser.i18n.getMessage('openSidePanel'),
+				title: message('openSidePanel'),
 				contexts: ["page", "selection"]
 			});
 		}
@@ -1182,10 +1211,10 @@ async function injectReaderScript(tabId: number) {
 
 // When set to 'reader' or 'embedded', clear the popup so action.onClicked fires
 // instead, handling the action directly without briefly opening the popup.
-const validOpenBehaviors: Settings['openBehavior'][] = ['popup', 'embedded', 'reader'];
-
+// Two ways to answer a click on the toolbar button: the popup, or straight into our reading page. (The old in-page panel option
+// is gone; a saved 'embedded' counts as the popup.)
 function parseOpenBehavior(raw: string | undefined): Settings['openBehavior'] {
-	return validOpenBehaviors.includes(raw as Settings['openBehavior']) ? raw as Settings['openBehavior'] : 'popup';
+	return raw === 'reader' ? 'reader' : 'popup';
 }
 
 async function updateActionPopup(openBehavior?: Settings['openBehavior']): Promise<void> {
@@ -1194,7 +1223,7 @@ async function updateActionPopup(openBehavior?: Settings['openBehavior']): Promi
 		openBehavior = parseOpenBehavior((data.general_settings as Record<string, string>)?.openBehavior);
 	}
 	currentOpenBehavior = openBehavior;
-	if (openBehavior === 'reader' || openBehavior === 'embedded') {
+	if (openBehavior === 'reader') {
 		await browser.action.setPopup({ popup: '' });
 	} else {
 		await browser.action.setPopup({ popup: 'popup.html' });
@@ -1226,17 +1255,26 @@ async function webStudyPath(url: string, tabId: number): Promise<string | null> 
 }
 
 // The triple-press commands open the clipper, which runs read / edit / clip once the clip is ready.
+// A video or audio page reads as its study player (the same for the Read button, the toolbar icon and the triple-press); anything else reads as an article.
+async function openStudyForTab(tabId: number): Promise<boolean> {
+	const tab = await browser.tabs.get(tabId);
+	const path = videoStudyPath(tab.url || '', tabId, tab.title || '') || audioStudyPath(tab.url || '', tab.title || '') || await webStudyPath(tab.url || '', tabId);
+	if (!path) return false;
+	// Open the player immediately; subtitle extraction belongs to the reader.
+	await browser.tabs.create({ url: browser.runtime.getURL(path), openerTabId: tabId });
+	return true;
+}
+
 async function runTripleKeyAction(action: string, tabId: number): Promise<void> {
 	if (action === 'note') { await openNoteCard(tabId); return; }
 	if (action !== 'read' && action !== 'edit' && action !== 'clip') return;
-	if (action === 'read') {
-		const tab = await browser.tabs.get(tabId);
-		const path = videoStudyPath(tab.url || '', tabId, tab.title || '') || audioStudyPath(tab.url || '', tab.title || '') || await webStudyPath(tab.url || '', tabId);
-		if (path) {
-			// Open the player immediately; subtitle extraction belongs to the reader.
-			await browser.tabs.create({ url: browser.runtime.getURL(path), openerTabId: tabId });
-			return;
-		}
+	if (action === 'read' && await openStudyForTab(tabId)) return;
+	// Reading and editing need no window of their own: an invisible copy of the clipper in the page does the work and opens our page.
+	// Where the page cannot host one (browser pages, a page that was open before an update), fall back to the popup.
+	const windowless = action === 'read' || action === 'edit';
+	if (windowless) {
+		await browser.storage.local.set({ qiaomuPendingAction: { action, at: Date.now(), hidden: true } });
+		try { const answer = await sendMessageToContentScript(tabId, { action: 'run-hidden-iframe' }) as { success?: boolean } | undefined; if (answer?.success) return; } catch { /* no content script here */ }
 	}
 	await browser.storage.local.set({ qiaomuPendingAction: { action, at: Date.now() } });
 	try {
@@ -1247,31 +1285,24 @@ async function runTripleKeyAction(action: string, tabId: number): Promise<void> 
 	}
 }
 
-// In reader/embedded mode, opens embedded iframe instead of popup.
+// With the toolbar button set to reading mode the popup is switched off; turn it on just long enough to open it, because the
+// popup is what builds the clip that the reading page shows.
 async function openPopup(): Promise<void> {
-	if (currentOpenBehavior === 'reader' || currentOpenBehavior === 'embedded') {
-		const tabs = await browser.tabs.query({ active: true, currentWindow: true });
-		const tab = tabs[0];
-		if (tab?.id && tab.url && isValidUrl(tab.url) && !isBlankPage(tab.url)) {
-			await sendMessageToContentScript(tab.id, { action: "toggle-iframe" });
-			return;
-		}
-		// Fall through to popup if tab is invalid
-	}
-	await browser.action.openPopup();
+	const readerMode = currentOpenBehavior === 'reader';
+	if (readerMode) await browser.action.setPopup({ popup: 'popup.html' });
+	try { await browser.action.openPopup(); }
+	finally { if (readerMode) await browser.action.setPopup({ popup: '' }); }
 }
 
 browser.action.onClicked.addListener(async (tab) => {
 	if (!tab?.id || !tab.url || !isValidUrl(tab.url) || isBlankPage(tab.url)) return;
 
-	if (currentOpenBehavior === 'reader') {
-		await toggleReaderModeInTab(tab.id);
-	} else if (currentOpenBehavior === 'embedded') {
-		await sendMessageToContentScript(tab.id, { action: "toggle-iframe" });
-	}
+	// Reading mode here is our own reading page (video and podcast pages go to the study player), not the in-page reader.
+	if (currentOpenBehavior === 'reader') await runTripleKeyAction('read', tab.id);
 });
 
 browser.storage.onChanged.addListener((changes, area) => {
+	if (area === 'local' && changes.language) debouncedUpdateContextMenu(-1);
 	if (area === 'sync' && changes.general_settings) {
 		updateActionPopup(parseOpenBehavior((changes.general_settings.newValue as Record<string, string>)?.openBehavior));
 	}
@@ -1299,10 +1330,10 @@ browser.runtime.onConnect.addListener(port => {
 			await loadSettings();
 			const model = enabledChatModels().find(item => item.id === request.modelId);
 			if (!model || typeof request.system !== 'string' || !Array.isArray(request.messages)
-				|| request.messages.some((turn: any) => !['user', 'assistant'].includes(turn.role) || typeof turn.content !== 'string')) throw new Error('无效的 AI 对话请求');
+				|| request.messages.some((turn: any) => !['user', 'assistant'].includes(turn.role) || typeof turn.content !== 'string')) throw new Error(t('无效的 AI 对话请求'));
 			await streamChat({ model, system: request.system, messages: request.messages, signal: controller.signal, onDelta: delta => send({ delta }) });
 			send({ done: true });
-		} catch (error) { send({ error: error instanceof Error ? error.message : 'AI 请求失败' }); }
+		} catch (error) { send({ error: error instanceof Error ? error.message : t('AI 请求失败') }); }
 	});
 });
 
@@ -1312,14 +1343,14 @@ browser.runtime.onMessage.addListener((raw: unknown, sender) => {
 	const request = raw as { action?: string; sourceTabId?: number; url?: string; sourceUrl?: string };
 	if (request?.action !== 'qiaomuBilibiliTabFetch') return;
 	if (sender.id !== browser.runtime.id || !sender.url?.startsWith(browser.runtime.getURL('reader.html'))
-		|| !Number.isInteger(request.sourceTabId) || !request.url || !request.sourceUrl) return Promise.resolve({ error: '无效的请求' });
+		|| !Number.isInteger(request.sourceTabId) || !request.url || !request.sourceUrl) return Promise.resolve({ error: t('无效的请求') });
 	let target: URL;
-	try { target = new URL(request.url); } catch { return Promise.resolve({ error: '无效的请求' }); }
-	if (target.protocol !== 'https:' || !/(^|\.)(bilibili\.com|hdslb\.com)$/.test(target.hostname)) return Promise.resolve({ error: '只允许访问 B 站域名' });
+	try { target = new URL(request.url); } catch { return Promise.resolve({ error: t('无效的请求') }); }
+	if (target.protocol !== 'https:' || !/(^|\.)(bilibili\.com|hdslb\.com)$/.test(target.hostname)) return Promise.resolve({ error: t('只允许访问 B 站域名') });
 	return (async () => {
 		try {
 			const tab = await browser.tabs.get(request.sourceTabId!);
-			if (!tab.url || videoKey(tab.url) !== videoKey(request.sourceUrl!)) return { error: '原视频页面已切换' };
+			if (!tab.url || videoKey(tab.url) !== videoKey(request.sourceUrl!)) return { error: t('原视频页面已切换') };
 			const results = await browser.scripting.executeScript({
 				target: { tabId: request.sourceTabId! },
 				func: async (href: string) => {
@@ -1328,8 +1359,8 @@ browser.runtime.onMessage.addListener((raw: unknown, sender) => {
 				},
 				args: [target.href],
 			});
-			return results[0]?.result || { error: '原视频页面没有返回结果' };
-		} catch { return { error: '原视频页面不可用' }; }
+			return results[0]?.result || { error: t('原视频页面没有返回结果') };
+		} catch { return { error: t('原视频页面不可用') }; }
 	})();
 });
 
@@ -1352,15 +1383,15 @@ browser.runtime.onMessage.addListener((raw: unknown, sender) => {
 	const request = raw as { action?: string; sourceTabId?: number; url?: string; language?: string };
 	if (request?.action !== 'qiaomuStudyTranscript') return;
 	if (sender.id !== browser.runtime.id || !sender.url?.startsWith(browser.runtime.getURL('reader.html'))
-		|| !Number.isInteger(request.sourceTabId) || !request.url || !videoKey(request.url)) return Promise.resolve({ error: '无效的视频来源' });
+		|| !Number.isInteger(request.sourceTabId) || !request.url || !videoKey(request.url)) return Promise.resolve({ error: t('无效的视频来源') });
 	return (async () => {
 		try {
 			const tab = await browser.tabs.get(request.sourceTabId!);
-			if (!tab.url || videoKey(tab.url) !== videoKey(request.url!)) return { error: '原视频页面已切换，请重新打开学习模式' };
-			const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('原页面读取字幕超时')), 26000));
+			if (!tab.url || videoKey(tab.url) !== videoKey(request.url!)) return { error: t('原视频页面已切换，请重新打开学习模式') };
+			const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error(t('原页面读取字幕超时'))), 26000));
 			const answer = await Promise.race([browser.tabs.sendMessage(request.sourceTabId!, { action: 'qiaomuTranscript', ...(typeof request.language === 'string' && /^[A-Za-z0-9_-]{1,100}$/.test(request.language) ? { language: request.language } : {}) }), timeout]) as { html?: string; count?: number; languages?: Array<{id:string;label:string}>; selected?: string } | undefined;
 			return { html: answer?.html || '', count: answer?.count || 0, languages: answer?.languages, selected: answer?.selected };
-		} catch (error) { return { error: error instanceof Error ? error.message : '原页面不可用' }; }
+		} catch (error) { return { error: error instanceof Error ? error.message : t('原页面不可用') }; }
 	})();
 });
 
@@ -1371,12 +1402,12 @@ browser.runtime.onMessage.addListener((raw: unknown, sender) => {
 	const request = raw as { action?: string; sourceTabId?: number; url?: string };
 	if (request?.action !== 'qiaomuStudyLiveExtract') return;
 	if (sender.id !== browser.runtime.id || !sender.url?.startsWith(browser.runtime.getURL('reader.html'))
-		|| !Number.isInteger(request.sourceTabId) || !request.url || !videoKey(request.url)) return Promise.resolve({ error: '无效的视频来源' });
+		|| !Number.isInteger(request.sourceTabId) || !request.url || !videoKey(request.url)) return Promise.resolve({ error: t('无效的视频来源') });
 	return (async () => {
 		try {
 			const tab = await browser.tabs.get(request.sourceTabId!);
-			if (!tab.url || videoKey(tab.url) !== videoKey(request.url!)) return { error: '原视频页面已切换，请重新打开学习模式' };
-			const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('原页面提取超时')), 28000));
+			if (!tab.url || videoKey(tab.url) !== videoKey(request.url!)) return { error: t('原视频页面已切换，请重新打开学习模式') };
+			const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error(t('原页面提取超时'))), 28000));
 			// Open the transcript panel first. Once YouTube has rendered the lines, Defuddle reads them straight from
 			// the page (no network, no timeouts), so the full extraction below is fast instead of racing slow fetches.
 			let domHtml = '';
@@ -1385,12 +1416,12 @@ browser.runtime.onMessage.addListener((raw: unknown, sender) => {
 				domHtml = dom?.html || '';
 			}
 			const page = await Promise.race([sendMessageToContentScript(request.sourceTabId!, { action: 'getPageContent' }), timeout]) as Record<string, any> | undefined;
-			if (!page || typeof page.content !== 'string') return { error: '原页面没有返回内容' };
+			if (!page || typeof page.content !== 'string') return { error: t('原页面没有返回内容') };
 			if (domHtml && !/class="[^"]*\btranscript\b/.test(page.content)) page.content += domHtml;
 			// Everything the study page needs, without the full page HTML.
 			const { content, title, author, description, favicon, image, published, site, wordCount, language, schemaOrgData, extractedContent, metaTags } = page;
 			return { content, title, author, description, favicon, image, published, site, wordCount, language, schemaOrgData, extractedContent, metaTags };
-		} catch (error) { return { error: error instanceof Error ? error.message : '原页面不可用' }; }
+		} catch (error) { return { error: error instanceof Error ? error.message : t('原页面不可用') }; }
 	})();
 });
 
@@ -1400,15 +1431,35 @@ browser.runtime.onMessage.addListener((raw: unknown, sender) => {
 	const request = raw as { action?: string; sourceTabId?: number; url?: string };
 	if (request?.action !== 'qiaomuYouTubeStudySource') return;
 	if (sender.id !== browser.runtime.id || !sender.url?.startsWith(browser.runtime.getURL('reader.html'))
-		|| !Number.isInteger(request.sourceTabId) || !request.url || !videoKey(request.url)) return Promise.resolve({ error: '无效的视频来源' });
+		|| !Number.isInteger(request.sourceTabId) || !request.url || !videoKey(request.url)) return Promise.resolve({ error: t('无效的视频来源') });
 	return (async () => {
 		try {
 			const tab = await browser.tabs.get(request.sourceTabId!);
-			if (!tab.url || videoKey(tab.url) !== videoKey(request.url!)) return { error: '原视频页面已切换，请重新打开学习模式' };
+			if (!tab.url || videoKey(tab.url) !== videoKey(request.url!)) return { error: t('原视频页面已切换，请重新打开学习模式') };
 			const results = await browser.scripting.executeScript({ target: { tabId: request.sourceTabId! }, func: () => ({ html: document.documentElement.outerHTML, title: document.title }) });
-			return results[0]?.result || { error: '无法读取原视频页面' };
-		} catch { return { error: '原视频页面不可用，将从视频链接获取字幕' }; }
+			return results[0]?.result || { error: t('无法读取原视频页面') };
+		} catch { return { error: t('原视频页面不可用，将从视频链接获取字幕') }; }
 	})();
+});
+
+// The study reader asks for the video files TikTok's own page has loaded, so it can play the video next to the transcript.
+browser.runtime.onMessage.addListener((raw: unknown, sender) => {
+	const request = raw as { action?: string; url?: string; sourceTabId?: number };
+	if (request?.action !== 'qiaomuTikTokMedia') return;
+	if (sender.id !== browser.runtime.id || !sender.url?.startsWith(browser.runtime.getURL('reader.html')) || typeof request.url !== 'string') return Promise.resolve(null);
+	const wanted = tiktokVideoPath(request.url);
+	if (!wanted) return Promise.resolve(null);
+	return (async () => {
+		let tab: { id?: number; url?: string } | undefined;
+		if (Number.isInteger(request.sourceTabId) && request.sourceTabId! >= 0) { try { tab = { ...(await browser.tabs.get(request.sourceTabId!)), id: request.sourceTabId }; } catch { /* the original tab was closed */ } }
+		if (!tab?.url || !tabMayLendTikTokMedia(tab.url, wanted)) tab = ((await browser.tabs.query({ url: 'https://*.tiktok.com/*' })) || []).find(t => tiktokVideoPath(t.url || '') === wanted);
+		if (tab?.id === undefined) return null;
+		const [result] = await browser.scripting.executeScript({ target: { tabId: tab.id }, func: snapshotTikTokPlayer });
+		const snapshot = result?.result as ReturnType<typeof snapshotTikTokPlayer> | undefined;
+		// A video page must be this item; a feed page names none, so the caller checks the length.
+		if (!snapshot?.url || (tiktokVideoPath(snapshot.url) && tiktokVideoPath(snapshot.url) !== wanted)) return null;
+		return { seconds: Number.isFinite(snapshot.seconds) ? snapshot.seconds : null, candidates: snapshot.candidates.filter(isTikTokMedia) };
+	})().catch(() => null);
 });
 
 // Only the study reader can ask for a media address from its original page.

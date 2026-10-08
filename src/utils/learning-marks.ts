@@ -1,6 +1,7 @@
 import browser from './browser-polyfill';
 import { videoKey } from './video-source';
 
+import { t } from './ui-text';
 // A small local index of where you took notes in a video, so the transcript can show them. The notes
 // themselves live in the daily note; this only remembers the second and a short snippet for the tooltip.
 export interface NoteMark { t: number; text: string; at: string }
@@ -39,6 +40,6 @@ export function renderMarks(root: ParentNode, marks: NoteMark[]): void {
 	}
 	for (const [index, texts] of byIndex) {
 		segments[index].classList.add('has-note');
-		const stamp = segments[index].querySelector('strong'); if (stamp) stamp.title = '笔记：' + texts.filter(Boolean).join(' / ');
+		const stamp = segments[index].querySelector('strong'); if (stamp) stamp.title = t('笔记：') + texts.filter(Boolean).join(' / ');
 	}
 }

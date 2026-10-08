@@ -1,6 +1,7 @@
 import browser from './browser-polyfill';
 import { cleanNotes } from './podcast-page';
 
+import { t } from './ui-text';
 // Reading an RSS feed for its newest episodes. Feeds can be many megabytes (years of episodes), so only the top is read: the
 // newest come first. The parts that matter are found by pattern, because a feed cut off in the middle is not valid XML.
 export interface FeedEpisode { guid: string; title: string; date?: string; seconds?: number; audio: string; notesHtml: string; link?: string }
@@ -38,7 +39,7 @@ export function parseFeed(xml: string): Feed {
 
 async function readTop(url: string): Promise<string> {
 	const response = await fetch(url, { headers: { Accept: 'application/rss+xml, application/xml, text/xml, */*' }, credentials: 'omit' });
-	if (!response.ok || !response.body) throw new Error(`读取订阅源失败（${response.status}）`);
+	if (!response.ok || !response.body) throw new Error(t('读取订阅源失败（{0}）', [response.status]));
 	const reader = response.body.getReader(), decoder = new TextDecoder(); let text = '';
 	for (;;) { const { done, value } = await reader.read(); if (done) break; text += decoder.decode(value, { stream: true }); if (text.length >= READ_LIMIT) { void reader.cancel(); break; } }
 	return text;
@@ -48,11 +49,11 @@ async function readTop(url: string): Promise<string> {
 type Cache = Record<string, { at: number; feed: Feed }>;
 export async function fetchFeed(url: string, options: { fresh?: boolean; now?: number } = {}): Promise<Feed> {
 	const now = options.now ?? Date.now();
-	if (!httpsUrl(url)) throw new Error('订阅源地址必须是 https 地址');
+	if (!httpsUrl(url)) throw new Error(t('订阅源地址必须是 https 地址'));
 	let cache: Cache = {};
 	try { cache = ((await browser.storage.local.get(CACHE_KEY))[CACHE_KEY] as Cache | undefined) ?? {}; } catch { /* storage unavailable */ }
 	const known = cache[url]; if (!options.fresh && known && now - known.at < CACHE_MS && known.feed.episodes.length) return known.feed;
-	const feed = parseFeed(await readTop(url)); if (!feed.episodes.length) throw new Error('这个订阅源里没有找到可播放的节目');
+	const feed = parseFeed(await readTop(url)); if (!feed.episodes.length) throw new Error(t('这个订阅源里没有找到可播放的节目'));
 	// Notes are the bulk; the list does not need them, and study mode reads the feed again for the one episode it opens.
 	const slim: Feed = { ...feed, episodes: feed.episodes.map(item => ({ ...item, notesHtml: '' })) };
 	try { const kept = Object.fromEntries(Object.entries(cache).filter(([, entry]) => now - entry.at < CACHE_MS)); await browser.storage.local.set({ [CACHE_KEY]: { ...kept, [url]: { at: now, feed: slim } } }); } catch { /* storage unavailable */ }

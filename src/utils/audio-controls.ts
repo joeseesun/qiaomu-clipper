@@ -30,20 +30,21 @@ export function mountAudioControls(doc: Document, media: HTMLMediaElement, label
 	const now = make('span', 'qa-time'), total = make('span', 'qa-time qa-total'), seek = make('input', 'qa-seek'); seek.type = 'range'; seek.min = '0'; seek.max = '0'; seek.step = '1'; seek.value = '0'; seek.setAttribute('aria-label', labels.seek);
 	const line = make('div', 'qa-line'); line.append(now, seek, total);
 	const main = make('div', 'qa-main'); main.append(play, line);
-	// Speed is a small menu rather than a button that cycles blindly: the viewer sees what the choices are.
+	// Speed is a row of choices, all in view: one press picks it, and there is no pop-up that a top bar or the card's edge could cut off.
 	let rate = load(); media.playbackRate = rate; media.defaultPlaybackRate = rate;
-	const speedWrap = make('div', 'qa-speed'), speed = make('button', 'qa-chip'); speed.type = 'button'; speed.title = labels.speed; speed.setAttribute('aria-label', labels.speed); speed.setAttribute('aria-haspopup', 'menu'); speed.setAttribute('aria-expanded', 'false');
-	const menu = make('div', 'qa-menu'); menu.setAttribute('role', 'menu'); menu.hidden = true;
-	const items = SPEEDS.map(value => { const item = make('button', 'qa-menu-item'); item.type = 'button'; item.setAttribute('role', 'menuitemradio'); item.dataset.rate = String(value); item.textContent = speedLabel(value); item.addEventListener('click', () => { apply(value); closeMenu(); speed.focus(); }); return item; });
-	menu.append(...items); speedWrap.append(speed, menu);
-	const paintRate = () => { speed.textContent = speedLabel(rate); items.forEach(item => item.setAttribute('aria-checked', String(Number(item.dataset.rate) === rate))); };
+	const speedWrap = make('div', 'qa-speed'); speedWrap.setAttribute('role', 'radiogroup'); speedWrap.setAttribute('aria-label', labels.speed);
+	const items = SPEEDS.map(value => { const item = make('button', 'qa-rate'); item.type = 'button'; item.setAttribute('role', 'radio'); item.dataset.rate = String(value); item.textContent = speedLabel(value); return item; });
+	speedWrap.append(...items);
+	const paintRate = () => items.forEach(item => { const on = Number(item.dataset.rate) === rate; item.setAttribute('aria-checked', String(on)); item.tabIndex = on ? 0 : -1; });
 	const apply = (value: number) => { rate = value; media.playbackRate = value; media.defaultPlaybackRate = value; save(value); paintRate(); };
-	const closeMenu = () => { menu.hidden = true; speed.setAttribute('aria-expanded', 'false'); doc.removeEventListener('pointerdown', outside, true); doc.removeEventListener('keydown', onKey, true); };
-	const outside = (event: Event) => { if (!speedWrap.contains(event.target as Node)) closeMenu(); };
-	const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') { event.stopPropagation(); closeMenu(); speed.focus(); } };
-	speed.addEventListener('click', () => {
-		if (!menu.hidden) { closeMenu(); return; }
-		menu.hidden = false; speed.setAttribute('aria-expanded', 'true'); doc.addEventListener('pointerdown', outside, true); doc.addEventListener('keydown', onKey, true); items.find(item => Number(item.dataset.rate) === rate)?.focus();
+	items.forEach((item, index) => {
+		item.addEventListener('click', () => apply(Number(item.dataset.rate)));
+		// Arrow keys move along the row, as in any group of radio buttons.
+		item.addEventListener('keydown', event => {
+			const step = event.key === 'ArrowRight' || event.key === 'ArrowDown' ? 1 : event.key === 'ArrowLeft' || event.key === 'ArrowUp' ? -1 : 0;
+			if (!step) return; event.preventDefault();
+			const next = items[(index + step + items.length) % items.length]; apply(Number(next.dataset.rate)); next.focus();
+		});
 	});
 	paintRate();
 	const tools = make('div', 'qa-tools');

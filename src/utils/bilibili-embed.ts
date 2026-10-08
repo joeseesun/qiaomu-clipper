@@ -1,3 +1,4 @@
+import { t } from './ui-text';
 // Bilibili's own embed (https://player.bilibili.com/player.html). Obsidian notes show it as a player; the RSS site and the
 // RSS plugin do not run page HTML, so there a clip carries a plain link instead.
 const EMBED = /<iframe\b[^>]*?\bsrc=(["'])([^"']*player\.bilibili\.com\/player\.html[^"']*)\1[^<>]*>?\s*(?:<\/iframe>?)?/gi;
@@ -28,5 +29,5 @@ const ESCAPED_EMBED = /&lt;iframe\b(?:(?!&lt;)[^<>])*?player\.bilibili\.com\/pla
 const unescapeEmbeds = (markdown: string) => markdown.replace(ESCAPED_EMBED, m => m.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"'));
 
 export function bilibiliEmbedsToLinks(markdown: string): string {
-	return unescapeEmbeds(markdown).replace(EMBED, (whole, _quote, src: string) => { const video = videoOf(src); return video ? `[▶ 在 B 站观看](${bilibiliWatchUrl(video.bvid, video.page)})` : whole; });
+	return unescapeEmbeds(markdown).replace(EMBED, (whole, _quote, src: string) => { const video = videoOf(src); return video ? t('[▶ 在 B 站观看]({0})', [bilibiliWatchUrl(video.bvid, video.page)]) : whole; });
 }

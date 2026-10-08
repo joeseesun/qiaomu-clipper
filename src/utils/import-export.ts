@@ -10,6 +10,7 @@ import browser from '../utils/browser-polyfill';
 import { saveFile } from './file-utils';
 import { copyToClipboard } from './clipboard-utils';
 import { compressToUTF16, decompressFromUTF16 } from 'lz-string';
+import { LOCAL_BACKUP_KEY, pickLocalBackup, restoreLocalBackup, splitImport } from './local-backup';
 import { getMessage } from './i18n';
 
 const SCHEMA_VERSION = '0.1.0';
@@ -328,7 +329,6 @@ export async function exportAllSettings(): Promise<void> {
 	try {
 		console.log('Fetching all data from browser storage');
 		const allData = await browser.storage.sync.get(null) as StorageData;
-		console.log('All data fetched:', allData);
 
 		// Create a copy of the data to modify
 		const exportData: StorageData = { ...allData };
@@ -349,7 +349,10 @@ export async function exportAllSettings(): Promise<void> {
 			}
 		}
 
-		console.log('Data prepared for export:', exportData);
+		// What lives in storage.local (chat history, highlights, drafts, study choices) travels in the same file.
+		exportData[LOCAL_BACKUP_KEY] = pickLocalBackup(await browser.storage.local.get(null));
+
+		console.log('Data prepared for export');
 		const content = JSON.stringify(exportData, null, 2);
 		console.log('Data stringified, length:', content.length);
 
@@ -381,11 +384,13 @@ export function importAllSettings(): void {
 
 async function importAllSettingsFromJson(jsonContent: string): Promise<void> {
 	try {
-		const settings = JSON.parse(jsonContent) as StorageData;
+		const parsed = JSON.parse(jsonContent) as StorageData;
+		// The file may also carry storage.local content; it must not be written into storage.sync.
+		const { sync: settings, local: localItems } = splitImport(parsed);
 		
 		if (confirm(getMessage('confirmReplaceSettings'))) {
 			// Create a copy of the settings to modify
-			const importData: StorageData = { ...settings };
+			const importData = { ...settings } as StorageData;
 			
 			// Compress all templates
 			const templateIds = importData.template_list || [];
@@ -418,6 +423,7 @@ async function importAllSettingsFromJson(jsonContent: string): Promise<void> {
 
 			await browser.storage.sync.clear();
 			await browser.storage.sync.set(importData);
+			await restoreLocalBackup(browser.storage.local, localItems);
 			await loadSettings();
 			await loadTemplates();
 			updateTemplateList();

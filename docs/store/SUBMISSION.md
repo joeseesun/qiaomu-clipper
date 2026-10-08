@@ -94,7 +94,7 @@ Help users turn web articles and audio/video transcripts into Obsidian Markdown 
 | declarativeNetRequest | Apply bundled, narrowly filtered YouTube embed and youtubei header rules required by the inherited article-reader/video functionality. Not used to block advertising or track traffic. |
 | http://*/* and https://*/* | Support clipping and reading arbitrary websites, the persistent configurable triple-press shortcut listener/content loader, and requests to user-configured AI endpoints including local HTTP providers. The fixed RSS endpoint is rss.qiaomu.ai. The key listener does not upload keystrokes or browsing trails. Broad access enables these page features without asking users to add every site separately. |
 
-Commands are declared in the Manifest commands object, not the permissions list. No history, cookies, debugger or identity permission is requested.
+Commands are declared in the Manifest commands object, not the permissions list. No history, debugger or identity permission is requested. The cookies permission is optional in the store edition; see the updated justification below.
 
 Remote code: No. All extension executable JS, CSS and fonts are included in the uploaded ZIP. AI/RSS responses are content/data, not executed JavaScript. Original article images/media may be requested from their origins. The Python Native Messaging helper is separate local software invoked only after user installation.
 
@@ -190,3 +190,43 @@ References checked 2026-10-02:
 - Google 显示「已将您的扩展程序提交送审」，状态页确认「待审核」「该草稿尚待审核」。官方公开更新仍须等待审核，不等于新版已上架。
 - 真实安装/升级、实际 AI 账号调用及媒体站点验收仍未完成；包检查记录保留 false。
 - 后台状态原文仅保存在本机 builds/store-upload/submitted-1.14.2-status.txt，不提交账号信息。
+
+## 1.15.2 可选 Cookie 权限说明（2026-10-08）
+
+Optional cookies permission justification:
+When the user enables browser-login support and approves the optional permission, read cookies related to the requested media site (YouTube also uses Google login cookies) and pass them only to the separately installed local Native Messaging helper. The helper uses a temporary cookie file to authenticate the user-requested audio download with the original platform for subtitle generation, then deletes it on completion, failure or cancellation. Cookies are not sent to RSS, AI or cloud recognition providers, or used for advertising. Users can disable automatic login use in settings. The store edition does not offer media-file export.
+
+候选上传包：`builds/qiaomu-clipper-1.15.2-chrome.zip`。本节的权限说明不表示已经提交，提交状态以商店后台为准。
+
+## 1.15.3 实际提交记录（2026-10-08）
+
+- 已撤回待审核的 1.15.0，并上传 `qiaomu-clipper-1.15.3-chrome.zip`；后台草稿表确认版本 1.15.3。
+- 商店包 SHA-256：`663195c62ba50d316f7e216b74e01ba554f83e9e954cd7406f1abb6e53eb94f6`，与 GitHub release 附件一致。
+- 保存可选 cookies 权限理由：用户主动授权后，仅向本机助手传递所请求媒体网站的登录信息；YouTube 同时需要 Google 登录 cookies。临时文件于任务成功、失败或取消后删除。
+- 公开中英文隐私政策已更新；后台身份验证信息披露和三项承诺已保持勾选。461 字符测试说明包含无账号基础测试、RSS 默认关闭、助手/ASR 前提和可选授权路径。
+- 正常审核，未申请 declarativeNetRequest 安全静态规则免审；通过后自动发布已勾选。
+- Google 显示「已将您的扩展程序提交送审」，状态页确认「状态：待审核」「该草稿尚待审核」。公开商店仍为 1.7.1，尚未确认新版上架。
+- 1.15.3 修复了版本脚本误改依赖锁造成的干净安装失败。干净 npm ci、802 项前端测试、类型检查、134 项助手测试、各浏览器构建与 edition 检查通过，PR #49 CI 全绿。
+- 真实 YouTube 页面执行字幕获取源码返回 723 段、8 条轨道；这不是已安装扩展的端到端验收。真实 Chrome 可选授权弹窗及带登录状态的 ASR 全流程未验证。
+- 助手与 1.15.2 相同，复用已签名公证安装包。后台原文保留于本机忽略目录 `builds/store-upload/submitted-1.15.3-status.txt`，不提交账号信息。
+
+
+## 1.15.6 实际提交记录（2026-10-08）
+
+- 已撤回待审核的 1.15.3；上传 `qiaomu-clipper-1.15.6-chrome.zip`，后台软件包表确认草稿版本为 1.15.6。
+- 正常提交审核，没有选择仅 DNR 安全规则变更的免审选项；勾选通过审核后自动发布。
+- 后台显示「已将您的扩展程序提交送审」，状态页确认「该草稿尚待审核」。当时已发布版本仍为 1.7.1，不能视为 1.15.6 已上架。
+- 477 字符的英文审核说明已保存并重新读取确认以 1.15.6 开头：文章阅读／编辑／复制／Markdown 导出不需登录，RSS 默认关闭且提交公开；原始 YouTube 字幕优先；生成字幕依赖独立助手与本机模型或用户配置的云端服务；cookies 为可选权限、只交给本机助手并删除临时文件；商店版没有媒体导出。
+- PR #53 已合并，823 项前端测试、类型检查、四个浏览器构建与商店／本地版检查通过。CI 全绿（包含助手测试）。GitHub Release 的 5 个文件 SHA256 与本地产物全部一致。
+- 真实 Ego Lite 扩展运行版本确认 1.15.6，AI 无模型提示、设置跳转、无双重边框和 1px 键盘焦点线已验证；ASR 设置能读取现有助手和已安装模型。真实可选 cookies 授权及完整 YouTube ASR 仍未验收。
+- 助手二进制未改动，复用既有签名公证安装包。状态页证据在本机忽略目录 `builds/store-upload/submitted-1.15.6-status.txt`，不提交账号信息。
+
+## 1.15.8 实际提交记录（2026-10-08）
+
+- 用户改为要求立即重新提审；已撤回待审核的 1.15.6，上传 GitHub 已公开发布的 `qiaomu-clipper-1.15.8-chrome.zip`。后台软件包表确认草稿版本 1.15.8，已发布版本仍为 1.7.1。
+- 上传包 SHA-256：`36065c7dc4e09fe07c696f40a018545d236ce5c3278e4dfde28ec9bd19668611`。清单版本为 1.15.8，没有本地版 key；cookies 只声明为可选权限。
+- 正常提交审核，未选择 DNR 安全规则免审；勾选通过审核后自动发布。提交后重新打开状态页确认「状态：待审核」「该草稿尚待审核」。新版尚未上架。
+- 中英文商品介绍已更新，保存后重新读取核对：九种完整界面语言、原始字幕优先、本机或用户配置的云端 ASR、可选独立助手、RSS 默认关闭及公开分享边界。
+- 462 字符的英文审核说明已保存：文章剪藏、阅读、编辑及 Markdown 导出无需登录；生成字幕依赖可选助手和模型或云端服务；当前网站登录数据仅传给本机助手并删除临时文件；商店版无媒体导出按钮。现有隐私和分发设置保持原样。
+- 新助手安装包已签名并通过 Apple 公证。本机实际安装 1.15.8，并完成助手连接、Obsidian 库和本机模型自检；真实 YouTube 完整 ASR 尚未验收。
+- 状态和软件包原文及截图仅保留在本机忽略目录 `builds/store-upload/submitted-1.15.8-*`，不提交包含账号的后台截图。原延后提审任务已暂停，避免重复提交。

@@ -17,23 +17,22 @@
 						<span data-i18n="settings">Settings</span>
 					</div>
 					<ul>
-						<li data-section="general"><div class="nav-item-icon"><i data-lucide="settings"></i></div><span data-i18n="general">General</span></li>
-						<li class="sidebar-heading" data-i18n="headingLearn">Learning</li>
-						<li data-section="study"><div class="nav-item-icon"><i data-lucide="headphones"></i></div><span data-i18n="navStudyHome">Transcribe and study</span></li>
-						<li data-section="asr"><div class="nav-item-icon"><i data-lucide="audio-lines"></i></div><span data-i18n="navAsr">Speech recognition</span></li>
-						<li data-section="video"><div class="nav-item-icon"><i data-lucide="captions"></i></div><span data-i18n="navVideoSites">Transcript bar and sites</span></li>
-						<li data-section="reader"><div class="nav-item-icon"><i data-lucide="book-open"></i></div><span data-i18n="reader">Reader</span></li>
-						<li data-section="learning"><div class="nav-item-icon"><i data-lucide="notebook-pen"></i></div><span data-i18n="navLearning">Learning notes</span></li>
-						<li class="sidebar-heading" data-i18n="headingClip">Clipping</li>
-						<li data-section="clip"><div class="nav-item-icon"><i data-lucide="paperclip"></i></div><span data-i18n="navClip">Clipping and saving</span></li>
-						<li data-section="highlighter"><div class="nav-item-icon"><i data-lucide="highlighter"></i></div><span data-i18n="highlighter">Highlighter</span></li>
-						<li data-section="properties"><div class="nav-item-icon"><i data-lucide="archive"></i></div><span data-i18n="properties">Properties</span></li>
-						<li class="sidebar-heading" data-i18n="headingAI">AI</li>
-						<li data-section="interpreter"><div class="nav-item-icon"><i data-lucide="sparkles"></i></div><span data-i18n="interpreter">Interpreter</span></li>
-						<li class="sidebar-heading" data-i18n="templatesHeading">Templates</li>
+					<li class="sidebar-heading">通用</li>
+					<li data-section="general"><div class="nav-item-icon"><i data-lucide="keyboard"></i></div><span>语言和快捷键</span></li>
+					<li data-section="about"><div class="nav-item-icon"><i data-lucide="info"></i></div><span>关于与备份</span></li>
+					<li class="sidebar-heading">剪藏</li>
+					<li data-section="clip"><div class="nav-item-icon"><i data-lucide="paperclip"></i></div><span>剪藏与保存</span></li>
+					<li data-section="templates-home"><div class="nav-item-icon"><i data-lucide="layout-template"></i></div><span>剪藏模版</span></li>
+					<li data-section="highlighter"><div class="nav-item-icon"><i data-lucide="highlighter"></i></div><span>划线</span></li>
+					<li class="sidebar-heading">阅读与学习</li>
+					<li data-section="asr"><div class="nav-item-icon"><i data-lucide="captions"></i></div><span>字幕识别</span></li>
+					<li data-section="learning"><div class="nav-item-icon"><i data-lucide="notebook-pen"></i></div><span>学习笔记</span></li>
+					<li data-section="reader"><div class="nav-item-icon"><i data-lucide="book-open"></i></div><span>阅读样式</span></li>
+					<li data-section="study"><div class="nav-item-icon"><i data-lucide="headphones"></i></div><span>转写学习</span></li>
+					<li class="sidebar-heading">AI 模型设置</li>
+					<li data-section="interpreter"><div class="nav-item-icon"><i data-lucide="sparkles"></i></div><span>LLM 提供商与模型</span></li>
+					<li data-section="asr-models"><div class="nav-item-icon"><i data-lucide="mic"></i></div><span>ASR 语音识别</span></li>
 					</ul>
-					<button type="button" id="new-template-btn" class="mod-cta" data-i18n="newTemplate">New&nbsp;template</button>
-					<ul id="template-list"></ul>
 					
 				</div>
 				
@@ -50,10 +49,147 @@
 					</div>
 					<div id="general-section" class="settings-section">
 						<div class="settings-section-header">
-							<h2 data-i18n="generalSettings">General settings</h2>
+							<h2>语言和快捷键</h2>
 						</div>
 						<form id="general-settings-form">
 							<div class="setting-group">
+								<div class="setting-items">
+									<div class="setting-item mod-horizontal">
+										<div class="setting-item-info">
+											<label for="language-select">语言</label>
+											<div class="setting-item-description">界面显示的语言。</div>
+										</div>
+										<div class="setting-item-control">
+											<select id="language-select">
+												<option value="" data-i18n="systemDefault">System default</option>
+												<option value="en">English</option>
+											</select>
+										</div>
+									</div>
+									<div class="setting-item mod-horizontal">
+										<div class="setting-item-info">
+											<label for="open-behavior-dropdown">点工具栏图标时</label>
+											<div class="setting-item-description">弹出窗口：先看一眼再剪藏。阅读模式：直接打开阅读页。</div>
+										</div>
+										<div class="setting-item-control">
+											<select id="open-behavior-dropdown">
+												<option value="popup" selected>弹出窗口</option>
+												<option value="reader">阅读模式</option>
+											</select>
+										</div>
+									</div>
+								</div>
+							</div>
+							<div class="setting-group" id="hotkeys-subsection">
+								<div class="setting-item setting-item-heading"><h3>三连击快捷键</h3></div>
+								<div class="setting-items">
+									<div class="setting-item mod-horizontal mod-toggle">
+										<div class="setting-item-info">
+											<label for="triple-key-toggle">在网页上连按 3 次字母</label>
+											<div class="setting-item-description">不用点图标：连按 3 次就阅读、编辑、剪藏，或弹出记笔记的小卡片。在输入框里打字时不会触发。</div>
+										</div>
+										<div class="setting-item-control">
+											<div class="checkbox-container">
+												<input type="checkbox" id="triple-key-toggle" />
+											</div>
+										</div>
+									</div>
+									<div class="setting-item" id="triple-key-keys">
+										<div class="setting-item-info">
+											<label>用哪个字母</label>
+											<div class="setting-item-description">每个动作一个字母或数字，留空就关闭它。默认连按 3 次 I，弹出记笔记小卡片。</div>
+										</div>
+										<div class="triple-key-fields">
+											<label class="triple-key-field"><span>阅读</span><input type="text" id="triple-key-read" maxlength="1" autocomplete="off" spellcheck="false" /></label>
+											<label class="triple-key-field"><span>编辑</span><input type="text" id="triple-key-edit" maxlength="1" autocomplete="off" spellcheck="false" /></label>
+											<label class="triple-key-field"><span>剪藏</span><input type="text" id="triple-key-clip" maxlength="1" autocomplete="off" spellcheck="false" /></label>
+											<label class="triple-key-field"><span>记笔记</span><input type="text" id="triple-key-note" maxlength="1" autocomplete="off" spellcheck="false" /></label>
+											<button type="button" id="triple-key-reset" class="btn">恢复默认</button>
+										</div>
+										<div class="setting-item-description triple-key-error" id="triple-key-error" role="alert" hidden></div>
+									</div>
+									<details class="setting-details">
+										<summary>在某些网站上不要触发</summary>
+										<div class="setting-item">
+											<div class="setting-item-info">
+												<div class="setting-item-description">每行一个网站，如 mail.google.com，它的子域名也一起关闭。也可以在剪藏菜单里，一键关闭当前网站。</div>
+											</div>
+											<textarea id="triple-key-sites" rows="3" spellcheck="false" autocomplete="off" placeholder="mail.google.com" aria-label="不触发的网站"></textarea>
+										</div>
+									</details>
+									<details class="setting-details">
+										<summary>浏览器自带的快捷键</summary>
+										<div class="setting-item-description shortcut-instructions"></div>
+										<div id="keyboard-shortcuts-list"></div>
+									</details>
+								</div>
+							</div>
+						</form>
+					</div>
+
+					<div id="about-section" class="settings-section">
+						<div class="settings-section-header">
+							<h2>关于与备份</h2>
+						</div>
+						<div class="about-hero">
+							<div class="about-version">
+								<span class="about-label">乔木剪藏 · 当前版本</span>
+								<span class="about-number" id="version-number"></span>
+								<span class="about-status" id="version-status" role="status"></span>
+							</div>
+							<div class="about-actions">
+								<a id="changelog-link" class="btn" href="https://github.com/joeseesun/qiaomu-clipper/releases" target="_blank" rel="noopener noreferrer">更新日志</a>
+								<a class="btn" href="https://github.com/joeseesun/qiaomu-clipper/issues/new" target="_blank" rel="noopener noreferrer">反馈问题</a>
+								<a class="btn" href="https://github.com/joeseesun/qiaomu-clipper#readme" target="_blank" rel="noopener noreferrer">使用说明</a>
+							</div>
+						</div>
+						<div class="setting-group" id="release-notes" hidden>
+							<div class="setting-item setting-item-heading"><h3 id="release-notes-title">最近更新</h3></div>
+							<div class="setting-items" id="release-notes-body"></div>
+						</div>
+						<div class="about-support">
+							<figure class="about-qr"><img src="assets/about/wechat-public-account.jpg" alt="向阳乔木推荐看公众号二维码" width="148" height="148"><figcaption><b>关注公众号</b><span>微信搜索「向阳乔木推荐看」</span></figcaption></figure>
+							<figure class="about-qr"><img src="assets/about/reward.png" alt="向阳乔木打赏二维码" width="148" height="148"><figcaption><b>请我喝杯咖啡</b><span>微信扫码，支持持续更新</span></figcaption></figure>
+						</div>
+						<form id="about-settings-form">
+							<div class="setting-group">
+								<div class="setting-item setting-item-heading"><h3>备份与恢复</h3></div>
+								<div class="setting-items">
+									<div class="setting-item mod-horizontal">
+										<div class="setting-item-info">
+											<label for="export-all-settings-btn">导出全部设置</label>
+											<div class="setting-item-description">打包成一个文件，用来备份或换电脑，包括模版、属性、对话历史、划线和笔记草稿。文件里有 API Key，请妥善保管。</div>
+										</div>
+										<div class="setting-item-control">
+											<button type="button" id="export-all-settings-btn">导出</button>
+										</div>
+									</div>
+									<div class="setting-item mod-horizontal">
+										<div class="setting-item-info">
+											<label for="import-all-settings-btn">导入全部设置</label>
+											<div class="setting-item-description">从备份文件恢复，会覆盖现在的设置。</div>
+										</div>
+										<div class="setting-item-control">
+											<button type="button" id="import-all-settings-btn">导入</button>
+										</div>
+									</div>
+									<div class="setting-item mod-horizontal mod-toggle" style="display: none;">
+										<div class="setting-item-info">
+											<label for="beta-features-toggle" data-i18n="earlyAccessFeatures">Early access features</label>
+											<div class="setting-item-description" data-i18n="earlyAccessDescription">
+												Use features that require the latest <a href="https://help.obsidian.md/Obsidian/Early+access+versions" target="_blank">early access version</a> of Obsidian. Currently requires Obsidian 1.7.2 or later.
+											</div>
+										</div>
+										<div class="setting-item-control">
+											<div class="checkbox-container">
+												<input type="checkbox" id="beta-features-toggle" />
+											</div>
+										</div>
+									</div>
+								</div>
+							</div>
+							<div class="setting-group">
+								<div class="setting-item setting-item-heading"><h3>使用情况</h3></div>
 								<div class="setting-items">
 									<div id="usage-chart-container">
 										<div class="usage-chart-header">
@@ -78,120 +214,13 @@
 										</div>
 										<div id="usage-chart" class="usage-chart"></div>
 									</div>
-									<div class="setting-item mod-horizontal">
-										<div class="setting-item-info">
-											<label for="language-select" data-i18n="language">Language</label>
-											<div class="setting-item-description" data-i18n="languageDescription">
-												Choose the display language for the extension interface.
-											</div>
-										</div>
-										<div class="setting-item-control">
-											<select id="language-select">
-												<option value="" data-i18n="systemDefault">System default</option>
-												<option value="en">English</option>
-											</select>
-										</div>
-									</div>
-									<div class="setting-item mod-horizontal">
-										<div class="setting-item-info">
-											<label for="version">
-													<span data-i18n="version">Version</span> <span id="version-number" class="version-tag"></span>
-											</label>
-											<div class="setting-item-description">
-												<span id="using-latest-version" data-i18n="usingLatestVersion">
-													You are using the latest version.
-												</span>
-												<span id="update-available" class="text-warning" style="display: none;" data-i18n="updateAvailable">
-													An update is available.
-												</span>
-											</div>
-										</div>
-										<div class="setting-item-control">
-											<a href="https://github.com/obsidianmd/obsidian-clipper/releases" id="changelog-link" data-i18n="changelog" class="btn" target="_blank">Changelog</a>
-										</div>
-									</div>
-									
-								</div>
-							</div>
-							<div class="setting-group" id="hotkeys-subsection">
-								<div class="setting-item setting-item-heading"><h3 data-i18n="hotkeys">Hotkeys</h3></div>
-								<div class="setting-items">
-								<div class="setting-item-description shortcut-instructions">
-								</div>
-								<div id="keyboard-shortcuts-list"></div>
-									<div class="setting-item mod-horizontal mod-toggle">
-										<div class="setting-item-info">
-											<label for="triple-key-toggle" data-i18n="tripleKeyTitle">Triple-press shortcuts</label>
-											<div class="setting-item-description" data-i18n="tripleKeyDescription">
-												On a web page, press A three times for reading mode, E for the editor, and Q to clip with the default template. Ignored while typing in text fields.
-											</div>
-										</div>
-										<div class="setting-item-control">
-											<div class="checkbox-container">
-												<input type="checkbox" id="triple-key-toggle" />
-											</div>
-										</div>
-									</div>
-									<div class="setting-item" id="triple-key-keys">
-										<div class="setting-item-info">
-											<label data-i18n="tripleKeyKeysTitle">Shortcut keys</label>
-											<div class="setting-item-description" data-i18n="tripleKeyKeysDescription">Choose one letter or digit for each action. Leave it empty to turn that action off.</div>
-										</div>
-										<div class="triple-key-fields">
-											<label class="triple-key-field"><span data-i18n="qiaomuActionReadShort">Read</span><input type="text" id="triple-key-read" maxlength="1" autocomplete="off" spellcheck="false" /></label>
-											<label class="triple-key-field"><span data-i18n="qiaomuActionEditShort">Edit</span><input type="text" id="triple-key-edit" maxlength="1" autocomplete="off" spellcheck="false" /></label>
-											<label class="triple-key-field"><span data-i18n="qiaomuEditorClip">Clip</span><input type="text" id="triple-key-clip" maxlength="1" autocomplete="off" spellcheck="false" /></label>
-											<label class="triple-key-field"><span data-i18n="qiaomuActionNoteShort">Note</span><input type="text" id="triple-key-note" maxlength="1" autocomplete="off" spellcheck="false" /></label>
-											<button type="button" id="triple-key-reset" class="btn" data-i18n="tripleKeyReset">Restore defaults</button>
-										</div>
-										<div class="setting-item-description triple-key-error" id="triple-key-error" role="alert" hidden></div>
-									</div>
-									<div class="setting-item">
-										<div class="setting-item-info">
-											<label for="triple-key-sites" data-i18n="tripleKeySitesTitle">Turn off on these sites</label>
-											<div class="setting-item-description" data-i18n="tripleKeySitesDescription">One site per line, for example mail.google.com. Subdomains are included. You can also turn it off for the current site from the clipper menu.</div>
-										</div>
-										<textarea id="triple-key-sites" rows="3" spellcheck="false" autocomplete="off" placeholder="mail.google.com"></textarea>
-									</div>
-								</div>
-							</div>
-							<div class="setting-group">
-								<div class="setting-item setting-item-heading"><h3 data-i18n="groupBackup">Backup and labs</h3></div>
-								<div class="setting-items">
-									<div class="setting-item mod-horizontal">
-										<div class="setting-item-info">
-											<label for="export-all-settings-btn" data-i18n="exportAllSettings">Export all settings</label>
-											<div class="setting-item-description" data-i18n="exportAllSettingsDescription">Export all settings including templates and properties.</div>
-										</div>
-										<div class="setting-item-control">
-											<button type="button" id="export-all-settings-btn" data-i18n="export">Export</button>
-										</div>
-									</div>
-									<div class="setting-item mod-horizontal">
-										<div class="setting-item-info">
-											<label for="import-all-settings-btn" data-i18n="importAllSettings">Import all settings</label>
-											<div class="setting-item-description" data-i18n="importAllSettingsDescription">Import all settings including templates and properties. This will replace your current configuration.</div>
-										</div>
-										<div class="setting-item-control">
-											<button type="button" id="import-all-settings-btn" data-i18n="import">Import</button>
-										</div>
-									</div>
-									<div class="setting-item mod-horizontal mod-toggle" style="display: none;">
-										<div class="setting-item-info">
-											<label for="beta-features-toggle" data-i18n="earlyAccessFeatures">Early access features</label>
-											<div class="setting-item-description" data-i18n="earlyAccessDescription">
-												Use features that require the latest <a href="https://help.obsidian.md/Obsidian/Early+access+versions" target="_blank">early access version</a> of Obsidian. Currently requires Obsidian 1.7.2 or later.
-											</div>
-										</div>
-										<div class="setting-item-control">
-											<div class="checkbox-container">
-												<input type="checkbox" id="beta-features-toggle" />
-											</div>
-										</div>
-									</div>
 								</div>
 							</div>
 						</form>
+						<div class="about-footer">
+							<div class="about-links"><a href="https://qiaomu.ai/" target="_blank" rel="noopener noreferrer">qiaomu.ai</a><a href="https://blog.qiaomu.ai/" target="_blank" rel="noopener noreferrer">博客</a><a href="https://x.com/vista8" target="_blank" rel="noopener noreferrer">X</a><a href="https://github.com/joeseesun" target="_blank" rel="noopener noreferrer">GitHub</a><a href="mailto:vista8@gmail.com">邮箱</a></div>
+							<p>© 向阳乔木 · MIT 许可 · 基于 Obsidian Web Clipper</p>
+						</div>
 					</div>
 
 					<div id="clip-section" class="settings-section">
@@ -200,27 +229,43 @@
 						</div>
 						<form id="clip-settings-form">
 							<div class="setting-group">
-								<div class="setting-item setting-item-heading"><h3 data-i18n="vaults">Vaults</h3></div>
+								<div class="setting-item setting-item-heading"><h3>笔记库</h3></div>
 								<div class="setting-items">
-								<div class="setting-item-description" data-i18n="vaultsDescription">By default, clipped notes are saved to the currently open vault. You can add vaults here if you want the option to save to different vaults. Vault names must exactly match the name of the Obsidian vault. Press <strong>enter</strong> to add a&nbsp;vault.</div>
-								<input type="text" id="vault-input" data-i18n="addVaultPlaceholder" placeholder="Press enter to add a vault" autocomplete="off" spellcheck="false" />
-								<ul id="vault-list" class="setting-item-list"></ul>
-								<div class="setting-item">
+								<div class="setting-item mod-horizontal" id="local-vault-row" hidden>
 									<div class="setting-item-info">
-										<label for="local-vault-path">静默保存的笔记库地址</label>
-										<div class="setting-item-description">选择本机 Obsidian 笔记库文件夹，或填写完整路径。保存后自动识别库名，剪藏直接写入此库，无需打开 Obsidian。</div>
+										<label for="local-vault-select">笔记保存到</label>
+										<div id="local-vault-status" class="setting-item-description" role="status" aria-live="polite"></div>
 									</div>
-									<div class="setting-item-control">
-										<input type="text" id="local-vault-path" placeholder="请选择笔记库文件夹" autocomplete="off" spellcheck="false" />
-										<button type="button" id="local-vault-choose" class="btn">选择文件夹</button>
-										<button type="button" id="local-vault-save" class="btn">保存库地址</button>
+									<div class="setting-item-control"><select id="local-vault-select"></select></div>
+								</div>
+								<div class="setting-item mod-horizontal" id="local-helper-state">
+									<div class="setting-item-info">
+										<label>本地助手</label>
+										<div id="local-helper-note" class="setting-item-description" role="status" aria-live="polite">正在检查…</div>
 									</div>
-									<div id="local-vault-status" class="setting-item-description" role="status" aria-live="polite"></div>
 									<div class="setting-item-control" id="local-helper-help" hidden>
-										<button type="button" id="local-helper-copy" class="btn">复制安装指令，发给 AI 助手</button>
-										<a class="btn" href="https://github.com/joeseesun/qiaomu-clipper/blob/main/native/README.md" target="_blank" rel="noopener noreferrer">查看安装说明</a>
+										<a class="btn mod-cta" id="local-helper-download" href="https://github.com/joeseesun/qiaomu-clipper/releases/latest/download/qiaomu-clipper-helper.pkg" hidden>下载安装包（macOS）</a>
+										<button type="button" id="local-helper-copy" class="btn" hidden>让 AI 帮我安装</button>
+										<a class="btn" id="local-helper-more" href="https://github.com/joeseesun/qiaomu-clipper/releases" target="_blank" rel="noopener noreferrer" hidden>所有安装包</a>
 									</div>
 								</div>
+								<div id="uri-vaults" hidden>
+									<div class="setting-item-description">没有本地助手时，笔记会交给 Obsidian 打开，库名要和 Obsidian 里的完全一致。输入库名后按回车添加。</div>
+									<input type="text" id="vault-input" placeholder="输入库名，按回车添加" autocomplete="off" spellcheck="false" />
+									<ul id="vault-list" class="setting-item-list"></ul>
+								</div>
+								</div>
+							</div>
+							<div class="setting-group">
+								<div class="setting-item setting-item-heading"><h3>剪藏编辑页</h3></div>
+								<div class="setting-items">
+									<div class="setting-item mod-horizontal mod-toggle">
+										<div class="setting-item-info">
+											<label for="editor-auto-chat-toggle">打开时显示 AI 对话</label>
+											<div class="setting-item-description">进入剪藏编辑页就展开右侧的 AI 对话，边改边问。阅读页的同类开关在「阅读页」里。</div>
+										</div>
+										<div class="setting-item-control"><div class="checkbox-container"><input type="checkbox" id="editor-auto-chat-toggle" /></div></div>
+									</div>
 								</div>
 							</div>
 							<div class="setting-group">
@@ -241,32 +286,8 @@
 											</select>
 										</div>
 									</div>
-									<div class="setting-item mod-horizontal">
-										<div class="setting-item-info">
-											<label for="open-behavior-dropdown" data-i18n="openBehaviorTitle">Default open behavior</label>
-											<div class="setting-item-description" data-i18n="openBehaviorDescription">
-												Choose how Web Clipper opens by default.
-											</div>
-										</div>
-										<div class="setting-item-control">
-											<select id="open-behavior-dropdown">
-												<option value="popup" selected data-i18n="popup">Popup</option>
-												<option value="embedded" data-i18n="embedded">Embedded</option>
-												<option value="reader" data-i18n="reader">Reader</option>
-											</select>
-										</div>
-									</div>
-									<div class="setting-item mod-horizontal">
-										<div class="setting-item-info">
-											<label for="default-template-dropdown" data-i18n="defaultTemplateTitle">Default template</label>
-											<div class="setting-item-description" data-i18n="defaultTemplateDescription">
-												Used when no template trigger matches the page, and for keyboard shortcut clipping.
-											</div>
-										</div>
-										<div class="setting-item-control">
-											<select id="default-template-dropdown"></select>
-										</div>
-									</div>
+									
+									
 									<div class="setting-item mod-horizontal mod-toggle">
 										<div class="setting-item-info">
 											<label for="silent-open-toggle" data-i18n="silentOpen">Save clipped note without opening&nbsp;it</label>
@@ -334,9 +355,26 @@
 						<div class="settings-section-header">
 							<h2 data-i18n="navLearning">Learning notes</h2>
 						</div>
+						<div class="learn-how" aria-label="怎么用">
+							<div class="learn-step">
+								<div class="learn-art"><span class="learn-key">I</span><span class="learn-key">I</span><span class="learn-key">I</span></div>
+								<div class="learn-step-title"><span class="learn-num">1</span>连按三次 I</div>
+								<div class="learn-step-text">在文章、视频或音频页，快速连按三次。</div>
+							</div>
+							<div class="learn-step">
+								<div class="learn-art"><div class="learn-card"><div class="learn-card-quote">选中的原文</div><div class="learn-card-line">我的想法…</div><div class="learn-card-meta">来源 · 12:36</div></div></div>
+								<div class="learn-step-title"><span class="learn-num">2</span>写下想法</div>
+								<div class="learn-step-text">小卡片里只写你的想法，原文和视频时间自动带上。</div>
+							</div>
+							<div class="learn-step">
+								<div class="learn-art"><div class="learn-diary"><div class="learn-diary-date">今天的日记</div><div class="learn-diary-line"></div><div class="learn-diary-line short"></div><div class="learn-diary-new">+ 刚写的想法</div></div></div>
+								<div class="learn-step-title"><span class="learn-num">3</span>存进今天的日记</div>
+								<div class="learn-step-text">追加到笔记库里今天的日记，不用切到 Obsidian。</div>
+							</div>
+						</div>
 						<form id="learning-settings-form">
 							<div class="setting-group">
-								<div class="setting-item setting-item-heading"><h3 data-i18n="navLearning">Learning notes</h3></div>
+								<div class="setting-item setting-item-heading"><h3 >日记</h3></div>
 								<div class="setting-items">
 									<div class="setting-item mod-horizontal mod-toggle">
 										<div class="setting-item-info">
@@ -377,30 +415,38 @@
 											</div>
 										</div>
 									</div>
-									<div class="setting-item mod-horizontal mod-toggle">
-										<div class="setting-item-info">
-											<label for="selection-toolbar-toggle" data-i18n="selectionToolbarTitle">Selection toolbar</label>
-											<div class="setting-item-description" data-i18n="selectionToolbarDescription">
-												Show a small toolbar next to selected text in the reading and editing pages, with Highlight and Ask AI.
-											</div>
-										</div>
-										<div class="setting-item-control">
-											<div class="checkbox-container">
-												<input type="checkbox" id="selection-toolbar-toggle" />
-											</div>
-										</div>
-									</div>
+									
+									
 								</div>
 							</div>
 						</form>
 					</div>
 
 
-					<div id="video-section" class="settings-section">
+					<div id="study-section" class="settings-section">
 						<div class="settings-section-header">
-							<h2 data-i18n="navVideoSites">Transcript bar and sites</h2>
+							<h2 data-i18n="navStudyHome">Transcribe and study</h2>
 						</div>
-						<form id="video-settings-form">
+						<div id="study-home"></div>
+					</div>
+
+					<div id="asr-section" class="settings-section">
+						<div class="settings-section-header">
+							<h2>字幕识别</h2>
+						</div>
+						
+						<div class="setting-group" id="asr-pointer">
+							<div class="setting-items">
+								<div class="setting-item mod-horizontal">
+									<div class="setting-item-info">
+										<label>生成字幕用</label>
+										<div class="setting-item-description"><span id="asr-current-label">…</span><span id="asr-current-note"></span></div>
+									</div>
+									<div class="setting-item-control"><button type="button" class="btn" data-goto-section="asr-models">更改</button></div>
+								</div>
+							</div>
+						</div>
+						<div id="video-settings-form">
 							<div class="setting-group" id="video-bar-settings">
 								<div class="setting-item setting-item-heading"><h3>视频页的字幕条</h3></div>
 								<div class="setting-items">
@@ -452,57 +498,25 @@
 									<div id="study-sites-list"></div>
 								</div>
 							</div>
-						</form>
-					</div>
-
-					<div id="study-section" class="settings-section">
-						<div class="settings-section-header">
-							<h2 data-i18n="navStudyHome">Transcribe and study</h2>
 						</div>
-						<div id="study-home"></div>
-					</div>
-
-					<div id="asr-section" class="settings-section">
-						<div class="settings-section-header">
-							<h2 data-i18n="navAsr">Speech recognition</h2>
-						</div>
-						<form id="asr-settings-form">
-							<div class="setting-group" id="asr-settings">
-								<div class="setting-item setting-item-heading"><h3>语音识别</h3></div>
-								<div class="setting-items">
-									<div class="setting-item-description">视频或音频没有字幕时，用语音识别生成带时间的字幕。本机识别免费、音频不离开这台电脑；云端更快，但音频会上传并按量计费。</div>
-									<div class="asr-current">
-										<div class="asr-current-row"><label for="asr-default">当前使用</label><select id="asr-default" class="dropdown"></select></div>
-										<details class="asr-sites"><summary>每个网站单独设置</summary><div class="asr-routes" id="asr-routes"></div></details>
-										<div class="asr-auto">
-											<div class="asr-auto-text"><label for="asr-use-context">用视频信息提高人名和术语的准确度</label><span>把视频或节目的标题、作者、简介作为背景交给识别，减少人名、品牌和术语写错。简介里的错别字也可能被当成对的；用云端时这些公开信息会随音频一起发送。</span></div>
-											<div class="checkbox-container"><input type="checkbox" id="asr-use-context" /></div>
-										</div>
-									<div class="asr-auto">
-											<div class="asr-auto-text"><label for="asr-auto-start">点「生成字幕」后直接开始</label><span>不再每次确认。用云端时音频会直接上传；需要先安装、或想换个方式重新生成时，仍会先问。</span></div>
-											<div class="checkbox-container"><input type="checkbox" id="asr-auto-start" /></div>
-										</div>
-									</div>
-									<div class="asr-block-title">推荐</div>
-									<div class="asr-rec" id="asr-rec"></div>
-									<div class="asr-block-title"><span>我的识别方式</span><button type="button" id="asr-add" class="asr-link">＋ 添加其他</button></div>
-									<div class="asr-list" id="asr-grid"></div>
-									<div id="asr-status" class="setting-item-description" role="status" aria-live="polite"></div>
-								</div>
-							</div>
-						</form>
 					</div>
 
 					<div id="highlighter-section" class="settings-section">
 						<div class="settings-section-header">
-							<h2 data-i18n="highlighterSettings">Highlighter</h2>
-							<div class="settings-section-actions">
-								<a href="highlights.html" id="view-highlights" class="btn" target="_blank" data-i18n="openHighlights">Open highlights</a>
-							</div>
+							<h2>划线</h2>
 						</div>
 						<form id="highlighter-settings-form">
 							<div class="setting-group">
 								<div class="setting-items">
+									<div class="setting-item mod-horizontal">
+										<div class="setting-item-info">
+											<label for="view-highlights">你的划线</label>
+											<div class="setting-item-description">所有划线集中在一个页面：按网页查看、搜索、复制和导出。</div>
+										</div>
+										<div class="setting-item-control">
+											<a href="highlights.html" id="view-highlights" class="btn" target="_blank" rel="noopener noreferrer">查看全部划线</a>
+										</div>
+									</div>
 									<div class="setting-item mod-horizontal mod-toggle">
 										<div class="setting-item-info">
 											<label for="highlighter-visibility" data-i18n="alwaysShowHighlights">Always show highlights</label>
@@ -563,17 +577,44 @@
 
 					<div id="reader-section" class="settings-section">
 						<div class="settings-section-header">
-							<h2 data-i18n="reader">Reader</h2>
+							<h2>阅读样式</h2>
 							<div class="settings-section-actions">
 								<a href="reader.html" id="open-reader" class="btn" target="_blank" data-i18n="openReader">Open Reader</a>
 							</div>
 						</div>
 						<div id="reader-preview" class="obsidian-reader-active">
-							<p class="reader-preview-title">File over app</p>
-							<p class="reader-preview-meta">Steph Ango · July 1, 2023 · <a class="reader-preview-meta-link" href="https://stephango.com/file-over-app" target="_blank">stephango.com</a></p>
-							<p class="reader-preview-body"><em>File over app</em> is a philosophy: if you want to create <strong>digital artifacts that last</strong>, they must be files you can control, in formats that are easy to retrieve and read. Use tools that give you this <a class="reader-preview-link" href="https://stephango.com/file-over-app" target="_blank">freedom</a>.</p>
+							<p class="reader-preview-title">文件优先于应用</p>
+							<p class="reader-preview-meta">Steph Ango · 2023 年 7 月 1 日 · <a class="reader-preview-meta-link" href="https://stephango.com/file-over-app" target="_blank">stephango.com</a></p>
+							<p class="reader-preview-body"><em>文件优先于应用</em>是一种理念：想让数字作品<strong>长久留存</strong>，它们就该是你能掌控、格式也容易读取的文件。选那些能给你这份<a class="reader-preview-link" href="https://stephango.com/file-over-app" target="_blank">自由</a>的工具。</p>
 						</div>
 						<form id="reader-settings-form">
+							<div class="setting-group">
+								<div class="setting-item setting-item-heading"><h3>阅读时</h3></div>
+								<div class="setting-items">
+<div class="setting-item mod-horizontal mod-toggle">
+										<div class="setting-item-info">
+											<label for="reader-auto-chat-toggle">打开阅读页时显示 AI 对话</label>
+											<div class="setting-item-description">进入阅读页就展开右侧的 AI 对话，不用再点一下。</div>
+										</div>
+										<div class="setting-item-control">
+											<div class="checkbox-container">
+												<input type="checkbox" id="reader-auto-chat-toggle" />
+											</div>
+										</div>
+									</div>
+<div class="setting-item mod-horizontal mod-toggle">
+										<div class="setting-item-info">
+											<label for="selection-toolbar-toggle">选中文字时显示工具条</label>
+											<div class="setting-item-description">在文字旁边出现一个小工具条：划线、问 AI。</div>
+										</div>
+										<div class="setting-item-control">
+											<div class="checkbox-container">
+												<input type="checkbox" id="selection-toolbar-toggle" />
+											</div>
+										</div>
+									</div>
+								</div>
+							</div>
 							<div class="setting-group">
 								<div class="setting-item setting-item-heading"><h3 data-i18n="readerFonts">Fonts</h3></div>
 								<div class="setting-items">
@@ -740,37 +781,9 @@
 
 					<div id="interpreter-section" class="settings-section">
 						<div class="settings-section-header">
-							<h2 data-i18n="interpreter">Interpreter</h2>
+							<h2>LLM 提供商与模型</h2>
 						</div>
 						<form id="interpreter-settings-form">
-							<div class="setting-group">
-								<div class="setting-items">
-									<div class="setting-item mod-horizontal mod-toggle">
-										<div class="setting-item-info">
-											<label for="interpreter-toggle" data-i18n="enableInterpreter">Enable interpreter</label>
-											<div class="setting-item-description" data-i18n="enableInterpreterDescription">
-												Use natural language to extract data from pages. For example, you can use the template syntax <strong>{{"a summary of the page"}}</strong>. Requires an API key or custom model configured below. <a href="https://help.obsidian.md/web-clipper/interpreter" target="_blank">Learn more</a>.
-											</div>
-										</div>
-										<div class="setting-item-control">
-											<div class="checkbox-container">
-												<input type="checkbox" id="interpreter-toggle" />
-											</div>
-										</div>
-									</div>
-									<div class="setting-item mod-horizontal mod-toggle">
-										<div class="setting-item-info">
-											<label for="interpreter-auto-run-toggle" data-i18n="autoRunInterpreter">Automatically run</label>
-											<div class="setting-item-description" data-i18n="autoRunInterpreterDescription">Run prompt variables immediately if the template contains any. This will consume API credits with your model provider. Turn off if you only want to run interpreter manually.</div>
-										</div>
-										<div class="setting-item-control">
-											<div class="checkbox-container">
-												<input type="checkbox" id="interpreter-auto-run-toggle" />
-											</div>
-										</div>
-									</div>
-								</div>
-							</div>
 							<div class="setting-group">
 								<div class="setting-item setting-item-heading">
 									<h3 data-i18n="providers">Providers</h3>
@@ -803,24 +816,102 @@
 								</div>
 								</div>
 							</div>
-							<div class="setting-group">
-								<div class="setting-item setting-item-heading"><h3 data-i18n="advanced">Advanced</h3></div>
-								<div class="setting-items">
-								<div class="setting-item">
-									<label for="default-prompt-context" data-i18n="defaultInterpreterContext">Default interpreter context</label>
-									<div class="setting-item-description" data-i18n="defaultInterpreterContextDescription">Override the context used to interpret prompt variables. Variables can be used here.</div>
-									<textarea id="default-prompt-context" rows="4" placeholder="{{fullHtml}}" spellcheck="false"></textarea>
+						</form>
+					</div>
+
+					<div id="asr-models-section" class="settings-section">
+						<div class="settings-section-header">
+							<h2>ASR 语音识别</h2>
+						</div>
+						<form id="asr-settings-form">
+							<div id="asr-settings">
+								<p class="asr-lead">视频或音频没有字幕时，由它把声音听写成带时间的字幕。选一个模型就好。</p>
+								<div class="setting-group">
+									<div class="setting-item setting-item-heading"><h3>默认使用</h3></div>
+									<div class="setting-items asr-current">
+										<div class="asr-current-row"><label for="asr-default">生成字幕时用</label><select id="asr-default" class="dropdown"></select></div>
+										<div class="asr-current-note" id="asr-default-note"></div>
+										<details class="asr-sites"><summary>不同网站用不同的模型</summary><div class="asr-routes" id="asr-routes"></div></details>
+									</div>
 								</div>
-								
+								<div class="setting-group">
+									<div class="setting-item setting-item-heading"><h3>推荐</h3></div>
+									<div class="asr-rec" id="asr-rec"></div>
 								</div>
+								<div class="setting-group">
+									<div class="setting-item setting-item-heading"><h3>已添加</h3><button type="button" id="asr-add" class="asr-link">＋ 添加其他</button></div>
+									<div class="asr-list" id="asr-grid"></div>
+								</div>
+								<div class="setting-group">
+									<div class="setting-item setting-item-heading"><h3>生成时</h3></div>
+									<div class="setting-items asr-current">
+										<div class="asr-auto is-first">
+											<div class="asr-auto-text"><label for="asr-auto-start">点「生成字幕」后直接开始</label><span>不再每次确认。用云端模型时，音频会直接上传。</span></div>
+											<div class="checkbox-container"><input type="checkbox" id="asr-auto-start" /></div>
+										</div>
+										<div class="asr-auto" id="asr-auto-login-row" hidden>
+											<div class="asr-auto-text"><label for="asr-auto-login">下载要验证身份时，用这个浏览器的登录状态</label><span>YouTube 等网站会要求登录才给音频。打开后，只把当前网站的登录信息交给本机助手，不会上传。第一次打开时，Chrome 会请你确认授权。</span></div>
+											<div class="checkbox-container"><input type="checkbox" id="asr-auto-login" /></div>
+										</div>
+										<div class="asr-auto">
+											<div class="asr-auto-text"><label for="asr-use-context">参考视频简介，少写错人名和术语</label><span>把标题、作者和简介交给模型参考。简介里的错字可能被照抄；用云端时，这些信息会一起发送。</span></div>
+											<div class="checkbox-container"><input type="checkbox" id="asr-use-context" /></div>
+										</div>
+									</div>
+								</div>
+								<div id="asr-status" class="setting-item-description" role="status" aria-live="polite"></div>
 							</div>
 						</form>
 					</div>
 
-					<div id="properties-section" class="settings-section">
+					<div id="templates-home-section" class="settings-section">
 						<div class="settings-section-header">
-							<h2 data-i18n="propertiesSettings">Properties</h2>
+							<h2>剪藏模版</h2>
 						</div>
+						<div class="setting-group">
+							<div class="setting-items">
+								<div class="setting-item-description">每次剪藏，模版决定笔记存到哪里、长什么样。多数网页用「默认版」就够了；需要时再为某个网站新建一个。</div>
+								<div class="setting-item mod-horizontal">
+									<div class="setting-item-info"><label for="new-template-btn">我的模版</label></div>
+									<div class="setting-item-control"><button type="button" id="new-template-btn" class="mod-cta">新建模版</button></div>
+								</div>
+								<ul id="template-list"></ul>
+								<div class="setting-item mod-horizontal">
+										<div class="setting-item-info">
+											<label for="default-template-dropdown">默认模版</label>
+											<div class="setting-item-description">网页没有更合适的模版时，就用它。</div>
+										</div>
+										<div class="setting-item-control">
+											<select id="default-template-dropdown"></select>
+										</div>
+									</div>
+							</div>
+						</div>
+						<div class="settings-section-header"><h2>AI 整理网页</h2></div>
+						<div class="setting-group" id="template-ai-group">
+							<div class="setting-items">
+								<div class="setting-item mod-horizontal mod-toggle">
+									<div class="setting-item-info">
+										<label for="interpreter-toggle">在模版里用一句话让 AI 提取内容</label>
+										<div class="setting-item-description">模版里写 <strong>{{"这篇文章的摘要"}}</strong> 这样的话，剪藏时由 AI 补上。需要先在「LLM 提供商与模型」里添加模型。</div>
+									</div>
+									<div class="setting-item-control"><div class="checkbox-container"><input type="checkbox" id="interpreter-toggle" /></div></div>
+								</div>
+								<div class="setting-item mod-horizontal mod-toggle">
+									<div class="setting-item-info">
+										<label for="interpreter-auto-run-toggle">打开剪藏面板就自动提取</label>
+										<div class="setting-item-description">模版里有这样的句子时，一打开面板就调用模型，会消耗你的模型额度。关掉则手动点「提取」。</div>
+									</div>
+									<div class="setting-item-control"><div class="checkbox-container"><input type="checkbox" id="interpreter-auto-run-toggle" /></div></div>
+								</div>
+								<div class="setting-item" id="default-context-row" hidden>
+									<label for="default-prompt-context">AI 读到的内容</label>
+									<div class="setting-item-description">AI 回答模版里的这类句子时，默认读哪些内容。留空就读清理过的整个网页，一般不用改；只想让它读某部分时，可以写模版变量，如 {{content}}。</div>
+									<textarea id="default-prompt-context" rows="3" placeholder="{{content}}" spellcheck="false"></textarea>
+								</div>
+							</div>
+						</div>
+						<div class="settings-section-header"><h2>属性类型</h2></div>
 						<form id="property-types-form">
 							<div class="setting-group">
 								<div class="setting-items">
@@ -860,7 +951,7 @@
 								</div>
 							</div>
 							<div class="setting-group">
-								<div class="setting-item setting-item-heading"><h3 data-i18n="allProperties">All properties</h3></div>
+								<div class="setting-item setting-item-heading"><h3>每个属性的类型</h3></div>
 								<div class="setting-items">
 								<div class="add-btn" style="display: none;">
 									<a id="add-property-type-btn" data-i18n="addProperty">+ Add property</a>
@@ -874,6 +965,7 @@
 
 					<div id="templates-section" class="settings-section">
 						<div class="settings-section-header">
+							<a href="#" class="template-back" data-goto-section="templates-home">← 剪藏模版</a>
 							<h2 id="template-editor-title" data-i18n="editTemplate">Edit template</h2>
 							<div class="settings-section-actions">
 								<button class="export-template-btn mh" data-i18n="export">Export</button>

@@ -13,7 +13,8 @@ const commandNameToMessageKey: { [key: string]: string } = {
 	'_execute_action': 'commandOpenClipper',
 	'quick_clip': 'commandQuickClip',
 	'toggle_highlighter': 'commandToggleHighlighter',
-	'toggle_reader': 'commandToggleReader'
+	'toggle_reader': 'commandToggleReader',
+	'open_editor': 'commandOpenEditor'
 };
 
 export async function getCommands (): Promise<Command[]> {
