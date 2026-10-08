@@ -419,9 +419,9 @@ def pid_alive(pid):
     if not isinstance(pid, int) or pid <= 0: return False
     if eng.windows():
         # os.kill(pid, 0) terminates a process on Windows instead of probing it.
-        query = f"(Get-CimInstance Win32_Process -Filter 'ProcessId = {pid}').CommandLine"
+        query = f"[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new(); (Get-CimInstance Win32_Process -Filter 'ProcessId = {pid}').CommandLine"
         try:
-            command = subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', query], capture_output=True, text=True, timeout=10, creationflags=0x08000000).stdout
+            command = subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', query], capture_output=True, text=True, encoding='utf8', errors='replace', timeout=10, creationflags=0x08000000).stdout
         except (OSError, subprocess.SubprocessError): return False
         return 'asr.py' in command and ('worker' in command or 'install' in command)
     try: os.kill(pid, 0)

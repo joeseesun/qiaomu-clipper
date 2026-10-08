@@ -167,3 +167,15 @@ it('sends the viewer to the settings when the permission to use the browser logi
 	expect(full.start).not.toHaveBeenCalled(); expect(openSettings).toHaveBeenCalled();
 	expect(shown[shown.length - 1]).toMatchObject({ kind: 'failed', code: 'cookies-permission' });
 });
+
+
+it('OpenAI only installs the 60 MB base tools and continues without a local model', async () => {
+    const install = vi.fn(async () => ({ ok: true as const, jobId: 'i'.repeat(32), engine: 'base', state: 'queued' as const, stage: '', progress: 0 }));
+    const { gen, full } = make({ install, installPoll: vi.fn(async () => ({ ok: true as const, jobId: 'i'.repeat(32), engine: 'base', state: 'completed' as const, stage: 'done', progress: 100 })), status: vi.fn(async () => ({ ...base, mode: 'cloud' as const, cloudLabel: 'OpenAI', ready: false, engine: 'cloud', missing: ['yt-dlp', 'ffmpeg'], local: [engine('faster-whisper', { installed: false, sizeMb: 1700, modelReady: false, recommended: true })], choices: { mode: 'cloud' as const, engine: 'faster-whisper', active: 'openai', profiles: [{ id: 'openai', label: 'OpenAI', local: false, configured: true }] }, installable: { base: true, engines: ['faster-whisper'] } })) });
+    gen.actions.request(); await settle();
+    expect(shown[shown.length - 1]).toMatchObject({ kind: 'confirm', selected: 'cloud:openai', cloud: 'OpenAI', modelDownload: false, install: { sizeMb: 60 } });
+    gen.actions.confirm(); await settle();
+    expect(install).toHaveBeenCalledExactlyOnceWith('base');
+    expect(full.start).toHaveBeenCalledWith(KEY, 'auto');
+    expect(saved).toEqual([[KEY, 1]]);
+});

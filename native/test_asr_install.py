@@ -85,11 +85,26 @@ class InstallTests(unittest.TestCase):
     def test_windows_polling_queries_the_worker_without_signalling_it(self):
         directory = asr.installs_dir(self.base) / ('d' * 32); directory.mkdir(parents=True)
         asr.write_state(directory, state='installing', pid=4242, stage='正在安装')
-        result = subprocess.CompletedProcess([], 0, stdout='python.exe native/asr.py install job')
+        result = subprocess.CompletedProcess([], 0, stdout='python.exe C:/中文 空格/native/asr.py install job')
         with patch.object(eng, 'windows', return_value=True), patch.object(asr.subprocess, 'run', return_value=result) as run, patch.object(asr.os, 'kill') as kill:
             state = asr.install_poll(self.base, {'jobId': directory.name})
         self.assertEqual(state['state'], 'installing'); kill.assert_not_called()
         self.assertIn('Get-CimInstance', run.call_args[0][0][-1])
+        self.assertIn('OutputEncoding', run.call_args[0][0][-1])
+        self.assertEqual(run.call_args.kwargs['encoding'], 'utf8')
+
+    def test_base_install_worker_never_installs_an_engine_or_downloads_a_model(self):
+        directory = asr.installs_dir(self.base) / ('b' * 32); directory.mkdir(parents=True)
+        asr.atomic_json(directory / 'spec.json', {'engine': 'base'})
+        with patch.object(eng, 'python_version', return_value=(3, 12)), patch.object(eng, 'modern_python', return_value=sys.executable), patch.object(asr, 'stream', return_value=(0, [])) as stream, patch.object(asr, 'link_ffmpeg') as link, patch.object(asr, 'fetch_model') as model:
+            asr.run_install(str(directory))
+        commands = [call.args[0] for call in stream.call_args_list]
+        pip = next(command for command in commands if 'pip' in command)
+        self.assertIn('yt-dlp', pip); self.assertIn('imageio-ffmpeg', pip)
+        self.assertFalse(any('faster-whisper' in command for command in commands))
+        model.assert_not_called(); link.assert_called_once()
+        self.assertEqual(asr.read_state(directory)['state'], 'completed')
+        self.assertEqual(eng.BASE['sizeMb'], 60)
 
     def test_windows_dead_or_recycled_worker_is_not_cancelled(self):
         with patch.object(eng, 'windows', return_value=True), patch.object(asr.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0, stdout='python.exe unrelated.py')) as run:
