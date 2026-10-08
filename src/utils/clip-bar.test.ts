@@ -6,7 +6,8 @@ vi.mock('./i18n', () => ({ getMessage: (key: string) => key }));
 vi.mock('./clip-preview', () => ({ saveClipPreview: vi.fn(), updateClipPreview: vi.fn() }));
 vi.mock('./clipboard-utils', () => ({ copyToClipboard: vi.fn() }));
 
-import { createClipBar, autoHideBar } from './clip-bar';
+import * as clipBar from './clip-bar';
+const { createClipBar, autoHideBar } = clipBar;
 
 const draft: any = { aggregate: true, local: { content: '', name: 'a.md' }, clip: { title: 'a' } };
 
@@ -15,6 +16,13 @@ it('shows an icon on copy, download and clip', () => {
 	for (const id of ['clip-bar-copy', 'clip-bar-download', 'clip-bar-clip']) {
 		expect(bar.querySelector(`#${id} svg`), id).not.toBeNull();
 	}
+});
+
+it('returns media drafts to their video Read page instead of the plain preview', () => {
+	const media = { ...draft, mediaReadUrl: 'reader.html?study=web&url=https%3A%2F%2Fx.com%2Fpost' };
+	expect((clipBar as any).clipPageFor?.('read', 'draft-1', media)).toBe('reader.html?study=web&url=https%3A%2F%2Fx.com%2Fpost&draft=draft-1');
+	expect((clipBar as any).clipPageFor?.('edit', 'draft-1', media)).toBe('editor.html?id=draft-1');
+	expect((clipBar as any).clipPageFor?.('read', 'draft-1', draft)).toBe('reader.html?preview=draft-1');
 });
 
 it('hides on scroll down and returns on scroll up, including element scrollers', () => {

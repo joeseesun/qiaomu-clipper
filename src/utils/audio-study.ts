@@ -46,6 +46,8 @@ export interface AudioStudyOptions {
 	// Any other site yt-dlp can read: its address.
 	webUrl?: string;
 	sourceTabId?: number;
+	draftId?: string;
+	mediaReadUrl?: string;
 }
 const text = (id: string, zh: string, en: string) => { try { return browser.i18n.getMessage(id) || (/^zh/i.test(navigator.language) ? zh : en); } catch { return /^zh/i.test(navigator.language) ? zh : en; } };
 const FILE_PAGE_URL = 'https://qiaomu.local/audio';
@@ -138,7 +140,7 @@ article[data-audio-tab=transcript] .qiaomu-shownotes{display:none}
 export async function startAudioStudy(options: AudioStudyOptions): Promise<void> {
 	const initialTitle = options.title || (options.kind === 'file' ? t('本地音频学习') : options.kind === 'web' ? t('视频学习') : t('播客学习'));
 	const url = options.webUrl || options.url || FILE_PAGE_URL;
-	const session = await createReaderSourceDraft(url, initialTitle);
+	const session = await createReaderSourceDraft(url, initialTitle, { existingId: options.draftId, mediaReadUrl: options.mediaReadUrl });
 	Reader.onEdit = () => {};
 	Object.defineProperty(document, 'URL', { value: url, configurable: true });
 	Reader.isReaderPage = true;

@@ -9,6 +9,7 @@ import { t } from './ui-text';
 export interface ClipPreview {
     local: LocalSavePayload;
     clip: QiaomuClip;
+    mediaReadUrl?: string;
     aggregate: boolean;
     native: boolean;
     properties?: Property[];

@@ -1,5 +1,5 @@
 import { createMarkdownContent } from 'defuddle/full';
-import { ClipPreview, updateClipPreview } from './clip-preview';
+import { ClipPreview, loadClipPreview, updateClipPreview } from './clip-preview';
 import { generalSettings, loadSettings } from './storage-utils';
 import browser from './browser-polyfill';
 import { loadTemplates } from '../managers/template-manager';
@@ -10,14 +10,22 @@ import { sanitizeFileName } from './string-utils';
 import { findMatchingTemplate, initializeTriggers } from './triggers';
 
 import { t } from './ui-text';
-export async function createReaderSourceDraft(url: string, initialTitle: string) {
+export async function createReaderSourceDraft(url: string, initialTitle: string, options: { existingId?: string; mediaReadUrl?: string } = {}) {
 	await loadSettings();
+	if (options.existingId) {
+		const existing = await loadClipPreview(options.existingId);
+		if (existing?.clip.url === url) {
+			if (options.mediaReadUrl) existing.mediaReadUrl = options.mediaReadUrl;
+			return { draft: existing, populate: async () => {} };
+		}
+	}
 	const templates = await loadTemplates();
 	const template = templates.find(item => item.id === generalSettings.defaultTemplateId) || templates[0];
 	const saved = await browser.storage.local.get(['lastSelectedVault','qiaomuRssEnabled','qiaomuNativeConfigured']) as {lastSelectedVault?:string; qiaomuRssEnabled?:boolean; qiaomuNativeConfigured?:boolean};
 	const title = initialTitle.replace(/\s*- YouTube$/, '') || t('YouTube 视频学习');
 	const draft: ClipPreview = {
 		createdAt:Date.now(), aggregate:saved.qiaomuRssEnabled === true, native:saved.qiaomuNativeConfigured === true,
+		...(options.mediaReadUrl ? {mediaReadUrl:options.mediaReadUrl} : {}),
 		clip:{url,title,markdown:''}, properties:[],
 		local:{requestId:crypto.randomUUID(), content:'', name:`${sanitizeFileName(title)}.md`, folder:template.path, vault:template.vault || saved.lastSelectedVault || generalSettings.vaults[0] || '', behavior:template.behavior},
 	};

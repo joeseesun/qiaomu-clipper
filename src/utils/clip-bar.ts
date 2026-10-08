@@ -21,7 +21,9 @@ interface ClipBarOptions {
 	onToggleChat?: () => boolean;
 }
 
-const pageFor = (mode: ClipMode, id: string) => browser.runtime.getURL(mode === 'read' ? `reader.html?preview=${id}` : `editor.html?id=${id}`);
+export const clipPageFor = (mode: ClipMode, id: string, draft: ClipPreview) => mode === 'read' && draft.mediaReadUrl
+	? `${draft.mediaReadUrl}${draft.mediaReadUrl.includes('?') ? '&' : '?'}draft=${encodeURIComponent(id)}`
+	: browser.runtime.getURL(mode === 'read' ? `reader.html?preview=${id}` : `editor.html?id=${id}`);
 
 function button(id: string, icon: Parameters<typeof createElement>[0] | null, labelKey: string, className = ''): HTMLButtonElement {
 	const el = document.createElement('button');
@@ -89,7 +91,7 @@ export function createClipBar({ mode, id, draft, title, domain, url, sync, onTog
 		if (target !== mode) {
 			tab.addEventListener('click', async () => {
 				await sync?.(target);
-				location.href = pageFor(target, id);
+				location.href = clipPageFor(target, id, draft);
 			});
 		}
 		segment.appendChild(tab);
