@@ -754,8 +754,8 @@ def download(directory, spec, env, tools):
         match = pattern.search(line)
         if match: write_state(directory, state='downloading', stage='正在下载音频', progress=round(min(float(match.group(1)), 100) * 0.15, 1))
     refreshed = False; client_retry = False; network_retries = 0
-    # At most the initial request, two transport retries, one updated-tool retry and one client retry.
-    for attempt in range(5):
+    # Only YouTube needs room for the extra client retry; preserve other sites' three-attempt limit.
+    for attempt in range(5 if spec['videoKey'].startswith('youtube:') else 3):
         for leftover in directory.glob('audio.*'): leftover.unlink(missing_ok=True)  # never resume a truncated CDN stream as if it were whole
         write_state(directory, state='downloading', stage='正在下载音频', progress=0)
         code, tail = stream(command, env, progress)

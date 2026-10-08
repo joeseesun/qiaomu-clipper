@@ -122,6 +122,13 @@ class DownloadTests(unittest.TestCase):
             asr.download(self.directory, self.spec, {}, self.tools)
         self.assertEqual(len(self.commands), 5)
 
+    def test_other_sites_keep_the_original_three_attempt_limit(self):
+        self.spec['videoKey'] = 'bilibili:BV1hM4m1U7rA:20'; self.spec['url'] = asr.video_url(self.spec['videoKey'])
+        with self.attempt(['player response invalid', 'connection reset', 'timed out']), patch.object(asr.time, 'sleep'), patch.object(asr, 'update_ytdlp', return_value=True), patch.object(asr, 'find_tool', return_value='new'), self.assertRaises(asr.Failed):
+            asr.download(self.directory, self.spec, {}, self.tools)
+        self.assertEqual(len(self.commands), 3)
+        self.assertTrue(all('--extractor-args' not in command for command in self.commands))
+
     def test_other_sites_login_walls_cookie_errors_and_generic_403_do_not_get_client_retry(self):
         cases = [('bilibili:BV1hM4m1U7rA:20', 'The page needs to be reloaded.', 'tool-outdated'),
                  (self.spec['videoKey'], 'Sign in to confirm you are not a bot', 'needs-cookies'),
