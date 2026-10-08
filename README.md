@@ -18,7 +18,7 @@ Read, watch, listen, and turn what you learn into Obsidian notes.
 
 </div>
 
-> **安装建议（2026-10-08）：等新版商店上架后安装。** [Chrome 应用商店](https://chromewebstore.google.com/detail/jniolfihillilkoajpnonlbkhfkiicoo)公开版本请以商店页面为准；**新版商店包正在准备提审，建议等待审核上架**。本页介绍 1.15.6 的功能，旧商店版不包含全部功能。想现在体验，将下面这段安装 prompt 复制给 Codex、Claude Code 等有本机终端权限的 Agent，插件和 helper 一起安装。
+> **安装建议（2026-10-08）：等新版商店上架后安装。** [Chrome 应用商店](https://chromewebstore.google.com/detail/jniolfihillilkoajpnonlbkhfkiicoo)当前公开版本仍为 **1.7.1**；**1.15.6 已提交审核，通过后自动发布**。本页介绍 1.15.6 的功能，旧商店版不包含全部功能。想现在体验，将下面这段安装 prompt 复制给 Codex、Claude Code 等有本机终端权限的 Agent，插件和 helper 一起安装。
 
 ```text
 请帮我安装或升级乔木剪藏：https://github.com/joeseesun/qiaomu-clipper 。先读 README.md 和 native/README.md，按我的系统与浏览器操作。
@@ -223,7 +223,7 @@ node scripts/check-editions.mjs
 
 Qiaomu Clipper brings a clean reader, Markdown editor, media player, timed transcripts and contextual AI chat into one workflow. Study a passage, ask a question, and save your own understanding with its source.
 
-> **Installation recommendation, October 8, 2026:** wait for **1.15.6 or later** to appear on the [Chrome Web Store](https://chromewebstore.google.com/detail/jniolfihillilkoajpnonlbkhfkiicoo). Check the store page for the currently available version. The new store package is being prepared for review; wait for approval and availability. This README describes 1.15.6. For early access, ask an agent with local terminal access to read the repository and install the [GitHub release](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.15.6).
+> **Installation recommendation, October 8, 2026:** wait for **1.15.6 or later** to appear on the [Chrome Web Store](https://chromewebstore.google.com/detail/jniolfihillilkoajpnonlbkhfkiicoo). The current published version is **1.7.1**; **1.15.6 is submitted for review and set to publish automatically after approval**. This README describes 1.15.6. For early access, ask an agent with local terminal access to read the repository and install the [GitHub release](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.15.6).
 
 ### Quick start
 
