@@ -85,6 +85,7 @@
  "此系统暂不支持从本机选择附件": "This system can't choose attachments from this computer yet",
  "没有在这集节目页面里找到音频地址": "No audio address was found on this episode's page",
  "没有识别到语音内容": "No speech was recognized",
+ "没能读取浏览器的登录状态：系统不允许本地助手访问浏览器的数据": "Couldn't read the browser's sign-in state: the system doesn't let the local helper access the browser's data",
  "生成字幕时出错：": "Error while generating subtitles: ",
  "笔记保存方式无效": "Invalid way of saving the note",
  "笔记必须保存在所选库内的普通文件夹": "Notes must be saved in a regular folder inside the chosen vault",

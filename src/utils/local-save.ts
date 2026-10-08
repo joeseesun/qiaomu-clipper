@@ -6,6 +6,7 @@ import { siteOf } from './study-sites';
 import { webMediaAddress } from './web-media-page';
 import { activeProfile, choosePatch, cloudConfig, effectiveFor, isConfigured, isHttpsOrLocal, isLocalService, loadAsrSettings, platformOf, profileLabel, saveAsrSettings, LOCAL_ENGINE_IDS, type AsrSettings } from './asr-settings';
 import { callHelper } from './native-helper-call';
+import { cookiesTxtFor, videoAddress, type BrowserCookie } from './browser-cookies';
 import { t } from './ui-text';
 export interface LocalSavePayload { requestId: string; content: string; name: string; folder: string; vault: string; behavior: Template['behavior'] }
 export interface LocalSaveResult { ok: boolean; reason?: string; error?: string; cancelled?: boolean; vault?: string; vaultPath?: string; path?: string; relativePath?: string; folder?: string }
@@ -150,6 +151,13 @@ export function handleAsrMessage(request: unknown, sender: { id?: string; url?: 
             label = cloud.label; here = isLocalService(profile.baseUrl);
             if (payload.mode === 'status') body.cloud = true; else Object.assign(body, { cloud, cloudKey: profile.apiKey || 'none' });
         } else if (chosen && chosen.engine !== 'auto') body.engine = chosen.engine;
+        // The helper started by the browser may not be allowed to read the browser's cookie file: the extension passes the site's cookies itself (local edition).
+        if (__LOCAL_EDITION__ && (payload.mode === 'start' || payload.mode === 'probe') && ['chrome', 'edge', 'brave', 'chromium'].includes(String(body.cookies))) {
+            const address = payload.mode === 'probe' ? String(body.url) : videoAddress(payload.videoKey, (body.web as { url?: string } | undefined)?.url);
+            const cookiesApi = (browser as unknown as { cookies?: { getAll(details: { domain: string }): Promise<BrowserCookie[]> } }).cookies;
+            const text = cookiesApi ? await cookiesTxtFor(address, details => cookiesApi.getAll(details)) : '';
+            if (text) body.cookiesTxt = text;
+        }
         const result = await invokeLearningNative(body)
             // A helper from before this feature answers every unknown request with an "unsupported" error.
             .then(answer => { const reply = answer as { ok?: boolean; error?: string }; return reply && typeof reply.ok === 'boolean' ? (reply.ok === false && /不支持|unsupported/i.test(reply.error || '') ? { ok: false, error: 'helper-outdated' } : answer) : { ok: false, error: 'helper-outdated' }; })

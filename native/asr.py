@@ -25,6 +25,7 @@ TOOL_DIRS = ['/opt/homebrew/bin', '/usr/local/bin', str(Path.home() / '.local/bi
 LANGUAGES = {'auto', 'zh', 'en', 'ja', 'ko', 'de', 'fr', 'es', 'ru', 'pt', 'it'}
 # Browsers yt-dlp can borrow a login from. Only ever used when the viewer explicitly asked for it for this video.
 COOKIE_BROWSERS = {'chrome', 'edge', 'brave', 'chromium', 'firefox', 'safari'}
+COOKIES_UNREADABLE = re.compile(r'cookies? database|could not (find|decrypt).{0,40}cookie|keyring', re.I)  # the helper started by the browser is not always allowed to open the browser's own cookie file
 NEEDS_LOGIN = re.compile(r'sign in to confirm|not a bot|use --cookies|fresh cookies|login required|412|ip address is blocked|blocked from accessing', re.I)  # TikTok answers an anonymous download with "IP address is blocked"; a signed-in browser is let through
 # What a downloader that has fallen behind the site looks like (YouTube changes its player every few weeks). Worth one update and one retry.
 STALE_TOOL = re.compile(r'needs to be reloaded|unable to extract|nsig|signature|player response|precondition check failed|requested format is not available|http error 403|sabr|po token|js runtime|challenge', re.I)
@@ -61,6 +62,19 @@ def write_state(directory, **changes):
 def tool_dirs():
     extra = [x for x in os.environ.get('QIAOMU_TOOL_DIRS', '').split(os.pathsep) if x]
     return extra + eng.private_bin_dirs() + TOOL_DIRS
+COOKIE_FILE_MAX = 1_000_000
+def clean_cookie_text(value):
+    """Cookies the extension read from its own browser, in the Netscape file format yt-dlp reads: only that, and not too much of it."""
+    if value is None: return None
+    if not isinstance(value, str) or len(value) > COOKIE_FILE_MAX or '\x00' in value: raise ValueError('cookies 无效')
+    lines = [line for line in value.splitlines() if line.strip()]
+    for line in lines:
+        if line.startswith('#') and not line.startswith('#HttpOnly_'): continue
+        if len(line.split('\t')) != 7: raise ValueError('cookies 无效')
+    return '\n'.join(lines) + '\n'
+def write_private(path, text):
+    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(descriptor, 'w', encoding='utf8') as handle: handle.write(text)
 def find_tool(name):
     found = shutil.which(name, path=os.pathsep.join(tool_dirs() + [os.environ.get('PATH', '')]))
     return found or (eng.private_ffmpeg() if name == 'ffmpeg' else None)
@@ -468,6 +482,7 @@ def start(base, message):
     if language not in LANGUAGES: raise ValueError('不支持的语言')
     cookies = message.get('cookies') or None
     if cookies is not None and cookies not in COOKIE_BROWSERS: raise ValueError('不支持的浏览器')
+    cookie_text = clean_cookie_text(message.get('cookiesTxt')) if cookies else None
     cloud = None; key = None
     if message.get('cloud'):
         import asr_cloud
@@ -490,6 +505,7 @@ def start(base, message):
         return view(directory, state)
     engine = 'cloud' if cloud else info['engine']
     spec = {'id': job_id, 'videoKey': video_key, 'url': url, 'language': language, 'engine': engine, 'cookies': cookies, 'cloud': cloud, 'context': message.get('context') is not False, **({'rss': rss} if rss else {}), **({'mediaUrl': media_url} if media_url else {})}
+    if cookie_text: write_private(directory / 'cookies.txt', cookie_text); spec['cookiesFile'] = True
     atomic_json(directory / 'spec.json', spec)
     write_state(directory, id=job_id, videoKey=video_key, state='queued', stage='正在准备', progress=0, engine=engine, language=language, segmentCount=0, createdAt=time.time())
     write_state(directory, pid=spawn_worker(directory, key))
@@ -519,16 +535,24 @@ def probe(message):
     if not isinstance(url, str) or len(url) > 1500 or not public_https(url): raise ValueError('网页地址必须是公开的 https 地址')
     cookies = message.get('cookies') or None
     if cookies is not None and cookies not in COOKIE_BROWSERS: raise ValueError('不支持的浏览器')
+    cookie_text = clean_cookie_text(message.get('cookiesTxt')) if cookies else None
     ytdlp = find_tool('yt-dlp')
     if not ytdlp: return {'ok': False, 'error': 'missing', 'missing': ['yt-dlp']}
     command = [ytdlp, '--dump-single-json', '--no-playlist', '--skip-download', '--no-warnings', '--socket-timeout', '20', '-f', 'bestaudio/best']
-    if cookies: command += ['--cookies-from-browser', cookies]
+    cookie_path = None
+    if cookie_text:
+        import tempfile
+        handle, cookie_path = tempfile.mkstemp(prefix='qm-cookies-', suffix='.txt'); os.close(handle); write_private(cookie_path, cookie_text)
+        command += ['--cookies', cookie_path]
+    elif cookies: command += ['--cookies-from-browser', cookies]
     command.append(url)
     try: result = subprocess.run(command, capture_output=True, text=True, timeout=60, env=tool_env())
     except subprocess.TimeoutExpired: return {'ok': False, 'error': 'timeout'}
+    finally:
+        if cookie_path: Path(cookie_path).unlink(missing_ok=True)
     if result.returncode != 0:
         text = (result.stderr or '').strip(); low = text.lower()
-        return {'ok': False, 'error': 'unsupported' if 'unsupported url' in low else 'needs-cookies' if NEEDS_LOGIN.search(low) else 'failed', 'message': (text.splitlines() or [''])[-1][:200]}
+        return {'ok': False, 'error': 'unsupported' if 'unsupported url' in low else 'cookies-unreadable' if COOKIES_UNREADABLE.search(low) else 'needs-cookies' if NEEDS_LOGIN.search(low) else 'failed', 'message': (text.splitlines() or [''])[-1][:200]}
     try: info = json.loads(result.stdout)
     except ValueError: return {'ok': False, 'error': 'failed'}
     # Something the page can play as it is: a plain file (not a stream), with the picture if the site has one that is not too large.
@@ -703,7 +727,8 @@ def download(directory, spec, env, tools):
     if spec['videoKey'].startswith('file:'): return copy_staged(directory, spec, directory.parent.parent.parent)
     if spec['videoKey'].startswith('web:') and spec.get('mediaUrl'): return download_page_media(directory, spec)
     command = [tools['yt-dlp'], '--no-playlist', '--no-warnings', '--newline', '--no-continue', '--retries', '4', '--fragment-retries', '4', '-f', 'bestaudio/best', '--write-info-json', '-o', str(directory / 'audio.%(ext)s')]
-    if spec.get('cookies') in COOKIE_BROWSERS: command += ['--cookies-from-browser', spec['cookies']]
+    if spec.get('cookiesFile') and (directory / 'cookies.txt').is_file(): command += ['--cookies', str(directory / 'cookies.txt')]
+    elif spec.get('cookies') in COOKIE_BROWSERS: command += ['--cookies-from-browser', spec['cookies']]
     command.append(spec['url'])
     def progress(line):
         match = pattern.search(line)
@@ -721,6 +746,7 @@ def download(directory, spec, env, tools):
         text = ' '.join(tail).lower()
         if attempt < 2 and (any(x in text for x in ('timed out', 'connection reset', 'incomplete read', 'unexpected end', 'http error 5')) or re.search(r'downloaded.{0,20}expected', text)): time.sleep(attempt + 1); continue
         if NEEDS_LOGIN.search(text) and not spec.get('cookies'): raise Failed('这个平台要求登录状态才能下载这条视频的音频', code='needs-cookies')
+        if COOKIES_UNREADABLE.search(text): raise Failed('没能读取浏览器的登录状态：系统不允许本地助手访问浏览器的数据', code='cookies-unreadable')
         if STALE_TOOL.search(text) and not refreshed:
             # The site changed under the downloader: update it once, then try again with the new one.
             refreshed = True
@@ -848,6 +874,7 @@ def run_worker(base_dir):
     except Exception as error: write_state(directory, state='failed', stage='失败', error='生成字幕时出错：' + str(error)[:200])
     finally:
         for leftover in directory.glob('audio.*'): leftover.unlink(missing_ok=True)
+        (directory / 'cookies.txt').unlink(missing_ok=True)  # the site's cookies live only as long as the job
 
 if __name__ == '__main__':
     if len(sys.argv) == 3 and sys.argv[1] == 'worker': run_worker(sys.argv[2])

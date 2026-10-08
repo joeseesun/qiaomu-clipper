@@ -157,7 +157,7 @@ module.exports = (env, argv) => {
 							  (isSafari ? "src/manifest.safari.json" : "src/manifest.chrome.json"), 
 						to: "manifest.json",
 						// The store assigns its own key; the local edition carries the store item's public key so both get the same extension ID.
-						...(isLocal ? { transform: (content) => { const manifest = JSON.parse(content.toString()); manifest.key = fs.readFileSync(path.resolve(__dirname, 'scripts/chrome-local-key.txt'), 'utf8').trim(); manifest.permissions = Array.from(new Set([...(manifest.permissions || []), 'downloads'])); return JSON.stringify(manifest, null, '\t'); } } : {})
+						...(isLocal ? { transform: (content) => { const manifest = JSON.parse(content.toString()); manifest.key = fs.readFileSync(path.resolve(__dirname, 'scripts/chrome-local-key.txt'), 'utf8').trim(); manifest.permissions = Array.from(new Set([...(manifest.permissions || []), 'downloads', 'cookies'])); return JSON.stringify(manifest, null, '\t'); } } : {})
 					},
 					{ from: "LICENSE", to: "LICENSE.txt" },
 					{ from: "src/popup.html", to: "popup.html" },
