@@ -103,7 +103,7 @@ def main():
             vaults=find_vaults()
             if vaults: vault=vaults[0].resolve()
             if len(vaults)>1: choices=[str(v) for v in vaults];notes.append('找到多个 Obsidian 库，先用了最近打开的一个；请问用户要用哪个，再用 --vault 重新运行')
-            if not vaults: notes.append('没有找到 Obsidian 库，助手已装好但还没选库；请用 --vault /绝对路径 指定，或在扩展设置 → 常规里选择文件夹')
+            if not vaults: notes.append('没有找到 Obsidian 库，助手已装好但还没选库；请用 --vault /绝对路径 指定，或在扩展设置 → 剪藏与保存里选择文件夹')
     if vault and not (vault/'.obsidian').is_dir(): fail(f'{vault} 不是 Obsidian 库（缺少 .obsidian）','请指定库的根目录')
     BASE.mkdir(parents=True,exist_ok=True)
     source=Path(__file__).with_name('host.py').read_text(encoding='utf8').split('\n',1)[1]
@@ -152,7 +152,7 @@ def check(detected):
         if allowed is None: problems.append(f'{label}：未注册（缺少 {where}）');continue
         for i in ids:
             if f'chrome-extension://{i}/' not in allowed: problems.append(f'{label}：扩展 ID {i} 不在允许列表（商店版与本地加载版 ID 不同）')
-    if not config.get('vault'): problems.append('还没选 Obsidian 库：重新运行 python3 native/install.py --vault /库的绝对路径，或在扩展设置 → 常规里选择文件夹')
+    if not config.get('vault'): problems.append('还没选 Obsidian 库：重新运行 python3 native/install.py --vault /库的绝对路径，或在扩展设置 → 剪藏与保存里选择文件夹')
     if not detected: problems.append('没有在任何浏览器里找到「乔木剪藏」扩展')
     if not (BASE/'asr.py').is_file(): problems.append('缺少 asr.py（无字幕视频的「生成字幕」不可用）；重新运行 python3 native/install.py')
     test=self_test(host,origins[0]) if origins else {'ok':False,'error':'config 缺少扩展来源'}

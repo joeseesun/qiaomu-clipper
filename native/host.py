@@ -368,7 +368,7 @@ def handle(message, config, base):
         return asr.handle(message,base)
     if not config.get('vault'):
         if message.get('action')=='status': return {'ok':True,'vault':None}
-        raise ValueError('助手已连接，但还没选 Obsidian 笔记库：请在扩展设置 → 常规里选择文件夹')
+        raise ValueError('助手已连接，但还没选 Obsidian 笔记库：请在扩展设置 → 剪藏与保存里选择文件夹')
     root=Path(config['vault']).resolve()
     if not root.is_dir() or not (root/'.obsidian').is_dir(): raise ValueError('配置的 Obsidian 笔记库不存在')
     if message.get('action')=='status': return {'ok':True,'vault':root.name,'vaultPath':str(root)}
@@ -376,7 +376,7 @@ def handle(message, config, base):
     if message.get('action')=='saveLearning': return save_learning(message,root,base)
     if message.get('action')=='chooseNoteFolder':
         vault=message.get('vault') or ''
-        if vault and vault not in {root.name,str(root)}: raise ValueError(f'请先在常规设置将静默保存的笔记库切换到 {vault}')
+        if vault and vault not in {root.name,str(root)}: raise ValueError(f'请先在「剪藏与保存」里将静默保存的笔记库切换到 {vault}')
         initial=root
         try:
             candidate=root/relative_path(message.get('folder') or '')

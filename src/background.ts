@@ -636,6 +636,14 @@ browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime
 			return undefined;
 		}
 
+		if (typedRequest.action === "qiaomuOpenStudy") {
+			browser.tabs.query({ active: true, currentWindow: true })
+				.then(tabs => tabs[0]?.id ? openStudyForTab(tabs[0].id) : false)
+				.then(opened => sendResponse({ opened }))
+				.catch(() => sendResponse({ opened: false }));
+			return true;
+		}
+
 		if (typedRequest.action === "qiaomuTripleKey") {
 			const tab = sender.tab;
 			if (tab?.id && tab.url && isValidUrl(tab.url) && !isBlankPage(tab.url)) {
@@ -1238,18 +1246,20 @@ async function webStudyPath(url: string, tabId: number): Promise<string | null> 
 }
 
 // The triple-press commands open the clipper, which runs read / edit / clip once the clip is ready.
+// A video or audio page reads as its study player (the same for the Read button, the toolbar icon and the triple-press); anything else reads as an article.
+async function openStudyForTab(tabId: number): Promise<boolean> {
+	const tab = await browser.tabs.get(tabId);
+	const path = videoStudyPath(tab.url || '', tabId, tab.title || '') || audioStudyPath(tab.url || '', tab.title || '') || await webStudyPath(tab.url || '', tabId);
+	if (!path) return false;
+	// Open the player immediately; subtitle extraction belongs to the reader.
+	await browser.tabs.create({ url: browser.runtime.getURL(path), openerTabId: tabId });
+	return true;
+}
+
 async function runTripleKeyAction(action: string, tabId: number): Promise<void> {
 	if (action === 'note') { await openNoteCard(tabId); return; }
 	if (action !== 'read' && action !== 'edit' && action !== 'clip') return;
-	if (action === 'read') {
-		const tab = await browser.tabs.get(tabId);
-		const path = videoStudyPath(tab.url || '', tabId, tab.title || '') || audioStudyPath(tab.url || '', tab.title || '') || await webStudyPath(tab.url || '', tabId);
-		if (path) {
-			// Open the player immediately; subtitle extraction belongs to the reader.
-			await browser.tabs.create({ url: browser.runtime.getURL(path), openerTabId: tabId });
-			return;
-		}
-	}
+	if (action === 'read' && await openStudyForTab(tabId)) return;
 	// Reading and editing need no window of their own: an invisible copy of the clipper in the page does the work and opens our page.
 	// Where the page cannot host one (browser pages, a page that was open before an update), fall back to the popup.
 	const windowless = action === 'read' || action === 'edit';

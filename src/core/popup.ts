@@ -1573,6 +1573,9 @@ function setupCompactPopup() {
         }
     });
     document.getElementById('preview-clip')?.addEventListener('click', async () => {
+        // On a video or audio page, Read opens the study player, exactly as the triple-press and the toolbar icon do.
+        const study = await browser.runtime.sendMessage({ action: 'qiaomuOpenStudy' }).catch(() => undefined) as { opened?: boolean } | undefined;
+        if (study?.opened) { void browser.runtime.sendMessage({ action: 'closeIframe' }).catch(() => {}); window.close(); return; }
         if (!currentTemplate) return;
         const button = document.getElementById('preview-clip') as HTMLButtonElement;
         button.disabled = true;
