@@ -182,7 +182,8 @@ try {
 					initialOpen: wasOpen, onToggle: open => remember(OPEN_KEY, open),
 					initialFollow: stored(FOLLOW_KEY, true), onFollow: follow => remember(FOLLOW_KEY, follow),
 					onLanguage: id => { void chooseLanguage(id); },
-					generation: { strings: generationStrings(text), actions: generation.actions },
+					// The store edition does not make subtitles from a YouTube video's audio; it only reads the ones YouTube has.
+					...(__LOCAL_EDITION__ ? { generation: { strings: generationStrings(text), actions: generation.actions } } : {}),
 				});
 				return bar.element;
 			});
