@@ -448,7 +448,13 @@ def job_state(base, job_id):
     if not directory.is_dir(): return None, None
     state = read_state(directory)
     # A worker that died (crash, killed, machine slept through a reboot) must not stay "running" forever.
-    if state.get('state') in RUNNING and not pid_alive(state.get('pid')): state = write_state(directory, state='failed', error=state.get('error') or '识别进程意外退出，请重试')
+    if state.get('state') in RUNNING and not pid_alive(state.get('pid')):
+        # Process inspection can take seconds on Windows. The worker may have written its real
+        # terminal result and exited while we inspected the PID; do not overwrite that fresh result
+        # with an error derived from the stale state read before the inspection.
+        state = read_state(directory)
+        if state.get('state') in RUNNING:
+            state = write_state(directory, state='failed', stage='失败', error=state.get('error') or '字幕生成进程意外退出，请重试')
     return directory, state
 def active_job(base):
     jobs = asr_root(base) / 'jobs'
@@ -747,19 +753,22 @@ def download(directory, spec, env, tools):
     if spec['videoKey'].startswith('file:'): return copy_staged(directory, spec, directory.parent.parent.parent)
     if spec['videoKey'].startswith('web:') and spec.get('mediaUrl'): return download_page_media(directory, spec)
     command = [tools['yt-dlp'], '--no-playlist', '--no-warnings', '--newline', '--no-continue', '--retries', '4', '--fragment-retries', '4', '-f', 'bestaudio/best', '--write-info-json', '-o', str(directory / 'audio.%(ext)s')]
-    if spec.get('cookiesFile') and (directory / 'cookies.txt').is_file(): command += ['--cookies', str(directory / 'cookies.txt')]
-    elif spec.get('cookies') in COOKIE_BROWSERS: command += ['--cookies-from-browser', spec['cookies']]
+    cookie_args = []
+    if spec.get('cookiesFile') and (directory / 'cookies.txt').is_file(): cookie_args = ['--cookies', str(directory / 'cookies.txt')]
+    elif spec.get('cookies') in COOKIE_BROWSERS: cookie_args = ['--cookies-from-browser', spec['cookies']]
+    command += cookie_args
     command.append(spec['url'])
     def progress(line):
         match = pattern.search(line)
         if match: write_state(directory, state='downloading', stage='正在下载音频', progress=round(min(float(match.group(1)), 100) * 0.15, 1))
-    refreshed = False; client_retry = False; network_retries = 0
+    refreshed = False; client_retry = False; anonymous_retry = False; network_retries = 0
     # Only YouTube needs room for the extra client retry; preserve other sites' three-attempt limit.
-    for attempt in range(5 if spec['videoKey'].startswith('youtube:') else 3):
+    for attempt in range((6 if cookie_args else 5) if spec['videoKey'].startswith('youtube:') else 3):
         for leftover in directory.glob('audio.*'): leftover.unlink(missing_ok=True)  # never resume a truncated CDN stream as if it were whole
-        write_state(directory, state='downloading', stage='正在下载音频', progress=0)
+        write_state(directory, state='downloading', stage='正在不使用登录状态重试视频下载' if anonymous_retry else '正在下载音频', progress=0)
         code, tail = stream(command, env, progress)
-        print(f'[asr] Download attempt {attempt + 1}: client={"default,web_embedded" if client_retry else "default"}, login={bool(spec.get("cookies"))}, exit={code}', flush=True)
+        using_login = bool(cookie_args) and not anonymous_retry
+        print(f'[asr] Download attempt {attempt + 1}: client={"default,web_embedded" if client_retry else "default"}, login={using_login}, exit={code}', flush=True)
         audio = next((p for p in directory.glob('audio.*') if p.suffix not in ('.part', '.ytdl', '.wav', '.json')), None)
         if code == 0 and audio:
             info = read_json(directory / 'audio.info.json')
@@ -768,7 +777,9 @@ def download(directory, spec, env, tools):
         text = ' '.join(tail).lower()
         if network_retries < 2 and (any(x in text for x in ('timed out', 'connection reset', 'incomplete read', 'unexpected end', 'http error 5')) or re.search(r'downloaded.{0,20}expected', text)):
             network_retries += 1; time.sleep(network_retries); continue
-        if NEEDS_LOGIN.search(text) and not spec.get('cookies'): raise Failed('这个平台要求登录状态才能下载这条视频的音频', code='needs-cookies')
+        if NEEDS_LOGIN.search(text) and not using_login:
+            if anonymous_retry: raise Failed('YouTube 拒绝了当前登录状态，匿名下载也需要验证身份；请更新 YouTube 登录状态后重试', code='cookies-rejected')
+            raise Failed('这个平台要求登录状态才能下载这条视频的音频', code='needs-cookies')
         if COOKIES_UNREADABLE.search(text): raise Failed('没能读取浏览器的登录状态：系统不允许本地助手访问浏览器的数据', code='cookies-unreadable')
         if STALE_TOOL.search(text) and not refreshed:
             # The site changed under the downloader: update it once, then try again with the new one.
@@ -781,6 +792,16 @@ def download(directory, spec, env, tools):
             client_retry = True
             command[-1:-1] = ['--extractor-args', 'youtube:player_client=default,web_embedded']
             write_state(directory, stage='正在尝试 YouTube 备用下载客户端')
+            continue
+        if spec['videoKey'].startswith('youtube:') and YOUTUBE_CLIENT_ERROR.search(text) and using_login and not anonymous_retry:
+            # Current authenticated defaults already contain web_embedded. A rejected cookie session
+            # can fail every signed-in client while the public video works anonymously. Try without
+            # credentials once, at lower privilege; never change the saved login choice or cookie file.
+            anonymous_retry = True
+            for flag in ('--cookies', '--cookies-from-browser'):
+                if flag in command:
+                    index = command.index(flag); del command[index:index + 2]
+            command[-1:-1] = ['--no-cookies', '--no-cookies-from-browser']
             continue
         if STALE_TOOL.search(text): raise Failed('这个视频暂时下载不了：下载工具已是最新，但站点最近有变化，过几天更新后再试。（' + (tail[-1] if tail else '')[:160] + '）', code='tool-outdated')
         raise Failed('音频下载失败：' + (tail[-1] if tail else '未知错误')[:200])

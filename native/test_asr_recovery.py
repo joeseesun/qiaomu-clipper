@@ -117,6 +117,37 @@ class DownloadTests(unittest.TestCase):
         self.assertNotIn('--extractor-args', self.commands[1]); self.assertEqual(self.commands[1][0], 'updated-ytdlp')
         self.assertIn('--extractor-args', self.commands[2]); update.assert_called_once()
 
+    def test_rejected_youtube_login_gets_one_anonymous_retry_without_changing_cookie_choice(self):
+        secret = 'COOKIE-SECRET'; cookie = self.directory/'cookies.txt'; cookie.write_text(secret)
+        self.spec.update(cookies='edge', cookiesFile=True)
+        with self.attempt(['The page needs to be reloaded.', 'The page needs to be reloaded.', None]), patch.object(asr, 'update_ytdlp', return_value=False), contextlib.redirect_stdout(io.StringIO()) as log:
+            self.assertEqual(asr.download(self.directory, self.spec, {}, self.tools).read_bytes(), b'whole')
+        self.assertEqual(len(self.commands), 3)
+        for command in self.commands[:2]: self.assertIn('--cookies', command)
+        anonymous = self.commands[2]
+        self.assertNotIn('--cookies', anonymous); self.assertNotIn('--cookies-from-browser', anonymous)
+        self.assertIn('--no-cookies', anonymous); self.assertIn('--no-cookies-from-browser', anonymous)
+        self.assertEqual(cookie.read_text(), secret); self.assertEqual(self.spec['cookies'], 'edge')
+        self.assertIn('login=False', log.getvalue()); self.assertNotIn(secret, log.getvalue())
+
+    def test_anonymous_retry_is_bounded_and_cannot_access_login_required_content(self):
+        self.spec.update(cookies='edge')
+        for errors, expected in [(['The page needs to be reloaded.'] * 3, 'tool-outdated'),
+                                 (['The page needs to be reloaded.'] * 2 + ['Sign in to confirm you are not a bot'], 'cookies-rejected')]:
+            self.commands = []
+            with self.attempt(errors), patch.object(asr, 'update_ytdlp', return_value=False), self.assertRaises(asr.Failed) as error:
+                asr.download(self.directory, self.spec, {}, self.tools)
+            self.assertEqual(len(self.commands), 3); self.assertEqual(error.exception.code, expected)
+
+    def test_other_sites_and_generic_youtube_errors_never_drop_explicit_login(self):
+        for key, message in [('bilibili:BV1hM4m1U7rA:20', 'The page needs to be reloaded.'),
+                             ('youtube:azFsmVcFsSw', 'HTTP Error 403'), ('youtube:azFsmVcFsSw', 'Video unavailable')]:
+            self.commands = []; self.spec.update(videoKey=key, cookies='edge')
+            with self.attempt([message]), patch.object(asr, 'update_ytdlp', return_value=False), self.assertRaises(asr.Failed):
+                asr.download(self.directory, self.spec, {}, self.tools)
+            self.assertEqual(len(self.commands), 1); self.assertIn('--cookies-from-browser', self.commands[0])
+            self.assertNotIn('--no-cookies', self.commands[0])
+
     def test_transport_retries_do_not_exhaust_update_and_client_retry(self):
         with self.attempt(['connection reset', 'timed out', 'player response invalid', 'player response invalid', None]), patch.object(asr.time, 'sleep'), patch.object(asr, 'update_ytdlp', return_value=True), patch.object(asr, 'find_tool', return_value='new'):
             asr.download(self.directory, self.spec, {}, self.tools)
@@ -150,6 +181,25 @@ class ResultTests(unittest.TestCase):
         self.cached = dict(version=asr.RESULT_VERSION, engine='cloud', videoKey=self.key, language=None, duration=100, segments=[dict(start=0, end=2, text='complete cloud result')])
         self.info = dict(ready=True, engine='faster-whisper')
     def tearDown(self): self.temp.cleanup()
+
+    def test_process_exit_during_poll_never_overwrites_the_fresh_terminal_result(self):
+        for terminal in ('failed', 'completed', 'cancelled'):
+            with self.subTest(terminal=terminal):
+                asr.write_state(self.directory, state='downloading', pid=4242, error=None)
+                def exit_during_probe(pid):
+                    asr.write_state(self.directory, state=terminal, stage='actual final stage', error='actual download error' if terminal == 'failed' else None, errorCode='tool-outdated' if terminal == 'failed' else None)
+                    return False
+                with patch.object(asr, 'pid_alive', side_effect=exit_during_probe):
+                    directory, state = asr.job_state(self.base, self.job)
+                self.assertEqual(state['state'], terminal)
+                self.assertEqual(state['stage'], 'actual final stage')
+                self.assertEqual(state['error'], 'actual download error' if terminal == 'failed' else None)
+
+    def test_a_worker_that_really_died_without_a_terminal_state_is_still_reported(self):
+        asr.write_state(self.directory, state='downloading', pid=4242, error=None)
+        with patch.object(asr, 'pid_alive', return_value=False): _, state = asr.job_state(self.base, self.job)
+        self.assertEqual(state['state'], 'failed'); self.assertEqual(state['stage'], '失败')
+        self.assertIn('字幕生成进程意外退出', state['error'])
 
     def test_cloud_cache_is_not_returned_as_local_and_language_changes_require_new_job(self):
         for cached, language, reused in [(self.cached, 'auto', False), ({**self.cached, 'engine':'faster-whisper'}, 'auto', True),
