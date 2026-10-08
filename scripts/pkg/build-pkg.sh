@@ -50,4 +50,7 @@ elif [ -n "${INSTALLER_SIGN_ID:-}" ]; then
 else
 	echo "NOT signed or notarized: for testing only" >&2
 fi
+# A fixed name, so the settings page can link to .../releases/latest/download/qiaomu-clipper-helper.pkg
+cp "$OUT" "$ROOT/builds/qiaomu-clipper-helper.pkg"
 echo "$OUT"
+echo "$ROOT/builds/qiaomu-clipper-helper.pkg (upload both with the release)"
