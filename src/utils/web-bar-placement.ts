@@ -54,7 +54,17 @@ export function placeWebBar(host: HTMLElement, media: WebMedia | undefined, site
 		// placed at the usual z-index. There is no column beside it: float the strip on the search row, left of the like / comment rail (about 64px wide),
 		// so it never covers the rail or the title down the right edge, and on top of that layer.
 		host.classList.remove('is-inline'); host.classList.add('is-floating');
-		host.style.cssText = 'right:84px;left:auto;top:58px;bottom:auto;z-index:2147483000;';
+		// Logged in, the top-right corner already holds the site's 消息 button: sit right under it, edges aligned, in the gutter beside the picture.
+		let right = 84, top = 58;
+		const label = Array.from(doc.querySelectorAll<HTMLElement>('span,div,a')).find(e => !e.children.length && !host.contains(e) && /^消息/.test(e.textContent?.trim() ?? ''));
+		let pill: HTMLElement | null = label ?? null, box = pill?.getBoundingClientRect();
+		for (let up = 0; pill?.parentElement && up < 3; up++) {
+			const r = pill.parentElement.getBoundingClientRect();
+			if (pill.parentElement === doc.body || r.width > 220 || r.height > 70) break;
+			pill = pill.parentElement; box = r;
+		}
+		if (box && box.width > 0 && box.top < 200 && box.left > win.innerWidth / 2) { right = Math.round(win.innerWidth - box.right); top = Math.round(box.bottom + 8); }
+		host.style.cssText = `right:${right}px;left:auto;top:${top}px;bottom:auto;z-index:2147483000;`;
 		return;
 	}
 	const left = video ? video.right + (site === 'tiktok' ? 88 : 20) : win.innerWidth - 366;
