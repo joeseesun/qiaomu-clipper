@@ -6,7 +6,7 @@ import { t } from '../utils/ui-text';
 export async function releaseNotesView(): Promise<void> {
 	const group = document.getElementById('release-notes'), body = document.getElementById('release-notes-body'), title = document.getElementById('release-notes-title');
 	if (!group || !body) return;
-	const notes = await latestReleaseNotes();
+	const notes = await latestReleaseNotes(fetch, uiLanguage() === 'en');
 	if (!notes) return;
 	// The notes are written in Chinese: a reader of another language gets the link to the release page instead of text they can't read.
 	const text = notes.lines.map(line => line.text).join('');

@@ -18,7 +18,7 @@ Read, watch, ask AI, and turn what you learn into Obsidian notes.
 
 </div>
 
-> **[Chrome 应用商店已上线](https://chromewebstore.google.com/detail/jniolfihillilkoajpnonlbkhfkiicoo)，当前商店版本为 1.7.1；1.14.2 更新已提交审核，通过后自动发布。** 本页介绍当前 `main` 的功能；完整体验请按下方步骤从源码安装。不想装 Node.js？可直接下载 [1.14.4 已发布安装包](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.14.4)；更早的版本（如 1.10.0）没有视频字幕工具栏；B 站视频页的字幕工具栏从 1.11.0 起提供。截图采用实际界面组件与示例数据，视频区域展示封面预览；[截图说明](docs/README-SCREENSHOTS.md)。
+> **[Chrome 应用商店已上线](https://chromewebstore.google.com/detail/jniolfihillilkoajpnonlbkhfkiicoo)，当前商店版本为 1.7.1；1.14.2 更新已提交审核，通过后自动发布。** 本页介绍当前 `main` 的功能；完整体验请按下方步骤从源码安装。不想装 Node.js？可直接下载 [1.15.0 已发布安装包](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.15.0)；更早的版本（如 1.10.0）没有视频字幕工具栏；B 站视频页的字幕工具栏从 1.11.0 起提供。截图采用实际界面组件与示例数据，视频区域展示封面预览；[截图说明](docs/README-SCREENSHOTS.md)。
 
 ## 它解决什么问题
 
@@ -53,9 +53,9 @@ npm run build:chrome
 **先试一条完整流程：** 打开视频 → `aaa` → 点时间戳回看 → 按 `N` 写理解。只想读文章和复制字幕，无需配置 AI；写入日记需先装下方助手。
 
 <details>
-<summary><b>不想安装 Node.js？直接下载 1.14.4 已发布安装包</b></summary>
+<summary><b>不想安装 Node.js？直接下载 1.15.0 已发布安装包</b></summary>
 
-下载 Chrome 安装包（发布页里文件名带 `-chrome-local` 的那个；商店审核用的 `-chrome.zip` 不带它），解压后在 `chrome://extensions` 开启「开发者模式」，点「加载已解压的扩展程序」选择解压目录。[发布说明](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.14.4)。**本地版独有：保存正在学习的这条音视频。** 学习页播放器下方有「下载」按钮（抖音、TikTok、小宇宙、播客），一点就存到「下载」文件夹里的「乔木剪藏」，不转码、保持原文件；下载中按钮自己显示进度，可以取消，完成后可「在访达中显示」。这个功能只在 GitHub 的 `-chrome-local` 包里，商店版不包含，也不申请「下载」权限。
+下载 Chrome 安装包（发布页里文件名带 `-chrome-local` 的那个；商店审核用的 `-chrome.zip` 不带它），解压后在 `chrome://extensions` 开启「开发者模式」，点「加载已解压的扩展程序」选择解压目录。[发布说明](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.15.0)。**本地版独有：保存正在学习的这条音视频。** 学习页播放器下方有「下载」按钮（抖音、TikTok、小宇宙、播客），一点就存到「下载」文件夹里的「乔木剪藏」，不转码、保持原文件；下载中按钮自己显示进度，可以取消，完成后可「在访达中显示」。这个功能只在 GitHub 的 `-chrome-local` 包里，商店版不包含，也不申请「下载」权限。
 
 **从旧的本地版升级（推荐让 AI 代劳，数据一个不丢）：** `-chrome-local` 版的扩展 ID 固定等于商店版（`jniolfihillilkoajpnonlbkhfkiicoo`），本地助手安装包预先就认它，不再出现「助手未连接」。它和你之前加载的旧版 ID 不同，Chrome 会当成另一个扩展，数据不会自动带过来；仓库里的 `scripts/migrate-extension-data.py` 会先完整备份，再把旧版的全部数据（设置、API Key、AI 对话历史、高亮、草稿）原样搬到新 ID 名下。把这段话发给 Claude Code / Codex：
 
@@ -80,7 +80,7 @@ python3 native/install.py
 
 **抖音提示 Fresh cookies 时**：在学习页选择原视频所在的浏览器，点「使用浏览器状态重试」。不一定需要登录；本机工具读取该浏览器 Cookie 后重试。即使带 Cookie，抖音的下载解析仍可能失败，此时不能视为该站点已完整验证。
 
-**从商店 1.7.1 升级到 1.14.4 请同时更新本地助手**：仅重载扩展不会更新助手。请使用 1.14.4 源码重新运行 `python3 native/install.py`（Windows 使用 `python native\install.py`），再刷新阅读页；旧助手可能导致 X 阅读页缺少帖子正文和视频播放器。
+**从商店 1.7.1 升级到 1.15.0 请同时更新本地助手**：仅重载扩展不会更新助手。请使用 1.15.0 源码重新运行 `python3 native/install.py`（Windows 使用 `python native\install.py`），再刷新阅读页；旧助手可能导致 X 阅读页缺少帖子正文和视频播放器。
 
 输出 `"ok": true` 即安装成功，然后在 `chrome://extensions` 重新加载扩展。遇到「本地保存助手未连接」，运行 `python3 native/install.py --check` 诊断。
 
@@ -306,7 +306,7 @@ Qiaomu Clipper combines web clipping, a clean reader, a full-page Markdown edito
 
 **[Install current features](#quick-start)** · [Screenshots](#功能巡游) · [Report an issue](https://github.com/joeseesun/qiaomu-clipper/issues)
 
-> [Available on the Chrome Web Store](https://chromewebstore.google.com/detail/jniolfihillilkoajpnonlbkhfkiicoo) at version 1.7.1; the 1.14.2 update has been submitted for review and will publish automatically after approval. This README describes current `main`. The downloadable [1.14.4 preview](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.14.4) is the published release (no Node.js needed; refresh open YouTube tabs after installing). Earlier releases such as 1.10.0 lack the video transcript bar (Bilibili's arrives in 1.11.0; Bilibili only serves subtitles to signed-in accounts). Screenshots use production components with sample articles, captions, AI responses and daily-note targets; the video area is a cover preview. See [screenshot provenance](docs/README-SCREENSHOTS.md).
+> [Available on the Chrome Web Store](https://chromewebstore.google.com/detail/jniolfihillilkoajpnonlbkhfkiicoo) at version 1.7.1; the 1.14.2 update has been submitted for review and will publish automatically after approval. This README describes current `main`. The downloadable [1.15.0 preview](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.15.0) is the published release (no Node.js needed; refresh open YouTube tabs after installing). Earlier releases such as 1.10.0 lack the video transcript bar (Bilibili's arrives in 1.11.0; Bilibili only serves subtitles to signed-in accounts). Screenshots use production components with sample articles, captions, AI responses and daily-note targets; the video area is a cover preview. See [screenshot provenance](docs/README-SCREENSHOTS.md).
 
 ### Quick start
 
@@ -321,7 +321,7 @@ npm run build:chrome
 
 Open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select `dist`. Open an article or video, then press `aaa` outside an input field. Rebuild and reload the extension after pulling updates.
 
-For AI chat or translation, configure your own model and API key in the extension's AI settings. Reading and copying captions do not require AI. To save silently or append learning notes to today's daily note, install the optional Python 3 [local helper](native/README.md) for macOS / Linux Chrome; run `python3 native/install.py` (no arguments; it detects the extension ID and vault) and re-run it from the 1.14.4 source when upgrading from store version 1.7.1 (Windows: `python native\install.py`); reloading the extension alone leaves the helper unchanged and may leave X study pages without post text or a video player; `--check` diagnoses a "helper not connected" error, and an AI agent can run the same command for you. Daily-note append requires Obsidian's Daily notes plugin with a numeric date format and no template.
+For AI chat or translation, configure your own model and API key in the extension's AI settings. Reading and copying captions do not require AI. To save silently or append learning notes to today's daily note, install the optional Python 3 [local helper](native/README.md) for macOS / Linux Chrome; run `python3 native/install.py` (no arguments; it detects the extension ID and vault) and re-run it from the 1.15.0 source when upgrading from store version 1.7.1 (Windows: `python native\install.py`); reloading the extension alone leaves the helper unchanged and may leave X study pages without post text or a video player; `--check` diagnoses a "helper not connected" error, and an AI agent can run the same command for you. Daily-note append requires Obsidian's Daily notes plugin with a numeric date format and no template.
 
 Audio transcription and study: podcasts, recordings, meetings and course audio go through the same transcription (a local engine or a cloud service) and become timed subtitles you can study, following playback. Xiaoyuzhou episode pages get the transcript bar at the bottom right; or open "Transcribe and study" (the settings sidebar, or the ⋯ menu in the popup): paste a YouTube, Bilibili, Xiaoyuzhou or other audio/video site link (anything yt-dlp can read may work, depending on the site and login), choose a local audio/video file, or pick from the suggested podcasts (five Chinese shows and five overseas AI shows, read from their public RSS feeds, one press to study the newest episodes) (it is only handed to the local helper, never uploaded); what you studied is listed under Recent. On Bilibili, study mode now also follows playback (the extension reads the embedded player's time).
 

@@ -39,3 +39,13 @@ describe('release notes', () => {
 		expect((await latestReleaseNotes(reply({ tag_name: 'v1.2.0', body: '- a', published_at: '2026-10-01T00:00:00Z' })))?.version).toBe('1.2.0');
 	});
 });
+
+import { releaseBodyFor } from './update-check';
+describe('release notes in two languages', () => {
+	const body = 'intro\n## 中文\n- 新增下载\n## English\n- Added downloads';
+	it('gives each reader their own part', () => {
+		expect(releaseBodyFor(body, true).trim()).toBe('- Added downloads');
+		expect(releaseBodyFor(body, false).trim()).toBe('- 新增下载');
+	});
+	it('keeps a single-language body as it is', () => { expect(releaseBodyFor('- only one', true)).toBe('- only one'); });
+});

@@ -27,6 +27,16 @@ export async function checkForUpdate(current: string, fetcher: typeof fetch = fe
 
 export interface ReleaseNotes { version: string; date: string; lines: { kind: 'heading' | 'item' | 'text'; text: string }[] }
 
+// A release can carry the notes twice, under "## 中文" and "## English" headings: the reader gets the part in their own language.
+export function releaseBodyFor(body: string, english: boolean): string {
+	const lines = body.split(/\r?\n/);
+	const marker = (line: string) => /^#{1,3}\s*English\s*$/i.test(line.trim()) ? 'en' : /^#{1,3}\s*(中文|简体中文|Chinese)\s*$/i.test(line.trim()) ? 'zh' : '';
+	const starts = lines.map((line, index) => [marker(line), index] as const).filter(([kind]) => kind);
+	if (!starts.some(([kind]) => kind === 'en') || !starts.some(([kind]) => kind === 'zh')) return body;
+	const want = english ? 'en' : 'zh';
+	return starts.map(([kind, index], at) => kind === want ? lines.slice(index + 1, at + 1 < starts.length ? starts[at + 1][1] : undefined).join('\n') : '').join('\n');
+}
+
 // A release body is Markdown. The page shows plain text only: headings, bullet items and short paragraphs, links and emphasis stripped.
 export function releaseNoteLines(body: string, max = 14): ReleaseNotes['lines'] {
 	const lines: ReleaseNotes['lines'] = [];
@@ -44,14 +54,14 @@ export function releaseNoteLines(body: string, max = 14): ReleaseNotes['lines'] 
 }
 
 // The latest published release, for the About page. Local edition only: the store edition makes no request.
-export async function latestReleaseNotes(fetcher: typeof fetch = fetch): Promise<ReleaseNotes | undefined> {
+export async function latestReleaseNotes(fetcher: typeof fetch = fetch, english = false): Promise<ReleaseNotes | undefined> {
 	try {
 		const response = await fetcher(LATEST_API, { headers: { Accept: 'application/vnd.github+json' }, credentials: 'omit' });
 		if (!response.ok) return undefined;
 		const release = await response.json() as { tag_name?: unknown; body?: unknown; published_at?: unknown; draft?: unknown; prerelease?: unknown };
 		const tag = typeof release.tag_name === 'string' ? release.tag_name : '';
 		if (!/^v?\d+(\.\d+)*$/.test(tag) || release.draft || release.prerelease || typeof release.body !== 'string') return undefined;
-		const lines = releaseNoteLines(release.body);
+		const lines = releaseNoteLines(releaseBodyFor(release.body, english));
 		if (!lines.length) return undefined;
 		return { version: tag.replace(/^v/i, ''), date: typeof release.published_at === 'string' ? release.published_at.slice(0, 10) : '', lines };
 	} catch { return undefined; }
