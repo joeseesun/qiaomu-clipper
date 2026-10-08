@@ -96,6 +96,8 @@ export interface Settings {
 	selectionToolbar?: boolean;
 	// Open the AI chat panel by itself when the reading page opens.
 	readerAutoChat?: boolean;
+	// Same for the clip editing page.
+	editorAutoChat?: boolean;
 	youtubePanelActions?: boolean;
 	learningNotes?: boolean;
 	learningIncludeQuote?: boolean;

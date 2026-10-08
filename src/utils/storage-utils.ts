@@ -73,6 +73,7 @@ interface StorageData {
 		tripleKeyBlockedSites?: string[];
 		selectionToolbar?: boolean;
 		readerAutoChat?: boolean;
+		editorAutoChat?: boolean;
 		youtubePanelActions?: boolean;
 		learningNotes?: boolean;
 		learningIncludeQuote?: boolean;
@@ -207,6 +208,7 @@ export async function loadSettings(): Promise<Settings> {
 		tripleKeyBlockedSites: data.general_settings?.tripleKeyBlockedSites,
 		selectionToolbar: data.general_settings?.selectionToolbar ?? true,
 		readerAutoChat: data.general_settings?.readerAutoChat ?? false,
+		editorAutoChat: data.general_settings?.editorAutoChat ?? false,
 		youtubePanelActions: data.general_settings?.youtubePanelActions ?? true,
 		learningNotes: data.general_settings?.learningNotes ?? true,
 		learningIncludeQuote: data.general_settings?.learningIncludeQuote ?? true,
@@ -281,6 +283,7 @@ export async function saveSettings(settings?: Partial<Settings>): Promise<void> 
 			tripleKeyBlockedSites: generalSettings.tripleKeyBlockedSites,
 			selectionToolbar: generalSettings.selectionToolbar,
 			readerAutoChat: generalSettings.readerAutoChat,
+			editorAutoChat: generalSettings.editorAutoChat,
 			youtubePanelActions: generalSettings.youtubePanelActions,
 			learningNotes: generalSettings.learningNotes,
 			learningIncludeQuote: generalSettings.learningIncludeQuote,

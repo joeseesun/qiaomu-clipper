@@ -4,7 +4,7 @@ import { generalSettings } from '../utils/storage-utils';
 import { updatePromptContextVisibility } from './interpreter-settings';
 import { initializePropertyTypesManager } from './property-types-manager';
 
-export type SettingsSection = 'general' | 'study' | 'asr' | 'clip' | 'learning' | 'video' | 'properties' | 'highlighter' | 'interpreter' | 'reader' | 'templates' | 'templates-home';
+export type SettingsSection = 'general' | 'study' | 'asr' | 'clip' | 'learning' | 'video' | 'properties' | 'highlighter' | 'interpreter' | 'asr-models' | 'reader' | 'templates' | 'templates-home';
 
 export function showSettingsSection(requested: SettingsSection | 'video', templateId?: string): void {
 	// Subtitle bar settings now sit on the Subtitles and transcription page.
@@ -77,7 +77,7 @@ export function initializeSidebar(): void {
 	document.addEventListener('click', event => {
 		const link = (event.target as HTMLElement).closest<HTMLElement>('[data-goto-section]');
 		const section = link?.dataset.gotoSection;
-		if (section === 'asr' || section === 'interpreter' || section === 'templates-home') { event.preventDefault(); showSettingsSection(section); const target = link?.dataset.gotoTarget; if (target) document.getElementById(target)?.scrollIntoView({ block: 'start' }); }
+		if (section === 'asr' || section === 'asr-models' || section === 'interpreter' || section === 'templates-home') { event.preventDefault(); showSettingsSection(section); const target = link?.dataset.gotoTarget; if (target) document.getElementById(target)?.scrollIntoView({ block: 'start' }); }
 	});
 
 	if (sidebar) {
@@ -97,6 +97,7 @@ export function initializeSidebar(): void {
 				|| section === 'properties'
 				|| section === 'highlighter'
 				|| section === 'interpreter'
+				|| section === 'asr-models'
 				|| section === 'reader'
 				|| section === 'templates-home') {
 				showSettingsSection(section as SettingsSection);

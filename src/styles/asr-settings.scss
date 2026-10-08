@@ -2,6 +2,10 @@
 // viewer's own list, and a dialog to set one up. Rows and cards are divs: the app's global button style stretches buttons to the
 // full width of their container.
 #asr-settings {
+	.setting-item-heading { display: flex; align-items: center; justify-content: space-between; }
+	.asr-lead { margin: 0 0 20px; color: var(--text-muted); line-height: 1.6; }
+	.asr-current-note { color: var(--text-muted); font-size: var(--font-ui-small); margin-top: -6px; }
+	.asr-auto.is-first { padding-top: 0; border-top: 0; }
 	.asr-current { border: 1px solid var(--background-modifier-border); border-radius: 14px; padding: 16px 18px; margin: 14px 0 22px; display: flex; flex-direction: column; gap: 14px; }
 	.asr-current-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; label { font-weight: 600; flex: none; } select { flex: 1; max-width: 420px; min-width: 0; } }
 	.asr-sites { summary { cursor: pointer; color: var(--text-muted); font-size: var(--font-ui-small); list-style: none; user-select: none; &::-webkit-details-marker { display: none; } &::before { content: '›'; display: inline-block; width: 1em; transition: transform .15s; } &:hover { color: var(--text-normal); } }

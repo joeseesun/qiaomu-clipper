@@ -490,6 +490,9 @@ function initializeDefaultTemplateDropdown(): void {
 	initializeSettingToggle('reader-auto-chat-toggle', generalSettings.readerAutoChat === true, (checked) => {
 		saveSettings({ ...generalSettings, readerAutoChat: checked });
 	});
+	initializeSettingToggle('editor-auto-chat-toggle', generalSettings.editorAutoChat === true, (checked) => {
+		saveSettings({ ...generalSettings, editorAutoChat: checked });
+	});
 	initializeTripleKeyFields();
 	const sites = document.getElementById('triple-key-sites') as HTMLTextAreaElement | null;
 	if (sites) {

@@ -43,7 +43,8 @@ export async function initializeAsrSettings(): Promise<void> {
 	const routeWith = (platform: AsrPlatform, value: string) => { const next = { ...settings.routes }; if (value) next[platform] = value; else delete next[platform]; return next; };
 	const paintDefaults = () => {
 		fill(defaultSelect, options(), defaultRecognizer(settings));
-		const nowLabel = document.getElementById('asr-current-label'), nowNote = document.getElementById('asr-current-note');
+		const nowLabel = document.getElementById('asr-current-label'), nowNote = document.getElementById('asr-current-note'), defaultNote = document.getElementById('asr-default-note');
+		if (defaultNote) defaultNote.textContent = defaultSelect.value.startsWith('cloud') ? '云端模型：音频会上传，按量计费。' : '本机模型：免费，音频不离开这台电脑。';
 		if (nowLabel) { nowLabel.textContent = defaultSelect.selectedOptions[0]?.textContent ?? ''; if (nowNote) nowNote.textContent = defaultSelect.value.startsWith('cloud') ? ' · 音频会上传，按量计费' : ' · 音频不上传'; }
 		routes.replaceChildren(...SITES.map(([platform, label]) => {
 			const wrap = node('div', 'asr-field'), caption = node('label', '', label), select = node('select', 'dropdown'); select.id = `asr-route-${platform}`; caption.htmlFor = select.id;
@@ -88,7 +89,7 @@ export async function initializeAsrSettings(): Promise<void> {
 		};
 		for (const engine of localList()) if (localInfo(engine.id)?.installed || installing?.engine === engine.id) rows.push(row(`local:${engine.id}`, engine.id, engine.name, '本机', Boolean(localInfo(engine.id)?.installed), installing?.engine === engine.id ? `正在安装 ${Math.round(installing.progress)}%` : '已安装 · 免费 · 音频不上传', () => openLocal(engine.id), `local:${engine.id}`));
 		for (const profile of settings.profiles) { const ready = isConfigured(profile); rows.push(row(`cloud:${profile.id}`, profile.provider, profileLabel(profile, settings.profiles), isLocalService(profile.baseUrl) ? '本机服务' : '云端', ready, ready ? profile.model : '还没填完，点击继续配置', () => openCloud(profile, false), `cloud:${profile.id}`)); }
-		grid.replaceChildren(...(rows.length ? rows : [node('div', 'asr-empty', '还没有。从上面的推荐开始，或点右上角「添加其他」。')])); addButton.disabled = false;
+		grid.replaceChildren(...(rows.length ? rows : [node('div', 'asr-empty', '还没有添加。从上面的推荐里选一个就行。')])); addButton.disabled = false;
 	};
 	const paint = () => { paintDefaults(); paintRec(); paintList(); };
 	const paintGrid = () => { paintRec(); paintList(); };

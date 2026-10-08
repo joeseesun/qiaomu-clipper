@@ -753,3 +753,4 @@ label {
 .learn-diary-line.short { width: 55%; }
 .learn-diary-new { font-weight: 600; }
 @media (max-width: 720px) { .learn-how { grid-template-columns: 1fr; } }
+#templates-home-section > .settings-section-header:not(:first-child) h2 { font-size: var(--font-ui-medium, 16px); margin: 0 0 0.75rem; padding: 0 1rem; }

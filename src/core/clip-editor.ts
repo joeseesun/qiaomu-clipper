@@ -4,7 +4,7 @@ import { mountClipChat } from '../utils/clip-chat';
 import { generateFrontmatter } from '../utils/obsidian-note-creator';
 import { sanitizeFileName } from '../utils/string-utils';
 import { translatePage } from '../utils/i18n';
-import { loadSettings } from '../utils/storage-utils';
+import { generalSettings, loadSettings } from '../utils/storage-utils';
 import type { Property } from '../types/types';
 import { mountEditorOutline } from '../utils/editor-outline';
 
@@ -78,6 +78,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 		getContext: () => ({ title: title.value || draft.clip.title, markdown: textarea.value, url: draft.clip.url }),
 		onInsert: text => { textarea.value = `${textarea.value.trimEnd()}\n\n${text}\n`; textarea.dispatchEvent(new Event('input')); },
 	});
+	if (generalSettings.editorAutoChat) chat.toggle(true);
 	const bar = createClipBar({ onToggleChat: chat.toggle, mode: 'edit', id, draft, title, domain: new URL(draft.clip.url).hostname.replace(/^www\./, ''), url: draft.clip.url, sync: () => syncDraft(draft, title) });
 	document.body.prepend(bar);
 	autoHideBar(bar, { collapseLayout: true });
