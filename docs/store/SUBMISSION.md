@@ -197,3 +197,15 @@ Optional cookies permission justification:
 When the user enables browser-login support and approves the optional permission, read cookies related to the requested media site (YouTube also uses Google login cookies) and pass them only to the separately installed local Native Messaging helper. The helper uses a temporary cookie file to authenticate the user-requested audio download with the original platform for subtitle generation, then deletes it on completion, failure or cancellation. Cookies are not sent to RSS, AI or cloud recognition providers, or used for advertising. Users can disable automatic login use in settings. The store edition does not offer media-file export.
 
 候选上传包：`builds/qiaomu-clipper-1.15.2-chrome.zip`。本节的权限说明不表示已经提交，提交状态以商店后台为准。
+
+## 1.15.3 实际提交记录（2026-10-08）
+
+- 已撤回待审核的 1.15.0，并上传 `qiaomu-clipper-1.15.3-chrome.zip`；后台草稿表确认版本 1.15.3。
+- 商店包 SHA-256：`663195c62ba50d316f7e216b74e01ba554f83e9e954cd7406f1abb6e53eb94f6`，与 GitHub release 附件一致。
+- 保存可选 cookies 权限理由：用户主动授权后，仅向本机助手传递所请求媒体网站的登录信息；YouTube 同时需要 Google 登录 cookies。临时文件于任务成功、失败或取消后删除。
+- 公开中英文隐私政策已更新；后台身份验证信息披露和三项承诺已保持勾选。461 字符测试说明包含无账号基础测试、RSS 默认关闭、助手/ASR 前提和可选授权路径。
+- 正常审核，未申请 declarativeNetRequest 安全静态规则免审；通过后自动发布已勾选。
+- Google 显示「已将您的扩展程序提交送审」，状态页确认「状态：待审核」「该草稿尚待审核」。公开商店仍为 1.7.1，尚未确认新版上架。
+- 1.15.3 修复了版本脚本误改依赖锁造成的干净安装失败。干净 npm ci、802 项前端测试、类型检查、134 项助手测试、各浏览器构建与 edition 检查通过，PR #49 CI 全绿。
+- 真实 YouTube 页面执行字幕获取源码返回 723 段、8 条轨道；这不是已安装扩展的端到端验收。真实 Chrome 可选授权弹窗及带登录状态的 ASR 全流程未验证。
+- 助手与 1.15.2 相同，复用已签名公证安装包。后台原文保留于本机忽略目录 `builds/store-upload/submitted-1.15.3-status.txt`，不提交账号信息。
