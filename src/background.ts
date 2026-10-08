@@ -116,7 +116,7 @@ async function enableMediaRefererRules(): Promise<void> {
 			addRules: MEDIA_REFERERS.map(row => ({
 				id: row.id, priority: 1,
 				action: { type: 'modifyHeaders' as chrome.declarativeNetRequest.RuleActionType, requestHeaders: [{ header: 'Referer', operation: 'set' as chrome.declarativeNetRequest.HeaderOperation, value: row.referer }] },
-				condition: { requestDomains: row.domains, resourceTypes: ['media' as chrome.declarativeNetRequest.ResourceType], initiatorDomains: [chrome.runtime.id] },
+				condition: { requestDomains: row.domains, resourceTypes: ['media' as chrome.declarativeNetRequest.ResourceType, 'xmlhttprequest' as chrome.declarativeNetRequest.ResourceType], initiatorDomains: [chrome.runtime.id] },
 			})),
 		});
 	} catch { /* other browsers */ }

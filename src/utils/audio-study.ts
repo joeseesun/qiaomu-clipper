@@ -19,6 +19,9 @@ import type { PanelSegment } from './youtube-panel-actions';
 import { durationText, parsePodcastPage, plainToHtml, type PodcastEpisode } from './podcast-page';
 import { siteOf, xStatus } from './study-sites';
 import { measureMediaDuration, pickTikTokMedia } from './web-page-media';
+// Used only behind __LOCAL_EDITION__: the store build never reaches them, so its bundler drops them (checked by scripts/check-editions.mjs).
+import { mountDownloadButton } from './download-button';
+import { guessChoice } from './media-download';
 import { mountAudioControls } from './audio-controls';
 import { recordStudy } from './study-home';
 import { reloadPage } from './page-reload';
@@ -212,6 +215,41 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 		hero.append(about); holder.before(hero);
 		if (episode.post) { const post = document.createElement('div'); post.className = 'qiaomu-post-text'; post.innerHTML = DOMPurify.sanitize(episode.post); sourceHtml = post.outerHTML; holder.before(post); }
 		const player = episode.audio ? showPlayer(episode.audio, episode.picture ? { poster: episode.cover, audioUrl: episode.audioUrl } : undefined) : undefined;
+		// Local edition: save the file being played. A video whose picture and sound are two files would need merging; that is not offered.
+		if (__LOCAL_EDITION__ && player && episode.audio && /^https:\/\//.test(episode.audio) && !(episode.picture && episode.audioUrl)) {
+			const url = episode.audio, video = Boolean(episode.picture), name = title;
+			void (async () => {
+				const CHOICE_KEY = 'qiaomuDownloadChoice';
+				const kind = guessChoice(url, video);
+				const remembered = ((await browser.storage.local.get(CHOICE_KEY)) as Record<string, string | undefined>)[CHOICE_KEY];
+				// An audio page keeps its controls in the player card; a video page has a row under the player: layout icons on the left,
+				// the switches on the right (that row appears once the transcript is attached, and may be rebuilt), so follow it.
+				const host = document.createElement('div'); host.className = 'qiaomu-dl-host';
+				const place = () => {
+					const card = article.querySelector<HTMLElement>('.player-container'), tools = article.querySelector<HTMLElement>('.qa-tools');
+					const row = card?.querySelector<HTMLElement>(':scope > .player-toggles');
+					const target = !video && tools ? tools : (row || card); if (!target) return;
+					if (host.parentElement !== target) {
+						host.style.cssText = target === card ? 'grid-column:2;grid-row:3;justify-self:end;padding:8px 0 0;line-height:normal' : target === tools ? 'margin-inline-start:auto' : 'display:inline-flex;margin-inline-start:16px;line-height:normal';
+						target.append(host);
+					}
+				};
+				place(); if (!host.parentElement) return;
+				new MutationObserver(place).observe(article, { childList: true, subtree: true });
+				mountDownloadButton(host, {
+					title: name, remembered,
+					choices: [{ id: kind.kind, label: video ? '视频' : '音频', url, kind: kind.kind, ext: kind.ext }],
+					onRemember: id => { void browser.storage.local.set({ [CHOICE_KEY]: id }); },
+					save: async (blob, filename) => {
+						const objectUrl = URL.createObjectURL(blob);
+						const id = await browser.downloads.download({ url: objectUrl, filename: `乔木剪藏/${filename}`, saveAs: false, conflictAction: 'uniquify' });
+						const finished = (delta: { id: number; state?: { current?: string } }) => { if (delta.id === id && delta.state?.current && delta.state.current !== 'in_progress') { browser.downloads.onChanged.removeListener(finished); URL.revokeObjectURL(objectUrl); } };
+						browser.downloads.onChanged.addListener(finished);
+						return { reveal: () => { void browser.downloads.show(id); } };
+					},
+				});
+			})().catch(error => { console.warn('[qiaomu] download control not shown:', error); /* a missing control must never stop the study page */ });
+		}
 		// The show notes next to the transcript: tabs, so neither pushes the other off the screen.
 		if (episode.notesHtml) {
 			const tabs = document.createElement('div'); tabs.className = 'qiaomu-audio-tabs'; tabs.setAttribute('role', 'tablist');

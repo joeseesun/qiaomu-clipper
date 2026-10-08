@@ -5,6 +5,7 @@
 
 export const LOCAL_BACKUP_KEY = '__qiaomuLocalData';
 
+// The saved download choice exists only in the local edition (the store package has no download code, not even its names).
 const EXACT = new Set([
 	'highlights', 'history', 'domains',
 	'qiaomuChatIndex', 'qiaomuChatPreferences', 'qiaomuChatModel', 'qiaomuChatWidth',
@@ -12,6 +13,7 @@ const EXACT = new Set([
 	'qiaomuYouTubePlayerMode', 'qiaomuYouTubeFloat', 'qiaomuYouTubePlayerSize',
 	'qiaomuTranscriptBarOpen', 'qiaomuTranscriptBarFollow', 'qiaomuRssEnabled', 'lastSelectedVault'
 ]);
+if (__LOCAL_EDITION__) EXACT.add('qiaomuDownloadChoice');
 // One entry per article chat, per learning-note draft (and its record), and per clip waiting to be submitted.
 const PREFIXES = ['qiaomuChat:', 'qiaomuLearningDraft:', 'qiaomuPending:'];
 

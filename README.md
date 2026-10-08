@@ -55,7 +55,9 @@ npm run build:chrome
 <details>
 <summary><b>不想安装 Node.js？直接下载 1.14.4 已发布安装包</b></summary>
 
-下载 Chrome 安装包（发布页里文件名带 `-chrome-local` 的那个；商店审核用的 `-chrome.zip` 不带它），解压后在 `chrome://extensions` 开启「开发者模式」，点「加载已解压的扩展程序」选择解压目录。[发布说明](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.14.4)。**从旧的本地版升级（推荐让 AI 代劳，数据一个不丢）：** `-chrome-local` 版的扩展 ID 固定等于商店版（`jniolfihillilkoajpnonlbkhfkiicoo`），本地助手安装包预先就认它，不再出现「助手未连接」。它和你之前加载的旧版 ID 不同，Chrome 会当成另一个扩展，数据不会自动带过来；仓库里的 `scripts/migrate-extension-data.py` 会先完整备份，再把旧版的全部数据（设置、API Key、AI 对话历史、高亮、草稿）原样搬到新 ID 名下。把这段话发给 Claude Code / Codex：
+下载 Chrome 安装包（发布页里文件名带 `-chrome-local` 的那个；商店审核用的 `-chrome.zip` 不带它），解压后在 `chrome://extensions` 开启「开发者模式」，点「加载已解压的扩展程序」选择解压目录。[发布说明](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.14.4)。**本地版独有：保存正在学习的这条音视频。** 学习页播放器下方有「下载」按钮（抖音、TikTok、小宇宙、播客），一点就存到「下载」文件夹里的「乔木剪藏」，不转码、保持原文件；下载中按钮自己显示进度，可以取消，完成后可「在访达中显示」。这个功能只在 GitHub 的 `-chrome-local` 包里，商店版不包含，也不申请「下载」权限。
+
+**从旧的本地版升级（推荐让 AI 代劳，数据一个不丢）：** `-chrome-local` 版的扩展 ID 固定等于商店版（`jniolfihillilkoajpnonlbkhfkiicoo`），本地助手安装包预先就认它，不再出现「助手未连接」。它和你之前加载的旧版 ID 不同，Chrome 会当成另一个扩展，数据不会自动带过来；仓库里的 `scripts/migrate-extension-data.py` 会先完整备份，再把旧版的全部数据（设置、API Key、AI 对话历史、高亮、草稿）原样搬到新 ID 名下。把这段话发给 Claude Code / Codex：
 
 > 帮我把「乔木剪藏」从旧的本地加载版升级到固定 ID 的版本，并保留所有数据。步骤：1）下载 https://github.com/joeseesun/qiaomu-clipper 最新发布页里文件名带 `-chrome-local` 的 zip，解压到一个新文件夹（不要覆盖旧文件夹）；没有仓库就先 git clone 它。2）请我完全退出 Chrome（macOS 按 Cmd+Q，不是只关窗口），等我确认后再继续。3）在仓库里先运行 `python3 scripts/migrate-extension-data.py --dry-run`，把输出给我看；我同意后去掉 `--dry-run` 正式运行（会先备份到 ~/qiaomu-clipper-backup-时间）。4）告诉我：重新打开 Chrome，在 chrome://extensions 删除旧版「乔木剪藏」，点「加载已解压的扩展程序」选新文件夹。5）出问题就用 `--restore 备份目录` 恢复。不要自己编造扩展 ID，也不要在 Chrome 还开着时复制数据。
 

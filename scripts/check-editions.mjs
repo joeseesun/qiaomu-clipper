@@ -3,7 +3,7 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 const STORE_ID = 'jniolfihillilkoajpnonlbkhfkiicoo';
-const LOCAL_ONLY = ['qiaomuDownload'];   // names that only the local edition's code uses
+const LOCAL_ONLY = ['qiaomuDownloadChoice', 'qiaomu-dl-style', 'qiaomu-dl-menu'];   // names that only the local edition's code uses
 const fail = message => { console.error('edition check failed: ' + message); process.exit(1); };
 const manifest = dir => JSON.parse(readFileSync(`${dir}/manifest.json`, 'utf8'));
 const bundles = dir => readdirSync(dir).filter(f => f.endsWith('.js') && f !== 'browser-polyfill.min.js').map(f => readFileSync(`${dir}/${f}`, 'utf8')).join('\n');
