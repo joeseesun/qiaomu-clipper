@@ -70,3 +70,17 @@ describe('reading the captions through the player', () => {
 		expect(older).toHaveBeenCalled();   // the InnerTube route was tried
 	});
 });
+
+it('downloads original audio captions rather than the first dub in the bridge listing', async () => {
+ const snapshot = snap({originalLanguage:'fr', tracks:[
+  {url:base+'ar',languageCode:'ar',kind:'asr'},
+  {url:base+'en',languageCode:'en',kind:'asr'},
+  {url:base+'fr',languageCode:'fr',kind:'asr'},
+  {url:base+'zh',languageCode:'zh-Hans'}
+ ],requestUrl:'https://www.youtube.com/api/timedtext?v=abc&pot=VALID'});
+ const fetched:string[]=[];
+ const result=await fetchCaptionsViaPlayer('abc',undefined,io([snapshot],fetched));
+ expect(result?.selected).toBe('fr-auto');
+ expect(fetched[0]).toContain('lang=fr');
+ expect((await fetchCaptionsViaPlayer('abc','zh',io([snapshot])))?.selected).toBe('zh-Hans');
+});

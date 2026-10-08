@@ -1,19 +1,22 @@
 // Which subtitle language a video's bar shows, and which the viewer asked for. Shared by the YouTube and Bilibili bars.
-export interface TrackInfo { id: string; label: string; language: string; auto: boolean }
+export interface TrackInfo { id: string; label: string; language: string; auto: boolean; original?: boolean; translated?: boolean }
 export interface LanguageOption { id: string; label: string }
 
 // "zh-CN" and "ai-zh" are both Chinese; "en-US" is English.
 export const languageBase = (code: unknown): string => String(code ?? '').toLowerCase().replace(/_/g, '-').replace(/^ai-/, '').split('-')[0];
 
-// The language spoken in the video comes first, not the viewer's own: an automatic track is made from the audio, so its
-// language is the spoken one; with none, the track uploaded first. A language the viewer picked for this video wins.
-// Within a language a hand-made track beats an automatic one.
+// Explicit original-audio metadata wins; a single automatic language is a fallback hint.
+// Multiple automatic languages may be dubs, so their list order is not evidence of the original.
 export function chooseTrack<T extends TrackInfo>(tracks: T[], preferred?: string): T | undefined {
 	if (!tracks.length) return undefined;
 	const best = (list: T[]) => list.find(track => !track.auto) ?? list[0];
-	if (preferred) { const wanted = tracks.filter(track => track.language === preferred); if (wanted.length) return best(wanted); }
-	const spoken = tracks.find(track => track.auto)?.language;
-	return spoken ? best(tracks.filter(track => track.language === spoken)) : tracks[0];
+	const inLanguage = (language: string) => best(tracks.filter(track => languageBase(track.language) === languageBase(language)));
+	if (preferred) { const wanted = inLanguage(preferred); if (wanted) return wanted; }
+	const original = tracks.filter(track => track.original);
+	if (original.length) return best(original);
+	const automaticLanguages = [...new Set(tracks.filter(track => track.auto && !track.translated).map(track => track.language))];
+	if (automaticLanguages.length === 1) return inLanguage(automaticLanguages[0]);
+	return inLanguage('zh') ?? inLanguage('en') ?? best(tracks);
 }
 export const optionsOf = (tracks: TrackInfo[]): LanguageOption[] => tracks.map(({ id, label }) => ({ id, label }));
 

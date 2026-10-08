@@ -73,7 +73,7 @@ try {
 			const known = store.get(videoId); if (known) return known;
 			const entry: Entry = { state: 'loading', segments: [], tracks: [], done: Promise.resolve([]) };
 			// The language this viewer picked for this video, else the one spoken in it.
-			const preferred = savedLanguage(`youtube:${videoId}`), cacheKey = cacheKeyFor(videoId, preferred);
+			const preferred = savedLanguage(`youtube:${videoId}`), cacheKey = cacheKeyFor(videoId, preferred ?? 'original');
 			// A transcript read before is shown at once; otherwise ask YouTube, and keep what comes back.
 			const fresh = () => refusals >= 2 ? Promise.resolve([] as PanelSegment[]) : fetchBestCaptions(videoId, document, preferred).then(result => { refusals = 0; entry.tracks = result.tracks; entry.selected = result.selected; entry.fetchTrack = result.fetchTrack; return result.segments; }, () => { refusals++; return [] as PanelSegment[]; });
 			const request = (cache ? cache.read(cacheKey) : Promise.resolve(undefined)).then(cached => {
