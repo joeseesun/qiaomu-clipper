@@ -108,9 +108,11 @@ label {
 	align-items: center;
 }
 
-#local-vault-path { flex: 1; min-width: 0; }
-#local-vault-choose, #local-vault-save { margin-left: 8px; width: auto; flex-shrink: 0; }
-#local-vault-status { margin-top: 8px; overflow-wrap: anywhere; }
+#local-vault-status { overflow-wrap: anywhere; }
+#local-vault-select { max-width: 260px; }
+#clip-section [hidden] { display: none !important; }
+#local-helper-help { gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+#local-helper-help .btn { width: auto; text-decoration: none; }
 .note-location-control {
 	display: flex;
 	align-items: center;
@@ -698,3 +700,5 @@ label {
 	&[open] > summary::before { transform: rotate(45deg); }
 	@media (prefers-reduced-motion: reduce) { > summary::before { transition: none; } }
 }
+
+#templates-home-section > .settings-section-header:not(:first-child) { margin-top: 40px; }

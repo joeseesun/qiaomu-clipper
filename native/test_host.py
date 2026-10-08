@@ -75,4 +75,12 @@ class NativeSaveTests(unittest.TestCase):
   empty={'origin':self.config['origin']}
   self.assertEqual(host.handle({'action':'status'},empty,self.state),{'ok':True,'vault':None})
   with self.assertRaises(ValueError):host.handle({'action':'learningDailyTarget'},empty,self.state)
+ def test_lists_the_vaults_obsidian_knows_most_recent_first(self):
+  home=self.base/'home';cfg=home/'Library/Application Support/obsidian';cfg.mkdir(parents=True)
+  a=self.base/'A';b=self.base/'B';gone=self.base/'Gone'
+  for v in (a,b):(v/'.obsidian').mkdir(parents=True)
+  (cfg/'obsidian.json').write_text(json.dumps({'vaults':{'1':{'path':str(a),'ts':1},'2':{'path':str(b),'ts':5},'3':{'path':str(gone),'ts':9}}}))
+  with patch.object(Path,'home',return_value=home):result=host.handle({'action':'listVaults'},{'vault':str(a)},self.state)
+  self.assertEqual([v['name'] for v in result['vaults']],['B','A']);self.assertEqual(result['current'],str(a));self.assertTrue(result['ok'])
+  with patch.object(Path,'home',return_value=self.base/'nowhere'):self.assertEqual(host.handle({'action':'listVaults'},{},self.state)['vaults'],[])
 if __name__=='__main__':unittest.main()

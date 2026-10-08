@@ -28,11 +28,12 @@ const helperDown = (error: unknown) => { const reason = error instanceof Error ?
 
 browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime.MessageSender) => {
 	const message = request as { action?: string; payload?: { requestId?: string; vaultPath?: string; vault?: string; folder?: string } };
-	if (!['qiaomuLocalStatus', 'qiaomuLocalSave', 'qiaomuLocalConfigure', 'qiaomuLocalChooseVault', 'qiaomuLocalChooseFolder'].includes(message?.action || '')) return;
+	if (!['qiaomuLocalStatus', 'qiaomuLocalSave', 'qiaomuLocalConfigure', 'qiaomuLocalChooseVault', 'qiaomuLocalChooseFolder', 'qiaomuLocalListVaults'].includes(message?.action || '')) return;
 	if (sender.id !== browser.runtime.id || !sender.url?.startsWith(browser.runtime.getURL(''))) return Promise.resolve({ ok: false, error: '无效的本地保存请求' });
 	if (message.action === 'qiaomuLocalStatus') return browser.runtime.sendNativeMessage('ai.qiaomu.clipper', { action: 'status' }).catch((error: unknown) => ({ ok: false, reason: error instanceof Error ? error.message : String(error) }));
 	if (message.action === 'qiaomuLocalChooseFolder') return browser.runtime.sendNativeMessage('ai.qiaomu.clipper', { action: 'chooseNoteFolder', vault: message.payload?.vault, folder: message.payload?.folder })
 		.catch(error => ({ ...helperDown(error), error: `${describeHelperFailure(error instanceof Error ? error.message : String(error))}也可以手动填写相对路径。` }));
+	if (message.action === 'qiaomuLocalListVaults') return browser.runtime.sendNativeMessage('ai.qiaomu.clipper', { action: 'listVaults' }).catch(helperDown);
 	if (message.action === 'qiaomuLocalChooseVault') return browser.runtime.sendNativeMessage('ai.qiaomu.clipper', { action: 'chooseVault' })
 		.catch(helperDown);
 	if (message.action === 'qiaomuLocalConfigure') {

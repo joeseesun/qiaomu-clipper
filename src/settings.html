@@ -18,16 +18,15 @@
 					</div>
 					<ul>
 					<li data-section="general"><div class="nav-item-icon"><i data-lucide="settings"></i></div><span>通用</span></li>
-					<li class="sidebar-heading">阅读与学习</li>
-					<li data-section="study"><div class="nav-item-icon"><i data-lucide="headphones"></i></div><span>转写学习</span></li>
-					<li data-section="asr"><div class="nav-item-icon"><i data-lucide="captions"></i></div><span>字幕与转写</span></li>
-					<li data-section="reader"><div class="nav-item-icon"><i data-lucide="book-open"></i></div><span>阅读页</span></li>
-					<li data-section="learning"><div class="nav-item-icon"><i data-lucide="notebook-pen"></i></div><span>学习笔记</span></li>
 					<li class="sidebar-heading">剪藏</li>
 					<li data-section="clip"><div class="nav-item-icon"><i data-lucide="paperclip"></i></div><span>剪藏与保存</span></li>
 					<li data-section="templates-home"><div class="nav-item-icon"><i data-lucide="layout-template"></i></div><span>剪藏模版</span></li>
 					<li data-section="highlighter"><div class="nav-item-icon"><i data-lucide="highlighter"></i></div><span>划线</span></li>
-					<li data-section="properties"><div class="nav-item-icon"><i data-lucide="archive"></i></div><span>笔记属性</span></li>
+					<li class="sidebar-heading">阅读与学习</li>
+					<li data-section="study"><div class="nav-item-icon"><i data-lucide="headphones"></i></div><span>转写学习</span></li>
+					<li data-section="asr"><div class="nav-item-icon"><i data-lucide="captions"></i></div><span>字幕</span></li>
+					<li data-section="reader"><div class="nav-item-icon"><i data-lucide="book-open"></i></div><span>阅读页</span></li>
+					<li data-section="learning"><div class="nav-item-icon"><i data-lucide="notebook-pen"></i></div><span>学习笔记</span></li>
 					<li class="sidebar-heading">AI 模型设置</li>
 					<li data-section="interpreter"><div class="nav-item-icon"><i data-lucide="sparkles"></i></div><span>供应商与模型</span></li>
 					</ul>
@@ -204,26 +203,30 @@
 						</div>
 						<form id="clip-settings-form">
 							<div class="setting-group">
-								<div class="setting-item setting-item-heading"><h3 data-i18n="vaults">Vaults</h3></div>
+								<div class="setting-item setting-item-heading"><h3>笔记库</h3></div>
 								<div class="setting-items">
-								<div class="setting-item-description" data-i18n="vaultsDescription">By default, clipped notes are saved to the currently open vault. You can add vaults here if you want the option to save to different vaults. Vault names must exactly match the name of the Obsidian vault. Press <strong>enter</strong> to add a&nbsp;vault.</div>
-								<input type="text" id="vault-input" data-i18n="addVaultPlaceholder" placeholder="Press enter to add a vault" autocomplete="off" spellcheck="false" />
-								<ul id="vault-list" class="setting-item-list"></ul>
-								<div class="setting-item">
+								<div class="setting-item mod-horizontal" id="local-vault-row" hidden>
 									<div class="setting-item-info">
-										<label for="local-vault-path">笔记保存到哪个库</label>
-										<div class="setting-item-description">选一次笔记库文件夹，之后一键保存，不用打开 Obsidian。</div>
+										<label for="local-vault-select">笔记保存到</label>
+										<div id="local-vault-status" class="setting-item-description" role="status" aria-live="polite"></div>
 									</div>
-									<div class="setting-item-control">
-										<input type="text" id="local-vault-path" placeholder="请选择笔记库文件夹" autocomplete="off" spellcheck="false" />
-										<button type="button" id="local-vault-choose" class="btn">选择文件夹</button>
-										<button type="button" id="local-vault-save" class="btn">保存</button>
+									<div class="setting-item-control"><select id="local-vault-select"></select></div>
+								</div>
+								<div class="setting-item mod-horizontal" id="local-helper-state">
+									<div class="setting-item-info">
+										<label>本地助手</label>
+										<div id="local-helper-note" class="setting-item-description" role="status" aria-live="polite">正在检查…</div>
 									</div>
-									<div id="local-vault-status" class="setting-item-description" role="status" aria-live="polite"></div>
 									<div class="setting-item-control" id="local-helper-help" hidden>
-										<button type="button" id="local-helper-copy" class="btn">让 AI 帮我安装助手</button>
-										<a class="btn" href="https://github.com/joeseesun/qiaomu-clipper/blob/main/native/README.md" target="_blank" rel="noopener noreferrer">查看安装说明</a>
+										<a class="btn mod-cta" id="local-helper-download" href="https://github.com/joeseesun/qiaomu-clipper/releases/latest/download/qiaomu-clipper-helper.pkg" hidden>下载安装包（macOS）</a>
+										<button type="button" id="local-helper-copy" class="btn" hidden>让 AI 帮我安装</button>
+										<a class="btn" id="local-helper-more" href="https://github.com/joeseesun/qiaomu-clipper/releases" target="_blank" rel="noopener noreferrer" hidden>所有安装包</a>
 									</div>
+								</div>
+								<div id="uri-vaults" hidden>
+									<div class="setting-item-description">没有本地助手时，笔记会交给 Obsidian 打开，库名要和 Obsidian 里的完全一致。输入库名后按回车添加。</div>
+									<input type="text" id="vault-input" placeholder="输入库名，按回车添加" autocomplete="off" spellcheck="false" />
+									<ul id="vault-list" class="setting-item-list"></ul>
 								</div>
 								</div>
 							</div>
@@ -816,10 +819,30 @@
 						</form>
 					</div>
 
-					<div id="properties-section" class="settings-section">
+					<div id="templates-home-section" class="settings-section">
 						<div class="settings-section-header">
-							<h2>笔记属性</h2>
+							<h2>剪藏模版</h2>
 						</div>
+						<div class="setting-group">
+							<div class="setting-items">
+								<div class="setting-item-description">每次剪藏，模版决定笔记存到哪里、长什么样。多数网页用「默认版」就够了；需要时再为某个网站新建一个。</div>
+								<div class="setting-item mod-horizontal">
+									<div class="setting-item-info"><label for="new-template-btn">我的模版</label></div>
+									<div class="setting-item-control"><button type="button" id="new-template-btn" class="mod-cta">新建模版</button></div>
+								</div>
+								<ul id="template-list"></ul>
+								<div class="setting-item mod-horizontal">
+										<div class="setting-item-info">
+											<label for="default-template-dropdown">默认模版</label>
+											<div class="setting-item-description">网页没有更合适的模版时，就用它。</div>
+										</div>
+										<div class="setting-item-control">
+											<select id="default-template-dropdown"></select>
+										</div>
+									</div>
+							</div>
+						</div>
+											<div class="settings-section-header"><h2>属性类型</h2></div>
 						<form id="property-types-form">
 							<div class="setting-group">
 								<div class="setting-items">
@@ -859,7 +882,7 @@
 								</div>
 							</div>
 							<div class="setting-group">
-								<div class="setting-item setting-item-heading"><h3 data-i18n="allProperties">All properties</h3></div>
+								<div class="setting-item setting-item-heading"><h3>每个属性的类型</h3></div>
 								<div class="setting-items">
 								<div class="add-btn" style="display: none;">
 									<a id="add-property-type-btn" data-i18n="addProperty">+ Add property</a>
@@ -869,31 +892,6 @@
 							</div>
 							
 						</form>
-					</div>
-
-					<div id="templates-home-section" class="settings-section">
-						<div class="settings-section-header">
-							<h2>剪藏模版</h2>
-						</div>
-						<div class="setting-group">
-							<div class="setting-items">
-								<div class="setting-item-description">每次剪藏，模版决定笔记存到哪里、长什么样。多数网页用「默认版」就够了；需要时再为某个网站新建一个。</div>
-								<div class="setting-item mod-horizontal">
-									<div class="setting-item-info"><label for="new-template-btn">我的模版</label></div>
-									<div class="setting-item-control"><button type="button" id="new-template-btn" class="mod-cta">新建模版</button></div>
-								</div>
-								<ul id="template-list"></ul>
-								<div class="setting-item mod-horizontal">
-										<div class="setting-item-info">
-											<label for="default-template-dropdown">默认模版</label>
-											<div class="setting-item-description">网页没有更合适的模版时，就用它。</div>
-										</div>
-										<div class="setting-item-control">
-											<select id="default-template-dropdown"></select>
-										</div>
-									</div>
-							</div>
-						</div>
 					</div>
 
 					<div id="templates-section" class="settings-section">

@@ -8,7 +8,7 @@ export type SettingsSection = 'general' | 'study' | 'asr' | 'clip' | 'learning' 
 
 export function showSettingsSection(requested: SettingsSection | 'video', templateId?: string): void {
 	// Subtitle bar settings now sit on the Subtitles and transcription page.
-	const section: SettingsSection = requested === 'video' ? 'asr' : requested;
+	const section: SettingsSection = requested === 'video' ? 'asr' : requested === 'properties' ? 'templates-home' : requested;
 	const sections = document.querySelectorAll('.settings-section');
 	const sidebarItems = document.querySelectorAll('#sidebar li[data-section]');
 
@@ -30,7 +30,7 @@ export function showSettingsSection(requested: SettingsSection | 'video', templa
 	// The study page lists what was studied last: look again whenever it is opened.
 	if (section === 'study') document.dispatchEvent(new CustomEvent('qiaomu-study-shown'));
 
-	if (section === 'properties') {
+	if (section === 'templates-home') {
 		initializePropertyTypesManager();
 	}
 

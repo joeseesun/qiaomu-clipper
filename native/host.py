@@ -338,7 +338,17 @@ def save_learning(message, root, base):
 
 # Bump when the extension starts to need something an older installed helper cannot do; the extension compares it.
 HELPER_PROTOCOL=2
+def obsidian_vaults():
+    """The vaults Obsidian itself lists (most recently opened first), so a person picks one instead of typing a path."""
+    home=Path.home()
+    for config in (home/'Library/Application Support/obsidian/obsidian.json',home/'.config/obsidian/obsidian.json',Path(os.environ.get('APPDATA',home/'AppData/Roaming'))/'obsidian/obsidian.json'):
+        try: vaults=json.loads(config.read_text(encoding='utf8')).get('vaults',{}).values()
+        except (OSError,ValueError,AttributeError): continue
+        found=[v for v in sorted(vaults,key=lambda v:-v.get('ts',0)) if isinstance(v,dict) and v.get('path') and (Path(v['path'])/'.obsidian').is_dir()]
+        return [{'name':Path(v['path']).name,'path':str(Path(v['path']))} for v in found][:20]
+    return []
 def handle(message, config, base):
+    if message.get('action')=='listVaults': return {'ok':True,'vaults':obsidian_vaults(),'current':config.get('vault')}
     if message.get('action')=='chooseVault':
         value=choose_vault(config.get('vault'))
         if value is None: return {'ok':False,'cancelled':True}
