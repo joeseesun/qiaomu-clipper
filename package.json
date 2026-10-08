@@ -1,6 +1,6 @@
 {
 	"name": "qiaomu-clipper",
-	"version": "1.15.2",
+	"version": "1.15.3",
 	"description": "Save web clips to Obsidian and Qiaomu RSS.",
 	"bin": {
 		"obsidian-clipper": "./dist/cli.cjs"
