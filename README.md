@@ -18,7 +18,7 @@ Read, watch, listen, and turn what you learn into Obsidian notes.
 
 </div>
 
-> **安装建议（2026-10-08）：等新版商店上架后安装。** [Chrome 应用商店](https://chromewebstore.google.com/detail/jniolfihillilkoajpnonlbkhfkiicoo)当前公开版本仍为 **1.7.1**，**1.15.0 已提交审核，通过后自动发布**。本页介绍 1.15.0 的功能，旧商店版不包含全部功能。想现在体验，将下面这段安装 prompt 复制给 Codex、Claude Code 等有本机终端权限的 Agent，插件和 helper 一起安装。
+> **安装建议（2026-10-08）：等新版商店上架后安装。** [Chrome 应用商店](https://chromewebstore.google.com/detail/jniolfihillilkoajpnonlbkhfkiicoo)当前公开版本仍为 **1.7.1**，**1.15.3 已提交审核，通过后自动发布**。本页介绍 1.15.3 的功能，旧商店版不包含全部功能。想现在体验，将下面这段安装 prompt 复制给 Codex、Claude Code 等有本机终端权限的 Agent，插件和 helper 一起安装。
 
 ```text
 请帮我安装或升级乔木剪藏：https://github.com/joeseesun/qiaomu-clipper 。先读 README.md 和 native/README.md，按我的系统与浏览器操作。
@@ -40,9 +40,9 @@ Read, watch, listen, and turn what you learn into Obsidian notes.
 
 ## 快速开始
 
-### 推荐：等 1.15.0 上架后，从商店安装
+### 推荐：等 1.15.3 上架后，从商店安装
 
-在[商店页面](https://chromewebstore.google.com/detail/jniolfihillilkoajpnonlbkhfkiicoo)确认版本已更新到 **1.15.0 或更高**，再安装。需要保存笔记时，请先安装 Obsidian 并创建或打开一个笔记库。
+在[商店页面](https://chromewebstore.google.com/detail/jniolfihillilkoajpnonlbkhfkiicoo)确认版本已更新到 **1.15.3 或更高**，再安装。需要保存笔记时，请先安装 Obsidian 并创建或打开一个笔记库。
 
 安装扩展后，打开文章或支持的视频、音频页面，在非输入框内连按三次 `A`。也可以点页面字幕栏的学习入口，或扩展弹窗里的「阅读」：文章进入阅读页，支持的媒体页面进入学习播放器。
 
@@ -72,7 +72,7 @@ npm run build:local
 
 **helper 是可选的本地助手。** 不装助手也能阅读、编辑、复制或下载 Markdown；保存到 Obsidian 可使用 URI 方式。静默写入笔记库、追加学习日记和生成字幕需要助手。
 
-macOS 用户下载 [1.15.0 的 `qiaomu-clipper-helper.pkg`](https://github.com/joeseesun/qiaomu-clipper/releases/download/1.15.0/qiaomu-clipper-helper.pkg)，双击安装。安装包**自带 Python，已签名并通过 Apple 公证**，不需要先安装 Python、Git 或 Node.js。扩展设置页也提供「下载安装包」入口。安装后重新加载扩展，并在 **设置 → 剪藏与保存** 的「笔记保存到」下拉列表里选择 Obsidian 库；列表读取 Obsidian 已记录的库，也可选择其他文件夹。
+macOS 用户下载 [1.15.3 的 `qiaomu-clipper-helper.pkg`](https://github.com/joeseesun/qiaomu-clipper/releases/download/1.15.3/qiaomu-clipper-helper.pkg)，双击安装。安装包**自带 Python，已签名并通过 Apple 公证**，不需要先安装 Python、Git 或 Node.js。扩展设置页也提供「下载安装包」入口。安装后重新加载扩展，并在 **设置 → 剪藏与保存** 的「笔记保存到」下拉列表里选择 Obsidian 库；列表读取 Obsidian 已记录的库，也可选择其他文件夹。
 
 Linux / Windows 或需要源码安装的用户，按[助手文档](native/README.md)操作。Windows 助手已有实现和自动测试，尚待真机验证。
 
@@ -223,7 +223,7 @@ node scripts/check-editions.mjs
 
 Qiaomu Clipper brings a clean reader, Markdown editor, media player, timed transcripts and contextual AI chat into one workflow. Study a passage, ask a question, and save your own understanding with its source.
 
-> **Installation recommendation, October 8, 2026:** wait for **1.15.0 or later** to appear on the [Chrome Web Store](https://chromewebstore.google.com/detail/jniolfihillilkoajpnonlbkhfkiicoo). The public version is still **1.7.1**; **1.15.0 is submitted for review and set to publish automatically after approval**. This README describes 1.15.0. For early access, ask an agent with local terminal access to read the repository and install the [GitHub release](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.15.0).
+> **Installation recommendation, October 8, 2026:** wait for **1.15.3 or later** to appear on the [Chrome Web Store](https://chromewebstore.google.com/detail/jniolfihillilkoajpnonlbkhfkiicoo). The public version is still **1.7.1**; **1.15.3 is submitted for review and set to publish automatically after approval**. This README describes 1.15.3. For early access, ask an agent with local terminal access to read the repository and install the [GitHub release](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.15.3).
 
 ### Quick start
 
@@ -238,7 +238,7 @@ Download the latest stable release's -chrome-local.zip, extract it and guide me 
 
 ### Optional helper
 
-The macOS [1.15.0 helper installer](https://github.com/joeseesun/qiaomu-clipper/releases/download/1.15.0/qiaomu-clipper-helper.pkg) is signed, notarized and includes Python. Double-click to install, reload the extension, then select an Obsidian vault under Clipping and saving. No Python, Git or Node.js setup is required for this installer.
+The macOS [1.15.3 helper installer](https://github.com/joeseesun/qiaomu-clipper/releases/download/1.15.3/qiaomu-clipper-helper.pkg) is signed, notarized and includes Python. Double-click to install, reload the extension, then select an Obsidian vault under Clipping and saving. No Python, Git or Node.js setup is required for this installer.
 
 The helper enables silent vault writes, appending learning notes to today's daily note, and subtitle generation. Reading, editing, copying and Markdown export work without it; Obsidian URI saving is also available. Update the helper when upgrading the extension. Local recognition engines and models are downloaded separately on demand. Linux/Windows and source installation instructions are in [native/README.md](native/README.md); Windows device validation is pending.
 
