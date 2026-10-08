@@ -23,4 +23,5 @@ it('passes original audio metadata through the fallback caption listing', () => 
 it('does not label a translated caption URL as original audio', () => {
  const tracks=trackInfos([{baseUrl:'https://www.youtube.com/api/timedtext?lang=en&tlang=fr',languageCode:'fr',kind:'asr'}],true,'fr');
  expect(tracks[0].original).toBe(false);
+ expect(chooseTrack([...tracks, {id:'en',label:'English',language:'en',auto:false}])?.language).toBe('en');
 });

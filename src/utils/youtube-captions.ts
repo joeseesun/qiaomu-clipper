@@ -60,7 +60,7 @@ export function trackInfos(tracks: CaptionTrack[], includeGated = false, origina
 	const seen = new Map<string, number>();
 	return tracks.filter(track => includeGated || !/[?&]exp=xpe\b/.test(track.baseUrl)).map(track => {
 		const auto = track.kind === 'asr', base = `${track.languageCode || 'und'}${auto ? '-auto' : ''}`, count = (seen.get(base) ?? 0) + 1; seen.set(base, count);
-		return { id: count > 1 ? `${base}~${count}` : base, label: nameOf(track.name) || `${track.languageCode}${auto ? ' (auto-generated)' : ''}`, language: languageBase(track.languageCode), auto, original: !/[?&]tlang=/.test(track.baseUrl) && Boolean(track.original || (originalLanguage && languageBase(track.languageCode) === languageBase(originalLanguage))), track };
+		return { id: count > 1 ? `${base}~${count}` : base, label: nameOf(track.name) || `${track.languageCode}${auto ? ' (auto-generated)' : ''}`, language: languageBase(track.languageCode), auto, translated: /[?&]tlang=/.test(track.baseUrl), original: !/[?&]tlang=/.test(track.baseUrl) && Boolean(track.original || (originalLanguage && languageBase(track.languageCode) === languageBase(originalLanguage))), track };
 	});
 }
 // Spoken language first (see chooseTrack); `preferred` is a language the viewer picked for this video.

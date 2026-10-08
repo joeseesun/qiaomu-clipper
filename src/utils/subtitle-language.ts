@@ -1,5 +1,5 @@
 // Which subtitle language a video's bar shows, and which the viewer asked for. Shared by the YouTube and Bilibili bars.
-export interface TrackInfo { id: string; label: string; language: string; auto: boolean; original?: boolean }
+export interface TrackInfo { id: string; label: string; language: string; auto: boolean; original?: boolean; translated?: boolean }
 export interface LanguageOption { id: string; label: string }
 
 // "zh-CN" and "ai-zh" are both Chinese; "en-US" is English.
@@ -14,7 +14,7 @@ export function chooseTrack<T extends TrackInfo>(tracks: T[], preferred?: string
 	if (preferred) { const wanted = inLanguage(preferred); if (wanted) return wanted; }
 	const original = tracks.filter(track => track.original);
 	if (original.length) return best(original);
-	const automaticLanguages = [...new Set(tracks.filter(track => track.auto).map(track => track.language))];
+	const automaticLanguages = [...new Set(tracks.filter(track => track.auto && !track.translated).map(track => track.language))];
 	if (automaticLanguages.length === 1) return inLanguage(automaticLanguages[0]);
 	return inLanguage('zh') ?? inLanguage('en') ?? best(tracks);
 }
