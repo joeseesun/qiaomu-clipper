@@ -7,7 +7,8 @@ export const ATTACHMENT_ID = /^[0-9a-f]{32}$/;
 export const MAX_ATTACHMENTS = 20;
 // `omit` keeps the text in the draft but leaves it out of the diary entry (the quote, or the source link and video time).
 export interface LearningRecordDraft { captureId: string; createdAt: string; source: LearningSource; originSource?: LearningSource; reflection: string; quote: string; aiSupplement?: string; attachments?: DraftAttachment[]; omit?: { quote?: boolean; source?: boolean } }
-export interface DailyTargetResult { status: 'ready' | 'unavailable' | 'unsupported' | 'invalid'; vault?: string; date?: string; relativePath?: string; targetToken?: string; error?: string }
+import type { HelperProblem } from './helper-install';
+export interface DailyTargetResult { status: 'ready' | 'unavailable' | 'unsupported' | 'invalid'; vault?: string; date?: string; relativePath?: string; targetToken?: string; error?: string; problem?: HelperProblem }
 export interface LearningSaveResult { status: 'saved' | 'dispatched' | 'unconfirmed' | 'failed' | 'cancelled' | 'target-changed'; captureId: string; vault?: string; date?: string; relativePath?: string; error?: string; duplicate?: boolean; target?: DailyTargetResult }
 
 export function createLearningDraft(source: LearningSource, initial: Partial<Pick<LearningRecordDraft, 'reflection' | 'quote' | 'aiSupplement'>> = {}): LearningRecordDraft {

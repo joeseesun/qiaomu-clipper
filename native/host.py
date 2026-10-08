@@ -336,6 +336,8 @@ def save_learning(message, root, base):
         discard_staging(base,ids)
         return result
 
+# Bump when the extension starts to need something an older installed helper cannot do; the extension compares it.
+HELPER_PROTOCOL=2
 def handle(message, config, base):
     if message.get('action')=='chooseVault':
         value=choose_vault(config.get('vault'))
@@ -354,10 +356,13 @@ def handle(message, config, base):
         sys.path.insert(0,str(Path(__file__).resolve().parent))
         import asr
         return asr.handle(message,base)
+    if not config.get('vault'):
+        if message.get('action')=='status': return {'ok':True,'vault':None}
+        raise ValueError('助手已连接，但还没选 Obsidian 笔记库：请在扩展设置 → 常规里选择文件夹')
     root=Path(config['vault']).resolve()
     if not root.is_dir() or not (root/'.obsidian').is_dir(): raise ValueError('配置的 Obsidian 笔记库不存在')
     if message.get('action')=='status': return {'ok':True,'vault':root.name,'vaultPath':str(root)}
-    if message.get('action')=='learningDailyTarget': return learning_daily_target(root,message.get('vault') or '')
+    if message.get('action')=='learningDailyTarget': return {**learning_daily_target(root,message.get('vault') or ''),'helper':HELPER_PROTOCOL}
     if message.get('action')=='saveLearning': return save_learning(message,root,base)
     if message.get('action')=='chooseNoteFolder':
         vault=message.get('vault') or ''

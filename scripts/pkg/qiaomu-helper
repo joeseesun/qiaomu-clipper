@@ -1,0 +1,8 @@
+#!/bin/sh
+# Registers (or repairs) the helper for the current user, using the Python bundled with the installer.
+# Run it again after installing the browser extension or changing browsers: it finds the extension and allows it.
+#   /Library/QiaomuClipper/bin/qiaomu-helper            install or repair
+#   /Library/QiaomuClipper/bin/qiaomu-helper --check    only diagnose
+D="$(cd "$(dirname "$0")/.." && pwd)"
+if [ "$(uname -m)" = "arm64" ] || [ "$(sysctl -in hw.optional.arm64 2>/dev/null)" = "1" ]; then A=arm64; else A=x86_64; fi
+exec "$D/runtime-$A/bin/python3" "$D/native/install.py" "$@"

@@ -4,6 +4,8 @@ import { clockLabel } from './learning-record';
 import { generalSettings, saveSettings } from './storage-utils';
 import { addAttachments, discardAttachments, MAX_ATTACHMENTS, pickAttachments } from './learning-record';
 import type { LearningSource, LearningRecordDraft, DailyTargetResult, DraftAttachment, AttachResult } from './learning-record';
+import browser from './browser-polyfill';
+import { helperInstallPrompt } from './helper-install';
 import { bilibiliVideo } from './video-source';
 import { addMark, loadMarks, MARKS_EVENT, renderMarks } from './learning-marks';
 import { youtubeVideoId } from './youtube-url';
@@ -116,9 +118,11 @@ export function mountLearningNotes(options: { doc: Document; getSource: () => Le
   // Where the note will land: one quiet line, shown in the footer next to the save button.
   const targetLine = node('p', '正在确认今日日记位置…', 'learning-target'); targetLine.setAttribute('role', 'status');
   const footer = node('footer'); const retryTarget = node('button', '重试', 'learning-secondary'); retryTarget.title = '重新确认今日日记位置'; retryTarget.type = 'button';
+  const installHelper = node('button', '让 AI 帮我安装', 'learning-secondary'); installHelper.type = 'button'; installHelper.hidden = true;
+  installHelper.title = '复制一段话，发给 Claude Code 或 Codex，它会在你的电脑上装好本地助手';
   const save = node('button', '保存到日记', 'learning-primary'); save.type = 'submit'; save.disabled = true; save.title = '保存（⌘/Ctrl + Enter）';
   const destination = node('div', '', 'learning-destination'); const draftNote = node('span', '', 'learning-draft'); draftNote.title = '这是上次没写完的草稿';
-  destination.append(targetLine, draftNote, retryTarget);
+  destination.append(targetLine, draftNote, retryTarget, installHelper);
   footer.append(destination, save);
   const notice = node('div', '', 'learning-save-notice'); notice.hidden = true; notice.setAttribute('role','status'); doc.body.append(notice);
   let noticeTimer: ReturnType<typeof setTimeout> | undefined;
@@ -201,7 +205,7 @@ export function mountLearningNotes(options: { doc: Document; getSource: () => Le
   };
   const paintTarget = () => {
     targetLine.title = target.status === 'ready' ? (target.relativePath || '') : ''; targetLine.textContent = target.status === 'ready' ? (target.vault || '') + ' · ' + (target.date || '') : (target.error || '没连上本地保存助手，暂时无法写入日记');
-    targetLine.classList.toggle('is-problem', target.status !== 'ready'); retryTarget.hidden = target.status === 'ready';
+    targetLine.classList.toggle('is-problem', target.status !== 'ready'); retryTarget.hidden = target.status === 'ready'; installHelper.hidden = !target.problem;
     uriDetails.hidden = target.status !== 'unavailable'; updateButtons();
   };
   const refreshTarget = async () => {
@@ -302,6 +306,10 @@ export function mountLearningNotes(options: { doc: Document; getSource: () => Le
     else if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(); }
   });
   dialog.addEventListener('cancel', event => { event.preventDefault(); close(); }); closeButton.onclick = close;
+  installHelper.onclick = async () => {
+    try { await navigator.clipboard.writeText(helperInstallPrompt(browser.runtime.id)); status.textContent = '已复制，粘贴给 Claude Code 或 Codex；装好后回到这里点「重试」'; }
+    catch { status.textContent = '复制失败，请在扩展说明里找到「让 AI 代装」那段话'; }
+  };
   retryTarget.onclick = () => { if (!busy && !loading) void refreshTarget(); }; dispatch.onclick = () => { void submit(true); };
   const remember = (key: 'learningIncludeQuote' | 'learningIncludeSource', value: boolean) => { void saveSettings({ [key]: value }).catch(() => { /* the choice still applies to this note */ }); };
   quoteToggle.onclick = () => { if (busy || loading) return; includeQuote = !includeQuote; remember('learningIncludeQuote', includeQuote); updateChip(); void persist(); };

@@ -71,4 +71,8 @@ class NativeSaveTests(unittest.TestCase):
   with patch.object(host,'choose_vault') as picker:
    with self.assertRaises(ValueError):self.save({'action':'chooseNoteFolder','vault':'other'})
    picker.assert_not_called()
+ def test_helper_stays_connected_without_a_vault(self):
+  empty={'origin':self.config['origin']}
+  self.assertEqual(host.handle({'action':'status'},empty,self.state),{'ok':True,'vault':None})
+  with self.assertRaises(ValueError):host.handle({'action':'learningDailyTarget'},empty,self.state)
 if __name__=='__main__':unittest.main()

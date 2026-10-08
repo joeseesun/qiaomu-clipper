@@ -74,6 +74,7 @@ class WebTests(unittest.TestCase):
             with patch('subprocess.run', lambda *a, **k: run(0, json.dumps(hls))): self.assertIsNone(asr.probe({'url': 'https://vimeo.com/1'})['mediaUrl'])  # a stream the page cannot play
             with patch('subprocess.run', lambda *a, **k: run(1, '', 'ERROR: Unsupported URL: https://x')): self.assertEqual(asr.probe({'url': 'https://x.example.com/p'})['error'], 'unsupported')
             with patch('subprocess.run', lambda *a, **k: run(1, '', 'ERROR: Sign in to confirm you’re not a bot')): self.assertEqual(asr.probe({'url': 'https://x.example.com/p'})['error'], 'needs-cookies')
+            with patch('subprocess.run', lambda *a, **k: run(1, '', 'ERROR: [TikTok] 1: Your IP address is blocked from accessing this post')): self.assertEqual(asr.probe({'url': 'https://x.example.com/p'})['error'], 'needs-cookies')  # offered the signed-in browser instead of a raw error
             with self.assertRaises(ValueError): asr.probe({'url': 'https://127.0.0.1/x'})
             with self.assertRaises(ValueError): asr.probe({'url': 'http://x.example.com/p'})
         with patch.object(asr, 'find_tool', lambda name: None): self.assertEqual(asr.probe({'url': 'https://vimeo.com/1'})['error'], 'missing')

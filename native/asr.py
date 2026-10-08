@@ -25,7 +25,7 @@ TOOL_DIRS = ['/opt/homebrew/bin', '/usr/local/bin', str(Path.home() / '.local/bi
 LANGUAGES = {'auto', 'zh', 'en', 'ja', 'ko', 'de', 'fr', 'es', 'ru', 'pt', 'it'}
 # Browsers yt-dlp can borrow a login from. Only ever used when the viewer explicitly asked for it for this video.
 COOKIE_BROWSERS = {'chrome', 'edge', 'brave', 'chromium', 'firefox', 'safari'}
-NEEDS_LOGIN = re.compile(r'sign in to confirm|not a bot|use --cookies|fresh cookies|login required|412', re.I)
+NEEDS_LOGIN = re.compile(r'sign in to confirm|not a bot|use --cookies|fresh cookies|login required|412|ip address is blocked|blocked from accessing', re.I)  # TikTok answers an anonymous download with "IP address is blocked"; a signed-in browser is let through
 # What a downloader that has fallen behind the site looks like (YouTube changes its player every few weeks). Worth one update and one retry.
 STALE_TOOL = re.compile(r'needs to be reloaded|unable to extract|nsig|signature|player response|precondition check failed|requested format is not available|http error 403|sabr|po token|js runtime|challenge', re.I)
 UPDATE_EVERY = 12 * 3600

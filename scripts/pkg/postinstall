@@ -1,0 +1,16 @@
+#!/bin/bash
+# Runs as root at the end of the install. Registers the helper for the person who is logged in, as that person,
+# using the Python that ships inside this package: nothing on the Mac has to be installed first.
+# QIAOMU_INSTALL_ROOT / QIAOMU_TARGET_USER exist for testing without root.
+ROOT="${QIAOMU_INSTALL_ROOT:-/Library/QiaomuClipper}"
+LOG="${TMPDIR:-/tmp}/qiaomu-clipper-install.log"
+exec >>"$LOG" 2>&1
+echo "== $(date) postinstall"
+USER_NAME="${QIAOMU_TARGET_USER:-$(stat -f%Su /dev/console)}"
+if [ -z "$USER_NAME" ] || [ "$USER_NAME" = "root" ]; then echo "no logged-in user, skipping registration"; exit 0; fi
+if [ "$(uname -m)" = "arm64" ] || [ "$(sysctl -in hw.optional.arm64 2>/dev/null)" = "1" ]; then ARCH=arm64; else ARCH=x86_64; fi
+PY="$ROOT/runtime-$ARCH/bin/python3"
+[ -x "$PY" ] || { echo "missing $PY"; exit 0; }
+run() { if [ "$(id -u)" = "0" ]; then sudo -u "$USER_NAME" -H "$@"; else "$@"; fi; }
+run "$PY" "$ROOT/native/install.py" && echo "registered for $USER_NAME" || echo "install.py failed: run '$PY $ROOT/native/install.py --check'"
+exit 0

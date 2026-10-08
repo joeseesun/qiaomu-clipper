@@ -1,3 +1,4 @@
+import { classifyHelperError, helperIsOutdated, helperProblemText } from './helper-install';
 import { isDouyinMedia } from './web-page-media';
 import browser from './browser-polyfill';
 import { Template } from '../types/types';
@@ -41,8 +42,8 @@ export function handleLearningNativeMessage(request: unknown, sender: { id?: str
             .catch(() => ({ ok: false, error: '本地助手未连接，无法添加附件' }));
     }
     if (message.action === 'qiaomuLearningDailyTarget') return invokeLearningNative({ action: 'learningDailyTarget', vault: message.vault })
-        .then(result => (result as {status?: string}).status ? result : { status: 'unavailable', error: '请安装或更新本地助手以确认日记目标' })
-        .catch(() => ({ status: 'unavailable', error: '本地助手未连接，无法验证今日日记位置' }));
+        .then(result => (result as {status?: string}).status && !helperIsOutdated((result as {helper?: unknown}).helper) ? result : { status: 'unavailable', problem: 'outdated', error: helperProblemText('outdated') })
+        .catch(error => { const problem = classifyHelperError(error); return { status: 'unavailable', problem, error: helperProblemText(problem) }; });
     const payload = message.payload;
     if (!payload || !/^[a-zA-Z0-9-]{8,80}$/.test(payload.captureId || '')) return Promise.resolve({ status: 'failed', error: '学习记录标识无效' });
     const id = payload.captureId!;
