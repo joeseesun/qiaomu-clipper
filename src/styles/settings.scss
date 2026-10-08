@@ -49,8 +49,9 @@
 
 h2 {
 	margin-top: 0.5rem;
-	padding-inline-start: 1rem;
+	padding-inline-start: 0;
 }
+.settings-section h2, .settings-section h3 { padding-inline-start: 0; margin-inline-start: 0; }
 
 label {
 	font-weight: 400;
@@ -81,8 +82,8 @@ label {
 	display: none;
 	flex-direction: column;
 	gap: 8px;
-	margin: 24px max(6%, 24px) 72px max(6%, 24px);
-	max-width: 600px;
+	margin: 24px max(5%, 24px) 72px max(5%, 24px);
+	max-width: 820px;
 
 	&.active {
 		display: block;
@@ -415,7 +416,7 @@ label {
 		--settings-items-backgroud: var(--background-primary);
 	}
 	.settings-section {
-		max-width: 600px;
+		max-width: 820px;
 	}
 
 	#settings-container {
@@ -753,4 +754,4 @@ label {
 .learn-diary-line.short { width: 55%; }
 .learn-diary-new { font-weight: 600; }
 @media (max-width: 720px) { .learn-how { grid-template-columns: 1fr; } }
-#templates-home-section > .settings-section-header:not(:first-child) h2 { font-size: var(--font-ui-medium, 16px); margin: 0 0 0.75rem; padding: 0 1rem; }
+#templates-home-section > .settings-section-header:not(:first-child) h2 { font-size: var(--font-ui-medium, 16px); margin: 0 0 0.75rem; }
