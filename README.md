@@ -18,7 +18,12 @@ Read, watch, listen, and turn what you learn into Obsidian notes.
 
 </div>
 
-> **安装建议（2026-10-08）：等新版商店上架后安装。** [Chrome 应用商店](https://chromewebstore.google.com/detail/jniolfihillilkoajpnonlbkhfkiicoo)当前公开版本仍为 **1.7.1**，**1.15.0 已提交审核，通过后自动发布**。本页介绍 1.15.0 的功能，旧商店版不包含全部功能。想现在体验，请复制下方 prompt，让有本机终端权限的 Agent 阅读仓库并安装 [GitHub release](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.15.0)。
+> **安装建议（2026-10-08）：等新版商店上架后安装。** [Chrome 应用商店](https://chromewebstore.google.com/detail/jniolfihillilkoajpnonlbkhfkiicoo)当前公开版本仍为 **1.7.1**，**1.15.0 已提交审核，通过后自动发布**。本页介绍 1.15.0 的功能，旧商店版不包含全部功能。想现在体验，将下面这段安装 prompt 复制给 Codex、Claude Code 等有本机终端权限的 Agent，插件和 helper 一起安装。
+
+```text
+请帮我安装或升级乔木剪藏：https://github.com/joeseesun/qiaomu-clipper 。先读 README.md 和 native/README.md，按我的系统与浏览器操作。
+下载最新正式 release 的 -chrome-local.zip，解压并指导我加载扩展；同时安装对应版本的 helper：macOS 下载 qiaomu-clipper-helper.pkg 并指导我双击安装，其他系统按仓库文档安装。已有旧版先备份并保留数据，最后检查扩展与助手连接，指导我选择 Obsidian 笔记库。
+```
 
 ## 你可以用它做什么
 
@@ -41,22 +46,9 @@ Read, watch, listen, and turn what you learn into Obsidian notes.
 
 安装扩展后，打开文章或支持的视频、音频页面，在非输入框内连按三次 `A`。也可以点页面字幕栏的学习入口，或扩展弹窗里的「阅读」：文章进入阅读页，支持的媒体页面进入学习播放器。
 
-### 现在体验：把这段 prompt 交给 Agent
+### 现在体验：让 Agent 安装
 
-将下面整段复制给 **Codex、Claude Code 或其他有本机终端权限的 Agent**。它会读取仓库说明，选择适合你的系统和浏览器的安装方式；浏览器确认、安装器授权由你完成。
-
-```text
-请帮我安装或升级「乔木剪藏」，仓库：https://github.com/joeseesun/qiaomu-clipper 。
-
-先读取仓库 README.md 和 native/README.md，确认我的系统、浏览器、现有扩展和 Obsidian 笔记库。不要直接照旧教程安装，也不要猜扩展 ID、库路径或发布文件名。
-
-1. 查询最新正式 GitHub release，核对版本与附件。现在商店版 1.15.0 还在审核，提前体验优先下载 release 的 -chrome-local.zip，解压到固定的新目录；不要覆盖现有安装，也不要优先让我装 Node.js 编译。核对 ZIP 根目录 manifest.json、版本及 release 提供的校验值。没有适用的正式包时，再说明原因并按仓库文档从源码构建本地版。
-2. 如果我已有旧版，先安排备份。扩展 ID 变化时，先读取 scripts/migrate-extension-data.py 的说明：macOS/Linux 可先 --dry-run；正式迁移前让我完全退出浏览器，并确认迁移方案。已有目标数据时不要擅自覆盖或使用 --force；Windows 不运行这个迁移脚本。确认备份或迁移完成前不要删除旧扩展，不要把 API Key、凭证或备份内容发到外部。
-3. 指导我在 chrome://extensions 开启开发者模式并加载解压目录。需要我点击、确认或授权的步骤，告诉我具体操作，不要绕过浏览器限制。装好后刷新原来的文章和媒体页面。
-4. 如果我需要静默保存、学习日记或生成字幕，再安装或更新 helper。macOS 优先下载同一 release 的 qiaomu-clipper-helper.pkg，核对版本、校验值、签名与公证，引导我双击安装；它自带 Python，不要默认安装系统 Python。Linux/Windows 或源码安装按 native/README.md 操作；不要覆盖已选库，也不要编造扩展 ID。运行适用的助手连接诊断，报告真实结果。
-5. 让我在「剪藏与保存」里选笔记库。日记写入先检查 Obsidian 日记配置；本机识别模型按需安装，云端服务与 API Key 由我自己选择和填写。RSS 分享保持关闭，测试不公开投稿。
-6. 用公开文章检查阅读、复制和保存；用一条支持的媒体检查学习播放器与字幕。只在我同意的测试位置写入笔记。最后报告扩展/helper 版本、安装目录、实际通过的检查和未验证项；有失败就给出下一步，不要仅凭安装命令成功说全部可用。
-```
+复制页面顶部的安装 prompt 给有本机终端权限的 Agent。它会按仓库文档下载插件和 helper；需要你完成的浏览器加载、安装器授权会给出具体指引。
 
 <details>
 <summary>手动安装或从源码构建</summary>
@@ -240,15 +232,8 @@ Once the store version is updated, install it, open an article or supported medi
 For early access, copy this prompt into Codex, Claude Code or another agent with local terminal access:
 
 ```text
-Install or upgrade Qiaomu Clipper from https://github.com/joeseesun/qiaomu-clipper . First read README.md and native/README.md; check my OS, browser, existing extension and Obsidian vault.
-
-Query the latest stable GitHub release and its assets. Prefer its -chrome-local.zip for early access; verify the manifest version and published checksum, and extract to a new permanent directory. Use a source build only if no suitable release package exists, and explain why. Do not guess extension IDs, paths or asset names.
-
-Back up existing data before upgrading. If the extension ID changes, read scripts/migrate-extension-data.py: it supports macOS/Linux, not Windows. Run --dry-run first, ask me to fully quit the browser before migration, and confirm the plan before writing. Never overwrite existing target data or use --force without approval, delete the old extension before backup/migration, or send credentials and backups outside my computer.
-
-Guide me through Developer mode and Load unpacked in chrome://extensions, then refresh source pages. Leave browser confirmations and installer authorization to me. If I need silent saving, daily notes or subtitle generation, update the helper too: on macOS prefer the matching release's qiaomu-clipper-helper.pkg, verify checksum, signature and notarization, and guide me to install it. It includes Python. Follow native/README.md for Linux/Windows or source installation; preserve my chosen vault and verify the actual connection.
-
-Keep public RSS sharing off. Let me choose my vault, recognition engine and cloud credentials. Test reading/copying, save only to an agreed test location, and check a supported media player/transcript. Report installed versions, paths, passed checks and unverified behavior. Do not equate successful commands with a working installation.
+Install or upgrade Qiaomu Clipper: https://github.com/joeseesun/qiaomu-clipper . Read README.md and native/README.md first, then follow the instructions for my OS and browser.
+Download the latest stable release's -chrome-local.zip, extract it and guide me to load the extension. Install the matching helper too: on macOS download qiaomu-clipper-helper.pkg and guide me through installation; on other systems follow the repository docs. Back up and preserve existing data before upgrading. Verify the extension/helper connection and help me select my Obsidian vault.
 ```
 
 ### Optional helper
