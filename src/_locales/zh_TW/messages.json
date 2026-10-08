@@ -570,7 +570,7 @@
 		"message": "開啟"
 	},
 	"openBehaviorDescription": {
-		"message": "選擇 Web Clipper 預設的開啟方式。"
+		"message": "彈出視窗：先看一眼再剪藏。閱讀模式：直接開啟乾淨的閱讀頁。"
 	},
 	"openBehaviorTitle": {
 		"message": "開啟行為"
@@ -1149,6 +1149,9 @@
 	"providerModelsEmpty": {
 		"message": "供應商未回傳模型，可手動填寫模型 ID。"
 	},
+	"providerModelsFallback": {
+		"message": "沒能讀到最新的模型清單，先列出常用模型。可以重新整理再試。"
+	},
 	"providerModelsFailed": {
 		"message": "取得模型失敗，請檢查供應商位址、API Key 和網路後重試，也可手動填寫模型 ID。"
 	},
@@ -1479,6 +1482,12 @@
 	"youtubePanelEmpty": {
 		"message": "沒有讀到字幕，請先展開轉寫文稿"
 	},
+	"readerAutoChatTitle": {
+		"message": "開啟閱讀頁時自動展開 AI 對話"
+	},
+	"readerAutoChatDescription": {
+		"message": "進入閱讀頁就顯示 AI 對話面板，不用再點一下。"
+	},
 	"selectionToolbarTitle": {
 		"message": "選取文字工具列"
 	},
@@ -1723,6 +1732,24 @@
 	},
 	"providerSignInNoteTokenDance": {
 		"message": "在瀏覽器中確認後，會自動為你建立 Key。"
+	},
+	"providerSignInOpenRouter": {
+		"message": "用 OpenRouter 登入"
+	},
+	"providerSignInNoteOpenRouter": {
+		"message": "在瀏覽器裡確認後，會自動為你建立 Key，不用複製貼上。"
+	},
+	"qiaomuModelSearch": {
+		"message": "搜尋模型"
+	},
+	"qiaomuModelNone": {
+		"message": "沒有符合的模型"
+	},
+	"qiaomuModelManage": {
+		"message": "新增或管理供應商"
+	},
+	"qiaomuModelPlan": {
+		"message": "方案"
 	},
 	"providerSignInAgain": {
 		"message": "重新登入"

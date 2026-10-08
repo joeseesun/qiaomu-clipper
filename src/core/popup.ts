@@ -577,8 +577,8 @@ function setupEventListeners(tabId: number) {
 
 	const readerModeButton = document.getElementById('reader-mode');
 	if (readerModeButton) {
-		readerModeButton.addEventListener('click', () => toggleReaderMode(tabId));
-		checkReaderModeState(tabId);
+		// Our reading page, the same as the Read button: not the in-page reader.
+		readerModeButton.addEventListener('click', event => { event.preventDefault(); document.getElementById('preview-clip')?.click(); });
 	}
 }
 

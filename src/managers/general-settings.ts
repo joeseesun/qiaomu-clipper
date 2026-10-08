@@ -264,9 +264,9 @@ async function initializeLocalVaultSettings(): Promise<void> {
 		try {
 			const result = await browser.runtime.sendMessage({ action: 'qiaomuLocalChooseVault' }) as LocalSaveResult;
 			if (result?.cancelled) return;
-			if (!result?.ok || !result.vaultPath) { status.textContent = result?.error || '文件夹选择失败'; return; }
+			if (!result?.ok || !result.vaultPath) { if ((result as { reason?: string })?.reason) offline(result.error || '文件夹选择失败', (result as { reason?: string }).reason); else status.textContent = result?.error || '文件夹选择失败'; return; }
 			input.value = result.vaultPath;
-			status.textContent = `已选择 ${result.vault}，点击“保存库地址”生效。`;
+			status.textContent = `已选择 ${result.vault}，点「保存」生效。`;
 		} catch { offline('本地保存助手未连接，请先安装或更新助手'); }
 		finally { choose.disabled = false; button.disabled = false; }
 	});
@@ -279,7 +279,7 @@ async function initializeLocalVaultSettings(): Promise<void> {
 		try {
 			const result = await browser.runtime.sendMessage({ action: 'qiaomuLocalConfigure', payload: { vaultPath: input.value.trim() } }) as LocalSaveResult;
 			if (!result?.ok || !result.vault || !result.vaultPath) {
-				status.textContent = result?.error || '库地址保存失败，请检查本地保存助手';
+				if ((result as { reason?: string })?.reason) offline(result.error || '库地址保存失败', (result as { reason?: string }).reason); else status.textContent = result?.error || '库地址保存失败，请检查本地保存助手';
 				return;
 			}
 			if (!generalSettings.vaults.includes(result.vault)) {
@@ -456,6 +456,9 @@ function initializeDefaultTemplateDropdown(): void {
 	});
 	initializeSettingToggle('selection-toolbar-toggle', generalSettings.selectionToolbar !== false, (checked) => {
 		saveSettings({ ...generalSettings, selectionToolbar: checked });
+	});
+	initializeSettingToggle('reader-auto-chat-toggle', generalSettings.readerAutoChat === true, (checked) => {
+		saveSettings({ ...generalSettings, readerAutoChat: checked });
 	});
 	initializeTripleKeyFields();
 	const sites = document.getElementById('triple-key-sites') as HTMLTextAreaElement | null;

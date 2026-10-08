@@ -55,7 +55,11 @@ npm run build:chrome
 <details>
 <summary><b>不想安装 Node.js？直接下载 1.14.4 已发布安装包</b></summary>
 
-下载 [Chrome ZIP](https://github.com/joeseesun/qiaomu-clipper/releases/download/1.14.4/qiaomu-clipper-1.14.4-chrome.zip)，解压后在 `chrome://extensions` 开启「开发者模式」，点「加载已解压的扩展程序」选择解压目录。[发布说明](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.14.4)。**装好后请刷新已打开的 YouTube 页面**，字幕工具栏才会出现；请勿使用 1.10.0 及更早版本，它们没有视频字幕工具栏。**装好后请刷新已打开的 B 站页面**；B 站只给已登录账号提供字幕。
+下载 Chrome 安装包（发布页里文件名带 `-chrome-local` 的那个；商店审核用的 `-chrome.zip` 不带它），解压后在 `chrome://extensions` 开启「开发者模式」，点「加载已解压的扩展程序」选择解压目录。[发布说明](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.14.4)。**从旧的本地版升级（推荐让 AI 代劳，数据一个不丢）：** `-chrome-local` 版的扩展 ID 固定等于商店版（`jniolfihillilkoajpnonlbkhfkiicoo`），本地助手安装包预先就认它，不再出现「助手未连接」。它和你之前加载的旧版 ID 不同，Chrome 会当成另一个扩展，数据不会自动带过来；仓库里的 `scripts/migrate-extension-data.py` 会先完整备份，再把旧版的全部数据（设置、API Key、AI 对话历史、高亮、草稿）原样搬到新 ID 名下。把这段话发给 Claude Code / Codex：
+
+> 帮我把「乔木剪藏」从旧的本地加载版升级到固定 ID 的版本，并保留所有数据。步骤：1）下载 https://github.com/joeseesun/qiaomu-clipper 最新发布页里文件名带 `-chrome-local` 的 zip，解压到一个新文件夹（不要覆盖旧文件夹）；没有仓库就先 git clone 它。2）请我完全退出 Chrome（macOS 按 Cmd+Q，不是只关窗口），等我确认后再继续。3）在仓库里先运行 `python3 scripts/migrate-extension-data.py --dry-run`，把输出给我看；我同意后去掉 `--dry-run` 正式运行（会先备份到 ~/qiaomu-clipper-backup-时间）。4）告诉我：重新打开 Chrome，在 chrome://extensions 删除旧版「乔木剪藏」，点「加载已解压的扩展程序」选新文件夹。5）出问题就用 `--restore 备份目录` 恢复。不要自己编造扩展 ID，也不要在 Chrome 还开着时复制数据。
+
+不方便用 AI 时，也可以手动：在旧版「设置 → 导出全部设置」，删掉旧版、加载 `-chrome-local`，再「导入全部设置」（只含模板、模型和 Key；从带这个功能的版本起，导出还会包含对话历史、高亮和草稿）。已经写进 Obsidian 的笔记不受影响。导出文件和备份目录里含有 API Key 和登录凭证，请自己保管，不要发给别人。从这一版起 ID 不再变化，以后商店上架后换成商店版也不会再丢。**装好后请刷新已打开的 YouTube 页面**，字幕工具栏才会出现；请勿使用 1.10.0 及更早版本，它们没有视频字幕工具栏。**装好后请刷新已打开的 B 站页面**；B 站只给已登录账号提供字幕。
 
 </details>
 
@@ -78,7 +82,7 @@ python3 native/install.py
 
 输出 `"ok": true` 即安装成功，然后在 `chrome://extensions` 重新加载扩展。遇到「本地保存助手未连接」，运行 `python3 native/install.py --check` 诊断。
 
-**让 AI agent 代装**：把这句话发给 Claude Code / Codex：「帮我安装乔木剪藏的本地保存助手：克隆 https://github.com/joeseesun/qiaomu-clipper ，在仓库里运行 `python3 native/install.py`，不要手动编造扩展 ID 或库路径；`ok: false` 时按 `error` / `hint` 处理，有多个库时问我用哪个。」
+**让 AI agent 代装**：笔记卡片里一旦提示本地助手没连上，点「让 AI 帮我安装」，会复制一段带你本机扩展 ID 的话，粘贴给 Claude Code / Codex 即可。没有这个提示时，也可以直接发这句：「帮我安装乔木剪藏的本地助手：没有代码就 git clone https://github.com/joeseesun/qiaomu-clipper ，已有就 git pull，在仓库里运行 `python3 native/install.py`（Windows 用 `python native\install.py`）。不要自己编造扩展 ID 或库路径；`ok: false` 时按 `error` / `hint` 处理，输出里有多个库（`vaultChoices`）就问我用哪个，再加 `--vault` 重跑；最后运行 `python3 native/install.py --check` 要看到 `ok: true`，并告诉我去 chrome://extensions 重新加载乔木剪藏。」
 
 普通剪藏默认通过 Obsidian URI 保存；助手可直接写入库内文件。
 

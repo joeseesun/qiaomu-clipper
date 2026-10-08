@@ -4,9 +4,11 @@ import { generalSettings } from '../utils/storage-utils';
 import { updatePromptContextVisibility } from './interpreter-settings';
 import { initializePropertyTypesManager } from './property-types-manager';
 
-export type SettingsSection = 'general' | 'study' | 'asr' | 'clip' | 'learning' | 'video' | 'properties' | 'highlighter' | 'interpreter' | 'reader' | 'templates';
+export type SettingsSection = 'general' | 'study' | 'asr' | 'clip' | 'learning' | 'video' | 'properties' | 'highlighter' | 'interpreter' | 'reader' | 'templates' | 'templates-home';
 
-export function showSettingsSection(section: SettingsSection, templateId?: string): void {
+export function showSettingsSection(requested: SettingsSection | 'video', templateId?: string): void {
+	// Subtitle bar settings now sit on the Subtitles and transcription page.
+	const section: SettingsSection = requested === 'video' ? 'asr' : requested;
 	const sections = document.querySelectorAll('.settings-section');
 	const sidebarItems = document.querySelectorAll('#sidebar li[data-section]');
 
@@ -14,7 +16,8 @@ export function showSettingsSection(section: SettingsSection, templateId?: strin
 	sidebarItems.forEach(item => item.classList.remove('active'));
 
 	const selectedSection = document.getElementById(`${section}-section`);
-	const selectedSidebarItem = document.querySelector(`#sidebar li[data-section="${section}"]`);
+	// Editing a template keeps its list highlighted in the menu.
+	const selectedSidebarItem = document.querySelector(`#sidebar li[data-section="${section === 'templates' ? 'templates-home' : section}"]`);
 
 	if (selectedSection) {
 		selectedSection.classList.add('active');
@@ -74,7 +77,7 @@ export function initializeSidebar(): void {
 	document.addEventListener('click', event => {
 		const link = (event.target as HTMLElement).closest<HTMLElement>('[data-goto-section]');
 		const section = link?.dataset.gotoSection;
-		if (section === 'asr' || section === 'interpreter') { event.preventDefault(); showSettingsSection(section); }
+		if (section === 'asr' || section === 'interpreter' || section === 'templates-home') { event.preventDefault(); showSettingsSection(section); }
 	});
 
 	if (sidebar) {
@@ -94,8 +97,9 @@ export function initializeSidebar(): void {
 				|| section === 'properties'
 				|| section === 'highlighter'
 				|| section === 'interpreter'
-				|| section === 'reader') {
-				showSettingsSection(section as 'general' | 'study' | 'asr' | 'clip' | 'learning' | 'video' | 'properties' | 'highlighter' | 'interpreter' | 'reader');
+				|| section === 'reader'
+				|| section === 'templates-home') {
+				showSettingsSection(section as SettingsSection);
 			}
 			if (settingsContainer) {
 				settingsContainer.classList.remove('sidebar-open');

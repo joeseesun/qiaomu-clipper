@@ -570,7 +570,7 @@
 		"message": "Open"
 	},
 	"openBehaviorDescription": {
-		"message": "Choose how Web Clipper opens by default."
+		"message": "Popup: look first, then clip. Reading mode: open the clean reading page right away."
 	},
 	"openBehaviorTitle": {
 		"message": "Open behavior"
@@ -1149,6 +1149,9 @@
 	"providerModelsEmpty": {
 		"message": "The provider returned no models. You can enter a model ID manually."
 	},
+	"providerModelsFallback": {
+		"message": "Couldn't read the latest list, so common models are shown. Refresh to try again."
+	},
 	"providerModelsFailed": {
 		"message": "Could not fetch models. Check the provider URL, API key and network, then refresh, or enter a model ID manually."
 	},
@@ -1491,6 +1494,12 @@
 	"youtubePanelEmpty": {
 		"message": "No transcript lines found. Open the transcript first."
 	},
+	"readerAutoChatTitle": {
+		"message": "Open AI chat with the reading page"
+	},
+	"readerAutoChatDescription": {
+		"message": "Show the AI chat panel as soon as the reading page opens."
+	},
 	"selectionToolbarTitle": {
 		"message": "Selection toolbar"
 	},
@@ -1738,6 +1747,24 @@
 	},
 	"providerSignInNoteTokenDance": {
 		"message": "Confirm in the browser and a key is created for you."
+	},
+	"providerSignInOpenRouter": {
+		"message": "Sign in with OpenRouter"
+	},
+	"providerSignInNoteOpenRouter": {
+		"message": "Confirm in the browser and a key is created for you. No need to copy one."
+	},
+	"qiaomuModelSearch": {
+		"message": "Search models"
+	},
+	"qiaomuModelNone": {
+		"message": "No matching models"
+	},
+	"qiaomuModelManage": {
+		"message": "Add or manage providers"
+	},
+	"qiaomuModelPlan": {
+		"message": "Plan"
 	},
 	"providerSignInAgain": {
 		"message": "Sign in again"

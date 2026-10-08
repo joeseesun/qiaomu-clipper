@@ -34,6 +34,7 @@ export function mountReaderPreviewShell(draft: ClipPreview, pending = false) {
 			await updateClipPreview(draft);
 		},
 	});
+	if (generalSettings.readerAutoChat) chat.toggle(true);
 	const bar = createClipBar({onToggleChat:chat.toggle, mode:'read', id, draft, title, domain:getDomain(draft.clip.url), url:draft.clip.url, sync: action => sync(action)});
 	sync = mountTranscriptExport(bar, draft);
 	document.body.prepend(bar);

@@ -671,3 +671,18 @@ label {
 	margin: 0 0 16px; color: var(--text-muted); font-size: var(--font-ui-small); line-height: 1.6;
 	a { color: var(--text-normal); text-decoration: underline; cursor: pointer; &:focus-visible { outline: 1px solid var(--text-muted); outline-offset: 2px; } }
 }
+
+// ---- Clipping templates page (the list that used to sit at the bottom of the menu) ----------------
+#templates-home-section {
+	#template-list {
+		margin: 4px 0 24px; padding: 0; list-style: none; overflow: hidden;
+		border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); corner-shape: var(--corner-shape);
+		li { display: flex; align-items: center; gap: 8px; padding: 10px 12px; cursor: pointer; border-bottom: 1px solid var(--background-modifier-border); background: transparent;
+			&:last-child { border-bottom: 0; }
+			&:hover { background: var(--background-modifier-hover); }
+			.template-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+			.delete-template-btn { flex: none; margin: 0; padding: 4px; border: 0; background: none; box-shadow: none; color: var(--text-muted); opacity: 0; cursor: pointer; }
+			&:hover .delete-template-btn, .delete-template-btn:focus-visible { opacity: .75; } } }
+	#new-template-btn { width: auto; margin: 0; }
+}
+.template-back { display: inline-flex; align-items: center; margin: 0 0 6px; font-size: 13px; color: var(--text-muted); text-decoration: none; cursor: pointer; &:hover { color: var(--text-normal); } }

@@ -94,6 +94,8 @@ export interface Settings {
 	tripleKeys?: { read: string; edit: string; clip: string; note?: string };
 	tripleKeyBlockedSites?: string[];
 	selectionToolbar?: boolean;
+	// Open the AI chat panel by itself when the reading page opens.
+	readerAutoChat?: boolean;
 	youtubePanelActions?: boolean;
 	learningNotes?: boolean;
 	learningIncludeQuote?: boolean;

@@ -12,7 +12,7 @@
 		"message": "+ 添加属性"
 	},
 	"addProvider": {
-		"message": "+ 添加服务商"
+		"message": "+ 添加供应商"
 	},
 	"addProviderTitle": {
 		"message": "添加服务商"
@@ -54,13 +54,13 @@
 		"message": "追加到已有笔记的末尾"
 	},
 	"autoRunInterpreter": {
-		"message": "打开时自动运行"
+		"message": "打开面板就让 AI 开始"
 	},
 	"autoRunInterpreterDescription": {
-		"message": "模板里含有 AI 提示时，打开剪藏面板就立即调用模型，会消耗模型服务商的额度。如果想手动控制，请关闭此项。"
+		"message": "模版里有 AI 提示时，一打开剪藏面板就调用模型，会消耗你的模型额度。想自己控制就关掉。"
 	},
 	"behavior": {
-		"message": "使用习惯"
+		"message": "保存方式"
 	},
 	"byDay": {
 		"message": "按天"
@@ -90,13 +90,13 @@
 		"message": "选择设置文件"
 	},
 	"chooseTemplateFile": {
-		"message": "选择模板文件"
+		"message": "选择模版文件"
 	},
 	"clipBehavior": {
-		"message": "划线内容如何剪藏"
+		"message": "剪藏有划线的网页时"
 	},
 	"clipBehaviorDescription": {
-		"message": "决定带有划线的页面保存到 Obsidian 时的内容，对应模板变量 $strong_start${{content}}$strong_end$。",
+		"message": "选择保存什么：保留全文并标出划线、只保留划线，或忽略划线。对应模版变量 $strong_start${{content}}$strong_end$。",
 		"placeholders": {
 			"strong_end": {
 				"content": "</strong>"
@@ -127,13 +127,13 @@
 		"message": "开启/关闭划线模式"
 	},
 	"commandToggleReader": {
-		"message": "开启/关闭阅读模式"
+		"message": "打开阅读页"
 	},
 	"confirmDeleteTemplate": {
-		"message": "确定要删除模板“$1”吗？"
+		"message": "确定要删除模版“$1”吗？"
 	},
 	"confirmReplaceSettings": {
-		"message": "导入会替换你当前的所有设置，包括模板和属性。确定要继续吗？"
+		"message": "导入会替换你当前的所有设置，包括模版和属性。确定要继续吗？"
 	},
 	"copied": {
 		"message": "已复制"
@@ -154,10 +154,10 @@
 		"message": "日记文件名格式（例如 YYYY-MM-DD）"
 	},
 	"defaultInterpreterContext": {
-		"message": "默认提示背景"
+		"message": "AI 的默认背景信息"
 	},
 	"defaultInterpreterContextDescription": {
-		"message": "提供给模型的背景信息，用来理解和回答模板中的 AI 提示。可以在这里使用模板变量。"
+		"message": "告诉 AI 这是什么类型的内容，帮它理解模版里的 AI 提示。可以使用模版变量。"
 	},
 	"defaultTemplateName": {
 		"message": "默认"
@@ -219,7 +219,7 @@
 		"message": "编辑服务商"
 	},
 	"editTemplate": {
-		"message": "编辑模板"
+		"message": "编辑模版"
 	},
 	"embedded": {
 		"message": "页面内嵌面板"
@@ -228,10 +228,10 @@
 		"message": "在网页上划线标记内容，并保存到 Obsidian。"
 	},
 	"enableInterpreter": {
-		"message": "启用 AI 解读"
+		"message": "让 AI 整理网页内容"
 	},
 	"enableInterpreterDescription": {
-		"message": "用自然语言从网页中提取信息。例如在模板里写 $strong_start${{\"这篇文章的摘要\"}}$strong_end$。使用前需要在下方配置 API Key 或自定义模型。$link_start$了解更多$link_end$",
+		"message": "在模版里写一句话，让 AI 提取网页信息，例如 $strong_start${{\"这篇文章的摘要\"}}$strong_end$。需要先在下方添加供应商和模型。$link_start$了解更多$link_end$",
 		"placeholders": {
 			"link_end": {
 				"content": "</a>"
@@ -260,7 +260,7 @@
 		"message": "导出全部设置"
 	},
 	"exportAllSettingsDescription": {
-		"message": "把所有设置（包括模板和属性）导出为文件，可用于备份或迁移到其他设备。"
+		"message": "把所有设置打包成一个文件，用来备份或换电脑。包括模版、属性、对话历史、划线和笔记草稿。文件里有 API Key，请妥善保管。"
 	},
 	"exportHighlights": {
 		"message": "导出划线"
@@ -292,10 +292,10 @@
 		"message": "复制失败"
 	},
 	"failedToDeleteTemplate": {
-		"message": "删除模板失败，请重试。"
+		"message": "删除模版失败，请重试。"
 	},
 	"failedToDuplicateTemplate": {
-		"message": "创建模板副本失败，请重试。"
+		"message": "创建模版副本失败，请重试。"
 	},
 	"failedToExportHighlights": {
 		"message": "导出划线失败，详细原因请查看控制台。"
@@ -307,7 +307,7 @@
 		"message": "无法提取页面内容。"
 	},
 	"failedToImportTemplate": {
-		"message": "导入模板失败，请检查文件后重试。"
+		"message": "导入模版失败，请检查文件后重试。"
 	},
 	"failedToInitialize": {
 		"message": "请尝试重新加载插件。"
@@ -322,7 +322,7 @@
 		"message": "重置服务商和模型失败"
 	},
 	"failedToResetTemplate": {
-		"message": "恢复默认模板失败，请重试。"
+		"message": "恢复默认模版失败，请重试。"
 	},
 	"failedToSave": {
 		"message": "保存文件失败"
@@ -349,7 +349,7 @@
 		"message": "通用"
 	},
 	"generalSettings": {
-		"message": "通用设置"
+		"message": "通用"
 	},
 	"getApiKeyHere": {
 		"message": "点这里获取 $1 的 API Key。"
@@ -405,7 +405,7 @@
 		"message": "导入全部设置"
 	},
 	"importAllSettingsDescription": {
-		"message": "从文件导入全部设置（包括模板和属性）。导入后会覆盖当前的所有配置。"
+		"message": "从备份文件恢复所有设置，会覆盖现在的设置。"
 	},
 	"importFailed": {
 		"message": "导入失败，详细原因请查看控制台。"
@@ -443,10 +443,10 @@
 		"message": "导入设置"
 	},
 	"importTemplate": {
-		"message": "导入模板"
+		"message": "导入模版"
 	},
 	"interpret": {
-		"message": "运行"
+		"message": "让 AI 处理"
 	},
 	"interpreter": {
 		"message": "AI 解读"
@@ -455,7 +455,7 @@
 		"message": "提示背景"
 	},
 	"interpreterContextDescription": {
-		"message": "提供给模型的背景信息，用来理解模板中的 AI 提示。会覆盖$link_start$AI 解读设置$link_end$里的默认背景，可以使用变量。",
+		"message": "提供给模型的背景信息，用来理解模版中的 AI 提示。会覆盖$link_start$AI 解读设置$link_end$里的默认背景，可以使用变量。",
 		"placeholders": {
 			"link_end": {
 				"content": "</a>"
@@ -469,7 +469,7 @@
 		"message": "语言"
 	},
 	"languageDescription": {
-		"message": "选择插件界面使用的语言。"
+		"message": "界面显示的语言。"
 	},
 	"last30Days": {
 		"message": "近 30 天"
@@ -478,10 +478,10 @@
 		"message": "上次使用的"
 	},
 	"legacyMode": {
-		"message": "兼容模式（旧版）"
+		"message": "兼容旧版 Obsidian"
 	},
 	"legacyModeDescription": {
-		"message": "使用适配 Obsidian 1.6.7 及更早版本的剪藏方式。该方式受浏览器和系统限制，内容过长时可能保存失败，而且不会有任何提示。"
+		"message": "只有 Obsidian 1.6.7 及更早版本才需要打开。内容太长时可能保存失败，而且不会有任何提示。"
 	},
 	"loadArticle": {
 		"message": "阅读文章"
@@ -517,7 +517,7 @@
 		"message": "更多"
 	},
 	"newTemplate": {
-		"message": "新建模板"
+		"message": "新建模版"
 	},
 	"noHighlights": {
 		"message": "不处理，按原文剪藏"
@@ -526,7 +526,7 @@
 		"message": "没有找到结果"
 	},
 	"noTemplates": {
-		"message": "还没有可用的模板，请先到设置中添加。"
+		"message": "还没有可用的模版，请先到设置中添加。"
 	},
 	"noUnusedProperties": {
 		"message": "没有未使用的属性。"
@@ -541,7 +541,7 @@
 		"message": "保存到文件夹"
 	},
 	"noteLocationDescription": {
-		"message": "笔记所在的文件夹或路径。"
+		"message": "笔记放在哪个文件夹，相对于笔记库。"
 	},
 	"noteName": {
 		"message": "笔记标题"
@@ -570,7 +570,7 @@
 		"message": "打开"
 	},
 	"openBehaviorDescription": {
-		"message": "选择点击工具栏图标后，剪藏面板以什么方式打开。"
+		"message": "弹出窗口：先看一眼再剪藏。阅读模式：直接打开干净的阅读页。"
 	},
 	"openBehaviorTitle": {
 		"message": "点击插件图标时"
@@ -582,7 +582,7 @@
 		"message": "查看全部划线"
 	},
 	"openReader": {
-		"message": "打开阅读模式"
+		"message": "打开阅读页"
 	},
 	"openSidePanel": {
 		"message": "在侧边栏打开"
@@ -711,7 +711,7 @@
 		"message": "请填写服务商名称和接口地址。"
 	},
 	"providers": {
-		"message": "模型服务商"
+		"message": "供应商"
 	},
 	"rateExtensionDescription": {
 		"message": "觉得好用吗？欢迎给插件打个分，帮助更多人发现它。"
@@ -807,7 +807,7 @@
 		"message": "自定义 CSS"
 	},
 	"readerCustomCssDescription": {
-		"message": "填写的 CSS 会自动应用到阅读模式。"
+		"message": "填写的 CSS 会自动用在阅读页上。"
 	},
 	"readerDarkTheme": {
 		"message": "深色模式单独配色"
@@ -894,7 +894,7 @@
 		"message": "配色方案"
 	},
 	"readerThemeDescription": {
-		"message": "选择阅读模式使用的配色。"
+		"message": "选择阅读页使用的配色。"
 	},
 	"readerThemeSection": {
 		"message": "配色"
@@ -927,7 +927,7 @@
 		"message": "清理未使用的属性"
 	},
 	"removeUnusedPropertiesDescription": {
-		"message": "删除所有没有被任何模板用到的属性。"
+		"message": "删除没有被任何模版用到的属性。"
 	},
 	"removeVault": {
 		"message": "删除笔记库"
@@ -936,13 +936,13 @@
 		"message": "只保留划线内容"
 	},
 	"reset": {
-		"message": "恢复"
+		"message": "还原"
 	},
 	"resetDefaultTemplate": {
-		"message": "恢复默认模板"
+		"message": "还原默认版"
 	},
 	"resetDefaultTemplateDescription": {
-		"message": "撤销你对默认模板做过的所有修改。"
+		"message": "撤销你对「默认版」模版做过的所有修改。"
 	},
 	"resetProvidersAndModels": {
 		"message": "恢复默认模型"
@@ -954,10 +954,10 @@
 		"message": "保存"
 	},
 	"saveBehaviorDescription": {
-		"message": "设置点击剪藏按钮时的默认动作，其他方式可在按钮旁的下拉菜单中选择。"
+		"message": "选择主按钮默认做什么，其他方式在按钮旁边的下拉菜单里。"
 	},
 	"saveBehaviorLabel": {
-		"message": "默认剪藏方式"
+		"message": "点「剪藏」按钮时"
 	},
 	"saved": {
 		"message": "已剪藏"
@@ -975,7 +975,7 @@
 		"message": "选择服务商"
 	},
 	"selectTemplateToExport": {
-		"message": "请先选择要导出的模板。"
+		"message": "请先选择要导出的模版。"
 	},
 	"settings": {
 		"message": "设置"
@@ -1017,16 +1017,16 @@
 		"message": "显示“页面变量”入口"
 	},
 	"showActionsDescription": {
-		"message": "在剪藏菜单里查看页面变量，方便找到模板中可以使用的变量。"
+		"message": "在剪藏菜单里查看页面变量，方便找到模版中可以使用的变量。"
 	},
 	"showPageVariables": {
 		"message": "查看页面变量"
 	},
 	"silentOpen": {
-		"message": "剪藏后不自动打开笔记"
+		"message": "剪藏后留在当前页"
 	},
 	"silentOpenDescription": {
-		"message": "笔记会正常保存，但不会在新标签页中打开，Obsidian 仍会切换到前台。"
+		"message": "保存后不新开标签页。Obsidian 仍会切到前台。"
 	},
 	"sort": {
 		"message": "排序"
@@ -1050,19 +1050,19 @@
 		"message": "跟随系统"
 	},
 	"template": {
-		"message": "模板"
+		"message": "模版"
 	},
 	"templateCopied": {
-		"message": "已复制模板 JSON"
+		"message": "已复制模版 JSON"
 	},
 	"templateCopyError": {
-		"message": "复制模板 JSON 失败"
+		"message": "复制模版 JSON 失败"
 	},
 	"templateErrorCount": {
-		"message": "模板中有 1 处错误。"
+		"message": "模版中有 1 处错误。"
 	},
 	"templateErrorsCount": {
-		"message": "模板中有 $1 处错误。"
+		"message": "模版中有 $1 处错误。"
 	},
 	"templateGroupContent": {
 		"message": "内容"
@@ -1071,7 +1071,7 @@
 		"message": "保存位置"
 	},
 	"templateName": {
-		"message": "模板名称"
+		"message": "模版名称"
 	},
 	"templateProperties": {
 		"message": "属性"
@@ -1083,13 +1083,13 @@
 		"message": "自动选用规则"
 	},
 	"templateTriggersDescription": {
-		"message": "当页面网址符合规则，或包含 schema.org 数据时，自动选用这个模板。每行写一条规则。"
+		"message": "当网址符合规则，或页面带有 schema.org 数据时，自动用这个模版。每行写一条规则。"
 	},
 	"templateValid": {
-		"message": "模板语法正确"
+		"message": "模版语法正确"
 	},
 	"templatesHeading": {
-		"message": "模板"
+		"message": "模版"
 	},
 	"thinking": {
 		"message": "思考中"
@@ -1107,7 +1107,7 @@
 		"message": "笔记库"
 	},
 	"vaultDescription": {
-		"message": "选择这个模板默认保存到哪个笔记库。可在$link_start$通用设置$link_end$中添加或删除笔记库。",
+		"message": "选择这个模版默认保存到哪个笔记库。可在$link_start$通用设置$link_end$中添加或删除笔记库。",
 		"placeholders": {
 			"link_end": {
 				"content": "</a>"
@@ -1121,7 +1121,7 @@
 		"message": "笔记库"
 	},
 	"vaultsDescription": {
-		"message": "默认会把笔记保存到 Obsidian 当前打开的笔记库。如果想保存到其他笔记库，可以在这里添加。名称必须与 Obsidian 中的笔记库名称完全一致。输入后按 $strong_start$回车$strong_end$ 添加。",
+		"message": "默认保存到 Obsidian 当前打开的笔记库。想存到别的库，在这里添加，名称要和 Obsidian 里完全一致，输入后按 $strong_start$回车$strong_end$。",
 		"placeholders": {
 			"strong_end": {
 				"content": "</strong>"
@@ -1149,6 +1149,9 @@
 	"providerModelsEmpty": {
 		"message": "服务商没有返回任何模型，可以手动填写模型 ID。"
 	},
+	"providerModelsFallback": {
+		"message": "没能读到最新的模型列表，先列出常用模型。可以刷新重试。"
+	},
 	"providerModelsFailed": {
 		"message": "获取模型列表失败。请检查接口地址、API Key 和网络，然后刷新重试，或手动填写模型 ID。"
 	},
@@ -1165,7 +1168,7 @@
 		"message": "编辑 Markdown"
 	},
 	"qiaomuPublicRss": {
-		"message": "公开 RSS"
+		"message": "查看公开 RSS"
 	},
 	"qiaomuCopyProperty": {
 		"message": "复制属性值"
@@ -1210,7 +1213,7 @@
 		"message": "重试"
 	},
 	"qiaomuAiFailed": {
-		"message": "AI 处理未完成。可以重试，或选择不含 AI 提示的模板剪藏原文。"
+		"message": "AI 处理未完成。可以重试，或选择不含 AI 提示的模版剪藏原文。"
 	},
 	"qiaomuActionRead": {
 		"message": "阅读"
@@ -1231,7 +1234,7 @@
 		"message": "编辑属性和正文"
 	},
 	"qiaomuTemplate": {
-		"message": "模板"
+		"message": "模版"
 	},
 	"qiaomuEditorBody": {
 		"message": "正文"
@@ -1252,16 +1255,16 @@
 		"message": "已剪藏"
 	},
 	"defaultTemplateTitle": {
-		"message": "默认模板"
+		"message": "默认模版"
 	},
 	"defaultTemplateDescription": {
-		"message": "当页面没有匹配的模板触发规则时使用这个模板，三连击快捷键剪藏时也使用它。"
+		"message": "当页面没有匹配的模版触发规则时使用这个模版，三连击快捷键剪藏时也使用它。"
 	},
 	"tripleKeyTitle": {
 		"message": "三连击快捷键"
 	},
 	"tripleKeyDescription": {
-		"message": "在网页上快速连续按 3 次设定的字母，进入阅读模式、打开编辑页、用默认模板直接剪藏，或打开记笔记小卡片。在输入框里打字时不会触发。"
+		"message": "在网页上连按 3 次设定的字母，快速阅读、编辑、剪藏或记笔记。在输入框里打字时不会触发。"
 	},
 	"qiaomuActionPreview": {
 		"message": "预览"
@@ -1369,34 +1372,34 @@
 		"message": "改写得更简洁"
 	},
 	"youtubeAutoTranscriptTitle": {
-		"message": "自动展开 YouTube 转写文稿（仅 YouTube）"
+		"message": "自动展开 YouTube 的文字稿"
 	},
 	"youtubeAutoTranscriptDescription": {
-		"message": "在视频页自动展开一次 YouTube 的转写文稿面板，让字幕随时可复制、下载和进入学习模式。你关掉后，这个视频不再自动展开。"
+		"message": "打开视频时自动展开一次文字稿，字幕马上就能复制、下载和学习。你关掉后，这个视频不再自动展开。"
 	},
 	"youtubeHideNativeTitle": {
-		"message": "隐藏 YouTube 自带的转写面板（仅 YouTube）"
+		"message": "隐藏 YouTube 自带的文字稿面板"
 	},
 	"youtubeHideNativeDescription": {
-		"message": "字幕自动展开后，把 YouTube 右栏里的原生面板藏起来，转写条里能看到同样的内容。你自己手动打开的面板不会被隐藏。"
+		"message": "文字稿自动展开后，把右栏里 YouTube 自己的面板藏起来，因为字幕栏里已经有同样的内容。你手动打开的面板不会被隐藏。"
 	},
 	"learningNotesTitle": {
-		"message": "学习笔记"
+		"message": "在阅读页和视频页记笔记"
 	},
 	"learningNotesDescription": {
-		"message": "在阅读页和视频学习页提供“记笔记”按钮和 N 快捷键，笔记通过本地助手追加到库里今天的日记。"
+		"message": "显示「记笔记」按钮，按 N 键也行。笔记会追加到笔记库里今天的日记，需要先装好本地助手。"
 	},
 	"learningIncludeQuoteTitle": {
-		"message": "笔记带上摘录"
+		"message": "带上选中的原文"
 	},
 	"learningIncludeQuoteDescription": {
-		"message": "记笔记时如果带有选中的原文，就把它作为引用一起写进日记。也可以在笔记卡片里单条开关。"
+		"message": "记笔记时选中了文字，就把它当作引用写进日记。每条笔记里也能单独开关。"
 	},
 	"learningIncludeSourceTitle": {
-		"message": "笔记带上来源与时间"
+		"message": "带上来源和视频时间"
 	},
 	"learningIncludeSourceDescription": {
-		"message": "在日记里写上网页或视频的链接，以及视频时间点。也可以在笔记卡片里单条开关。"
+		"message": "在日记里写上网页或视频的链接，视频还会带上时间点。每条笔记里也能单独开关。"
 	},
 	"youtubePanelReload": {
 		"message": "扩展刚更新过，请刷新此页面后再试"
@@ -1474,7 +1477,7 @@
 		"message": "在 YouTube 和 B 站显示字幕条"
 	},
 	"youtubePanelActionsDescription": {
-		"message": "在 YouTube 和 B 站的视频页加上字幕条：跟读字幕、复制、下载、进入沉浸学习，没有字幕时可以生成字幕。"
+		"message": "在视频页加一条字幕栏：跟读、复制、下载、进入学习页；视频没有字幕时，可以直接生成。"
 	},
 	"youtubePanelCopy": {
 		"message": "复制"
@@ -1491,6 +1494,12 @@
 	"youtubePanelEmpty": {
 		"message": "没有读到字幕，请先展开转写文稿"
 	},
+	"readerAutoChatTitle": {
+		"message": "打开阅读页时自动展开 AI 对话"
+	},
+	"readerAutoChatDescription": {
+		"message": "进入阅读页就显示 AI 对话面板，不用再点一下。"
+	},
 	"selectionToolbarTitle": {
 		"message": "选中文字工具条"
 	},
@@ -1498,10 +1507,10 @@
 		"message": "在阅读和编辑页面选中文字时，在旁边显示一个小工具条，包含“划线”和“问 AI”。"
 	},
 	"tripleKeyKeysTitle": {
-		"message": "快捷键字母"
+		"message": "三连击用的字母"
 	},
 	"tripleKeyKeysDescription": {
-		"message": "为每个动作指定一个字母或数字，留空表示关闭该动作。默认：阅读 A、编辑 E、剪藏 Q、记笔记 I。"
+		"message": "每个动作用一个字母或数字，留空就关闭该动作。默认：阅读 A、编辑 E、剪藏 Q、记笔记 I。"
 	},
 	"tripleKeyReset": {
 		"message": "恢复默认"
@@ -1516,7 +1525,7 @@
 		"message": "在这些网站上关闭"
 	},
 	"tripleKeySitesDescription": {
-		"message": "每行一个网站，例如 mail.google.com，子域名也一并生效。也可以在剪藏菜单里，对当前网站一键关闭。"
+		"message": "每行填一个网站，例如 mail.google.com，它的子域名会一起关闭。也可以在剪藏菜单里，一键关闭当前网站。"
 	},
 	"tripleKeySiteOff": {
 		"message": "在 $1 上关闭三连击快捷键"
@@ -1739,6 +1748,24 @@
 	"providerSignInNoteTokenDance": {
 		"message": "在浏览器里确认后，会自动为你创建 Key。"
 	},
+	"providerSignInOpenRouter": {
+		"message": "用 OpenRouter 登录"
+	},
+	"providerSignInNoteOpenRouter": {
+		"message": "在浏览器里确认后，会自动为你创建 Key，不用复制粘贴。"
+	},
+	"qiaomuModelSearch": {
+		"message": "搜索模型"
+	},
+	"qiaomuModelNone": {
+		"message": "没有匹配的模型"
+	},
+	"qiaomuModelManage": {
+		"message": "添加或管理供应商"
+	},
+	"qiaomuModelPlan": {
+		"message": "套餐"
+	},
 	"providerSignInAgain": {
 		"message": "重新登录"
 	},
@@ -1895,13 +1922,13 @@
 		"message": "AI 模型"
 	},
 	"aiModelsIntro": {
-		"message": "这里的模型用于中文翻译、对话和 AI 解读。给视频生成字幕用的是「语音识别」，在另一处设置。"
+		"message": "这里的模型用于中文翻译、AI 对话和 AI 解读。给视频生成字幕用的是「字幕与转写」里的语音识别。"
 	},
 	"aiModelsGotoAsr": {
 		"message": "去设置语音识别"
 	},
 	"asrIntroOther": {
-		"message": "这里只管把声音变成字幕。中文翻译、对话和 AI 解读用的是「AI 模型」，在另一处设置。"
+		"message": "这里只负责把声音变成字幕。中文翻译、AI 对话和解读用的是 AI 模型，在「供应商与模型」里设置。"
 	},
 	"asrGotoModels": {
 		"message": "去设置 AI 模型"

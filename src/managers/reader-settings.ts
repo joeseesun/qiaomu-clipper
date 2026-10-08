@@ -73,7 +73,7 @@ function buildThemeGrid(
 
 		const body = document.createElement('div');
 		body.className = 'reader-theme-inner-body';
-		body.textContent = 'File over app is a philosophy: if you want to create digital artifacts that last, they must be files you can control, in formats that are easy to retrieve and read.';
+		body.textContent = '文件优先于应用：想让数字作品长久留存，它们就该是你能掌控、格式也容易读取的文件。';
 
 		inner.appendChild(title);
 		inner.appendChild(meta);

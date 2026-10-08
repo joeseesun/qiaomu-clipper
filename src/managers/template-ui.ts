@@ -67,7 +67,7 @@ export function updateTemplateList(loadedTemplates?: Template[]): void {
 
 		const deleteBtn = createElementWithClass('button', 'delete-template-btn clickable-icon');
 		deleteBtn.setAttribute('type', 'button');
-		deleteBtn.setAttribute('aria-label', 'Delete template');
+		deleteBtn.setAttribute('aria-label', '删除模版');
 		deleteBtn.appendChild(createElementWithHTML('i', '', { 'data-lucide': 'trash-2' }));
 		li.appendChild(deleteBtn);
 
@@ -149,7 +149,7 @@ async function deleteTemplateFromList(templateId: string): Promise<void> {
 			if (updatedTemplates.length > 0) {
 				showTemplateEditor(updatedTemplates[0]);
 			} else {
-				showSettingsSection('general');
+				showSettingsSection('templates-home');
 			}
 		} else {
 			alert(getMessage('failedToDeleteTemplate'));

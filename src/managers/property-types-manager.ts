@@ -107,7 +107,7 @@ function createPropertyTypeListItem(propertyType: PropertyType, usageCount: numb
 		type: 'text',
 		value: unescapeValue(propertyType.defaultValue || ''),
 		class: 'property-default-value',
-		placeholder: 'Default value'
+		placeholder: '默认值'
 	}) as HTMLInputElement;
 
 	const usageSpan = createElementWithClass('span', 'tree-item-flair');
@@ -121,7 +121,7 @@ function createPropertyTypeListItem(propertyType: PropertyType, usageCount: numb
 	if (usageCount === 0 && propertyType.name !== 'tags') {
 		const removeBtn = createElementWithClass('button', 'remove-property-btn clickable-icon');
 		removeBtn.setAttribute('type', 'button');
-		removeBtn.setAttribute('aria-label', 'Remove property type');
+		removeBtn.setAttribute('aria-label', '移除这个属性类型');
 		removeBtn.appendChild(createElementWithHTML('i', '', { 'data-lucide': 'trash-2' }));
 		listItem.appendChild(removeBtn);
 
@@ -130,7 +130,7 @@ function createPropertyTypeListItem(propertyType: PropertyType, usageCount: numb
 		const removeBtn = createElementWithClass('button', 'remove-property-btn clickable-icon');
 		removeBtn.setAttribute('type', 'button');
 		removeBtn.setAttribute('disabled', '');
-		removeBtn.setAttribute('aria-label', 'Remove property type');
+		removeBtn.setAttribute('aria-label', '移除这个属性类型');
 		removeBtn.appendChild(createElementWithHTML('i', '', { 'data-lucide': 'trash-2' }));
 		listItem.appendChild(removeBtn);
 	}

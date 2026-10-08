@@ -65,13 +65,14 @@ interface StorageData {
 		betaFeatures?: boolean;
 		legacyMode?: boolean;
 		silentOpen?: boolean;
-		openBehavior?: boolean | 'popup' | 'embedded';
+		openBehavior?: boolean | 'popup' | 'embedded' | 'reader';
 		saveBehavior?: 'addToObsidian' | 'copyToClipboard' | 'saveFile';
 		defaultTemplateId?: string;
 		tripleKeyShortcuts?: boolean;
 		tripleKeys?: { read: string; edit: string; clip: string; note?: string };
 		tripleKeyBlockedSites?: string[];
 		selectionToolbar?: boolean;
+		readerAutoChat?: boolean;
 		youtubePanelActions?: boolean;
 		learningNotes?: boolean;
 		learningIncludeQuote?: boolean;
@@ -198,14 +199,14 @@ export async function loadSettings(): Promise<Settings> {
 		betaFeatures: data.general_settings?.betaFeatures ?? defaultSettings.betaFeatures,
 		legacyMode: data.general_settings?.legacyMode ?? defaultSettings.legacyMode,
 		silentOpen: data.general_settings?.silentOpen ?? defaultSettings.silentOpen,
-		openBehavior: typeof data.general_settings?.openBehavior === 'boolean' 
-			? (data.general_settings.openBehavior ? 'embedded' : 'popup') 
-			: (data.general_settings?.openBehavior ?? defaultSettings.openBehavior),
+		// The in-page panel option was removed: anyone who had it gets the popup.
+		openBehavior: data.general_settings?.openBehavior === 'reader' ? 'reader' : 'popup',
 		defaultTemplateId: data.general_settings?.defaultTemplateId,
 		tripleKeyShortcuts: data.general_settings?.tripleKeyShortcuts ?? true,
 		tripleKeys: data.general_settings?.tripleKeys,
 		tripleKeyBlockedSites: data.general_settings?.tripleKeyBlockedSites,
 		selectionToolbar: data.general_settings?.selectionToolbar ?? true,
+		readerAutoChat: data.general_settings?.readerAutoChat ?? false,
 		youtubePanelActions: data.general_settings?.youtubePanelActions ?? true,
 		learningNotes: data.general_settings?.learningNotes ?? true,
 		learningIncludeQuote: data.general_settings?.learningIncludeQuote ?? true,
@@ -279,6 +280,7 @@ export async function saveSettings(settings?: Partial<Settings>): Promise<void> 
 			tripleKeys: generalSettings.tripleKeys,
 			tripleKeyBlockedSites: generalSettings.tripleKeyBlockedSites,
 			selectionToolbar: generalSettings.selectionToolbar,
+			readerAutoChat: generalSettings.readerAutoChat,
 			youtubePanelActions: generalSettings.youtubePanelActions,
 			learningNotes: generalSettings.learningNotes,
 			learningIncludeQuote: generalSettings.learningIncludeQuote,
