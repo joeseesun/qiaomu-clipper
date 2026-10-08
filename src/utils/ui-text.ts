@@ -1,5 +1,7 @@
 import en from '../i18n/ui-en.json';
 import zhTW from '../i18n/ui-zh_TW.json';
+import helperEn from '../i18n/helper-en.json';
+import helperZhTW from '../i18n/helper-zh_TW.json';
 
 // The interface was written in Chinese. A string is looked up by its own Chinese text, so the source stays readable:
 //   t('已保存到 {0}', [vault])
@@ -79,4 +81,57 @@ export function translateStatic(root: ParentNode = document): void {
 		const translated = catalog[unit.source];
 		if (translated) unit.apply(translated);
 	}
+}
+
+// ---- messages from the local helper -----------------------------------------------------------------------------------
+// The helper (Python) writes its messages in Chinese. They are shown in the person's language by matching them against the
+// helper catalogs: a whole message, a message with values in it ({0}), or the fixed beginning or end of a message that a
+// detail was added to.
+const helperCatalogs: Record<UiLanguage, Catalog | undefined> = { zh_CN: undefined, zh_TW: helperZhTW as Catalog, en: helperEn as Catalog };
+type Compiled = { templates: Array<[RegExp, string]>; fragments: Array<[string, string]> };
+const compiled = new WeakMap<Catalog, Compiled>();
+
+function compile(catalog: Catalog): Compiled {
+	let done = compiled.get(catalog);
+	if (done) return done;
+	const templates: Compiled['templates'] = [], fragments: Compiled['fragments'] = [];
+	for (const [key, value] of Object.entries(catalog)) {
+		if (/\{\d+\}/.test(key)) templates.push([new RegExp('^' + key.replace(/[.*+?^$()|[\]\\]/g, '\\$&').replace(/\{\d+\}/g, '(.+?)') + '$'), value]);
+		else fragments.push([key, value]);
+	}
+	fragments.sort((a, b) => b[0].length - a[0].length);
+	done = { templates, fragments };
+	compiled.set(catalog, done);
+	return done;
+}
+
+export function translateHelperText(text: string): string {
+	if (!HAN.test(text)) return text;
+	const catalog = helperCatalogs[uiLanguage()];
+	if (!catalog) return text;
+	if (catalog[text]) return catalog[text];
+	const { templates, fragments } = compile(catalog);
+	for (const [pattern, value] of templates) {
+		const match = pattern.exec(text);
+		if (match) return value.replace(/\{(\d+)\}/g, (_, index) => match[Number(index) + 1] ?? '');
+	}
+	// A detail after a fixed beginning (or before a fixed end) is kept as it was, with the full-width marks of Chinese made plain for English.
+	const tidy = (rest: string) => uiLanguage() === 'en' ? rest.replace(/（/g, ' (').replace(/）/g, ')').replace(/：/g, ': ').replace(/，/g, ', ').replace(/。/g, '. ').trim() : rest;
+	for (const [key, value] of fragments) {
+		if (text.startsWith(key)) return value + tidy(text.slice(key.length));
+		if (text.endsWith(key)) return tidy(text.slice(0, text.length - key.length)) + value;
+	}
+	return text;
+}
+
+const HELPER_TEXT_FIELDS = new Set(['error', 'stage', 'message', 'hint', 'note', 'problems', 'notes']);
+// A reply from the helper with its messages in the person's language. Codes (like helper-offline) and values are left alone.
+export function localizeHelperReply<T>(reply: T): T {
+	const visit = (value: unknown, field?: string): unknown => {
+		if (typeof value === 'string') return field && HELPER_TEXT_FIELDS.has(field) ? translateHelperText(value) : value;
+		if (Array.isArray(value)) return value.map(item => visit(item, field));
+		if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, visit(item, key)]));
+		return value;
+	};
+	return visit(reply) as T;
 }

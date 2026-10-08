@@ -5,6 +5,7 @@ import { Template } from '../types/types';
 import { siteOf } from './study-sites';
 import { webMediaAddress } from './web-media-page';
 import { activeProfile, choosePatch, cloudConfig, effectiveFor, isConfigured, isHttpsOrLocal, isLocalService, loadAsrSettings, platformOf, profileLabel, saveAsrSettings, LOCAL_ENGINE_IDS, type AsrSettings } from './asr-settings';
+import { callHelper } from './native-helper-call';
 import { t } from './ui-text';
 export interface LocalSavePayload { requestId: string; content: string; name: string; folder: string; vault: string; behavior: Template['behavior'] }
 export interface LocalSaveResult { ok: boolean; reason?: string; error?: string; cancelled?: boolean; vault?: string; vaultPath?: string; path?: string; relativePath?: string; folder?: string }
@@ -15,7 +16,7 @@ export async function saveLocalClip(payload: LocalSavePayload): Promise<LocalSav
 
 // Private diary records have a separate native-only route and never enter RSS submission.
 const learningInFlight = new Map<string, Promise<unknown>>();
-const invokeLearningNative = (payload: unknown) => Promise.resolve().then(() => browser.runtime.sendNativeMessage('ai.qiaomu.clipper', payload));
+const invokeLearningNative = (payload: unknown) => Promise.resolve().then(() => callHelper(payload));
 export function handleLearningNativeMessage(request: unknown, sender: { id?: string; url?: string }): Promise<unknown> | undefined {
     const message = request as { action?: string; vault?: string; url?: string; payload?: { captureId?: string; vault?: string } };
     if (!['qiaomuLearningDailyTarget', 'qiaomuLearningSave', 'qiaomuLearningDispatch', 'qiaomuLearningAttach'].includes(message?.action || '')) return;
