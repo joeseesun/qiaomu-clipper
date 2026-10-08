@@ -16,8 +16,8 @@ it('defaults to the language spoken in the video, not Chinese and not the viewer
 	expect(chooseTrack([t('en', 'en'), t('ai-zh', 'zh', true)])?.id).toBe('ai-zh');
 	// A hand-made track in the spoken language beats the automatic one.
 	expect(chooseTrack([t('ai-en', 'en', true), t('en', 'en'), t('zh-CN', 'zh')])?.id).toBe('en');
-	// No automatic track says nothing about the audio: the track uploaded first.
-	expect(chooseTrack([t('en', 'en'), t('zh-CN', 'zh')])?.id).toBe('en'); expect(chooseTrack([t('zh-CN', 'zh'), t('en', 'en')])?.id).toBe('zh-CN');
+	// With no original-language evidence, fall back to Chinese, then English.
+	expect(chooseTrack([t('en', 'en'), t('zh-CN', 'zh')])?.id).toBe('zh-CN'); expect(chooseTrack([t('zh-CN', 'zh'), t('en', 'en')])?.id).toBe('zh-CN');
 	expect(chooseTrack([])).toBeUndefined(); expect(chooseTrack([t('ja', 'ja')])?.id).toBe('ja');
 });
 
@@ -37,3 +37,15 @@ it('remembers the choice per video, never as a rule for every video, and keeps o
 });
 
 it('keys a cached transcript by the language the viewer chose', () => { expect(cacheKeyFor('youtube:abcdefghijk')).toBe('youtube:abcdefghijk'); expect(cacheKeyFor('youtube:abcdefghijk', 'zh')).toBe('youtube:abcdefghijk#zh'); });
+
+it('does not mistake the first of several auto-caption languages for the original', () => {
+ const tracks = [t('ar-auto', 'ar', true), t('en-auto', 'en', true), t('zh', 'zh')];
+ expect(chooseTrack(tracks)?.id).toBe('zh');
+ expect(chooseTrack(tracks.slice(0, 2))?.id).toBe('en-auto');
+});
+
+it('uses explicitly original audio captions ahead of Chinese and English', () => {
+ const tracks = [t('ar-auto', 'ar', true), t('zh', 'zh'), {...t('fr-auto', 'fr', true), original: true}, {...t('fr', 'fr'), original: true}, t('en', 'en')];
+ expect(chooseTrack(tracks)?.id).toBe('fr');
+ expect(chooseTrack(tracks, 'en')?.id).toBe('en');
+});

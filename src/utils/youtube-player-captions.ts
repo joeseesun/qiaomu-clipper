@@ -75,7 +75,7 @@ export interface PlayerCaptions { tracks: YouTubeTrack[]; chosen: YouTubeTrack; 
 export async function openPlayerCaptions(videoId: string, preferred?: string, io: PlayerIo = defaultIo()): Promise<PlayerCaptions | undefined> {
 	let snapshot = await settle(videoId, io);
 	if (!snapshot || !snapshot.tracks.length) return undefined;
-	const infos = trackInfos(snapshot.tracks.map(asTrack), true), chosen = chooseTrack(infos, preferred);
+	const infos = trackInfos(snapshot.tracks.map(asTrack), true, snapshot.originalLanguage), chosen = chooseTrack(infos, preferred);
 	if (!chosen) return undefined;
 	const fetchTrack = async (track: CaptionTrack): Promise<PanelSegment[]> => {
 		let proof = proofFor(track, snapshot!);

@@ -1,3 +1,4 @@
+import { originalAudioLanguage } from './utils/youtube-audio-language';
 // Runs in YouTube's own page world (manifest "world": "MAIN"), at document start. The extension's normal content scripts cannot see
 // the player object or the requests the page makes; this small bridge shows them what they need, over window.postMessage:
 //   - the player's caption tracks, and the addresses it holds for them (these carry the "pot" proof that YouTube asks for),
@@ -52,6 +53,7 @@ function snapshot(): BridgeSnapshot {
 	const device = (window as unknown as { ytcfg?: { get?: (key: string) => string | undefined } }).ytcfg?.get?.('DEVICE') ?? null;
 	return {
 		videoId: typeof video === 'string' ? video : null,
+		originalLanguage: originalAudioLanguage(response),
 		tracks: list(response?.captions?.playerCaptionsTracklistRenderer?.captionTracks),
 		audioTracks: list(p?.getAudioTrack?.()?.captionTracks),
 		requestUrl: video ? seen.get(video) ?? null : null,

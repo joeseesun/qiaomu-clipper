@@ -1,3 +1,4 @@
+import { originalAudioLanguage } from './youtube-audio-language';
 import type { PanelSegment } from './youtube-panel-actions';
 import { formatClock } from './youtube-innertube-transcript';
 import { chooseTrack, languageBase, type TrackInfo } from './subtitle-language';
@@ -6,7 +7,7 @@ import { chooseTrack, languageBase, type TrackInfo } from './subtitle-language';
 // caption track list as a mobile client (these are not gated by a player token, unlike the web client), then
 // download the chosen track. A track whose URL carries `exp=xpe` is token-gated and is skipped. Runs inside the
 // YouTube tab so the request carries the viewer's cookies and origin.
-export interface CaptionTrack { baseUrl: string; languageCode: string; kind?: string; name?: unknown; vssId?: string }
+export interface CaptionTrack { baseUrl: string; languageCode: string; kind?: string; name?: unknown; vssId?: string; original?: boolean }
 
 const CLIENTS: Array<Record<string, unknown>> = [
 	{ clientName: 'ANDROID', clientVersion: '20.10.38', androidSdkVersion: 34 },
@@ -24,7 +25,8 @@ export const apiKeyFromPage = (doc: Document): string | undefined => {
 
 export const tracksOf = (player: any): CaptionTrack[] => {
 	const list = player?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
-	return Array.isArray(list) ? list.filter((track: CaptionTrack) => typeof track?.baseUrl === 'string' && track.baseUrl) : [];
+	const language = originalAudioLanguage(player);
+	return Array.isArray(list) ? list.filter((track: CaptionTrack) => typeof track?.baseUrl === 'string' && track.baseUrl).map((track: CaptionTrack) => ({ ...track, original: Boolean(language && languageBase(track.languageCode) === language && !/[?&]tlang=/.test(track.baseUrl)) })) : [];
 };
 
 // The page's own player response, for videos where the mobile clients are refused.
@@ -54,11 +56,11 @@ export interface YouTubeTrack extends TrackInfo { track: CaptionTrack }
 const nameOf = (name: any): string => (typeof name?.simpleText === 'string' ? name.simpleText : Array.isArray(name?.runs) ? name.runs.map((run: { text?: string }) => run.text || '').join('') : '').trim();
 // Every caption track the video offers, with its language and whether YouTube made it from the audio.
 // A track whose address carries exp=xpe needs the player's proof; it is left out unless the caller can supply that (the player route).
-export function trackInfos(tracks: CaptionTrack[], includeGated = false): YouTubeTrack[] {
+export function trackInfos(tracks: CaptionTrack[], includeGated = false, originalLanguage?: string): YouTubeTrack[] {
 	const seen = new Map<string, number>();
 	return tracks.filter(track => includeGated || !/[?&]exp=xpe\b/.test(track.baseUrl)).map(track => {
 		const auto = track.kind === 'asr', base = `${track.languageCode || 'und'}${auto ? '-auto' : ''}`, count = (seen.get(base) ?? 0) + 1; seen.set(base, count);
-		return { id: count > 1 ? `${base}~${count}` : base, label: nameOf(track.name) || `${track.languageCode}${auto ? ' (auto-generated)' : ''}`, language: languageBase(track.languageCode), auto, track };
+		return { id: count > 1 ? `${base}~${count}` : base, label: nameOf(track.name) || `${track.languageCode}${auto ? ' (auto-generated)' : ''}`, language: languageBase(track.languageCode), auto, original: !/[?&]tlang=/.test(track.baseUrl) && Boolean(track.original || (originalLanguage && languageBase(track.languageCode) === languageBase(originalLanguage))), track };
 	});
 }
 // Spoken language first (see chooseTrack); `preferred` is a language the viewer picked for this video.
