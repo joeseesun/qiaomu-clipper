@@ -14,11 +14,11 @@ Read, watch, listen, and turn what you learn into Obsidian notes.
 
 ![视频学习：播放器、双语字幕与 AI 对话同屏](https://joeseesun.github.io/qiaomu-clipper/assets/screens/video-study.png)
 
-![license](https://img.shields.io/badge/license-MIT-green) ![platform](https://img.shields.io/badge/Chrome-Manifest%20V3-orange) ![languages](https://img.shields.io/badge/界面-简体中文%20%7C%20繁體中文%20%7C%20English-blue)
+![license](https://img.shields.io/badge/license-MIT-green) ![platform](https://img.shields.io/badge/Chrome-Manifest%20V3-orange) ![languages](https://img.shields.io/badge/界面-9%20languages-blue)
 
 </div>
 
-> **安装建议（2026-10-08）：等新版商店上架后安装。** [Chrome 应用商店](https://chromewebstore.google.com/detail/jniolfihillilkoajpnonlbkhfkiicoo)当前公开版本仍为 **1.7.1**；**1.15.6 已提交审核，通过后自动发布**。本页介绍 1.15.6 的功能，旧商店版不包含全部功能。想现在体验，将下面这段安装 prompt 复制给 Codex、Claude Code 等有本机终端权限的 Agent，插件和 helper 一起安装。
+> **安装建议（2026-10-08）：等新版商店上架后安装。** [Chrome 应用商店](https://chromewebstore.google.com/detail/jniolfihillilkoajpnonlbkhfkiicoo)当前公开版本仍为 **1.7.1**；**1.15.6 已提交审核，通过后自动发布**。本页介绍 GitHub 版 1.15.7 的功能；多语言版将在 1.15.6 审核通过后再提交商店，旧商店版不包含全部功能。想现在体验，将下面这段安装 prompt 复制给 Codex、Claude Code 等有本机终端权限的 Agent，插件和 helper 一起安装。
 
 ```text
 请帮我安装或升级乔木剪藏：https://github.com/joeseesun/qiaomu-clipper 。先读 README.md 和 native/README.md，按我的系统与浏览器操作。
@@ -36,7 +36,7 @@ Read, watch, listen, and turn what you learn into Obsidian notes.
 | 听到一句话，突然有了自己的理解 | 学习页按 `N`，任意网页按 `iii` | 带摘录、来源和时间点的日记记录 |
 | 保存时不想反复打开 Obsidian | 安装 helper，选好笔记库 | 直接写入指定库和文件夹 |
 
-界面完整支持 **简体中文、繁體中文、English**；其他界面语言暂时回退到英文。阅读、复制正文和已有字幕无需配置 AI；提问、翻译和云端识别使用你自己的服务与凭证。
+界面完整支持 **简体中文、繁體中文、English、日本語、한국어、Español、Français、Deutsch、Português do Brasil**，覆盖设置、弹窗、阅读与学习界面、字幕生成和本地助手提示。其他语言保留已有的部分翻译，新增功能回退到英文。更改界面语言后，请刷新已打开的媒体网页；音视频字幕仍优先匹配原语言。阅读、复制正文和已有字幕无需配置 AI；提问、翻译和云端识别使用你自己的服务与凭证。
 
 ## 快速开始
 
@@ -72,7 +72,7 @@ npm run build:local
 
 **helper 是可选的本地助手。** 不装助手也能阅读、编辑、复制或下载 Markdown；保存到 Obsidian 可使用 URI 方式。静默写入笔记库、追加学习日记和生成字幕需要助手。
 
-macOS 用户下载 [1.15.6 的 `qiaomu-clipper-helper.pkg`](https://github.com/joeseesun/qiaomu-clipper/releases/download/1.15.6/qiaomu-clipper-helper.pkg)，双击安装。安装包**自带 Python，已签名并通过 Apple 公证**，不需要先安装 Python、Git 或 Node.js。扩展设置页也提供「下载安装包」入口。安装后重新加载扩展，并在 **设置 → 剪藏与保存** 的「笔记保存到」下拉列表里选择 Obsidian 库；列表读取 Obsidian 已记录的库，也可选择其他文件夹。
+macOS 用户下载 [1.15.7 的 `qiaomu-clipper-helper.pkg`](https://github.com/joeseesun/qiaomu-clipper/releases/download/1.15.7/qiaomu-clipper-helper.pkg)，双击安装。安装包**自带 Python，已签名并通过 Apple 公证**，不需要先安装 Python、Git 或 Node.js。扩展设置页也提供「下载安装包」入口。安装后重新加载扩展，并在 **设置 → 剪藏与保存** 的「笔记保存到」下拉列表里选择 Obsidian 库；列表读取 Obsidian 已记录的库，也可选择其他文件夹。
 
 Linux / Windows 或需要源码安装的用户，按[助手文档](native/README.md)操作。Windows 助手已有实现和自动测试，尚待真机验证。
 
@@ -223,7 +223,7 @@ node scripts/check-editions.mjs
 
 Qiaomu Clipper brings a clean reader, Markdown editor, media player, timed transcripts and contextual AI chat into one workflow. Study a passage, ask a question, and save your own understanding with its source.
 
-> **Installation recommendation, October 8, 2026:** wait for **1.15.6 or later** to appear on the [Chrome Web Store](https://chromewebstore.google.com/detail/jniolfihillilkoajpnonlbkhfkiicoo). The current published version is **1.7.1**; **1.15.6 is submitted for review and set to publish automatically after approval**. This README describes 1.15.6. For early access, ask an agent with local terminal access to read the repository and install the [GitHub release](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.15.6).
+> **Installation recommendation, October 8, 2026:** wait for **1.15.6 or later** to appear on the [Chrome Web Store](https://chromewebstore.google.com/detail/jniolfihillilkoajpnonlbkhfkiicoo). The current published version is **1.7.1**; **1.15.6 is submitted for review and set to publish automatically after approval**. This README describes GitHub version 1.15.7. Its multilingual store update will be submitted after 1.15.6 passes review. For early access, ask an agent with local terminal access to read the repository and install the [GitHub release](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.15.7).
 
 ### Quick start
 
@@ -238,7 +238,7 @@ Download the latest stable release's -chrome-local.zip, extract it and guide me 
 
 ### Optional helper
 
-The macOS [1.15.6 helper installer](https://github.com/joeseesun/qiaomu-clipper/releases/download/1.15.6/qiaomu-clipper-helper.pkg) is signed, notarized and includes Python. Double-click to install, reload the extension, then select an Obsidian vault under Clipping and saving. No Python, Git or Node.js setup is required for this installer.
+The macOS [1.15.7 helper installer](https://github.com/joeseesun/qiaomu-clipper/releases/download/1.15.7/qiaomu-clipper-helper.pkg) is signed, notarized and includes Python. Double-click to install, reload the extension, then select an Obsidian vault under Clipping and saving. No Python, Git or Node.js setup is required for this installer.
 
 The helper enables silent vault writes, appending learning notes to today's daily note, and subtitle generation. Reading, editing, copying and Markdown export work without it; Obsidian URI saving is also available. Update the helper when upgrading the extension. Local recognition engines and models are downloaded separately on demand. Linux/Windows and source installation instructions are in [native/README.md](native/README.md); Windows device validation is pending.
 
@@ -250,7 +250,7 @@ The helper enables silent vault writes, appending learning notes to today's dail
 - **Learning notes:** press `N` in a reading/study page or `iii` on any webpage. Add your understanding, optional excerpts, source and media time; the helper appends it to today's Obsidian daily note. Requires Daily notes with a supported numeric date format and no template. Drafts survive closing the card; failures can be retried.
 - **Articles and AI:** clean typography, highlights, full-page Markdown/property editing, streaming article or selection chat, saved conversations, custom instructions and quick prompts. Bring your own provider and credentials.
 - **Clipping and sharing:** templates, vault/folder selection and optional public RSS submissions. **RSS sharing is off by default.** Reading, editing and daily-note saving never submit to RSS.
-- **Interface languages:** Simplified Chinese, Traditional Chinese and English are complete; other languages currently fall back to English.
+- **Interface languages:** Complete interface coverage in Simplified Chinese, Traditional Chinese, English, Japanese, Korean, Spanish, French, German and Brazilian Portuguese, including settings, reading, media study and local-helper messages. Other languages retain partial translations and use English for missing strings. Refresh open media pages after changing the interface language; original-language caption selection stays independent.
 - **Local edition only:** the GitHub `-chrome-local.zip` offers media-file saving through the helper on supported study pages. The store edition excludes this feature. Markdown and transcript text export are available in both editions. Real-page download checks for Douyin, Xiaoyuzhou and podcasts, including folder/file naming in regular Chrome, remain incomplete.
 
 Shortcuts: `aaa` read/study, `eee` edit, `qqq` clip and `iii` open a learning-note card. Triple-press keys can be changed, disabled or excluded per site; typing in editable fields does not trigger them.

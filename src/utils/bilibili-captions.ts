@@ -35,7 +35,7 @@ export function tracksOfPlayer(raw: RawTrack[]): BilibiliTrack[] {
 		.map(({ track }) => {
 			const lan = String(track.lan || 'und'), count = (seen.get(lan) ?? 0) + 1; seen.set(lan, count);
 			const auto = Boolean(track.is_ai_subtitle) || /^ai-/i.test(lan) || /自动|ai/i.test(track.lan_doc || '');
-			return { id: count > 1 ? `${lan}~${count}` : lan, label: (track.lan_doc || lan) + (auto && !/自动|ai/i.test(track.lan_doc || '') ? '（AI）' : ''), language: languageBase(lan), auto, url: subtitleUrl(track.subtitle_url!)! };
+			return { id: count > 1 ? `${lan}~${count}` : lan, label: (track.lan_doc || lan) + (auto && !/自动|ai/i.test(track.lan_doc || '') ? '（AI）' : ''), language: languageBase(lan), languageCode: lan.replace(/^ai-/, ''), auto, url: subtitleUrl(track.subtitle_url!)! };
 		});
 }
 
