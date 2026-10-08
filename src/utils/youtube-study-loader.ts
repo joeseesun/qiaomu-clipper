@@ -195,8 +195,7 @@ export async function startYouTubeStudy(url: string, sourceTabId: number, initia
 				try { await once(); } catch (second) { throw second ?? first; }
 			}
 		} catch (error) {
-			if (article.isConnected) { status.textContent = error instanceof Error ? error.message : t('字幕加载失败，请重试'); retry.hidden = false; // The store edition does not make subtitles from a YouTube video's audio: it only reads the ones YouTube has.
-				if (__LOCAL_EDITION__ && !generation.active && panel.kind() === null) panel.show({ kind: 'offer' }); }
+			if (article.isConnected) { status.textContent = error instanceof Error ? error.message : t('字幕加载失败，请重试'); retry.hidden = false; if (!generation.active && panel.kind() === null) panel.show({ kind: 'offer' }); }
 		} finally { loading = false; }
 	}
 	// A generated transcript goes into the page the same way as one from the platform.

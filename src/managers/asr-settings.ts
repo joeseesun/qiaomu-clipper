@@ -1,3 +1,4 @@
+import browser from '../utils/browser-polyfill';
 import { LOCAL_ENGINES, MAX_PROFILES, PROVIDERS, choosePatch, cloudConfig, defaultRecognizer, iconOf, isConfigured, isHttpsOrLocal, isLocalService, loadAsrSettings, newProfile, profileLabel, providerOf, recognizerFor, removeProfile, saveAsrSettings, saveProfile, withProvider, type AsrPlatform, type AsrProfile, type AsrProtocol, type AsrProviderId, type AsrSettings, type Recognizer } from '../utils/asr-settings';
 import { asrInstall, asrInstallCancel, asrInstallPoll, asrStatus, asrTest, asrUninstall, type AsrInstall, type AsrLocalEngine, type InstallTarget } from '../utils/asr-client';
 import { installProblem } from '../utils/subtitle-generation';
@@ -55,7 +56,7 @@ export async function initializeAsrSettings(): Promise<void> {
 		}));
 		if (useContext) { useContext.checked = settings.useContext; const holder = useContext.closest('.checkbox-container'); if (holder) updateToggleState(holder as HTMLElement, useContext); }
 		const autoLogin = el<HTMLInputElement>('asr-auto-login'), loginRow = el('asr-auto-login-row');
-		if (autoLogin && loginRow) { if (__LOCAL_EDITION__) loginRow.hidden = false; autoLogin.checked = settings.autoLogin; const holder = autoLogin.closest('.checkbox-container'); if (holder) updateToggleState(holder as HTMLElement, autoLogin); }
+		if (autoLogin && loginRow) { loginRow.hidden = false; autoLogin.checked = settings.autoLogin; const holder = autoLogin.closest('.checkbox-container'); if (holder) updateToggleState(holder as HTMLElement, autoLogin); }
 		if (autoStart) { autoStart.checked = settings.autoStart; const holder = autoStart.closest('.checkbox-container'); if (holder) updateToggleState(holder as HTMLElement, autoStart); }
 	};
 	// The local engine to suggest: the one that does best on this computer (Qwen3-ASR on Apple silicon, else the one that runs anywhere).
@@ -206,6 +207,11 @@ export async function initializeAsrSettings(): Promise<void> {
 	defaultSelect.addEventListener('change', () => { void save(choosePatch(settings, defaultSelect.value)); });
 	useContext?.addEventListener('change', () => { void save({ useContext: useContext.checked }); });
 	autoStart?.addEventListener('change', () => { void save({ autoStart: autoStart.checked }); });
-	el<HTMLInputElement>('asr-auto-login')?.addEventListener('change', event => { void save({ autoLogin: (event.target as HTMLInputElement).checked }); });
+	el<HTMLInputElement>('asr-auto-login')?.addEventListener('change', async event => {
+		const box = event.target as HTMLInputElement;
+		// Turning it on asks the browser once for the permission to read a site's cookies (a click is what allows the question).
+		if (box.checked && !(await browser.permissions.contains({ permissions: ['cookies'] }).catch(() => false)) && !(await browser.permissions.request({ permissions: ['cookies'] }).catch(() => false))) { box.checked = false; say(t('没有得到允许，无法使用浏览器的登录状态。')); paintDefaults(); return; }
+		void save({ autoLogin: box.checked });
+	});
 	addButton.addEventListener('click', openPicker);
 }

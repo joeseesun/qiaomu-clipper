@@ -17,6 +17,8 @@ export async function saveLocalClip(payload: LocalSavePayload): Promise<LocalSav
 
 // Private diary records have a separate native-only route and never enter RSS submission.
 const learningInFlight = new Map<string, Promise<unknown>>();
+// Reading a site's cookies needs the "cookies" permission: the local edition has it from the start, the store edition when the viewer allows it in the settings.
+export const cookiesGranted = async (): Promise<boolean> => { try { return await browser.permissions.contains({ permissions: ['cookies'] }); } catch { return false; } };
 const invokeLearningNative = (payload: unknown) => Promise.resolve().then(() => callHelper(payload));
 export function handleLearningNativeMessage(request: unknown, sender: { id?: string; url?: string }): Promise<unknown> | undefined {
     const message = request as { action?: string; vault?: string; url?: string; payload?: { captureId?: string; vault?: string } };
@@ -153,12 +155,13 @@ export function handleAsrMessage(request: unknown, sender: { id?: string; url?: 
         } else if (chosen && chosen.engine !== 'auto') body.engine = chosen.engine;
         // The viewer agreed once to lend this browser's login (the first "retry with my browser login"): from then on a download that needs it just has it,
         // until they turn it off in the settings. Only the one site's cookies are handed over, and only to the local helper.
-        if (__LOCAL_EDITION__ && payload.mode === 'start') {
+        const lendLogin = await cookiesGranted();
+        if (lendLogin && payload.mode === 'start') {
             if (payload.cookies && stored && !stored.autoLogin) void saveAsrSettings({ autoLogin: true });
             else if (!payload.cookies && stored?.autoLogin && /^(youtube|bilibili|web):/.test(payload.videoKey || '')) body.cookies = 'chrome';
         }
         // The helper started by the browser may not be allowed to read the browser's cookie file: the extension passes the site's cookies itself (local edition).
-        if (__LOCAL_EDITION__ && (payload.mode === 'start' || payload.mode === 'probe') && ['chrome', 'edge', 'brave', 'chromium'].includes(String(body.cookies))) {
+        if (lendLogin && (payload.mode === 'start' || payload.mode === 'probe') && ['chrome', 'edge', 'brave', 'chromium'].includes(String(body.cookies))) {
             const address = payload.mode === 'probe' ? String(body.url) : videoAddress(payload.videoKey, (body.web as { url?: string } | undefined)?.url);
             const cookiesApi = (browser as unknown as { cookies?: { getAll(details: { domain: string }): Promise<BrowserCookie[]> } }).cookies;
             const text = cookiesApi ? await cookiesTxtFor(address, details => cookiesApi.getAll(details)) : '';

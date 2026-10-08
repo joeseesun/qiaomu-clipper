@@ -2,7 +2,7 @@ import { beforeEach, expect, it, vi } from 'vitest';
 const tabs=vi.hoisted(()=>vi.fn());
 const native=vi.hoisted(()=>vi.fn());
 const asrStore=vi.hoisted(()=>({data:{} as Record<string,unknown>}));
-vi.mock('./browser-polyfill',()=>({default:{tabs:{create:(...args:unknown[])=>tabs(...args)},runtime:{id:'test-id',getURL:(path:string)=>`chrome-extension://test-id/${path}`,sendNativeMessage:(...args:unknown[])=>native(...args)},storage:{local:{get:async(key:string)=>({[key]:asrStore.data[key]}),set:async(value:Record<string,unknown>)=>{Object.assign(asrStore.data,value);}}}}}));
+vi.mock('./browser-polyfill',()=>({default:{tabs:{create:(...args:unknown[])=>tabs(...args)},permissions:{contains:async()=>true},runtime:{id:'test-id',getURL:(path:string)=>`chrome-extension://test-id/${path}`,sendNativeMessage:(...args:unknown[])=>native(...args)},storage:{local:{get:async(key:string)=>({[key]:asrStore.data[key]}),set:async(value:Record<string,unknown>)=>{Object.assign(asrStore.data,value);}}}}}));
 import { handleLearningNativeMessage } from './local-save';
 const sender={id:'test-id',url:'chrome-extension://test-id/reader.html'};
 beforeEach(()=>{ native.mockReset(); asrStore.data={}; });

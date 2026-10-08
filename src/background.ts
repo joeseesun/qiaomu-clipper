@@ -15,7 +15,7 @@ import { audioStudyPath, videoKey, videoStudyPath } from './utils/video-source';
 import { isSiteOn, loadStudySites, siteOf } from './utils/study-sites';
 import { isMediaItemAddress, webMediaAddress } from './utils/web-media-page';
 import { hasStoredHighlights } from './utils/url-utils';
-import { handleAsrMessage, handleLearningNativeMessage } from './utils/local-save';
+import { cookiesGranted, handleAsrMessage, handleLearningNativeMessage } from './utils/local-save';
 import { enableYouTubeEmbedRule, disableYouTubeEmbedRule } from './utils/youtube-embed-rules';
 
 import { t } from './utils/ui-text';
@@ -635,6 +635,11 @@ browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime
 		if (typedRequest.action === "closeIframe") {
 			if (sender.tab?.id) routeMessageToTab(sender.tab.id, { action: "close-iframe" }).catch(() => {});
 			return undefined;
+		}
+
+		if (typedRequest.action === "qiaomuCookiesReady") {
+			cookiesGranted().then(ready => sendResponse({ ready }));
+			return true;
 		}
 
 		if (typedRequest.action === "qiaomuOpenStudy") {

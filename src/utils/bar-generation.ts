@@ -4,6 +4,7 @@ import type { GenChoice, GenerationActions, GenUi } from './subtitle-generation-
 import { createGeneration, type Generation, type GenerationDeps, type GenerationEvent } from './subtitle-generation';
 import { asrChoose, thisBrowser, type AsrStatus, type InstallTarget } from './asr-client';
 
+import browser from './browser-polyfill';
 import { t } from './ui-text';
 // Connects "generate subtitles" to a page's transcript bar. The page script says how to read the current video key, how to
 // put lines into its own transcript store, and where to keep a finished result; this keeps the flow and the bar in step and
@@ -113,7 +114,11 @@ export function createBarGeneration(options: BarGenerationOptions): BarGeneratio
 			dismiss() { const key = options.videoKey(); if (key) set(key, null); },
 			cancel() { generation.cancel(); },
 			// The viewer agreed to lend this browser's login for this one download.
-			confirmWithLogin() { const key = options.videoKey(); if (!key) return; jobKey = key; set(key, { kind: 'running', stage: '', progress: 0, modelDownload: false, via }); generation.run(key, { cookies: thisBrowser(), ...language() }); },
+			async confirmWithLogin() { const key = options.videoKey(); if (!key) return;
+				// Lending the browser's login needs a permission the viewer gives once, in the settings (the local edition already has it).
+				const ready = await Promise.resolve(browser.runtime.sendMessage({ action: 'qiaomuCookiesReady' })).then(answer => (answer as { ready?: boolean } | undefined)?.ready === true, () => false);
+				if (!ready) { set(key, { kind: 'failed', error: t('要先在设置里允许使用浏览器的登录状态：ASR 语音识别页，打开「下载要验证身份时…」。'), code: 'cookies-permission' }); options.openSettings?.(); return; }
+				jobKey = key; set(key, { kind: 'running', stage: '', progress: 0, modelDownload: false, via }); generation.run(key, { cookies: thisBrowser(), ...language() }); },
 		},
 	};
 }
