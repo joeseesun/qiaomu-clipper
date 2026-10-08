@@ -15,7 +15,7 @@ export interface PresetProvider {
 	apiKeyUrl?: string;
 	apiKeyRequired?: boolean;
 	modelsList?: string;
-	signIn?: 'tokendance' | 'chatgpt' | 'codex';
+	signIn?: 'tokendance' | 'openrouter' | 'chatgpt' | 'codex';
 	popularModels?: Array<{
 		id: string;
 		name: string;

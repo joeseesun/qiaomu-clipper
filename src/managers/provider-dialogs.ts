@@ -6,7 +6,7 @@ import { generalSettings, saveSettings } from '../utils/storage-utils';
 import { getMessage } from '../utils/i18n';
 import { showModal, hideModal } from '../utils/modal-utils';
 import { startSignIn, PendingSignIn } from '../utils/oauth/accounts';
-import { fetchProviderModels, ProviderModel } from '../utils/provider-models';
+import { fallbackModels, fetchProviderModels, ProviderModel } from '../utils/provider-models';
 import { CATALOG, CatalogEntry, GROUP_ORDER, ProviderGroup, brandOf, iconTile } from '../utils/provider-catalog';
 
 type Done = () => void;
@@ -159,6 +159,8 @@ function showProviderForm(dlg: Dialog, entry: CatalogEntry | null, existing: Pro
 
 	const note = el('div', 'pd-note');
 	const signIn = entry?.signIn;
+	// These sign-ins hand back an ordinary API key that fills the key field.
+	const keySignIn = signIn === 'tokendance' || signIn === 'openrouter';
 	const status = el('div', 'pd-status');
 	status.setAttribute('role', 'status');
 	const keyInput = input('password', existing?.apiKey || '', 'sk-…');
@@ -205,9 +207,9 @@ function showProviderForm(dlg: Dialog, entry: CatalogEntry | null, existing: Pro
 		dlg.body.append(note, row, status, paste);
 		if (oauth && oauth.kind === signIn) setSignedIn(oauth.email || entry!.name);
 	} else {
-		if (signIn === 'tokendance') {
-			note.textContent = t('providerSignInNoteTokenDance');
-			signInBtn = button(t('providerSignInTokenDance'), 'pd-primary', () => { void run(); });
+		if (keySignIn) {
+			note.textContent = t(signIn === 'openrouter' ? 'providerSignInNoteOpenRouter' : 'providerSignInNoteTokenDance');
+			signInBtn = button(t(signIn === 'openrouter' ? 'providerSignInOpenRouter' : 'providerSignInTokenDance'), 'pd-primary', () => { void run(); });
 			const row = el('div', 'pd-signin');
 			row.append(signInBtn);
 			dlg.body.append(note, row, status, paste);
@@ -222,8 +224,8 @@ function showProviderForm(dlg: Dialog, entry: CatalogEntry | null, existing: Pro
 			keyHint.append(a);
 		}
 		if (!entry) dlg.body.append(field('pd-url', t('pdFieldUrl'), urlInput, el('div', 'pd-hint', t('pdUrlHintCustom'))));
-		if (!entry || entry.apiKeyRequired !== false || signIn === 'tokendance') {
-			const keyRow = field('pd-key', signIn === 'tokendance' ? t('pdFieldKeyOr') : t('pdFieldKey'), keyInput, keyHint);
+		if (!entry || entry.apiKeyRequired !== false || keySignIn) {
+			const keyRow = field('pd-key', keySignIn ? t('pdFieldKeyOr') : t('pdFieldKey'), keyInput, keyHint);
 			const reveal = press(el('span', 'pd-reveal', t('pdShow')), t('pdShow'), () => { keyInput.type = keyInput.type === 'password' ? 'text' : 'password'; reveal.textContent = keyInput.type === 'password' ? t('pdShow') : t('pdHide'); });
 			const wrap = el('div', 'pd-input-wrap');
 			keyInput.replaceWith(wrap);
@@ -378,6 +380,9 @@ export function openModelPicker(done: Done, openProviders: () => void, editing?:
 			const retry = press(el('span', 'pd-retry', t('providerModelsRefresh')), t('providerModelsRefresh'), () => { void load(); });
 			status.append(' ', retry);
 			manual.open = true;
+			// The vendor's list is the truth; only when it cannot be read do the catalogue's common models stand in.
+			const common = fallbackModels(provider);
+			if (common.length) { available = common; status.textContent = t('providerModelsFallback') + ' '; status.append(retry); status.classList.remove('is-error'); renderList(); }
 		}
 	};
 

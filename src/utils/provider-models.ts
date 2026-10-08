@@ -1,7 +1,17 @@
 import { Provider } from '../types/types';
 import { openAICompatibleBasePath } from './chat-llm';
 import { freshOAuth, oauthModelsRequest } from './oauth/accounts';
+import { brandOf } from './provider-catalog';
 import { saveSettings } from './storage-utils';
+import modelNames from './model-names.json';
+
+// A vendor that lists only ids gets a readable name from the bundled snapshot (scripts/update-model-names.mjs). Its own name always wins.
+const NAMES = modelNames as Record<string, string>;
+export function readableName(id: string, name?: string): string {
+	if (name && name.trim() && name !== id) return name;
+	const key = id.toLowerCase();
+	return NAMES[key] || NAMES[key.split('/').pop() || ''] || (name && name.trim()) || id;
+}
 
 export interface ProviderModel {
 	id: string;
@@ -42,6 +52,11 @@ export function modelListRequest(provider: Provider): { url: URL; headers: Recor
 	return { url, headers, kind };
 }
 
+// What to show when the vendor's own list cannot be read (no /models endpoint, no key yet, offline): its common models from the catalogue.
+export function fallbackModels(provider: Pick<Provider, 'presetId' | 'baseUrl' | 'name'>): ProviderModel[] {
+	return (brandOf(provider)?.popularModels || []).map(m => ({ id: m.id, name: readableName(m.id, m.name) }));
+}
+
 export async function fetchProviderModels(input: Provider, signal?: AbortSignal): Promise<ProviderModel[]> {
 	const provider = { ...input, apiKey: (input.apiKey || '').trim(), baseUrl: (input.baseUrl || '').trim() };
 	if (provider.oauth) return fetchAccountModels(input, signal);
@@ -72,7 +87,7 @@ export async function fetchProviderModels(input: Provider, signal?: AbortSignal)
 				const id = kind === 'gemini' ? entry.name?.replace(/^models\//, '') : kind === 'ollama' ? entry.model || entry.name : entry.id;
 				if (typeof id !== 'string' || !id.trim()) continue;
 				const name = entry.displayName || entry.display_name || (kind !== 'gemini' ? entry.name : undefined);
-				models.set(id, { id, name: typeof name === 'string' && name.trim() ? name : id });
+				models.set(id, { id, name: readableName(id, typeof name === 'string' ? name : undefined) });
 			}
 			if (kind === 'gemini' && data.nextPageToken) {
 				url.searchParams.set('pageToken', data.nextPageToken);

@@ -23,6 +23,8 @@ const SIWC_HOST_KEY = 'qiaomu-chatgpt-host-id';
 
 const TOKENDANCE_AUTH = 'https://tokendance.space/auth';
 const TOKENDANCE_EXCHANGE = 'https://tokendance.space/portal/api/v1/auth/keys';
+const OPENROUTER_AUTH = 'https://openrouter.ai/auth';
+const OPENROUTER_EXCHANGE = 'https://openrouter.ai/api/v1/auth/keys';
 const APP_URL = 'https://github.com/joeseesun/qiaomu-clipper';
 
 const MARGIN_MS = 3 * 60 * 1000;
@@ -76,7 +78,12 @@ function creds(kind: OAuthKind, tok: any, base: Partial<OAuthCredentials>): OAut
 	};
 }
 
-export async function startSignIn(kind: 'tokendance' | OAuthKind): Promise<PendingSignIn> {
+// OpenRouter accepts any localhost port for the return address, and answers the code with an ordinary API key.
+export function openRouterAuthUrl(redirect: string, challenge: string, state: string): string {
+	return `${OPENROUTER_AUTH}?${new URLSearchParams({ callback_url: redirect, code_challenge: challenge, code_challenge_method: 'S256', key_label: 'Qiaomu Clipper', state })}`;
+}
+
+export async function startSignIn(kind: 'tokendance' | 'openrouter' | OAuthKind): Promise<PendingSignIn> {
 	const { verifier, challenge } = await pkcePair();
 	const state = randomString(32);
 	if (kind === 'codex') {
@@ -113,6 +120,19 @@ export async function startSignIn(kind: 'tokendance' | OAuthKind): Promise<Pendi
 			if (!String(tok.scope || '').split(/\s+/).includes(SIWC_DIRECT_SCOPE)) throw new Error('这个 ChatGPT 账号暂不支持通过 API 使用套餐额度');
 			const oauth = creds('chatgpt', tok, { clientId });
 			return { oauth, label: oauth.email || 'ChatGPT' };
+		} };
+	}
+	if (kind === 'openrouter') {
+		const redirect = `http://localhost:${49152 + Math.floor(Math.random() * 16000)}/callback`;
+		const handle = openSignIn(openRouterAuthUrl(redirect, challenge, state), redirect);
+		return { handle, async finish() {
+			const back = await handle.result;
+			if (back.searchParams.get('state') !== state) throw new Error('登录结果与本次请求不符，请重试');
+			const code = back.searchParams.get('code');
+			if (!code) throw new Error('授权没有完成');
+			const data = await postToken(OPENROUTER_EXCHANGE, { code, code_verifier: verifier, code_challenge_method: 'S256' }, '授权 OpenRouter');
+			if (typeof data.key !== 'string' || !data.key) throw new Error('OpenRouter 没有返回 Key，请重新授权');
+			return { apiKey: data.key, label: 'OpenRouter' };
 		} };
 	}
 	// 词元跳动 hands back an ordinary API key.
