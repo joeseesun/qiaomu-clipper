@@ -702,3 +702,54 @@ label {
 }
 
 #templates-home-section > .settings-section-header:not(:first-child) { margin-top: 40px; }
+
+.learn-how {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 12px;
+	margin-bottom: 24px;
+	padding: 16px;
+	background: var(--background-primary-alt, var(--background-secondary));
+	border-radius: var(--radius-l, 12px);
+}
+.learn-step { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.learn-art {
+	display: flex; align-items: center; justify-content: center; gap: 6px;
+	height: 92px; margin-bottom: 4px;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 10px;
+}
+.learn-key {
+	display: inline-flex; align-items: center; justify-content: center;
+	width: 34px; height: 34px;
+	font: 600 15px/1 var(--font-interface, system-ui);
+	color: var(--text-normal);
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-bottom-width: 3px;
+	border-radius: 7px;
+}
+.learn-step-title { display: flex; align-items: center; gap: 6px; font-weight: 600; color: var(--text-normal); }
+.learn-num {
+	display: inline-flex; align-items: center; justify-content: center;
+	width: 18px; height: 18px; flex-shrink: 0;
+	font-size: 11px; color: var(--background-primary); background: var(--text-normal);
+	border-radius: 50%;
+}
+.learn-step-text { font-size: 12px; line-height: 1.5; color: var(--text-muted); }
+.learn-card, .learn-diary {
+	display: flex; flex-direction: column; gap: 5px;
+	width: 78%; padding: 8px 10px;
+	font-size: 11px; line-height: 1.3; color: var(--text-normal);
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+.learn-card-quote { color: var(--text-muted); padding-left: 6px; border-left: 2px solid var(--background-modifier-border); }
+.learn-card-meta, .learn-diary-date { color: var(--text-faint, var(--text-muted)); font-size: 10px; }
+.learn-diary-line { height: 5px; width: 90%; background: var(--background-modifier-border); border-radius: 3px; }
+.learn-diary-line.short { width: 55%; }
+.learn-diary-new { font-weight: 600; }
+@media (max-width: 720px) { .learn-how { grid-template-columns: 1fr; } }
