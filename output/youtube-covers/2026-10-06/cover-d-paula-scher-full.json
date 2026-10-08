@@ -1,0 +1,15 @@
+{
+  "created_at": "2026-10-06T03:14:48.236Z",
+  "prompt": "YouTube 视频封面，整张画面都填满：左侧三分之二是巨大的叠压汉字“没字幕？”，黑红相间；右侧一块视频播放画面，底部有一条红色字幕条像丝带从画面里飘出并缠过汉字；右下角“一键生成”用大黑字压在红色色块上；播放键三角形作为符号。有限色板（红、黑、米白、一点黄），丝网印刷质感，无大面积空白。\n\nStyle: Paula Scher typographic poster: layered oversized type as image, maximalist rhythm, saturated flat colour.\n\nFormat: output aspect ratio exactly 16:9 (horizontal / landscape). Thumbnail logic: one huge readable focal subject, high contrast, simple background, readable when shrunk to 320 px wide. Leave a clear area (left or bottom third) where a title can be laid on later.\n\nText: render exactly these strings, spelled correctly, uncropped and legible, and no other text: “没字幕？” / “一键生成” / “乔木剪藏”.\n画面要求：背景不透明，纸面或底色铺满整个画面，不要透明、镂空或黑色边角区域。",
+  "aspect_ratio": "16:9",
+  "reference_images": [],
+  "dimensions": {
+    "width": 1672,
+    "height": 941
+  },
+  "flattened_transparency": false,
+  "revised_prompt": "Generate a finished YouTube thumbnail image, EXACT aspect ratio 16:9 horizontal landscape. Opaque full-bleed paper/background, no transparent areas, no cutouts, no black corner regions. Typographic poster with Paula Scher-inspired oversized layered typography as image, maximalist rhythmic composition, saturated flat colors, screen-print ink texture. Limited palette vivid red, black, warm ivory, tiny yellow accent. Huge readable Chinese typography occupying left two thirds: exact string '没字幕？', alternating black and red characters, striking overlapping arrangement but all characters uncropped, clearly legible, no obstruction of character recognition. Right third: stylized video player rectangle with an abstract graphic video scene and bold triangle play symbol, no UI labels. From the bottom of the video frame, a red subtitle ribbon flows outward and winds around the huge Chinese letters. Ribbon contains NO text. Lower right: exact string '一键生成' in large bold black Chinese type pressed onto a red rectangular block. Include exact brand string '乔木剪藏' clearly readable in a smaller but substantial ivory or black label. These are the ONLY text strings in the entire image: '没字幕？', '一键生成', '乔木剪藏'. Spell correctly, complete, uncropped, readable. No other lettering, numbers, fake text, watermark. Full composition dense and fills the canvas with no large empty white space. Preserve a clear, visually quiet ivory or red strip in the bottom third suitable for adding a title later; integrate it into the dense poster as a solid ink area, no additional text. Thumbnail clarity: one enormous readable typographic focal subject, extreme contrast, simple flat background, readable at 320px width. Carefully balance ribbon and video frame with huge typography; editorial graphic design, tactile subtle silk-screen imperfections, crisp readable Chinese letterforms.",
+  "route": "scenario",
+  "preset": "video-cover",
+  "style": "paula-scher"
+}

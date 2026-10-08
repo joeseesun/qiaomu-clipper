@@ -28,6 +28,7 @@ import { reloadPage } from './page-reload';
 import { fetchFeed, rssKey, webKey } from './podcast-feed';
 import { isVideoFile, mountMediaStudyPlayer } from './media-study-player';
 
+import { t } from './ui-text';
 // Study mode for audio: a podcast episode, or a file the viewer chose. The same page as for a video: the player on top, the
 // transcript following it, notes and questions beside it. The transcript is made by the same subtitle generation as for videos
 // (local engine or a saved cloud service), asked for when there is none yet, and kept for the next visit.
@@ -52,7 +53,7 @@ const FILE_PAGE_URL = 'https://qiaomu.local/audio';
 // The episode page, read through the extension (which may fetch any site) rather than from a page on that site.
 export async function fetchEpisode(pageUrl: string): Promise<PodcastEpisode> {
 	const reply = await browser.runtime.sendMessage({ action: 'fetchProxy', url: pageUrl, options: {} }) as { ok?: boolean; text?: string; error?: string } | undefined;
-	if (!reply?.text) throw new Error(reply?.error || '读取节目页面失败');
+	if (!reply?.text) throw new Error(reply?.error || t('读取节目页面失败'));
 	return parsePodcastPage(reply.text);
 }
 
@@ -135,7 +136,7 @@ article[data-audio-tab=transcript] .qiaomu-shownotes{display:none}
 `;
 
 export async function startAudioStudy(options: AudioStudyOptions): Promise<void> {
-	const initialTitle = options.title || (options.kind === 'file' ? '本地音频学习' : options.kind === 'web' ? '视频学习' : '播客学习');
+	const initialTitle = options.title || (options.kind === 'file' ? t('本地音频学习') : options.kind === 'web' ? t('视频学习') : t('播客学习'));
 	const url = options.webUrl || options.url || FILE_PAGE_URL;
 	const session = await createReaderSourceDraft(url, initialTitle);
 	Reader.onEdit = () => {};
@@ -185,7 +186,7 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 		// A transcript made again (another model) replaces the one on the page. The page's transcript is wired once, so it is read again from the
 		// saved copy by loading the page again, once the copy is written.
 		save: (k, lines) => { void cache.write(`generated:${k}`, lines).then(() => { if (remade) { status.textContent = text('audioRefreshing', '新的文字稿已生成，正在刷新…', 'The new transcript is ready — refreshing…'); reloadPage(); } }); },
-		openSettings: () => { window.open(browser.runtime.getURL('settings.html?section=asr'), '_blank'); },
+		openSettings: () => { window.open(browser.runtime.getURL('settings.html?section=asr-models'), '_blank'); },
 	});
 	const panel = buildGenerationPanel(document, generationStrings(text), generation.actions);
 	holder.append(panel.element);
@@ -206,7 +207,7 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 		const hero = document.createElement('div'); hero.className = 'qiaomu-audio-hero';
 		// A picture that does not load leaves no empty square behind.
 		if (episode.cover && !episode.picture) { const cover = document.createElement('img'); cover.src = episode.cover; cover.alt = ''; cover.referrerPolicy = 'no-referrer'; cover.addEventListener('error', () => cover.remove()); hero.append(cover); }
-		const about = document.createElement('div'); const show = document.createElement('b'); show.textContent = episode.show || '播客'; about.append(show);
+		const about = document.createElement('div'); const show = document.createElement('b'); show.textContent = episode.show || t('播客'); about.append(show);
 		const facts = [episode.date?.slice(0, 10), durationText(episode.seconds)].filter(Boolean).join(' · '); if (facts) { const line = document.createElement('span'); line.textContent = facts; about.append(line); }
 		hero.append(about); holder.before(hero);
 		if (episode.post) { const post = document.createElement('div'); post.className = 'qiaomu-post-text'; post.innerHTML = DOMPurify.sanitize(episode.post); sourceHtml = post.outerHTML; holder.before(post); }
@@ -234,11 +235,11 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 				new MutationObserver(place).observe(article, { childList: true, subtree: true });
 				mountDownloadButton(host, {
 					title: name, remembered,
-					choices: [{ id: kind.kind, label: video ? '视频' : '音频', url, kind: kind.kind, ext: kind.ext }],
+					choices: [{ id: kind.kind, label: video ? t('视频') : t('音频'), url, kind: kind.kind, ext: kind.ext }],
 					onRemember: id => { void browser.storage.local.set({ [CHOICE_KEY]: id }); },
 					save: async (blob, filename) => {
 						const objectUrl = URL.createObjectURL(blob);
-						const id = await browser.downloads.download({ url: objectUrl, filename: `乔木剪藏/${filename}`, saveAs: false, conflictAction: 'uniquify' });
+						const id = await browser.downloads.download({ url: objectUrl, filename: t('乔木剪藏/{0}', [filename]), saveAs: false, conflictAction: 'uniquify' });
 						const finished = (delta: { id: number; state?: { current?: string } }) => { if (delta.id === id && delta.state?.current && delta.state.current !== 'in_progress') { browser.downloads.onChanged.removeListener(finished); URL.revokeObjectURL(objectUrl); } };
 						browser.downloads.onChanged.addListener(finished);
 						return { reveal: () => { void browser.downloads.show(id); } };
@@ -260,14 +261,14 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 	};
 	if (options.kind === 'podcast') {
 		let episode: PodcastEpisode;
-		try { episode = await fetchEpisode(url); } catch (error) { status.textContent = error instanceof Error ? error.message : '读取节目失败'; return; }
-		if (!key) { status.textContent = '无效的节目链接'; return; }
+		try { episode = await fetchEpisode(url); } catch (error) { status.textContent = error instanceof Error ? error.message : t('读取节目失败'); return; }
+		if (!key) { status.textContent = t('无效的节目链接'); return; }
 		void recordStudy({ url, title: episode.title });
 		await present({ ...episode, seconds: episode.minutes ? episode.minutes * 60 : undefined }); await begin(); return;
 	}
 	if (options.kind === 'web') {
 		const address = options.webUrl ?? '';
-		if (!/^https:\/\//.test(address)) { status.textContent = '只支持 https 网址'; return; }
+		if (!/^https:\/\//.test(address)) { status.textContent = t('只支持 https 网址'); return; }
 		status.textContent = text('webReading', '正在读取这个网址…', 'Reading this address…');
 		const official = await readTedMedia(address, async url => { const reply = await browser.runtime.sendMessage({ action: 'fetchProxy', url, options: {} }) as { text?: string }; return reply?.text || ''; });
 		const isDouyin = siteOf(address)?.id === 'douyin';
@@ -278,7 +279,7 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 			: isDouyin ? { ...await probeDouyinPage(address, status, holder, source), cookies: undefined }
 			: await probeWebStudy(address, status, holder);
 		if (!info.ok) {
-			status.textContent = info.error === 'unsupported' ? '这个网址读不了：下载工具不支持这个网站，或这个页面里没有音视频。' : info.error === 'needs-cookies' ? '这个网站需要有效的浏览器状态才能读取。' : info.error === 'helper-offline' || info.error === 'helper-outdated' ? text('subtitleGenOffline', '没有连上本地助手，需要先安装或更新本地助手。', 'The local helper is not connected or is out of date.') : info.error === 'missing' ? '还没有安装下载工具（yt-dlp），请先在「语音识别」里安装，或运行 brew install yt-dlp。' : info.error === 'timeout' ? '读取超时，请稍后重试。' : '读取失败' + ((info as { message?: string }).message ? '：' + (info as { message?: string }).message : '');
+			status.textContent = info.error === 'unsupported' ? t('这个网址读不了：下载工具不支持这个网站，或这个页面里没有音视频。') : info.error === 'needs-cookies' ? t('这个网站需要有效的浏览器状态才能读取。') : info.error === 'helper-offline' || info.error === 'helper-outdated' ? text('subtitleGenOffline', '没有连上本地助手，需要先安装或更新本地助手。', 'The local helper is not connected or is out of date.') : info.error === 'missing' ? t('还没有安装下载工具（yt-dlp），请先在「ASR 语音识别」里安装，或运行 brew install yt-dlp。') : info.error === 'timeout' ? t('读取超时，请稍后重试。') : t('读取失败') + ((info as { message?: string }).message ? '：' + (info as { message?: string }).message : '');
 			return;
 		}
 		// TikTok: the file address the download tool reports does not play outside its own session. Play the file TikTok's page loaded
@@ -295,26 +296,26 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 		// A post on X says something of its own: its words stay with the media. A long description of another site waits behind a tab.
 		const words = (info.description ?? '').trim(), isPost = Boolean(xStatus(address)), short = isPost || words.length <= 400;
 		await present({ title: info.title, show: info.author || info.site, cover: info.thumbnail ?? undefined, date: info.date ?? undefined, seconds: info.seconds ?? undefined, audio: info.mediaUrl ?? '', audioUrl: info.audioUrl, picture: info.video && Boolean(info.mediaUrl), ...(words && short ? { post: plainToHtml(words) } : {}), ...(words && !short ? { notesHtml: plainToHtml(words), notesLabel: text('audioTabAbout', '简介', 'Description') } : { notesHtml: '' }) });
-		if (!info.mediaUrl) { const note = document.createElement('p'); note.className = 'qiaomu-shows-note'; note.append(document.createTextNode(siteOf(address)?.id === 'tiktok' ? '没能取到这条视频的播放地址（它在原页面里正常播放，需要原来的 TikTok 页面保持打开）。字幕照常生成，对照时请在原页面播放：' : '这个网站没有给出可以直接播放的声音，所以这里不提供播放器；字幕照常生成，对照时请在原页面播放：')); const link = document.createElement('a'); link.href = address; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = '打开原页面'; note.append(link); holder.before(note); }
+		if (!info.mediaUrl) { const note = document.createElement('p'); note.className = 'qiaomu-shows-note'; note.append(document.createTextNode(siteOf(address)?.id === 'tiktok' ? t('没能取到这条视频的播放地址（它在原页面里正常播放，需要原来的 TikTok 页面保持打开）。字幕照常生成，对照时请在原页面播放：') : t('这个网站没有给出可以直接播放的声音，所以这里不提供播放器；字幕照常生成，对照时请在原页面播放：'))); const link = document.createElement('a'); link.href = address; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = t('打开原页面'); note.append(link); holder.before(note); }
 		if (official?.segments.length) {
 			await attach(official.segments); panel.element.hidden = true;
-			if (!official.timelineAligned) status.textContent = '官方字幕已读取，播放时间轴暂未校准。';
+			if (!official.timelineAligned) status.textContent = t('官方字幕已读取，播放时间轴暂未校准。');
 			mountStudyCaptionLanguage(article, official.languages, official.language, async language => {
 				const found = await readTedMedia(address, async url => { const r = await browser.runtime.sendMessage({ action: 'fetchProxy', url, options: {} }) as { text?: string }; return r?.text || ''; }, undefined, language);
-				if (!found?.segments.length) throw new Error('字幕不可用');
+				if (!found?.segments.length) throw new Error(t('字幕不可用'));
 				await attach(found.segments, true);
 			});
 		} else await begin(); return;
 	}
 	if (options.kind === 'feed') {
-		if (!options.feed || !options.guid) { status.textContent = '无效的节目链接'; return; }
+		if (!options.feed || !options.guid) { status.textContent = t('无效的节目链接'); return; }
 		try {
 			const feed = await fetchFeed(options.feed, { fresh: true }), found = feed.episodes.find(item => item.guid === options.guid);
-			if (!found) { status.textContent = '订阅源里没有找到这一集（可能已经太旧）。可以在小宇宙或播客 App 里打开它的链接。'; return; }
+			if (!found) { status.textContent = t('订阅源里没有找到这一集（可能已经太旧）。可以在小宇宙或播客 App 里打开它的链接。'); return; }
 			key = await rssKey(options.feed, options.guid); registerFeedEpisode(key, options.feed, options.guid);
 			void recordStudy({ path: `reader.html?study=feed&feed=${encodeURIComponent(options.feed)}&guid=${encodeURIComponent(options.guid)}`, title: found.title, kind: 'podcast', url: options.feed + '#' + options.guid });
 			await present({ title: found.title, show: feed.show, cover: feed.cover, date: found.date, seconds: found.seconds, audio: found.audio, notesHtml: found.notesHtml });
-		} catch (error) { status.textContent = error instanceof Error ? error.message : '读取节目失败'; return; }
+		} catch (error) { status.textContent = error instanceof Error ? error.message : t('读取节目失败'); return; }
 		await begin(); return;
 	}
 
@@ -331,9 +332,9 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 		const heading = document.querySelector('main h1'); if (heading) heading.textContent = title;
 		showPlayer(URL.createObjectURL(file), isVideoFile(file) ? {} : undefined);
 		status.textContent = text('audioSending', '正在把文件交给本机助手…', 'Handing the file to the local helper…');
-		const sent = await asrUpload(file, fraction => { status.textContent = `${text('audioSending', '正在把文件交给本机助手…', 'Handing the file to the local helper…')} ${Math.round(fraction * 100)}%`; });
+		const sent = await asrUpload(file, fraction => { status.textContent = t('{0} {1}%', [text('audioSending', '正在把文件交给本机助手…', 'Handing the file to the local helper…'), Math.round(fraction * 100)]); });
 		if (!sent.ok) {
-			status.textContent = sent.error === 'helper-offline' || sent.error === 'helper-outdated' ? text('subtitleGenOffline', '没有连上本地助手，需要先安装或更新本地助手。', 'The local helper is not connected or is out of date.') : sent.error === 'no-space' ? '磁盘空间不足' : `${text('audioSendFailed', '交给本机助手失败', 'Could not hand the file over')}：${sent.error}`;
+			status.textContent = sent.error === 'helper-offline' || sent.error === 'helper-outdated' ? text('subtitleGenOffline', '没有连上本地助手，需要先安装或更新本地助手。', 'The local helper is not connected or is out of date.') : sent.error === 'no-space' ? t('磁盘空间不足') : t('{0}：{1}', [text('audioSendFailed', '交给本机助手失败', 'Could not hand the file over'), sent.error]);
 			chooser.hidden = false; return;
 		}
 		key = sent.key; await begin();

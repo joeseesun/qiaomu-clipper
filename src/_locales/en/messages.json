@@ -60,7 +60,7 @@
 		"message": "Run prompt variables immediately if the template contains any. This will consume API credits with your model provider. Turn off if you only want to run interpreter manually."
 	},
 	"behavior": {
-		"message": "Behavior"
+		"message": "Saving"
 	},
 	"byDay": {
 		"message": "Days"
@@ -93,10 +93,10 @@
 		"message": "Choose template file"
 	},
 	"clipBehavior": {
-		"message": "Clip behavior"
+		"message": "When clipping a page with highlights"
 	},
 	"clipBehaviorDescription": {
-		"message": "Choose how highlighted content is saved to Obsidian. Defines the $strong_start${{content}}$strong_end$ variable.",
+		"message": "Choose what is saved: the full text with highlights marked, only the highlights, or ignore highlights. Defines the $strong_start${{content}}$strong_end$ variable.",
 		"placeholders": {
 			"strong_end": {
 				"content": "</strong>"
@@ -127,7 +127,7 @@
 		"message": "Toggle highlighter"
 	},
 	"commandToggleReader": {
-		"message": "Toggle reader"
+		"message": "Open the reading page"
 	},
 	"confirmDeleteTemplate": {
 		"message": "Are you sure you want to delete the template \"$1\"?"
@@ -446,7 +446,7 @@
 		"message": "Import template"
 	},
 	"interpret": {
-		"message": "interpret"
+		"message": "Run AI"
 	},
 	"interpreter": {
 		"message": "Interpreter"
@@ -455,13 +455,13 @@
 		"message": "Interpreter context"
 	},
 	"interpreterContextDescription": {
-		"message": "The context used to interpret prompt variables. Overrides the default context defined in $link_start$Interpreter settings$link_end$. Variables can be used here.",
+		"message": "The background information the model uses to understand AI prompts in this template. Overrides the default on the $link_start$Clip templates$link_end$ page. Variables can be used.",
 		"placeholders": {
 			"link_end": {
 				"content": "</a>"
 			},
 			"link_start": {
-				"content": "<a href=\"?section=interpreter\">"
+				"content": "<a href=\"?section=templates-home\">"
 			}
 		}
 	},
@@ -478,10 +478,10 @@
 		"message": "Last used"
 	},
 	"legacyMode": {
-		"message": "Legacy mode"
+		"message": "Compatibility with older Obsidian"
 	},
 	"legacyModeDescription": {
-		"message": "Uses the URI clipping method compatible with Obsidian 1.6.7 or earlier. Note that the length of the content you can clip is limited by your browser and OS. Some pages may fail without any errors."
+		"message": "Only needed for Obsidian 1.6.7 or earlier. Long content may fail to save, with no warning."
 	},
 	"loadArticle": {
 		"message": "Read article"
@@ -541,7 +541,7 @@
 		"message": "Note location"
 	},
 	"noteLocationDescription": {
-		"message": "The folder or path of the note."
+		"message": "Which folder the note goes in, relative to the vault."
 	},
 	"noteName": {
 		"message": "Note name"
@@ -582,7 +582,7 @@
 		"message": "Open highlights"
 	},
 	"openReader": {
-		"message": "Open Reader"
+		"message": "Open the reading page"
 	},
 	"openSidePanel": {
 		"message": "Open side panel"
@@ -807,7 +807,7 @@
 		"message": "Custom CSS"
 	},
 	"readerCustomCssDescription": {
-		"message": "CSS applied automatically in reading view."
+		"message": "The CSS you enter is applied to the reading page automatically."
 	},
 	"readerDarkTheme": {
 		"message": "Dark mode theme"
@@ -894,7 +894,7 @@
 		"message": "Theme"
 	},
 	"readerThemeDescription": {
-		"message": "Choose the colors used in reading view."
+		"message": "Choose the colors used on the reading page."
 	},
 	"readerThemeSection": {
 		"message": "Theme"
@@ -939,10 +939,10 @@
 		"message": "Reset"
 	},
 	"resetDefaultTemplate": {
-		"message": "Reset default template"
+		"message": "Restore the Default template"
 	},
 	"resetDefaultTemplateDescription": {
-		"message": "Remove any changes you've made to the default template."
+		"message": "Undo all the changes you made to the Default template."
 	},
 	"resetProvidersAndModels": {
 		"message": "Reset default models"
@@ -954,10 +954,10 @@
 		"message": "Save"
 	},
 	"saveBehaviorDescription": {
-		"message": "Choose the default option for saving pages. Alternate options appear in the dropdown menu next to the main button."
+		"message": "Choose what the main button does; the other ways are in the dropdown beside it."
 	},
 	"saveBehaviorLabel": {
-		"message": "Save behavior"
+		"message": "When you click “Clip”"
 	},
 	"saved": {
 		"message": "Saved"
@@ -1023,10 +1023,10 @@
 		"message": "Show page variables"
 	},
 	"silentOpen": {
-		"message": "Save clipped note without opening it"
+		"message": "Stay on the current page after clipping"
 	},
 	"silentOpenDescription": {
-		"message": "Clipped notes will be saved but will not open as a new tab. Obsidian will still be brought to the foreground."
+		"message": "No new tab opens after saving. Obsidian still comes to the front."
 	},
 	"sort": {
 		"message": "Sort"
@@ -1107,13 +1107,13 @@
 		"message": "Vault"
 	},
 	"vaultDescription": {
-		"message": "Select the default vault for this template. Go to $link_start$general settings$link_end$ to add or remove vaults.",
+		"message": "Select the default vault for this template. Choose vaults in $link_start$Clipping and saving$link_end$.",
 		"placeholders": {
 			"link_end": {
 				"content": "</a>"
 			},
 			"link_start": {
-				"content": "<a href=\"?section=general\">"
+				"content": "<a href=\"?section=clip\">"
 			}
 		}
 	},
@@ -1168,7 +1168,7 @@
 		"message": "Edit Markdown"
 	},
 	"qiaomuPublicRss": {
-		"message": "Public RSS"
+		"message": "View the public RSS"
 	},
 	"qiaomuCopyProperty": {
 		"message": "Copy property value"
@@ -1372,34 +1372,34 @@
 		"message": "Rewrite more concisely"
 	},
 	"youtubeAutoTranscriptTitle": {
-		"message": "Open the YouTube transcript automatically (YouTube only)"
+		"message": "Open the YouTube transcript automatically"
 	},
 	"youtubeAutoTranscriptDescription": {
-		"message": "On a video page, expand YouTube's transcript panel once so the transcript is ready for copying, downloading and study mode. Close it and it stays closed for that video."
+		"message": "When a video opens, expand the transcript once so subtitles can be copied, downloaded and studied right away. If you close it, it won't reopen for that video."
 	},
 	"youtubeHideNativeTitle": {
-		"message": "Hide YouTube's own transcript panel (YouTube only)"
+		"message": "Hide YouTube's own transcript panel"
 	},
 	"youtubeHideNativeDescription": {
-		"message": "When the transcript opens automatically, hide YouTube's panel in the right column. The transcript bar shows the same lines. A panel you open yourself is never hidden."
+		"message": "After the transcript opens automatically, hide YouTube's own panel in the right column, since the subtitle bar already shows the same lines. A panel you open yourself is never hidden."
 	},
 	"learningNotesTitle": {
-		"message": "Learning notes"
+		"message": "Take notes on the reading and video pages"
 	},
 	"learningNotesDescription": {
-		"message": "Add a note button and the N key to the reading and video pages. Notes are appended to today's daily note in your vault through the local helper."
+		"message": "Show a “Note” button; the N key works too. Notes are appended to today's daily note in your vault; the local helper must be installed first."
 	},
 	"learningIncludeQuoteTitle": {
-		"message": "Include the excerpt in notes"
+		"message": "Include the selected text"
 	},
 	"learningIncludeQuoteDescription": {
-		"message": "When a note has selected text, write it into the diary as a quote. You can also switch it per note in the note card."
+		"message": "When text is selected as you take a note, write it into the daily note as a quote. You can also switch it per note."
 	},
 	"learningIncludeSourceTitle": {
-		"message": "Include source and time in notes"
+		"message": "Include the source and video time"
 	},
 	"learningIncludeSourceDescription": {
-		"message": "Write the page or video link, and the video time, in the diary entry. You can also switch it per note in the note card."
+		"message": "Write the link of the page or video in the daily note, and for videos the time point too. You can also switch it per note."
 	},
 	"youtubePanelReload": {
 		"message": "The extension was updated — reload this page and try again"
@@ -1477,7 +1477,7 @@
 		"message": "Transcript bar on YouTube and Bilibili"
 	},
 	"youtubePanelActionsDescription": {
-		"message": "Add the transcript bar to video pages on YouTube and Bilibili: read along, copy, download, open study mode, and generate subtitles when a video has none."
+		"message": "Add a subtitle bar to video pages: read along, copy, download, open the study page; when a video has no subtitles, generate them right there."
 	},
 	"youtubePanelCopy": {
 		"message": "Copy"
@@ -1935,5 +1935,227 @@
 	},
 	"qiaomuTranslationSetupModel": {
 		"message": "Set up a translation model"
+	},
+	"subtitleLanguage": {
+		"message": "Subtitle language"
+	},
+	"subtitleGenFromAudio": {
+		"message": "Recognise the audio…"
+	},
+	"audioPlay": {
+		"message": "Play"
+	},
+	"audioPause": {
+		"message": "Pause"
+	},
+	"audioBack": {
+		"message": "Back 15 s"
+	},
+	"audioForward": {
+		"message": "Forward 30 s"
+	},
+	"audioSpeed": {
+		"message": "Playback speed"
+	},
+	"audioSeek": {
+		"message": "Position"
+	},
+	"audioRefreshing": {
+		"message": "The new transcript is ready — refreshing…"
+	},
+	"audioStudyNone": {
+		"message": "There are no subtitles for this media yet. Once made, the lines follow playback."
+	},
+	"audioTabTranscript": {
+		"message": "Transcript"
+	},
+	"audioTabNotes": {
+		"message": "Show notes"
+	},
+	"webReading": {
+		"message": "Reading this address…"
+	},
+	"subtitleGenOffline": {
+		"message": "The local helper is not connected or is out of date."
+	},
+	"audioTabAbout": {
+		"message": "Description"
+	},
+	"audioChooseFile": {
+		"message": "Choose an audio or video file…"
+	},
+	"audioChooseHint": {
+		"message": "You can also drop a file here. It is only handed to the local helper, never uploaded; mp3, m4a, wav, flac, mp4 and similar formats work."
+	},
+	"audioBadType": {
+		"message": "This file type is not supported."
+	},
+	"audioSending": {
+		"message": "Handing the file to the local helper…"
+	},
+	"audioSendFailed": {
+		"message": "Could not hand the file over"
+	},
+	"subtitleGenOffer": {
+		"message": "Generate subtitles"
+	},
+	"subtitleGenChecking": {
+		"message": "Checking this computer…"
+	},
+	"subtitleGenConfirm": {
+		"message": "This video has no subtitles. They can be generated on this computer: the audio is downloaded and recognised by a speech model on this computer, and nothing is uploaded."
+	},
+	"subtitleGenConfirmModel": {
+		"message": "The first run also downloads a recognition model (about 1.6 GB)."
+	},
+	"subtitleGenStart": {
+		"message": "Generate subtitles"
+	},
+	"subtitleGenCancel": {
+		"message": "Cancel"
+	},
+	"subtitleGenRunning": {
+		"message": "Generating subtitles"
+	},
+	"subtitleGenModel": {
+		"message": "First use: downloading the recognition model (about 1.6 GB)…"
+	},
+	"subtitleGenFailed": {
+		"message": "Could not generate subtitles"
+	},
+	"subtitleGenRetry": {
+		"message": "Retry"
+	},
+	"subtitleGenLangAuto": {
+		"message": "Detect language"
+	},
+	"subtitleGenLangLabel": {
+		"message": "Language spoken in the video"
+	},
+	"subtitleGenNeedsLogin": {
+		"message": "The site only lets a signed-in browser download the audio. The local helper can borrow this browser's login for this one download; it is not saved or uploaded (macOS may ask for Keychain access). Note: downloading with your account can get it restricted by the platform, so use it sparingly."
+	},
+	"subtitleGenLoginRetry": {
+		"message": "Retry with my browser login"
+	},
+	"subtitleGenGenerated": {
+		"message": "Generated by speech recognition; it may contain recognition errors"
+	},
+	"subtitleGenOutdated": {
+		"message": "The local helper is out of date. Run python3 native/install.py again, then retry."
+	},
+	"subtitleGenMissing": {
+		"message": "Some tools needed for this are missing. Run the command below in a terminal, then check again:"
+	},
+	"subtitleGenCloudSetup": {
+		"message": "Cloud recognition is not set up yet: choose a service and enter its API key under Settings → AI models → ASR speech recognition."
+	},
+	"subtitleGenConfirmCloud": {
+		"message": "This video has no subtitles. They can be generated: the audio is downloaded and sent to {service} for recognition. The audio leaves this computer and is billed by that service."
+	},
+	"subtitleGenConfirmLocalService": {
+		"message": "This video has no subtitles. They can be generated: the audio is downloaded and handed to a recognition service running on this computer. It does not leave this computer."
+	},
+	"subtitleGenBusy": {
+		"message": "Another video is being processed. Try again when it finishes."
+	},
+	"subtitleGenCopy": {
+		"message": "Copy command"
+	},
+	"subtitleGenCopied": {
+		"message": "Copied"
+	},
+	"subtitleGenRecheck": {
+		"message": "Check again"
+	},
+	"subtitleGenConfirmInstall": {
+		"message": "This needs \"{name}\" installed on this computer first (about {size}, including the recognition model). Generation starts automatically when it is ready; no audio is uploaded."
+	},
+	"subtitleGenInstallStart": {
+		"message": "Install and generate subtitles"
+	},
+	"subtitleGenInstalling": {
+		"message": "Installing"
+	},
+	"subtitleGenInstallFailed": {
+		"message": "Installation failed"
+	},
+	"subtitleGenEngine": {
+		"message": "Recognition engine"
+	},
+	"subtitleGenDlgTitle": {
+		"message": "Generate subtitles"
+	},
+	"subtitleGenDlgSub": {
+		"message": "Choose how to turn the speech into timed subtitles."
+	},
+	"subtitleGenRememberHint": {
+		"message": "Skip this dialog from now on"
+	},
+	"subtitleGenAsk": {
+		"message": "Choose how to recognise it"
+	},
+	"subtitleGenStartCloud": {
+		"message": "Generate subtitles"
+	},
+	"subtitleGenAddService": {
+		"message": "+ Add a cloud service…"
+	},
+	"subtitleGenRemember": {
+		"message": "Start straight away"
+	},
+	"subtitleGenRegenerate": {
+		"message": "Generate again with another model"
+	},
+	"subtitleGenGeneratedVia": {
+		"message": "Generated by {via}; it may contain recognition errors"
+	},
+	"Language": {
+		"message": "javascript"
+	},
+	"Attribute": {
+		"message": "style"
+	},
+	"Tag": {
+		"message": "span"
+	},
+	"Format": {
+		"message": "MMMM D, YYYY"
+	},
+	"Search": {
+		"message": "/[aeiou]/g"
+	},
+	"Replacement": {
+		"message": ""
+	},
+	"Suffix": {
+		"message": "..."
+	},
+	"Type": {
+		"message": "note"
+	},
+	"Title": {
+		"message": ""
+	},
+	"Expression": {
+		"message": "-10"
+	},
+	"Separator": {
+		"message": ","
+	},
+	"Mode": {
+		"message": "values"
+	},
+	"Direction": {
+		"message": "desc"
+	},
+	"Selector": {
+		"message": ".ad"
+	},
+	"xBarNone": {
+		"message": "No subtitles yet — they can be generated by speech recognition"
+	},
+	"podcastBarNone": {
+		"message": "No subtitles yet — they can be generated by speech recognition"
 	}
 }

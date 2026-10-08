@@ -9,12 +9,13 @@ import { generateFrontmatter } from './obsidian-note-creator';
 import { sanitizeFileName } from './string-utils';
 import { findMatchingTemplate, initializeTriggers } from './triggers';
 
+import { t } from './ui-text';
 export async function createReaderSourceDraft(url: string, initialTitle: string) {
 	await loadSettings();
 	const templates = await loadTemplates();
 	const template = templates.find(item => item.id === generalSettings.defaultTemplateId) || templates[0];
 	const saved = await browser.storage.local.get(['lastSelectedVault','qiaomuRssEnabled','qiaomuNativeConfigured']) as {lastSelectedVault?:string; qiaomuRssEnabled?:boolean; qiaomuNativeConfigured?:boolean};
-	const title = initialTitle.replace(/\s*- YouTube$/, '') || 'YouTube 视频学习';
+	const title = initialTitle.replace(/\s*- YouTube$/, '') || t('YouTube 视频学习');
 	const draft: ClipPreview = {
 		createdAt:Date.now(), aggregate:saved.qiaomuRssEnabled === true, native:saved.qiaomuNativeConfigured === true,
 		clip:{url,title,markdown:''}, properties:[],

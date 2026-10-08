@@ -17,6 +17,7 @@ import { hasStoredHighlights } from './utils/url-utils';
 import { handleAsrMessage, handleLearningNativeMessage } from './utils/local-save';
 import { enableYouTubeEmbedRule, disableYouTubeEmbedRule } from './utils/youtube-embed-rules';
 
+import { t } from './utils/ui-text';
 browser.runtime.onMessage.addListener(handleLearningNativeMessage);
 browser.runtime.onMessage.addListener(handleAsrMessage);
 
@@ -29,26 +30,26 @@ const helperDown = (error: unknown) => { const reason = error instanceof Error ?
 browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime.MessageSender) => {
 	const message = request as { action?: string; payload?: { requestId?: string; vaultPath?: string; vault?: string; folder?: string } };
 	if (!['qiaomuLocalStatus', 'qiaomuLocalSave', 'qiaomuLocalConfigure', 'qiaomuLocalChooseVault', 'qiaomuLocalChooseFolder', 'qiaomuLocalListVaults'].includes(message?.action || '')) return;
-	if (sender.id !== browser.runtime.id || !sender.url?.startsWith(browser.runtime.getURL(''))) return Promise.resolve({ ok: false, error: '无效的本地保存请求' });
+	if (sender.id !== browser.runtime.id || !sender.url?.startsWith(browser.runtime.getURL(''))) return Promise.resolve({ ok: false, error: t('无效的本地保存请求') });
 	if (message.action === 'qiaomuLocalStatus') return browser.runtime.sendNativeMessage('ai.qiaomu.clipper', { action: 'status' }).catch((error: unknown) => ({ ok: false, reason: error instanceof Error ? error.message : String(error) }));
 	if (message.action === 'qiaomuLocalChooseFolder') return browser.runtime.sendNativeMessage('ai.qiaomu.clipper', { action: 'chooseNoteFolder', vault: message.payload?.vault, folder: message.payload?.folder })
-		.catch(error => ({ ...helperDown(error), error: `${describeHelperFailure(error instanceof Error ? error.message : String(error))}也可以手动填写相对路径。` }));
+		.catch(error => ({ ...helperDown(error), error: t('{0}也可以手动填写相对路径。', [describeHelperFailure(error instanceof Error ? error.message : String(error))]) }));
 	if (message.action === 'qiaomuLocalListVaults') return browser.runtime.sendNativeMessage('ai.qiaomu.clipper', { action: 'listVaults' }).catch(helperDown);
 	if (message.action === 'qiaomuLocalChooseVault') return browser.runtime.sendNativeMessage('ai.qiaomu.clipper', { action: 'chooseVault' })
 		.catch(helperDown);
 	if (message.action === 'qiaomuLocalConfigure') {
-		if (typeof message.payload?.vaultPath !== 'string') return Promise.resolve({ ok: false, error: '请输入笔记库路径' });
+		if (typeof message.payload?.vaultPath !== 'string') return Promise.resolve({ ok: false, error: t('请输入笔记库路径') });
 		return browser.runtime.sendNativeMessage('ai.qiaomu.clipper', { action: 'configure', vaultPath: message.payload.vaultPath })
 			.catch(helperDown);
 	}
 	const payload = message.payload;
-	if (!payload || !/^[a-zA-Z0-9-]{8,80}$/.test(payload.requestId || '')) return Promise.resolve({ ok: false, error: '保存请求标识无效' });
+	if (!payload || !/^[a-zA-Z0-9-]{8,80}$/.test(payload.requestId || '')) return Promise.resolve({ ok: false, error: t('保存请求标识无效') });
 	const key = `qiaomuLocalPending:${payload.requestId}`;
 	if (qiaomuLocalInFlight.has(key)) return qiaomuLocalInFlight.get(key);
 	const job = browser.storage.local.set({ [key]: payload })
 		.then(() => browser.runtime.sendNativeMessage('ai.qiaomu.clipper', { ...payload, action: 'save' }))
 		.then(async result => { if ((result as { ok?: boolean })?.ok) await browser.storage.local.remove(key); return result; })
-		.catch(() => ({ ok: false, error: '本地保存助手未连接，请检查安装后重试' }))
+		.catch(() => ({ ok: false, error: t('本地保存助手未连接，请检查安装后重试') }))
 		.finally(() => qiaomuLocalInFlight.delete(key));
 	qiaomuLocalInFlight.set(key, job);
 	return job;
@@ -56,7 +57,7 @@ browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime
 browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime.MessageSender) => {
 	const message = request as { action?: string; clip?: QiaomuClip };
 	if (message?.action !== 'qiaomuSubmitClip') return;
-	if (sender.id !== browser.runtime.id || !sender.url?.startsWith(browser.runtime.getURL('')) || !message.clip) return Promise.resolve({ error: '无效的剪藏请求' });
+	if (sender.id !== browser.runtime.id || !sender.url?.startsWith(browser.runtime.getURL('')) || !message.clip) return Promise.resolve({ error: t('无效的剪藏请求') });
 	const clip = message.clip;
 	const key = clip.url;
 	if (qiaomuInFlight.has(key)) return qiaomuInFlight.get(key);
@@ -64,7 +65,7 @@ browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime
 	const job = browser.storage.local.set({ [pendingKey]: clip })
 		.then(() => submitQiaomuClip(clip))
 		.then(async result => { if (result.accepted) await browser.storage.local.remove(pendingKey); return result; })
-		.catch(error => ({ error: error instanceof Error ? error.message : 'RSS 同步失败' }))
+		.catch(error => ({ error: error instanceof Error ? error.message : t('RSS 同步失败') }))
 		.finally(() => qiaomuInFlight.delete(key));
 	qiaomuInFlight.set(key, job);
 	return job;
@@ -1309,10 +1310,10 @@ browser.runtime.onConnect.addListener(port => {
 			await loadSettings();
 			const model = enabledChatModels().find(item => item.id === request.modelId);
 			if (!model || typeof request.system !== 'string' || !Array.isArray(request.messages)
-				|| request.messages.some((turn: any) => !['user', 'assistant'].includes(turn.role) || typeof turn.content !== 'string')) throw new Error('无效的 AI 对话请求');
+				|| request.messages.some((turn: any) => !['user', 'assistant'].includes(turn.role) || typeof turn.content !== 'string')) throw new Error(t('无效的 AI 对话请求'));
 			await streamChat({ model, system: request.system, messages: request.messages, signal: controller.signal, onDelta: delta => send({ delta }) });
 			send({ done: true });
-		} catch (error) { send({ error: error instanceof Error ? error.message : 'AI 请求失败' }); }
+		} catch (error) { send({ error: error instanceof Error ? error.message : t('AI 请求失败') }); }
 	});
 });
 
@@ -1322,14 +1323,14 @@ browser.runtime.onMessage.addListener((raw: unknown, sender) => {
 	const request = raw as { action?: string; sourceTabId?: number; url?: string; sourceUrl?: string };
 	if (request?.action !== 'qiaomuBilibiliTabFetch') return;
 	if (sender.id !== browser.runtime.id || !sender.url?.startsWith(browser.runtime.getURL('reader.html'))
-		|| !Number.isInteger(request.sourceTabId) || !request.url || !request.sourceUrl) return Promise.resolve({ error: '无效的请求' });
+		|| !Number.isInteger(request.sourceTabId) || !request.url || !request.sourceUrl) return Promise.resolve({ error: t('无效的请求') });
 	let target: URL;
-	try { target = new URL(request.url); } catch { return Promise.resolve({ error: '无效的请求' }); }
-	if (target.protocol !== 'https:' || !/(^|\.)(bilibili\.com|hdslb\.com)$/.test(target.hostname)) return Promise.resolve({ error: '只允许访问 B 站域名' });
+	try { target = new URL(request.url); } catch { return Promise.resolve({ error: t('无效的请求') }); }
+	if (target.protocol !== 'https:' || !/(^|\.)(bilibili\.com|hdslb\.com)$/.test(target.hostname)) return Promise.resolve({ error: t('只允许访问 B 站域名') });
 	return (async () => {
 		try {
 			const tab = await browser.tabs.get(request.sourceTabId!);
-			if (!tab.url || videoKey(tab.url) !== videoKey(request.sourceUrl!)) return { error: '原视频页面已切换' };
+			if (!tab.url || videoKey(tab.url) !== videoKey(request.sourceUrl!)) return { error: t('原视频页面已切换') };
 			const results = await browser.scripting.executeScript({
 				target: { tabId: request.sourceTabId! },
 				func: async (href: string) => {
@@ -1338,8 +1339,8 @@ browser.runtime.onMessage.addListener((raw: unknown, sender) => {
 				},
 				args: [target.href],
 			});
-			return results[0]?.result || { error: '原视频页面没有返回结果' };
-		} catch { return { error: '原视频页面不可用' }; }
+			return results[0]?.result || { error: t('原视频页面没有返回结果') };
+		} catch { return { error: t('原视频页面不可用') }; }
 	})();
 });
 
@@ -1362,15 +1363,15 @@ browser.runtime.onMessage.addListener((raw: unknown, sender) => {
 	const request = raw as { action?: string; sourceTabId?: number; url?: string; language?: string };
 	if (request?.action !== 'qiaomuStudyTranscript') return;
 	if (sender.id !== browser.runtime.id || !sender.url?.startsWith(browser.runtime.getURL('reader.html'))
-		|| !Number.isInteger(request.sourceTabId) || !request.url || !videoKey(request.url)) return Promise.resolve({ error: '无效的视频来源' });
+		|| !Number.isInteger(request.sourceTabId) || !request.url || !videoKey(request.url)) return Promise.resolve({ error: t('无效的视频来源') });
 	return (async () => {
 		try {
 			const tab = await browser.tabs.get(request.sourceTabId!);
-			if (!tab.url || videoKey(tab.url) !== videoKey(request.url!)) return { error: '原视频页面已切换，请重新打开学习模式' };
-			const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('原页面读取字幕超时')), 26000));
+			if (!tab.url || videoKey(tab.url) !== videoKey(request.url!)) return { error: t('原视频页面已切换，请重新打开学习模式') };
+			const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error(t('原页面读取字幕超时'))), 26000));
 			const answer = await Promise.race([browser.tabs.sendMessage(request.sourceTabId!, { action: 'qiaomuTranscript', ...(typeof request.language === 'string' && /^[A-Za-z0-9_-]{1,100}$/.test(request.language) ? { language: request.language } : {}) }), timeout]) as { html?: string; count?: number; languages?: Array<{id:string;label:string}>; selected?: string } | undefined;
 			return { html: answer?.html || '', count: answer?.count || 0, languages: answer?.languages, selected: answer?.selected };
-		} catch (error) { return { error: error instanceof Error ? error.message : '原页面不可用' }; }
+		} catch (error) { return { error: error instanceof Error ? error.message : t('原页面不可用') }; }
 	})();
 });
 
@@ -1381,12 +1382,12 @@ browser.runtime.onMessage.addListener((raw: unknown, sender) => {
 	const request = raw as { action?: string; sourceTabId?: number; url?: string };
 	if (request?.action !== 'qiaomuStudyLiveExtract') return;
 	if (sender.id !== browser.runtime.id || !sender.url?.startsWith(browser.runtime.getURL('reader.html'))
-		|| !Number.isInteger(request.sourceTabId) || !request.url || !videoKey(request.url)) return Promise.resolve({ error: '无效的视频来源' });
+		|| !Number.isInteger(request.sourceTabId) || !request.url || !videoKey(request.url)) return Promise.resolve({ error: t('无效的视频来源') });
 	return (async () => {
 		try {
 			const tab = await browser.tabs.get(request.sourceTabId!);
-			if (!tab.url || videoKey(tab.url) !== videoKey(request.url!)) return { error: '原视频页面已切换，请重新打开学习模式' };
-			const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('原页面提取超时')), 28000));
+			if (!tab.url || videoKey(tab.url) !== videoKey(request.url!)) return { error: t('原视频页面已切换，请重新打开学习模式') };
+			const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error(t('原页面提取超时'))), 28000));
 			// Open the transcript panel first. Once YouTube has rendered the lines, Defuddle reads them straight from
 			// the page (no network, no timeouts), so the full extraction below is fast instead of racing slow fetches.
 			let domHtml = '';
@@ -1395,12 +1396,12 @@ browser.runtime.onMessage.addListener((raw: unknown, sender) => {
 				domHtml = dom?.html || '';
 			}
 			const page = await Promise.race([sendMessageToContentScript(request.sourceTabId!, { action: 'getPageContent' }), timeout]) as Record<string, any> | undefined;
-			if (!page || typeof page.content !== 'string') return { error: '原页面没有返回内容' };
+			if (!page || typeof page.content !== 'string') return { error: t('原页面没有返回内容') };
 			if (domHtml && !/class="[^"]*\btranscript\b/.test(page.content)) page.content += domHtml;
 			// Everything the study page needs, without the full page HTML.
 			const { content, title, author, description, favicon, image, published, site, wordCount, language, schemaOrgData, extractedContent, metaTags } = page;
 			return { content, title, author, description, favicon, image, published, site, wordCount, language, schemaOrgData, extractedContent, metaTags };
-		} catch (error) { return { error: error instanceof Error ? error.message : '原页面不可用' }; }
+		} catch (error) { return { error: error instanceof Error ? error.message : t('原页面不可用') }; }
 	})();
 });
 
@@ -1410,14 +1411,14 @@ browser.runtime.onMessage.addListener((raw: unknown, sender) => {
 	const request = raw as { action?: string; sourceTabId?: number; url?: string };
 	if (request?.action !== 'qiaomuYouTubeStudySource') return;
 	if (sender.id !== browser.runtime.id || !sender.url?.startsWith(browser.runtime.getURL('reader.html'))
-		|| !Number.isInteger(request.sourceTabId) || !request.url || !videoKey(request.url)) return Promise.resolve({ error: '无效的视频来源' });
+		|| !Number.isInteger(request.sourceTabId) || !request.url || !videoKey(request.url)) return Promise.resolve({ error: t('无效的视频来源') });
 	return (async () => {
 		try {
 			const tab = await browser.tabs.get(request.sourceTabId!);
-			if (!tab.url || videoKey(tab.url) !== videoKey(request.url!)) return { error: '原视频页面已切换，请重新打开学习模式' };
+			if (!tab.url || videoKey(tab.url) !== videoKey(request.url!)) return { error: t('原视频页面已切换，请重新打开学习模式') };
 			const results = await browser.scripting.executeScript({ target: { tabId: request.sourceTabId! }, func: () => ({ html: document.documentElement.outerHTML, title: document.title }) });
-			return results[0]?.result || { error: '无法读取原视频页面' };
-		} catch { return { error: '原视频页面不可用，将从视频链接获取字幕' }; }
+			return results[0]?.result || { error: t('无法读取原视频页面') };
+		} catch { return { error: t('原视频页面不可用，将从视频链接获取字幕') }; }
 	})();
 });
 

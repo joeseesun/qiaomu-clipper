@@ -27,6 +27,7 @@ import { releaseNotesView } from './release-notes-view';
 import { describeHelperFailure, nativeHelperRepairPrompt } from '../utils/native-helper-prompt';
 import { DEFAULT_TRIPLE_KEYS, TRIPLE_COMMANDS, TripleCommand, normalizeTripleKeys, normalizeSites } from '../utils/triple-key';
 
+import { t } from '../utils/ui-text';
 dayjs.extend(weekOfYear);
 
 export function updateVaultList(): void {
@@ -147,14 +148,14 @@ async function initializeVersionDisplay(): Promise<void> {
 	if (versionNumber) versionNumber.textContent = manifest.version;
 	if (!status) return;
 	// The store edition is updated by the store. The local edition checks the project's releases once per visit and says so only when it read the answer.
-	if (!__LOCAL_EDITION__) { status.textContent = '商店会自动更新这个插件。'; return; }
-	status.textContent = '正在检查更新…';
+	if (!__LOCAL_EDITION__) { status.textContent = t('商店会自动更新这个插件。'); return; }
+	status.textContent = t('正在检查更新…');
 	void releaseNotesView();
 	const result = await checkForUpdate(manifest.version);
 	if (result.state === 'newer') {
-		status.textContent = `有新版本 ${result.version}，点右边去下载。`;
-		if (link) { link.textContent = '下载新版'; link.href = result.url; link.classList.add('mod-cta'); }
-	} else status.textContent = result.state === 'current' ? '已是最新版本。' : '暂时没能检查更新，可以到右边看看最新发布。';
+		status.textContent = t('有新版本 {0}，点右边去下载。', [result.version]);
+		if (link) { link.textContent = t('下载新版'); link.href = result.url; link.classList.add('mod-cta'); }
+	} else status.textContent = result.state === 'current' ? t('已是最新版本。') : t('暂时没能检查更新，可以到右边看看最新发布。');
 }
 
 export function initializeGeneralSettings(): void {
@@ -260,12 +261,12 @@ async function initializeLocalVaultSettings(): Promise<void> {
 	const showOnline = () => {
 		row.hidden = false;
 		if (uriVaults) uriVaults.hidden = true;
-		note.textContent = '已连接 ✓';
+		note.textContent = t('已连接 ✓');
 		if (help) help.hidden = true;
 	};
 	copy?.addEventListener('click', async () => {
-		try { await navigator.clipboard.writeText(nativeHelperRepairPrompt(browser.runtime.id, failure)); copy.textContent = '已复制，去发给 AI 助手'; }
-		catch { copy.textContent = '复制失败，请点“所有安装包”'; }
+		try { await navigator.clipboard.writeText(nativeHelperRepairPrompt(browser.runtime.id, failure)); copy.textContent = t('已复制，去发给 AI 助手'); }
+		catch { copy.textContent = t('复制失败，请点“所有安装包”'); }
 	});
 
 	const fill = (vaults: { name: string; path: string }[], active: string) => {
@@ -281,7 +282,7 @@ async function initializeLocalVaultSettings(): Promise<void> {
 		}
 		const other = document.createElement('option');
 		other.value = OTHER;
-		other.textContent = '选择其他文件夹…';
+		other.textContent = t('选择其他文件夹…');
 		select.appendChild(other);
 		if (active) select.value = active;
 		if (!select.value && options.length) select.value = options[0].path;
@@ -308,19 +309,19 @@ async function initializeLocalVaultSettings(): Promise<void> {
 			if (result?.cancelled) { fill(vaultList, current); return; }
 			if (!result?.ok || !result.vault || !result.vaultPath) {
 				fill(vaultList, current);
-				status.textContent = result?.error || '没能保存，请再试一次';
-				if (result?.reason) showOffline(result.error || '本地助手没有响应', result.reason);
+				status.textContent = result?.error || t('没能保存，请再试一次');
+				if (result?.reason) showOffline(result.error || t('本地助手没有响应'), result.reason);
 				return;
 			}
 			if (wanted === OTHER) {
 				const saved = await browser.runtime.sendMessage({ action: 'qiaomuLocalConfigure', payload: { vaultPath: result.vaultPath } }) as LocalSaveResult;
-				if (!saved?.ok) { fill(vaultList, current); status.textContent = saved?.error || '没能保存，请再试一次'; return; }
+				if (!saved?.ok) { fill(vaultList, current); status.textContent = saved?.error || t('没能保存，请再试一次'); return; }
 				if (!vaultList.some(v => v.path === result.vaultPath)) vaultList = [{ name: result.vault, path: result.vaultPath }, ...vaultList];
 			}
 			await remember(result);
 			fill(vaultList, current);
-			status.textContent = `已保存到 ${result.vault}`;
-		} catch { showOffline('本地助手没有响应，请先安装或更新'); }
+			status.textContent = t('已保存到 {0}', [result.vault]);
+		} catch { showOffline(t('本地助手没有响应，请先安装或更新')); }
 		finally { select.disabled = false; }
 	});
 
@@ -332,9 +333,9 @@ async function initializeLocalVaultSettings(): Promise<void> {
 		current = state.vaultPath || '';
 		showOnline();
 		fill(vaultList, current);
-		status.textContent = current ? current : '选一个库，之后一键保存，不用打开 Obsidian。';
-		if (!current && vaultList.length) status.textContent = '选一个库，之后一键保存，不用打开 Obsidian。';
-	} catch { showOffline('还没有安装本地助手。'); }
+		status.textContent = current ? current : t('选一个库，之后一键保存，不用打开 Obsidian。');
+		if (!current && vaultList.length) status.textContent = t('选一个库，之后一键保存，不用打开 Obsidian。');
+	} catch { showOffline(t('还没有安装本地助手。')); }
 }
 
 function initializeVaultInput(): void {

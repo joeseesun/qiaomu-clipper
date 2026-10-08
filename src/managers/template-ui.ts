@@ -20,6 +20,7 @@ import {
 	validateVariables,
 	type FilterMetadata,
 } from 'knap';
+import { t } from '../utils/ui-text';
 let hasUnsavedChanges = false;
 const validationTimers = new Map<HTMLInputElement | HTMLTextAreaElement, ReturnType<typeof setTimeout>>();
 const validationFields = new WeakSet<HTMLInputElement | HTMLTextAreaElement>();
@@ -67,7 +68,7 @@ export function updateTemplateList(loadedTemplates?: Template[]): void {
 
 		const deleteBtn = createElementWithClass('button', 'delete-template-btn clickable-icon');
 		deleteBtn.setAttribute('type', 'button');
-		deleteBtn.setAttribute('aria-label', '删除模版');
+		deleteBtn.setAttribute('aria-label', t('删除模版'));
 		deleteBtn.appendChild(createElementWithHTML('i', '', { 'data-lucide': 'trash-2' }));
 		li.appendChild(deleteBtn);
 
@@ -219,11 +220,11 @@ export function showTemplateEditor(template: Template | null): void {
 				const vault = (document.getElementById('template-vault') as HTMLSelectElement | null)?.value || '';
 				const result = await browser.runtime.sendMessage({ action: 'qiaomuLocalChooseFolder', payload: { vault, folder: pathInput.value } }) as LocalSaveResult;
 				if (templates[editingTemplateIndex]?.id !== templateId || result?.cancelled) return;
-				if (!result?.ok || typeof result.folder !== 'string') { pathStatus.textContent = result?.error || '文件夹选择失败'; return; }
+				if (!result?.ok || typeof result.folder !== 'string') { pathStatus.textContent = result?.error || t('文件夹选择失败'); return; }
 				setTemplateEditorValue(pathInput, result.folder);
 				pathInput.dispatchEvent(new Event('input', { bubbles: true }));
 				validateTemplateField(pathInput, false);
-			} catch { pathStatus.textContent = '无法浏览文件夹，请检查本地保存助手或手动填写路径'; }
+			} catch { pathStatus.textContent = t('无法浏览文件夹，请检查本地保存助手或手动填写路径'); }
 			finally { browse.disabled = false; }
 		};
 	}

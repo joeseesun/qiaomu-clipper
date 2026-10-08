@@ -9,6 +9,7 @@ export type PlayerLayout = 'side' | 'stack' | 'theater' | 'float';
 export type FloatCorner = 'br' | 'bl' | 'tr' | 'tl';
 
 import { LAYOUT_EVENT } from './layout-event';
+import { t } from './ui-text';
 export { LAYOUT_EVENT };
 const SIDE_ENTER = 1000, SIDE_LEAVE = 960; // hysteresis: a new scrollbar must not flip the layout back and forth
 const FLOAT_MIN = 240, FLOAT_MAX = 640, FLOAT_DEFAULT = 360;
@@ -60,27 +61,27 @@ export function mountPlayerMode(article: HTMLElement): void {
 		el.title = title; el.setAttribute('aria-label', title); el.append(createElement(icon));
 		return el;
 	};
-	const bar = doc.createElement('div'); bar.className = 'youtube-mode-bar'; bar.setAttribute('role', 'group'); bar.setAttribute('aria-label', '视频位置');
+	const bar = doc.createElement('div'); bar.className = 'youtube-mode-bar'; bar.setAttribute('role', 'group'); bar.setAttribute('aria-label', t('视频位置'));
 	const buttons: Record<PlayerMode, HTMLButtonElement> = {
-		dock: button('dock', Columns2, '停靠：视频固定在文稿旁（窄屏在文稿上方）'),
-		theater: button('theater', RectangleHorizontal, '剧场：视频占满宽度，文稿在下方'),
-		float: button('float', PictureInPicture2, '小窗：视频悬浮在页面角落，文稿占满宽度'),
+		dock: button('dock', Columns2, t('停靠：视频固定在文稿旁（窄屏在文稿上方）')),
+		theater: button('theater', RectangleHorizontal, t('剧场：视频占满宽度，文稿在下方')),
+		float: button('float', PictureInPicture2, t('小窗：视频悬浮在页面角落，文稿占满宽度')),
 	};
 	bar.append(buttons.dock, buttons.theater, buttons.float);
 	let pipButton: HTMLButtonElement | undefined;
 	const nativePlayer = article.querySelector<HTMLVideoElement>('video.reader-video-player');
 	if (nativePlayer ? typeof nativePlayer.requestPictureInPicture === 'function' : documentPipSupported(win)) {
-		pipButton = button('pip', ExternalLink, article.querySelector('video.reader-video-player') ? '画中画：在浏览器之外置顶播放' : '浮出窗口：在浏览器之外置顶播放（会重新加载并回到当前进度）');
+		pipButton = button('pip', ExternalLink, article.querySelector('video.reader-video-player') ? t('画中画：在浏览器之外置顶播放') : t('浮出窗口：在浏览器之外置顶播放（会重新加载并回到当前进度）'));
 		bar.append(pipButton); trackPlayback(article);
 	}
 	// Overlay of the floating window: drag strip, return-to-dock button and a resize grip.
 	const chrome = doc.createElement('div'); chrome.className = 'youtube-float-chrome';
 	const strip = doc.createElement('div'); strip.className = 'youtube-float-drag'; strip.tabIndex = 0; strip.setAttribute('role', 'button');
-	strip.setAttribute('aria-label', '拖动视频小窗；按回车切换到下一个角落'); strip.title = '拖动到任意位置，松开后吸附到最近的角落';
-	const back = button('back', PanelLeft, '回到停靠'); back.classList.add('youtube-float-back');
+	strip.setAttribute('aria-label', t('拖动视频小窗；按回车切换到下一个角落')); strip.title = t('拖动到任意位置，松开后吸附到最近的角落');
+	const back = button('back', PanelLeft, t('回到停靠')); back.classList.add('youtube-float-back');
 	const grip = doc.createElement('div'); grip.className = 'youtube-float-resize'; grip.tabIndex = 0; grip.setAttribute('role', 'slider');
-	grip.setAttribute('aria-label', '调整小窗大小'); grip.setAttribute('aria-valuemin', String(FLOAT_MIN)); grip.setAttribute('aria-valuemax', String(FLOAT_MAX));
-	grip.title = '拖动调整小窗大小；方向键微调';
+	grip.setAttribute('aria-label', t('调整小窗大小')); grip.setAttribute('aria-valuemin', String(FLOAT_MIN)); grip.setAttribute('aria-valuemax', String(FLOAT_MAX));
+	grip.title = t('拖动调整小窗大小；方向键微调');
 	chrome.append(strip, back, grip);
 
 	const playerEl = () => article.querySelector<HTMLElement>('.youtube-sized-player');
@@ -92,7 +93,7 @@ export function mountPlayerMode(article: HTMLElement): void {
 	};
 	const paintFloat = () => {
 		article.dataset.ytCorner = corner; const shown = visibleFloatWidth(floatWidth, win.innerWidth); article.style.setProperty('--yt-float-width', `${shown}px`);
-		grip.setAttribute('aria-valuenow', String(shown)); grip.setAttribute('aria-valuetext', `${shown} 像素宽`);
+		grip.setAttribute('aria-valuenow', String(shown)); grip.setAttribute('aria-valuetext', t('{0} 像素宽', [shown]));
 	};
 	const paintButtons = () => {
 		(Object.keys(buttons) as PlayerMode[]).forEach(key => buttons[key].setAttribute('aria-pressed', String(key === mode)));
@@ -128,7 +129,7 @@ export function mountPlayerMode(article: HTMLElement): void {
 		const player = article.querySelector<HTMLVideoElement>('video.reader-video-player');
 		if (player) {
 			const action = doc.pictureInPictureElement ? doc.exitPictureInPicture?.() : player.requestPictureInPicture?.();
-			void action?.catch(() => { pipButton!.title = '画中画暂不可用，请先播放视频后重试'; }); return;
+			void action?.catch(() => { pipButton!.title = t('画中画暂不可用，请先播放视频后重试'); }); return;
 		}
 		const frame = article.querySelector<HTMLIFrameElement>('iframe[src*="youtube.com/embed/"]'); if (frame) void openDocumentPip(article, frame);
 	};

@@ -1,6 +1,7 @@
 import type { WebInfo } from './asr-client';
 import { webMediaAddress, type WebMedia } from './web-media-page';
 
+import { t } from './ui-text';
 // Serialized by scripting.executeScript: keep this function self-contained.
 // This also works when an older content script no longer answers after an update.
 export function snapshotDouyinPlayer(): { url: string; info?: WebInfo; observed?: true; candidates?: string[] } {
@@ -39,7 +40,7 @@ export function snapshotDouyinPlayer(): { url: string; info?: WebInfo; observed?
 		for (const name of plain) { const key = new URL(name).searchParams.get('l') || ''; if (key) byGroup.set(key, [...(byGroup.get(key) || []), name]); }
 		const candidates = [...byGroup.values()].map(names => names.map(name => ({ name, rate: Number(new URL(name).searchParams.get('br')) || Infinity })).sort((x, y) => x.rate - y.rate)[0].name);
 		if (candidates.length && candidates.length <= 6 && Number.isFinite(visible.duration)) {
-			return { url, observed: true, candidates, info: { ok: true, title, author: '', site: '抖音', video: true, thumbnail: null, seconds: visible.duration, mediaUrl: candidates[0], description: title } };
+			return { url, observed: true, candidates, info: { ok: true, title, author: '', site: t('抖音'), video: true, thumbnail: null, seconds: visible.duration, mediaUrl: candidates[0], description: title } };
 		}
 		const navigation = performance.getEntriesByType('navigation')[0];
 		if (!navigation) return { url };
@@ -50,10 +51,10 @@ export function snapshotDouyinPlayer(): { url: string; info?: WebInfo; observed?
 		const audio = distinct(files.filter(name => new URL(name).pathname.includes('/media-audio-')));
 		const picture = distinct(files.filter(name => new URL(name).pathname.includes('/media-video-')));
 		if (audio.length !== 1 || picture.length !== 1 || !new URL(audio[0]).searchParams.get('l') || new URL(audio[0]).searchParams.get('l') !== new URL(picture[0]).searchParams.get('l')) return { url };
-		return { url, info: { ok: true, title, author: '', site: '抖音', video: true, thumbnail: null,
+		return { url, info: { ok: true, title, author: '', site: t('抖音'), video: true, thumbnail: null,
 			seconds: Number.isFinite(visible.duration) ? visible.duration : null, mediaUrl: picture[0], audioUrl: audio[0], description: title } };
 	}
-	return { url, info: { ok: true, title, author: '', site: '抖音', video: true,
+	return { url, info: { ok: true, title, author: '', site: t('抖音'), video: true,
 		seconds: Number.isFinite(video.duration) ? video.duration : null, thumbnail: null,
 		mediaUrl: video.currentSrc || video.src, description: title } };
 }
@@ -93,7 +94,7 @@ export function readPageMedia(doc: Document, page: string, media?: WebMedia): We
 	const title = (doc.querySelector('h1')?.textContent || doc.title).trim().slice(0, 600);
 	return { ok: true, title, author: '', seconds: Number.isFinite(media.duration) ? media.duration : null,
 		thumbnail: media instanceof HTMLVideoElement ? media.poster || null : null,
-		site: '抖音', mediaUrl: media.currentSrc, video: media.tagName === 'VIDEO', description: title };
+		site: t('抖音'), mediaUrl: media.currentSrc, video: media.tagName === 'VIDEO', description: title };
 }
 
 export async function getWebPageMedia(url: string, sourceTabId: number | undefined,
@@ -120,7 +121,7 @@ export async function getWebPageMedia(url: string, sourceTabId: number | undefin
 		if (answer.info.audioUrl && !isDouyinMedia(canonical, answer.info.audioUrl)) return;
 		return { ok: true, title: String(answer.info.title || '').slice(0, 600), author: String(answer.info.author || '').slice(0, 200),
 			seconds: Number.isFinite(answer.info.seconds) ? answer.info.seconds : null, thumbnail: null,
-			site: '抖音', mediaUrl: answer.info.mediaUrl, ...(answer.info.audioUrl ? { audioUrl: answer.info.audioUrl } : {}), video: true, description: String(answer.info.description || '').slice(0, 6000) };
+			site: t('抖音'), mediaUrl: answer.info.mediaUrl, ...(answer.info.audioUrl ? { audioUrl: answer.info.audioUrl } : {}), video: true, description: String(answer.info.description || '').slice(0, 6000) };
 	} catch { return; }
 }
 

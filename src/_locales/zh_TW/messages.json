@@ -12,7 +12,7 @@
 		"message": "+ 新增屬性"
 	},
 	"addProvider": {
-		"message": "+ 新增提供者"
+		"message": "+ 新增供應商"
 	},
 	"addProviderTitle": {
 		"message": "新增提供者"
@@ -54,13 +54,13 @@
 		"message": "新增到現有筆記底部"
 	},
 	"autoRunInterpreter": {
-		"message": "自動運行"
+		"message": "開啟面板就讓 AI 開始"
 	},
 	"autoRunInterpreterDescription": {
-		"message": "如果範本包含提示變數，則立即運行。這將消耗模型提供者的 API 額度。如果您只想手動運行解譯器，請關閉此選項。"
+		"message": "範本里有 AI 提示時，一開啟剪藏面板就呼叫模型，會消耗你的模型額度。想自己控制就關掉。"
 	},
 	"behavior": {
-		"message": "行為"
+		"message": "儲存方式"
 	},
 	"byDay": {
 		"message": "天"
@@ -93,10 +93,10 @@
 		"message": "選擇範本檔案"
 	},
 	"clipBehavior": {
-		"message": "擷取行為"
+		"message": "剪藏有劃線的網頁時"
 	},
 	"clipBehaviorDescription": {
-		"message": "選擇如何將標記的內容儲存到 Obsidian。定義 $strong_start${{content}}$strong_end$ 變數。",
+		"message": "選擇儲存什麼：保留全文並標出劃線、只保留劃線，或忽略劃線。對應範本變數 $strong_start${{content}}$strong_end$。",
 		"placeholders": {
 			"strong_end": {
 				"content": "</strong>"
@@ -127,13 +127,13 @@
 		"message": "切換標記模式"
 	},
 	"commandToggleReader": {
-		"message": "切換閱讀視圖"
+		"message": "開啟閱讀頁"
 	},
 	"confirmDeleteTemplate": {
-		"message": "您確定要刪除範本 \"$1\" 嗎？"
+		"message": "確定要刪除範本“$1”嗎？"
 	},
 	"confirmReplaceSettings": {
-		"message": "這將替換您目前的所有設定，包括模板和屬性。您確定要繼續嗎？"
+		"message": "匯入會替換你當前的所有設定，包括範本和屬性。確定要繼續嗎？"
 	},
 	"copied": {
 		"message": "已複製！"
@@ -154,10 +154,10 @@
 		"message": "每日筆記格式（例如 YYYY-MM-DD）"
 	},
 	"defaultInterpreterContext": {
-		"message": "預設解譯器上下文"
+		"message": "AI 的預設背景資訊"
 	},
 	"defaultInterpreterContextDescription": {
-		"message": "用於解釋提示變數的上下文。可以在此處使用變數。"
+		"message": "告訴 AI 這是什麼型別的內容，幫它理解範本里的 AI 提示。可以使用範本變數。"
 	},
 	"defaultTemplateName": {
 		"message": "預設"
@@ -228,10 +228,10 @@
 		"message": "在網頁上標記內容，您可以將其儲存到 Obsidian。"
 	},
 	"enableInterpreter": {
-		"message": "啟用解譯器"
+		"message": "讓 AI 整理網頁內容"
 	},
 	"enableInterpreterDescription": {
-		"message": "使用自然語言從頁面提取資料。例如，您可以使用範本語法 $strong_start${{\"頁面摘要\"}}$strong_end$。需要 API 金鑰或下面配置的自定義模型。$link_start$了解更多$link_end$",
+		"message": "在範本里寫一句話，讓 AI 提取網頁資訊，例如 $strong_start${{\"這篇文章的摘要\"}}$strong_end$。需要先在下方新增供應商和模型。$link_start$瞭解更多$link_end$",
 		"placeholders": {
 			"link_end": {
 				"content": "</a>"
@@ -260,7 +260,7 @@
 		"message": "匯出所有設定"
 	},
 	"exportAllSettingsDescription": {
-		"message": "匯出所有設定，包括範本和屬性。"
+		"message": "把所有設定打包成一個檔案，用來備份或換電腦。包括範本、屬性、對話歷史、劃線和筆記草稿。檔案裡有 API Key，請妥善保管。"
 	},
 	"exportHighlights": {
 		"message": "匯出標記"
@@ -292,10 +292,10 @@
 		"message": "複製文字失敗"
 	},
 	"failedToDeleteTemplate": {
-		"message": "刪除範本失敗。請再試一次。"
+		"message": "刪除範本失敗，請重試。"
 	},
 	"failedToDuplicateTemplate": {
-		"message": "複製模板失敗。請再試一次。"
+		"message": "建立範本副本失敗，請重試。"
 	},
 	"failedToExportHighlights": {
 		"message": "匯出重點失敗。請檢查控制台以獲得更多詳細資訊。"
@@ -307,7 +307,7 @@
 		"message": "無法擷取頁面內容。"
 	},
 	"failedToImportTemplate": {
-		"message": "匯入模板錯誤。請檢查檔案並再試一次。"
+		"message": "匯入範本失敗，請檢查檔案後重試。"
 	},
 	"failedToInitialize": {
 		"message": "請嘗試重新載入擴充功能。"
@@ -322,7 +322,7 @@
 		"message": "重設提供者和模型失敗"
 	},
 	"failedToResetTemplate": {
-		"message": "重置預設範本失敗。請再試一次。"
+		"message": "恢復預設範本失敗，請重試。"
 	},
 	"failedToSave": {
 		"message": "儲存檔案失敗"
@@ -349,7 +349,7 @@
 		"message": "一般"
 	},
 	"generalSettings": {
-		"message": "一般設定"
+		"message": "通用"
 	},
 	"getApiKeyHere": {
 		"message": "在此處獲取您的 $1 API 金鑰。"
@@ -405,7 +405,7 @@
 		"message": "匯入所有設定"
 	},
 	"importAllSettingsDescription": {
-		"message": "匯入所有設定，包括範本和屬性。這將取代您目前的配置。"
+		"message": "從備份檔案恢復所有設定，會覆蓋現在的設定。"
 	},
 	"importFailed": {
 		"message": "匯入失敗。請檢查控制台以獲得更多詳細資訊。"
@@ -446,7 +446,7 @@
 		"message": "匯入範本"
 	},
 	"interpret": {
-		"message": "解譯"
+		"message": "讓 AI 處理"
 	},
 	"interpreter": {
 		"message": "解譯器"
@@ -455,13 +455,13 @@
 		"message": "解譯器上下文"
 	},
 	"interpreterContextDescription": {
-		"message": "用於解釋提示變數的上下文。覆蓋在 $link_start$解譯器設定$link_end$ 中定義的預設上下文。這裡可以使用變數。",
+		"message": "提供給模型的背景資訊，幫它理解範本里的 AI 提示。會覆蓋$link_start$剪藏範本$link_end$頁裡的預設設定，可以使用變數。",
 		"placeholders": {
 			"link_end": {
 				"content": "</a>"
 			},
 			"link_start": {
-				"content": "<a href=\"https://help.obsidian.md/web-clipper/variables\" target=\"_blank\">"
+				"content": "<a href=\"?section=templates-home\">"
 			}
 		}
 	},
@@ -469,7 +469,7 @@
 		"message": "語言"
 	},
 	"languageDescription": {
-		"message": "選擇擴充功能介面的顯示語言。"
+		"message": "介面顯示的語言。"
 	},
 	"last30Days": {
 		"message": "過去30天"
@@ -478,10 +478,10 @@
 		"message": "上次使用"
 	},
 	"legacyMode": {
-		"message": "舊版模式"
+		"message": "相容舊版 Obsidian"
 	},
 	"legacyModeDescription": {
-		"message": "使用與 Obsidian 1.6.7 或更早版本相容的 URI 擷取方法。請注意，您可以擷取的內容長度受限於您的瀏覽器和作業系統。有些頁面可能會在沒有任何錯誤的情況下失敗。"
+		"message": "只有 Obsidian 1.6.7 及更早版本才需要開啟。內容太長時可能儲存失敗，而且不會有任何提示。"
 	},
 	"loadArticle": {
 		"message": "閱讀文章"
@@ -517,7 +517,7 @@
 		"message": "更多"
 	},
 	"newTemplate": {
-		"message": "新範本"
+		"message": "新建範本"
 	},
 	"noHighlights": {
 		"message": "不執行任何操作"
@@ -526,7 +526,7 @@
 		"message": "找不到結果"
 	},
 	"noTemplates": {
-		"message": "沒有可用的範本。請在設定中新增範本。"
+		"message": "還沒有可用的範本，請先到設定中新增。"
 	},
 	"noUnusedProperties": {
 		"message": "未找到未使用的屬性。"
@@ -541,7 +541,7 @@
 		"message": "筆記位置"
 	},
 	"noteLocationDescription": {
-		"message": "筆記的資料夾或路徑。"
+		"message": "筆記放在哪個資料夾，相對於筆記庫。"
 	},
 	"noteName": {
 		"message": "筆記名稱"
@@ -582,7 +582,7 @@
 		"message": "開啟螢光標記"
 	},
 	"openReader": {
-		"message": "開啟閱讀器"
+		"message": "開啟閱讀頁"
 	},
 	"openSidePanel": {
 		"message": "開啟側邊面板"
@@ -711,7 +711,7 @@
 		"message": "提供者名稱和基礎 URL 是必填的。"
 	},
 	"providers": {
-		"message": "提供者"
+		"message": "供應商"
 	},
 	"rateExtensionDescription": {
 		"message": "您喜歡Web Clipper嗎？請幫助我們給它評分。"
@@ -807,7 +807,7 @@
 		"message": "自訂 CSS"
 	},
 	"readerCustomCssDescription": {
-		"message": "在閱讀檢視中自動套用的 CSS。"
+		"message": "填寫的 CSS 會自動用在閱讀頁上。"
 	},
 	"readerDarkTheme": {
 		"message": "深色模式主題"
@@ -894,7 +894,7 @@
 		"message": "主題"
 	},
 	"readerThemeDescription": {
-		"message": "選擇閱讀檢視中使用的顏色。"
+		"message": "選擇閱讀頁使用的配色。"
 	},
 	"readerThemeSection": {
 		"message": "主題"
@@ -927,7 +927,7 @@
 		"message": "移除未使用的屬性"
 	},
 	"removeUnusedPropertiesDescription": {
-		"message": "移除所有未在任何範本中使用的屬性。"
+		"message": "刪除沒有被任何範本用到的屬性。"
 	},
 	"removeVault": {
 		"message": "移除儲存庫"
@@ -936,13 +936,13 @@
 		"message": "取代頁面內容"
 	},
 	"reset": {
-		"message": "重置"
+		"message": "還原"
 	},
 	"resetDefaultTemplate": {
-		"message": "重置預設範本"
+		"message": "還原預設版"
 	},
 	"resetDefaultTemplateDescription": {
-		"message": "移除您對預設範本所做的任何更改。"
+		"message": "撤銷你對「預設版」範本做過的所有修改。"
 	},
 	"resetProvidersAndModels": {
 		"message": "重設預設模型"
@@ -954,10 +954,10 @@
 		"message": "儲存"
 	},
 	"saveBehaviorDescription": {
-		"message": "選擇保存頁面的預設選項。其他選項將出現在主按鈕旁的下拉菜單中。"
+		"message": "選擇主按鈕預設做什麼，其他方式在按鈕旁邊的下拉選單裡。"
 	},
 	"saveBehaviorLabel": {
-		"message": "保存行為"
+		"message": "點「剪藏」按鈕時"
 	},
 	"saved": {
 		"message": "已保存"
@@ -975,7 +975,7 @@
 		"message": "選擇一個提供者"
 	},
 	"selectTemplateToExport": {
-		"message": "請選擇一個要匯出的模板。"
+		"message": "請先選擇要匯出的範本。"
 	},
 	"settings": {
 		"message": "設定"
@@ -1017,16 +1017,16 @@
 		"message": "顯示操作按鈕"
 	},
 	"showActionsDescription": {
-		"message": "允許您從擷取器選單中檢查頁面變數。對於查看可用於範本的變數非常有用。"
+		"message": "在剪藏選單裡檢視頁面變數，方便找到範本中可以使用的變數。"
 	},
 	"showPageVariables": {
 		"message": "顯示頁面變數"
 	},
 	"silentOpen": {
-		"message": "儲存擷取筆記但不開啟"
+		"message": "剪藏後留在當前頁"
 	},
 	"silentOpenDescription": {
-		"message": "擷取的筆記將被儲存但不會開啟為新標籤。Obsidian 仍會被提到上層。"
+		"message": "儲存後不新開標籤頁。Obsidian 仍會切到前臺。"
 	},
 	"sort": {
 		"message": "排序"
@@ -1053,16 +1053,16 @@
 		"message": "範本"
 	},
 	"templateCopied": {
-		"message": "已將模板 JSON 複製到剪貼簿"
+		"message": "已複製範本 JSON"
 	},
 	"templateCopyError": {
-		"message": "無法將模板 JSON 複製到剪貼簿"
+		"message": "複製範本 JSON 失敗"
 	},
 	"templateErrorCount": {
-		"message": "您的範本中有一個錯誤。"
+		"message": "範本中有 1 處錯誤。"
 	},
 	"templateErrorsCount": {
-		"message": "您的範本中有 $1 個錯誤。"
+		"message": "範本中有 $1 處錯誤。"
 	},
 	"templateGroupContent": {
 		"message": "內容"
@@ -1083,10 +1083,10 @@
 		"message": "範本觸發器"
 	},
 	"templateTriggersDescription": {
-		"message": "定義規則以自動選擇此範本，如果它符合 URL 模式或包含 schema.org 資料。每行一個規則。"
+		"message": "當網址符合規則，或頁面帶有 schema.org 資料時，自動用這個範本。每行寫一條規則。"
 	},
 	"templateValid": {
-		"message": "範本語法有效"
+		"message": "範本語法正確"
 	},
 	"templatesHeading": {
 		"message": "範本"
@@ -1107,13 +1107,13 @@
 		"message": "儲存庫"
 	},
 	"vaultDescription": {
-		"message": "選擇此範本的預設儲存庫。前往 $link_start$一般設定$link_end$ 以新增或移除儲存庫。",
+		"message": "選擇這個範本預設儲存到哪個筆記庫。可在$link_start$剪藏與儲存$link_end$裡選擇筆記庫。",
 		"placeholders": {
 			"link_end": {
 				"content": "</a>"
 			},
 			"link_start": {
-				"content": "<a href=\"?section=general\">"
+				"content": "<a href=\"?section=clip\">"
 			}
 		}
 	},
@@ -1121,7 +1121,7 @@
 		"message": "儲存庫"
 	},
 	"vaultsDescription": {
-		"message": "預設情況下，擷取的筆記會儲存到目前開啟的儲存庫。您可以在這裡新增儲存庫，如果您想要選擇儲存到不同的儲存庫。儲存庫名稱必須與 Obsidian 儲存庫的名稱完全相同。按 $strong_start$enter$strong_end$ 以新增儲存庫。",
+		"message": "預設儲存到 Obsidian 當前開啟的筆記庫。想存到別的庫，在這裡新增，名稱要和 Obsidian 裡完全一致，輸入後按 $strong_start$回車$strong_end$。",
 		"placeholders": {
 			"strong_end": {
 				"content": "</strong>"
@@ -1168,7 +1168,7 @@
 		"message": "編輯 Markdown"
 	},
 	"qiaomuPublicRss": {
-		"message": "公開 RSS"
+		"message": "檢視公開 RSS"
 	},
 	"qiaomuCopyProperty": {
 		"message": "複製屬性內容"
@@ -1213,7 +1213,7 @@
 		"message": "重試"
 	},
 	"qiaomuAiFailed": {
-		"message": "AI 處理未完成。可以重試，或選擇不含 AI 提示的模板剪藏原文。"
+		"message": "AI 處理未完成。可以重試，或選擇不含 AI 提示的範本剪藏原文。"
 	},
 	"qiaomuActionRead": {
 		"message": "閱讀"
@@ -1258,13 +1258,13 @@
 		"message": "預設範本"
 	},
 	"defaultTemplateDescription": {
-		"message": "頁面沒有符合的範本觸發規則時使用，也用於快速鍵剪藏。"
+		"message": "當頁面沒有匹配的範本觸發規則時使用這個範本，三連擊快捷鍵剪藏時也使用它。"
 	},
 	"tripleKeyTitle": {
 		"message": "三連擊快速鍵"
 	},
 	"tripleKeyDescription": {
-		"message": "在網頁上快速連按 3 次設定的字母，進入閱讀模式、開啟編輯頁、用預設範本直接剪藏，或開啟記筆記小卡片。在輸入框中打字時不會觸發。"
+		"message": "在網頁上連按 3 次設定的字母，快速閱讀、編輯、剪藏或記筆記。在輸入框裡打字時不會觸發。"
 	},
 	"qiaomuActionPreview": {
 		"message": "預覽"
@@ -1372,22 +1372,22 @@
 		"message": "改寫得更簡潔"
 	},
 	"youtubeAutoTranscriptTitle": {
-		"message": "自動展開 YouTube 轉寫文稿（僅 YouTube）"
+		"message": "自動展開 YouTube 的文字稿"
 	},
 	"youtubeAutoTranscriptDescription": {
-		"message": "在影片頁自動展開一次 YouTube 的轉寫文稿面板，讓字幕隨時可複製、下載並進入學習模式。你關掉後，這個影片不再自動展開。"
+		"message": "開啟影片時自動展開一次文字稿，字幕馬上就能複製、下載和學習。你關掉後，這個影片不再自動展開。"
 	},
 	"youtubeHideNativeTitle": {
-		"message": "隱藏 YouTube 內建的轉寫面板（僅 YouTube）"
+		"message": "隱藏 YouTube 自帶的文字稿面板"
 	},
 	"youtubeHideNativeDescription": {
-		"message": "字幕自動展開後，把 YouTube 右欄裡的原生面板藏起來，轉寫條裡能看到同樣的內容。你自己手動開啟的面板不會被隱藏。"
+		"message": "文字稿自動展開後，把右欄裡 YouTube 自己的面板藏起來，因為字幕欄裡已經有同樣的內容。你手動開啟的面板不會被隱藏。"
 	},
 	"learningNotesTitle": {
-		"message": "學習筆記"
+		"message": "在閱讀頁和影片頁記筆記"
 	},
 	"learningNotesDescription": {
-		"message": "在閱讀頁與影片學習頁提供「記筆記」按鈕與 N 快捷鍵，筆記透過本地助手追加到庫裡今天的日記。"
+		"message": "顯示「記筆記」按鈕，按 N 鍵也行。筆記會追加到筆記庫裡今天的日記，需要先裝好本地助手。"
 	},
 	"youtubePanelReload": {
 		"message": "擴充功能剛更新過，請重新整理此頁面後再試"
@@ -1465,7 +1465,7 @@
 		"message": "在 YouTube 和 B 站顯示字幕條"
 	},
 	"youtubePanelActionsDescription": {
-		"message": "在 YouTube 和 B 站的影片頁加上字幕條：跟讀字幕、複製、下載、進入沉浸學習，沒有字幕時可以生成字幕。"
+		"message": "在影片頁加一條字幕欄：跟讀、複製、下載、進入學習頁；影片沒有字幕時，可以直接生成。"
 	},
 	"youtubePanelCopy": {
 		"message": "複製"
@@ -1495,10 +1495,10 @@
 		"message": "在閱讀與編輯頁面選取文字時，於旁邊顯示小工具列，包含「劃線」與「問 AI」。"
 	},
 	"tripleKeyKeysTitle": {
-		"message": "快速鍵字母"
+		"message": "三連擊用的字母"
 	},
 	"tripleKeyKeysDescription": {
-		"message": "為每個動作指定一個字母或數字，留空表示關閉該動作。預設：閱讀 A、編輯 E、剪藏 Q、記筆記 I。"
+		"message": "每個動作用一個字母或數字，留空就關閉該動作。預設：閱讀 A、編輯 E、剪藏 Q、記筆記 I。"
 	},
 	"tripleKeyReset": {
 		"message": "恢復預設"
@@ -1513,7 +1513,7 @@
 		"message": "在這些網站上關閉"
 	},
 	"tripleKeySitesDescription": {
-		"message": "每行一個網站，例如 mail.google.com，子網域也一併生效。也可以在剪藏選單中，對目前網站一鍵關閉。"
+		"message": "每行填一個網站，例如 mail.google.com，它的子域名會一起關閉。也可以在剪藏選單裡，一鍵關閉當前網站。"
 	},
 	"tripleKeySiteOff": {
 		"message": "在 $1 上關閉三連擊快速鍵"
@@ -1907,18 +1907,240 @@
 		"message": "AI 模型"
 	},
 	"aiModelsIntro": {
-		"message": "這裡的模型用於中文翻譯、對話和 AI 解讀。為影片產生字幕用的是「語音辨識」，在另一處設定。"
+		"message": "這裡的模型用於中文翻譯、AI 對話和 AI 解讀。給影片生成字幕用的是「字幕與轉寫」裡的語音識別。"
 	},
 	"aiModelsGotoAsr": {
 		"message": "前往設定語音辨識"
 	},
 	"asrIntroOther": {
-		"message": "這裡只負責把聲音變成字幕。中文翻譯、對話和 AI 解讀用的是「AI 模型」，在另一處設定。"
+		"message": "這裡只負責把聲音變成字幕。中文翻譯、AI 對話和解讀用的是 AI 模型，在「供應商與模型」裡設定。"
 	},
 	"asrGotoModels": {
 		"message": "前往設定 AI 模型"
 	},
 	"qiaomuTranslationSetupModel": {
 		"message": "設定翻譯模型"
+	},
+	"subtitleLanguage": {
+		"message": "字幕語言"
+	},
+	"subtitleGenFromAudio": {
+		"message": "識別原聲…"
+	},
+	"audioPlay": {
+		"message": "播放"
+	},
+	"audioPause": {
+		"message": "暫停"
+	},
+	"audioBack": {
+		"message": "後退 15 秒"
+	},
+	"audioForward": {
+		"message": "前進 30 秒"
+	},
+	"audioSpeed": {
+		"message": "播放速度"
+	},
+	"audioSeek": {
+		"message": "播放進度"
+	},
+	"audioRefreshing": {
+		"message": "新的文字稿已生成，正在重新整理…"
+	},
+	"audioStudyNone": {
+		"message": "這段內容還沒有字幕。生成後，字幕會跟著播放滾動。"
+	},
+	"audioTabTranscript": {
+		"message": "文字稿"
+	},
+	"audioTabNotes": {
+		"message": "節目簡介"
+	},
+	"webReading": {
+		"message": "正在讀取這個網址…"
+	},
+	"subtitleGenOffline": {
+		"message": "沒有連上本地助手，需要先安裝或更新本地助手。"
+	},
+	"audioTabAbout": {
+		"message": "簡介"
+	},
+	"audioChooseFile": {
+		"message": "選擇音訊或影片檔案…"
+	},
+	"audioChooseHint": {
+		"message": "也可以把檔案拖到這裡。檔案只交給本機助手處理，不會上傳；mp3、m4a、wav、flac、mp4 等常見格式都可以。"
+	},
+	"audioBadType": {
+		"message": "這個檔案型別不支援。"
+	},
+	"audioSending": {
+		"message": "正在把檔案交給本機助手…"
+	},
+	"audioSendFailed": {
+		"message": "交給本機助手失敗"
+	},
+	"subtitleGenOffer": {
+		"message": "生成字幕"
+	},
+	"subtitleGenChecking": {
+		"message": "正在檢查本機環境…"
+	},
+	"subtitleGenConfirm": {
+		"message": "這個影片沒有字幕。可以在本機生成：下載這條影片的音訊，用本機的語音識別模型識別，全程不上傳。"
+	},
+	"subtitleGenConfirmModel": {
+		"message": "首次使用還需下載約 1.6 GB 的識別模型。"
+	},
+	"subtitleGenStart": {
+		"message": "生成字幕"
+	},
+	"subtitleGenCancel": {
+		"message": "取消"
+	},
+	"subtitleGenRunning": {
+		"message": "正在生成字幕"
+	},
+	"subtitleGenModel": {
+		"message": "首次使用，正在下載識別模型（約 1.6 GB）…"
+	},
+	"subtitleGenFailed": {
+		"message": "生成失敗"
+	},
+	"subtitleGenRetry": {
+		"message": "重試"
+	},
+	"subtitleGenLangAuto": {
+		"message": "自動檢測語言"
+	},
+	"subtitleGenLangLabel": {
+		"message": "影片裡說的語言"
+	},
+	"subtitleGenNeedsLogin": {
+		"message": "這個平臺要求登入狀態才允許下載音訊。可以讓本機助手借用這個瀏覽器的登入資訊，只用於這一次下載，不會儲存或上傳（macOS 可能彈出鑰匙串授權）。注意：用賬號頻繁下載有被平臺限制的風險，建議少量使用。"
+	},
+	"subtitleGenLoginRetry": {
+		"message": "用瀏覽器登入狀態重試"
+	},
+	"subtitleGenGenerated": {
+		"message": "字幕由語音識別生成，可能有識別錯誤"
+	},
+	"subtitleGenOutdated": {
+		"message": "本地助手版本較舊，請重新執行 python3 native/install.py 更新後再試。"
+	},
+	"subtitleGenMissing": {
+		"message": "還缺少生成字幕所需的工具。在終端執行下面的命令安裝後，點“重新檢查”："
+	},
+	"subtitleGenCloudSetup": {
+		"message": "雲端識別還沒配置好：請在擴充套件設定 → AI 模型設定 → ASR 語音識別 裡填寫服務和 API Key。"
+	},
+	"subtitleGenConfirmCloud": {
+		"message": "這個影片沒有字幕。可以生成：下載這條影片的音訊，上傳到「{service}」識別。音訊會離開本機，並按該服務的規則計費。"
+	},
+	"subtitleGenConfirmLocalService": {
+		"message": "這個影片沒有字幕。可以生成：下載這條影片的音訊，交給本機上的識別服務處理。音訊不會離開這臺電腦。"
+	},
+	"subtitleGenBusy": {
+		"message": "另一個影片正在生成字幕，請等它完成後再試。"
+	},
+	"subtitleGenCopy": {
+		"message": "複製命令"
+	},
+	"subtitleGenCopied": {
+		"message": "已複製"
+	},
+	"subtitleGenRecheck": {
+		"message": "重新檢查"
+	},
+	"subtitleGenConfirmInstall": {
+		"message": "還需要先在本機安裝「{name}」（約 {size}，包含識別模型）。安裝完成後會自動開始生成，全程不上傳音訊。"
+	},
+	"subtitleGenInstallStart": {
+		"message": "安裝並生成字幕"
+	},
+	"subtitleGenInstalling": {
+		"message": "正在安裝"
+	},
+	"subtitleGenInstallFailed": {
+		"message": "安裝失敗"
+	},
+	"subtitleGenEngine": {
+		"message": "識別方式"
+	},
+	"subtitleGenDlgTitle": {
+		"message": "生成字幕"
+	},
+	"subtitleGenDlgSub": {
+		"message": "選一種識別方式，把聲音轉成帶時間的字幕。"
+	},
+	"subtitleGenRememberHint": {
+		"message": "之後點「生成字幕」就直接開始，不再詢問"
+	},
+	"subtitleGenAsk": {
+		"message": "選一種識別方式"
+	},
+	"subtitleGenStartCloud": {
+		"message": "生成字幕"
+	},
+	"subtitleGenAddService": {
+		"message": "＋ 新增雲端服務…"
+	},
+	"subtitleGenRemember": {
+		"message": "直接開始"
+	},
+	"subtitleGenRegenerate": {
+		"message": "換模型生成文字稿"
+	},
+	"subtitleGenGeneratedVia": {
+		"message": "字幕由「{via}」生成，可能有識別錯誤"
+	},
+	"Language": {
+		"message": "typescript"
+	},
+	"Attribute": {
+		"message": "class"
+	},
+	"Tag": {
+		"message": "div"
+	},
+	"Format": {
+		"message": "YYYY-MM-DD"
+	},
+	"Search": {
+		"message": "old"
+	},
+	"Replacement": {
+		"message": "new"
+	},
+	"Suffix": {
+		"message": "…"
+	},
+	"Type": {
+		"message": "info"
+	},
+	"Title": {
+		"message": "Title"
+	},
+	"Expression": {
+		"message": "+10"
+	},
+	"Separator": {
+		"message": ", "
+	},
+	"Mode": {
+		"message": "keys"
+	},
+	"Direction": {
+		"message": "asc"
+	},
+	"Selector": {
+		"message": "script"
+	},
+	"xBarNone": {
+		"message": "這條內容還沒有字幕，可以用語音識別生成"
+	},
+	"podcastBarNone": {
+		"message": "這集節目還沒有字幕，可以用語音識別生成"
 	}
 }

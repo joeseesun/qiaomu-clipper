@@ -4,6 +4,7 @@ import { createMarkdownContent } from 'defuddle/full';
 import { type ClipPreview, updateClipPreview } from './clip-preview';
 import { generateFrontmatter } from './obsidian-note-creator';
 
+import { t } from './ui-text';
 export type TranscriptExportMode = 'original' | 'translated' | 'bilingual';
 export function translatedCount(transcript: Element): { ready: number; total: number } {
  const segments = Array.from(transcript.querySelectorAll<HTMLElement>('.transcript-segment'));
@@ -32,15 +33,15 @@ export function exportTranscript(transcript: Element, url: string, mode: Transcr
 export function replaceTranscriptExport(markdown: string, previous: string, next: string): string {
  const index = previous ? markdown.indexOf(previous) : -1;
  // A template can omit content. Include a dedicated caption section in that case.
- if (index < 0) return `${markdown.trimEnd()}\n\n## 字幕\n\n${next}\n`;
+ if (index < 0) return t('{0}\n\n## 字幕\n\n{1}\n', [markdown.trimEnd(), next]);
  return markdown.slice(0, index) + next + markdown.slice(index + previous.length);
 }
 
 export function mountTranscriptExport(bar: HTMLElement, draft: ClipPreview): (action?: ClipSyncAction) => Promise<void> {
  const doc = bar.ownerDocument, label = doc.createElement('label'); label.className = 'clip-transcript-export'; label.hidden = true;
- const name = doc.createElement('span'); name.textContent = '剪藏字幕';
- const select = doc.createElement('select'); select.setAttribute('aria-label', '剪藏字幕内容');
- for (const [value, text] of [['original','原文'],['translated','译文'],['bilingual','双语']]) {
+ const name = doc.createElement('span'); name.textContent = t('剪藏字幕');
+ const select = doc.createElement('select'); select.setAttribute('aria-label', t('剪藏字幕内容'));
+ for (const [value, text] of [['original',t('原文')],['translated',t('译文')],['bilingual',t('双语')]]) {
   const option = doc.createElement('option'); option.value = value; option.textContent = text; select.append(option);
  }
  select.value = draft.transcriptExport?.mode || 'bilingual';
@@ -56,7 +57,7 @@ export function mountTranscriptExport(bar: HTMLElement, draft: ClipPreview): (ac
   if (select.value === 'translated' && count.ready < count.total) select.value = 'bilingual';
   const message = count.ready && count.ready < count.total ? `${count.ready}/${count.total}` : '';
   if (progress.textContent !== message) progress.textContent = message;
-  label.title = count.ready < count.total ? '未翻译部分会保留原文；翻译完成后可选择仅译文' : '选择保存到 Obsidian 的字幕内容；复制和下载跟随当前显示';
+  label.title = count.ready < count.total ? t('未翻译部分会保留原文；翻译完成后可选择仅译文') : t('选择保存到 Obsidian 的字幕内容；复制和下载跟随当前显示');
  };
  const observer = new MutationObserver(refresh); const article = doc.querySelector('article');
  if (article) observer.observe(article, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-translation-ready','data-translated-text'] });

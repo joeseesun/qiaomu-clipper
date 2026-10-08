@@ -9,6 +9,7 @@ import { mountPlayerSize } from './youtube-player-size';
 import { mountPlayerMode } from './youtube-player-mode';
 import { mountTranslation } from './youtube-translation';
 
+import { t } from './ui-text';
 // Read only transcript segments, excluding chapter headings and reader controls.
 export function transcriptText(article: HTMLElement): string {
 	return Array.from(article.querySelectorAll(`${TRANSCRIPT_SELECTOR} .transcript-segment`)).map(segment => {
@@ -39,8 +40,8 @@ export async function mountYouTubeStudy(doc: Document, article: HTMLElement, tit
 	let chat: ReturnType<typeof mountClipChat> | undefined = existingChat;
 	if (!text) {
 		status.textContent = article.dataset.videoPlatform === 'bilibili'
-			? '未获取到字幕：视频可能没有字幕，B 站的 AI 字幕通常需要登录后才能获取。登录后重新进入学习模式可重试。'
-			: '未获取到字幕：视频可能没有字幕，或 YouTube 暂时限制了获取。打开原页转写文稿后再进入学习模式可重试。';
+			? t('未获取到字幕：视频可能没有字幕，B 站的 AI 字幕通常需要登录后才能获取。登录后重新进入学习模式可重试。')
+			: t('未获取到字幕：视频可能没有字幕，或 YouTube 暂时限制了获取。打开原页转写文稿后再进入学习模式可重试。');
 		return;
 	}
 	mountTranslation(article, controls, status);
@@ -49,7 +50,7 @@ export async function mountYouTubeStudy(doc: Document, article: HTMLElement, tit
 	chat = mountClipChat({
 		onLearningRecord: quote => { void learningNotes(doc)?.open({quote}); },
 		onLearningAi: aiSupplement => { void learningNotes(doc)?.open({aiSupplement}); },
-		getContext: () => ({ title, url, markdown: `以下是视频字幕文稿，时间戳对应播放位置。仅依据文稿回答；文稿没有的信息请明确说明。\n\n${text}` }),
+		getContext: () => ({ title, url, markdown: t('以下是视频字幕文稿，时间戳对应播放位置。仅依据文稿回答；文稿没有的信息请明确说明。\n\n{0}', [text]) }),
 		onInsert: answer => {
 			let notes = article.querySelector('.youtube-study-notes');
 			if (!notes) { notes = doc.createElement('section'); notes.className = 'youtube-study-notes'; article.appendChild(notes); }
@@ -60,7 +61,7 @@ export async function mountYouTubeStudy(doc: Document, article: HTMLElement, tit
 	const nav = doc.querySelector('.obsidian-reader-nav');
 	if (nav && !nav.querySelector('.youtube-study-ask')) {
 		const ask = doc.createElement('button'); ask.type = 'button'; ask.className = 'nav-btn youtube-study-ask';
-		ask.title = '基于视频文稿提问'; ask.setAttribute('aria-label', ask.title); ask.append(createElement(WandSparkles));
+		ask.title = t('基于视频文稿提问'); ask.setAttribute('aria-label', ask.title); ask.append(createElement(WandSparkles));
 		ask.addEventListener('click', () => chat?.toggle()); nav.append(ask);
 	}
 }
@@ -73,7 +74,7 @@ export function restoreYouTubePlayer(article: HTMLElement, sourceUrl: string): b
 		const doc = article.ownerDocument;
 		let frame = article.querySelector<HTMLIFrameElement>('iframe[src*="player.bilibili.com/player.html"]');
 		if (!frame) {
-			frame = doc.createElement('iframe'); frame.src = bilibiliEmbedUrl(bilibili); frame.title = 'Bilibili 视频播放器';
+			frame = doc.createElement('iframe'); frame.src = bilibiliEmbedUrl(bilibili); frame.title = t('Bilibili 视频播放器');
 			frame.allow = 'autoplay; fullscreen; picture-in-picture'; frame.allowFullscreen = true;
 		}
 		article.prepend(frame);
@@ -88,7 +89,7 @@ export function restoreYouTubePlayer(article: HTMLElement, sourceUrl: string): b
 	if (!iframe) {
 		iframe = doc.createElement('iframe');
 		iframe.src = `https://www.youtube.com/embed/${videoId}?enablejsapi=1`;
-		iframe.title = 'YouTube 视频播放器';
+		iframe.title = t('YouTube 视频播放器');
 		iframe.allow = 'accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture; fullscreen';
 		iframe.allowFullscreen = true;
 	}

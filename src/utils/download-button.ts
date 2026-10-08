@@ -1,6 +1,7 @@
 import { createElement, Check, ChevronDown, Download } from 'lucide';
 import { DownloadChoice, defaultChoice, downloadFileName, downloadProblem, fetchMediaBlob, humanSize } from './media-download';
 
+import { t } from './ui-text';
 // The "download" control under a player (local edition only). One press saves the default file; the arrow lists what else this item
 // offers. While it runs the control itself shows the progress, so nothing jumps and no dialog opens.
 
@@ -49,7 +50,7 @@ export function mountDownloadButton(host: HTMLElement, options: DownloadButtonOp
 
 	const menu = node('div', 'qiaomu-dl-menu'); menu.hidden = true; menu.setAttribute('role', 'menu');
 	const main = node('button', 'qiaomu-dl-main'); main.type = 'button';
-	const more = node('button', 'qiaomu-dl-more'); more.type = 'button'; more.setAttribute('aria-haspopup', 'menu'); more.setAttribute('aria-expanded', 'false'); more.setAttribute('aria-label', '选择清晰度或格式'); more.append(icon(ChevronDown));
+	const more = node('button', 'qiaomu-dl-more'); more.type = 'button'; more.setAttribute('aria-haspopup', 'menu'); more.setAttribute('aria-expanded', 'false'); more.setAttribute('aria-label', t('选择清晰度或格式')); more.append(icon(ChevronDown));
 	const split = node('div', 'qiaomu-dl-split'); split.append(main, more);
 
 	const closeMenu = (focus = false) => { if (menu.hidden) return; menu.hidden = true; more.setAttribute('aria-expanded', 'false'); document.removeEventListener('pointerdown', outside, true); if (focus) more.focus(); };
@@ -58,7 +59,7 @@ export function mountDownloadButton(host: HTMLElement, options: DownloadButtonOp
 
 	const showIdle = () => {
 		root.dataset.state = 'idle'; controller = undefined;
-		main.replaceChildren(icon(Download), node('span', '', '下载'));
+		main.replaceChildren(icon(Download), node('span', '', t('下载')));
 		main.title = current ? `${current.label}${current.bytes ? ' · ' + humanSize(current.bytes) : ''}` : '';
 		split.hidden = !current; more.hidden = options.choices.length < 2;
 		root.replaceChildren(split, menu);
@@ -69,29 +70,29 @@ export function mountDownloadButton(host: HTMLElement, options: DownloadButtonOp
 		closeMenu();
 		current = choice; options.onRemember?.(choice.id);
 		controller = new AbortController();
-		const text = node('span', '', '准备下载…'), bar = node('span', 'qiaomu-dl-bar'), fill = node('i'); bar.append(fill);
-		const cancel = node('button', 'qiaomu-dl-link', '取消'); cancel.type = 'button'; cancel.addEventListener('click', () => controller?.abort());
+		const text = node('span', '', t('准备下载…')), bar = node('span', 'qiaomu-dl-bar'), fill = node('i'); bar.append(fill);
+		const cancel = node('button', 'qiaomu-dl-link', t('取消')); cancel.type = 'button'; cancel.addEventListener('click', () => controller?.abort());
 		showState('running', text, bar, cancel);
 		try {
-			const blob = await fetchBlob(choice.url, { signal: controller.signal, onProgress: (done, total) => { if (total) { const percent = Math.min(99, Math.floor(done / total * 100)); text.textContent = `正在下载 ${percent}%`; fill.style.width = `${percent}%`; } else text.textContent = `正在下载 ${humanSize(done)}`; } });
-			text.textContent = '正在保存…'; fill.style.width = '100%';
+			const blob = await fetchBlob(choice.url, { signal: controller.signal, onProgress: (done, total) => { if (total) { const percent = Math.min(99, Math.floor(done / total * 100)); text.textContent = t('正在下载 {0}%', [percent]); fill.style.width = `${percent}%`; } else text.textContent = t('正在下载 {0}', [humanSize(done)]); } });
+			text.textContent = t('正在保存…'); fill.style.width = '100%';
 			const saved = await options.save(blob, downloadFileName(options.title, choice.ext));
-			const link = node('button', 'qiaomu-dl-link', '在访达中显示'); link.type = 'button';
+			const link = node('button', 'qiaomu-dl-link', t('在访达中显示')); link.type = 'button';
 			link.addEventListener('click', () => saved && saved.reveal?.());
-			const again = node('button', 'qiaomu-dl-link', '再存一份'); again.type = 'button'; again.addEventListener('click', showIdle);
-			showState('done', icon(Check), node('span', '', '已保存'), ...(saved && saved.reveal ? [link] : []), again);
+			const again = node('button', 'qiaomu-dl-link', t('再存一份')); again.type = 'button'; again.addEventListener('click', showIdle);
+			showState('done', icon(Check), node('span', '', t('已保存')), ...(saved && saved.reveal ? [link] : []), again);
 		} catch (error) {
 			const message = downloadProblem(error);
-			if (message === '已取消') { showIdle(); return; }
-			const retry = node('button', 'qiaomu-dl-link', '重试'); retry.type = 'button'; retry.addEventListener('click', () => { void run(choice); });
-			const close = node('button', 'qiaomu-dl-link', '关闭'); close.type = 'button'; close.addEventListener('click', showIdle);
+			if (message === t('已取消')) { showIdle(); return; }
+			const retry = node('button', 'qiaomu-dl-link', t('重试')); retry.type = 'button'; retry.addEventListener('click', () => { void run(choice); });
+			const close = node('button', 'qiaomu-dl-link', t('关闭')); close.type = 'button'; close.addEventListener('click', showIdle);
 			showState('error', node('span', '', message), retry, close);
 		}
 	};
 
 	const buildMenu = () => {
 		menu.replaceChildren(); rows = [];
-		for (const [kind, label] of [['video', '视频'], ['audio', '仅音频']] as const) {
+		for (const [kind, label] of [['video', t('视频')], ['audio', t('仅音频')]] as const) {
 			const group = options.choices.filter(choice => choice.kind === kind); if (!group.length) continue;
 			if (options.choices.some(choice => choice.kind !== kind)) menu.append(node('div', 'qiaomu-dl-group', label));
 			for (const choice of group) {

@@ -29,6 +29,7 @@ import { translatePage, getMessage, setupLanguageAndDirection } from '../utils/i
 import { formatPropertyValue } from '../utils/shared';
 import { describeHelperFailure, nativeHelperRepairPrompt } from '../utils/native-helper-prompt';
 
+import { t } from '../utils/ui-text';
 interface ReaderModeResponse {
 	success: boolean;
 	isActive: boolean;
@@ -1301,12 +1302,12 @@ function determineMainAction() {
 async function syncQiaomuClip(clip: QiaomuClip): Promise<boolean> {
 	const status = document.getElementById('qiaomu-rss-status');
 	const retry = document.getElementById('qiaomu-rss-retry') as HTMLButtonElement | null;
-	if (status) status.textContent = '正在提交到 RSS…';
+	if (status) status.textContent = t('正在提交到 RSS…');
 	if (retry) { retry.hidden = true; retry.disabled = true; }
 	let result: QiaomuResult;
 	try { result = await browser.runtime.sendMessage({ action: 'qiaomuSubmitClip', clip }); }
-	catch { result = { error: 'RSS 同步中断，请重试' }; }
-	if (status) status.textContent = result?.accepted ? '已收录到 RSS · 读者提交' : result?.error || 'RSS 同步失败，请重试';
+	catch { result = { error: t('RSS 同步中断，请重试') }; }
+	if (status) status.textContent = result?.accepted ? t('已收录到 RSS · 读者提交') : result?.error || t('RSS 同步失败，请重试');
 	if (retry) { retry.hidden = Boolean(result?.accepted); retry.disabled = false; }
 	pendingQiaomuClip = result?.accepted ? null : clip;
 	return Boolean(result?.accepted);
@@ -1325,20 +1326,20 @@ async function initializeQiaomuRss(): Promise<void> {
 		await browser.storage.local.set({ qiaomuNativeConfigured: true });
 		if (localStatus) localStatus.textContent = '';
 	} else if (nativeLocalSave && localStatus) {
-		localStatus.textContent = `${describeHelperFailure(nativeStatus?.reason)}复制修复指令，发给你的 AI 助手（Codex、Claude Code、WorkBuddy、豆包等）即可自动修复。`;
+		localStatus.textContent = t('{0}复制修复指令，发给你的 AI 助手（Codex、Claude Code、WorkBuddy、豆包等）即可自动修复。', [describeHelperFailure(nativeStatus?.reason)]);
 		const fix = document.getElementById('qiaomu-local-fix') as HTMLButtonElement | null;
 		if (fix) {
 			fix.hidden = false;
 			fix.addEventListener('click', async () => {
-				try { await navigator.clipboard.writeText(nativeHelperRepairPrompt(browser.runtime.id, nativeStatus?.reason)); fix.textContent = '已复制，去发给 AI 助手'; }
-				catch { fix.textContent = '复制失败，请手动查看 native/README.md'; }
+				try { await navigator.clipboard.writeText(nativeHelperRepairPrompt(browser.runtime.id, nativeStatus?.reason)); fix.textContent = t('已复制，去发给 AI 助手'); }
+				catch { fix.textContent = t('复制失败，请手动查看 native/README.md'); }
 			});
 		}
 	}
 	const localPendingKey = Object.keys(saved).find(key => key.startsWith('qiaomuLocalPending:'));
 	if (localPendingKey) {
 		pendingLocalSave = saved[localPendingKey] as LocalSavePayload;
-		if (localStatus) localStatus.textContent = `有未保存的本地笔记：${pendingLocalSave.name}`;
+		if (localStatus) localStatus.textContent = t('有未保存的本地笔记：{0}', [pendingLocalSave.name]);
 		if (localRetry) localRetry.hidden = false;
 	}
 	if (localRetry) localRetry.addEventListener('click', () => { if (pendingLocalSave) void syncLocalClip(pendingLocalSave); });
@@ -1351,7 +1352,7 @@ async function initializeQiaomuRss(): Promise<void> {
 	if (pending) {
 		pendingQiaomuClip = pending;
 		const status = document.getElementById('qiaomu-rss-status');
-		if (status) status.textContent = `有未同步的剪藏：${pendingQiaomuClip?.title || ''}`;
+		if (status) status.textContent = t('有未同步的剪藏：{0}', [pendingQiaomuClip?.title || '']);
 		if (retry) retry.hidden = false;
 	}
 	if (retry) retry.addEventListener('click', () => { if (pendingQiaomuClip) void syncQiaomuClip(pendingQiaomuClip); });
@@ -1360,10 +1361,10 @@ async function initializeQiaomuRss(): Promise<void> {
 async function syncLocalClip(payload: LocalSavePayload): Promise<boolean> {
 	const status = document.getElementById('qiaomu-local-status');
 	const retry = document.getElementById('qiaomu-local-retry') as HTMLButtonElement | null;
-	if (status) status.textContent = '正在保存到本地…';
+	if (status) status.textContent = t('正在保存到本地…');
 	if (retry) { retry.hidden = true; retry.disabled = true; }
 	const result = await saveLocalClip(payload);
-	if (status) status.textContent = result?.ok ? `已保存：${result.vault} / ${result.relativePath}` : result?.error || '本地保存失败，请重试';
+	if (status) status.textContent = result?.ok ? t('已保存：{0} / {1}', [result.vault, result.relativePath]) : result?.error || t('本地保存失败，请重试');
 	pendingLocalSave = result?.ok ? null : payload;
 	if (retry) { retry.hidden = Boolean(result?.ok); retry.disabled = false; }
 	return Boolean(result?.ok);
@@ -1421,7 +1422,7 @@ async function handleClipObsidian(forceOpen = false): Promise<void> {
 		const tabInfo = await getCurrentTabInfo();
 		if (nativeLocalSave && !forceOpen) {
 			const localSaved = await syncLocalClip({ requestId: crypto.randomUUID(), content: fileContent, name: `${sanitizeFileName(noteNameField?.value || 'Untitled')}.md`, folder: pathField?.value || '', vault: selectedVault, behavior: currentTemplate.behavior });
-			const rssSaved = aggregate ? await syncQiaomuClip({ url: tabInfo.url, title: noteNameField?.value || tabInfo.title || '剪藏', markdown: noteContentField.value, image: tabInfo.image }) : true;
+			const rssSaved = aggregate ? await syncQiaomuClip({ url: tabInfo.url, title: noteNameField?.value || tabInfo.title || t('剪藏'), markdown: noteContentField.value, image: tabInfo.image }) : true;
 			if (localSaved) {
 				await incrementStat('addToObsidian', selectedVault, path, tabInfo.url, tabInfo.title);
 				lastSelectedVault = selectedVault;
@@ -1432,7 +1433,7 @@ async function handleClipObsidian(forceOpen = false): Promise<void> {
 		}
 		// Start worker-owned sync before opening Obsidian, which can dismiss the popup.
 		let rssSaved = true;
-		if (aggregate) rssSaved = await syncQiaomuClip({ url: tabInfo.url, title: noteNameField?.value || tabInfo.title || '剪藏', markdown: noteContentField.value, image: tabInfo.image });
+		if (aggregate) rssSaved = await syncQiaomuClip({ url: tabInfo.url, title: noteNameField?.value || tabInfo.title || t('剪藏'), markdown: noteContentField.value, image: tabInfo.image });
 		await saveToObsidian(fileContent, noteName, path, selectedVault, currentTemplate.behavior);
 		await incrementStat('addToObsidian', selectedVault, path, tabInfo.url, tabInfo.title);
 

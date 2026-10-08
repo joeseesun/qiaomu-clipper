@@ -12,6 +12,7 @@ import { CHAT_PREFERENCES_KEY, DEFAULT_CHAT_PREFERENCES, MAX_QUICK_PROMPTS, Quic
 import { createModelPicker } from './model-picker';
 import { learningSelection } from './learning-composer';
 
+import { t } from './ui-text';
 export interface ClipChatOptions {
 	// Current article text; read fresh on every question so edits are included.
 	getContext: () => { title: string; markdown: string; url: string };
@@ -357,8 +358,8 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 		insert.addEventListener('click', async () => { await options.onInsert(answer); showClipStatus(getMessage('qiaomuChatInserted')); });
 		actions.append(copy, insert);
 		if (options.onLearningAi) {
-			const diary = iconButton('clip-chat-action', NotebookPen, '加入今日日记的 AI 补充');
-			diary.append(el('span', '', '加入日记'));
+			const diary = iconButton('clip-chat-action', NotebookPen, t('加入今日日记的 AI 补充'));
+			diary.append(el('span', '', t('加入日记')));
 			diary.addEventListener('click', () => options.onLearningAi!(answer));
 			actions.append(diary);
 		}
@@ -585,7 +586,7 @@ function mountSelectionPill(onAsk: (text: string) => void, onHighlight?: () => v
 	ask.addEventListener('click', () => { hide(); onAsk(text); });
 	pill.appendChild(ask);
 	if (onLearningRecord && generalSettings.learningNotes !== false) {
-		const diary = segment(NotebookPen, '记笔记');
+		const diary = segment(NotebookPen, t('记笔记'));
  diary.addEventListener('click', () => { const quote = learningSelection(document); hide(); if (quote) onLearningRecord(quote); });
 		pill.appendChild(diary);
 	}

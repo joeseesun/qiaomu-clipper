@@ -6,6 +6,7 @@ import { debounce } from '../utils/debounce';
 import { getMessage } from '../utils/i18n';
 import { getFontCss, isFontAvailable as probeFontAvailable, sanitizeFontName, SANS_STACK, SERIF_STACK, FONT_PRESETS } from '../utils/font-utils';
 
+import { t } from '../utils/ui-text';
 const THEMES: Array<{ id: string; name: string }> = [
 	{ id: 'default', name: '' },
 	{ id: 'flexoki', name: 'Flexoki' },
@@ -73,7 +74,7 @@ function buildThemeGrid(
 
 		const body = document.createElement('div');
 		body.className = 'reader-theme-inner-body';
-		body.textContent = '文件优先于应用：想让数字作品长久留存，它们就该是你能掌控、格式也容易读取的文件。';
+		body.textContent = t('文件优先于应用：想让数字作品长久留存，它们就该是你能掌控、格式也容易读取的文件。');
 
 		inner.appendChild(title);
 		inner.appendChild(meta);

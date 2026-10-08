@@ -461,7 +461,7 @@
 				"content": "</a>"
 			},
 			"link_start": {
-				"content": "<a href=\"?section=interpreter\">"
+				"content": "<a href=\"?section=templates-home\">"
 			}
 		}
 	},
@@ -1066,7 +1066,7 @@
 				"content": "</a>"
 			},
 			"link_start": {
-				"content": "<a href=\"?section=general\">"
+				"content": "<a href=\"?section=clip\">"
 			}
 		}
 	},

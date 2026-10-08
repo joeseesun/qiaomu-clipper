@@ -13,6 +13,7 @@ import { transcriptText } from './youtube-study';
 import { videoKey } from './video-source';
 import { mountLearningNotes } from './learning-composer';
 
+import { t } from './ui-text';
 // The same shell for a normal clip preview and a progressively loaded video.
 export function mountReaderPreviewShell(draft: ClipPreview, pending = false) {
 	const id = draft.local.requestId;
@@ -26,7 +27,7 @@ export function mountReaderPreviewShell(draft: ClipPreview, pending = false) {
 		onLearningRecord: text => { void learning.open({quote:text}); },
 		onLearningAi: answer => { void learning.open({aiSupplement:answer}); },
 		onHighlight: () => Reader.highlightSelection(document),
-		getContext: () => ({ title: draft.clip.title, url: draft.clip.url, markdown: videoKey(draft.clip.url) ? transcriptText(document.querySelector('article')!) || '尚未获取视频字幕文稿，请明确说明无法依据文稿回答。' : draft.clip.markdown }),
+		getContext: () => ({ title: draft.clip.title, url: draft.clip.url, markdown: videoKey(draft.clip.url) ? transcriptText(document.querySelector('article')!) || t('尚未获取视频字幕文稿，请明确说明无法依据文稿回答。') : draft.clip.markdown }),
 		onInsert: async text => {
 			draft.readerAppendix = `${draft.readerAppendix || ''}\n\n${text}\n`;
 			draft.clip.markdown = `${draft.clip.markdown.trimEnd()}\n\n${text}\n`;

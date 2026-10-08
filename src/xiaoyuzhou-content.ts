@@ -39,7 +39,7 @@ try {
 
 		const updateBar = () => { bar?.setState(state, lines); generation.sync(); };
 		const generation = createBarGeneration({
-			openSettings: () => { try { void api.runtime.sendMessage({ action: 'openSettings', section: 'asr' }); } catch { /* extension reloaded */ } },
+			openSettings: () => { try { void api.runtime.sendMessage({ action: 'openSettings', section: 'asr-models' }); } catch { /* extension reloaded */ } },
 			videoKey: episodeKey, bar: () => bar,
 			apply: (_key, made, done) => { lines = made; state = done ? 'ready' : 'generating'; updateBar(); },
 			revert: () => { lines = []; state = 'none'; updateBar(); },

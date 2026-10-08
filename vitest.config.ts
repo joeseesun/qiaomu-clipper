@@ -11,6 +11,7 @@ export default defineConfig({
 	test: {
 		include: ['src/**/*.test.ts'],
 		globals: true,
+		setupFiles: ['src/utils/__setup__/zh.ts'],
 		alias: {
 			'webextension-polyfill': new URL('./src/utils/__mocks__/webextension-polyfill.ts', import.meta.url).pathname,
 		},

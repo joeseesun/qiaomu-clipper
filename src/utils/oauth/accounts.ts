@@ -1,6 +1,7 @@
 import type { ModelConfig, OAuthCredentials, Provider } from '../../types/types';
 import { jwtClaims, openSignIn, pkcePair, randomString, SignInHandle } from './core';
 
+import { t } from '../ui-text';
 export type OAuthKind = NonNullable<OAuthCredentials['kind']>;
 
 const CODEX_CLIENT_ID = 'app_EMoamEEZ73f0CkXaXp7hrann';
@@ -54,7 +55,7 @@ async function postToken(url: string, body: string | Record<string, string>, lab
 	try { data = JSON.parse(text); } catch { /* keep text for the message */ }
 	if (!response.ok) {
 		const reason = data.error_description || data.error?.message || (typeof data.error === 'string' ? data.error : '') || text.slice(0, 160);
-		throw Object.assign(new Error(`${label}失败（${response.status}）${reason ? '：' + reason : ''}`), { code: typeof data.error === 'string' ? data.error : data.error?.code, status: response.status });
+		throw Object.assign(new Error(t('{0}失败（{1}）{2}', [label, response.status, reason ? '：' + reason : ''])), { code: typeof data.error === 'string' ? data.error : data.error?.code, status: response.status });
 	}
 	return data;
 }
@@ -91,11 +92,11 @@ export async function startSignIn(kind: 'tokendance' | 'openrouter' | OAuthKind)
 		const handle = openSignIn(url, CODEX_REDIRECT);
 		return { handle, async finish() {
 			const back = await handle.result;
-			if (back.searchParams.get('state') !== state) throw new Error('登录结果与本次请求不符，请重试');
+			if (back.searchParams.get('state') !== state) throw new Error(t('登录结果与本次请求不符，请重试'));
 			const code = back.searchParams.get('code');
-			if (!code) throw new Error(back.searchParams.get('error_description') || '登录没有完成');
-			const tok = await postToken(CODEX_TOKEN, new URLSearchParams({ grant_type: 'authorization_code', code, redirect_uri: CODEX_REDIRECT, client_id: CODEX_CLIENT_ID, code_verifier: verifier }).toString(), '登录 Codex');
-			if (!tok.access_token || !tok.refresh_token) throw new Error('Codex 没有返回登录凭证');
+			if (!code) throw new Error(back.searchParams.get('error_description') || t('登录没有完成'));
+			const tok = await postToken(CODEX_TOKEN, new URLSearchParams({ grant_type: 'authorization_code', code, redirect_uri: CODEX_REDIRECT, client_id: CODEX_CLIENT_ID, code_verifier: verifier }).toString(), t('登录 Codex'));
+			if (!tok.access_token || !tok.refresh_token) throw new Error(t('Codex 没有返回登录凭证'));
 			const oauth = creds('codex', tok, { clientId: CODEX_CLIENT_ID });
 			return { oauth, label: oauth.email || 'Codex' };
 		} };
@@ -107,17 +108,17 @@ export async function startSignIn(kind: 'tokendance' | 'openrouter' | OAuthKind)
 		const handle = openSignIn(url, SIWC_REDIRECT);
 		return { handle, async finish() {
 			const back = await handle.result;
-			if (back.searchParams.get('state') !== state) throw new Error('登录结果与本次请求不符，请重试');
+			if (back.searchParams.get('state') !== state) throw new Error(t('登录结果与本次请求不符，请重试'));
 			const code = back.searchParams.get('code');
 			const clientId = (back.searchParams.get('client_id') || '').trim();
-			if (!code) throw new Error(back.searchParams.get('error_description') || '登录没有完成');
-			if (!clientId) throw new Error('OpenAI 没有完成应用注册，请重试');
-			const tok = await postToken(SIWC_TOKEN, new URLSearchParams({ grant_type: 'authorization_code', client_id: clientId, code, code_verifier: verifier, redirect_uri: SIWC_REDIRECT, resource: SIWC_RESOURCE }).toString(), '登录 ChatGPT');
-			if (!tok.access_token || !tok.refresh_token || !tok.id_token) throw new Error('OpenAI 没有返回登录凭证');
+			if (!code) throw new Error(back.searchParams.get('error_description') || t('登录没有完成'));
+			if (!clientId) throw new Error(t('OpenAI 没有完成应用注册，请重试'));
+			const tok = await postToken(SIWC_TOKEN, new URLSearchParams({ grant_type: 'authorization_code', client_id: clientId, code, code_verifier: verifier, redirect_uri: SIWC_REDIRECT, resource: SIWC_RESOURCE }).toString(), t('登录 ChatGPT'));
+			if (!tok.access_token || !tok.refresh_token || !tok.id_token) throw new Error(t('OpenAI 没有返回登录凭证'));
 			const id = jwtClaims(tok.id_token);
 			const aud = Array.isArray(id.aud) ? id.aud : [id.aud];
-			if (String(id.iss || '').replace(/\/$/, '') !== SIWC_ISSUER || !aud.includes(clientId) || id.nonce !== nonce) throw new Error('登录凭证校验未通过，请重试');
-			if (!String(tok.scope || '').split(/\s+/).includes(SIWC_DIRECT_SCOPE)) throw new Error('这个 ChatGPT 账号暂不支持通过 API 使用套餐额度');
+			if (String(id.iss || '').replace(/\/$/, '') !== SIWC_ISSUER || !aud.includes(clientId) || id.nonce !== nonce) throw new Error(t('登录凭证校验未通过，请重试'));
+			if (!String(tok.scope || '').split(/\s+/).includes(SIWC_DIRECT_SCOPE)) throw new Error(t('这个 ChatGPT 账号暂不支持通过 API 使用套餐额度'));
 			const oauth = creds('chatgpt', tok, { clientId });
 			return { oauth, label: oauth.email || 'ChatGPT' };
 		} };
@@ -127,11 +128,11 @@ export async function startSignIn(kind: 'tokendance' | 'openrouter' | OAuthKind)
 		const handle = openSignIn(openRouterAuthUrl(redirect, challenge, state), redirect);
 		return { handle, async finish() {
 			const back = await handle.result;
-			if (back.searchParams.get('state') !== state) throw new Error('登录结果与本次请求不符，请重试');
+			if (back.searchParams.get('state') !== state) throw new Error(t('登录结果与本次请求不符，请重试'));
 			const code = back.searchParams.get('code');
-			if (!code) throw new Error('授权没有完成');
-			const data = await postToken(OPENROUTER_EXCHANGE, { code, code_verifier: verifier, code_challenge_method: 'S256' }, '授权 OpenRouter');
-			if (typeof data.key !== 'string' || !data.key) throw new Error('OpenRouter 没有返回 Key，请重新授权');
+			if (!code) throw new Error(t('授权没有完成'));
+			const data = await postToken(OPENROUTER_EXCHANGE, { code, code_verifier: verifier, code_challenge_method: 'S256' }, t('授权 OpenRouter'));
+			if (typeof data.key !== 'string' || !data.key) throw new Error(t('OpenRouter 没有返回 Key，请重新授权'));
 			return { apiKey: data.key, label: 'OpenRouter' };
 		} };
 	}
@@ -142,10 +143,10 @@ export async function startSignIn(kind: 'tokendance' | 'openrouter' | OAuthKind)
 	return { handle, async finish() {
 		const back = await handle.result;
 		const code = back.searchParams.get('code');
-		if (!code) throw new Error('授权没有完成');
-		const data = await postToken(TOKENDANCE_EXCHANGE, { code, code_verifier: verifier, code_challenge_method: 'S256' }, '授权词元跳动');
-		if (typeof data.key !== 'string' || !data.key) throw new Error('词元跳动没有返回 Key，请重新授权');
-		return { apiKey: data.key, label: '词元跳动' };
+		if (!code) throw new Error(t('授权没有完成'));
+		const data = await postToken(TOKENDANCE_EXCHANGE, { code, code_verifier: verifier, code_challenge_method: 'S256' }, t('授权词元跳动'));
+		if (typeof data.key !== 'string' || !data.key) throw new Error(t('词元跳动没有返回 Key，请重新授权'));
+		return { apiKey: data.key, label: t('词元跳动') };
 	} };
 }
 
@@ -155,21 +156,21 @@ async function refresh(oauth: OAuthCredentials): Promise<OAuthCredentials> {
 	let tok: any;
 	try {
 		tok = oauth.kind === 'codex'
-			? await postToken(CODEX_TOKEN, { client_id: oauth.clientId || CODEX_CLIENT_ID, grant_type: 'refresh_token', refresh_token: oauth.refresh, scope: 'openid profile email' }, '刷新 Codex 登录')
-			: await postToken(SIWC_TOKEN, new URLSearchParams({ grant_type: 'refresh_token', client_id: oauth.clientId, refresh_token: oauth.refresh, resource: SIWC_RESOURCE }).toString(), '刷新 ChatGPT 登录');
+			? await postToken(CODEX_TOKEN, { client_id: oauth.clientId || CODEX_CLIENT_ID, grant_type: 'refresh_token', refresh_token: oauth.refresh, scope: 'openid profile email' }, t('刷新 Codex 登录'))
+			: await postToken(SIWC_TOKEN, new URLSearchParams({ grant_type: 'refresh_token', client_id: oauth.clientId, refresh_token: oauth.refresh, resource: SIWC_RESOURCE }).toString(), t('刷新 ChatGPT 登录'));
 	} catch (error) {
 		const status = (error as { status?: number }).status;
-		if (status === 400 || status === 401) throw new Error(`${oauth.kind === 'codex' ? 'Codex' : 'ChatGPT'} 登录已过期，请在设置里重新登录`);
+		if (status === 400 || status === 401) throw new Error(t('{0} 登录已过期，请在设置里重新登录', [oauth.kind === 'codex' ? 'Codex' : 'ChatGPT']));
 		throw error;
 	}
-	if (!tok.access_token) throw new Error('刷新登录失败');
+	if (!tok.access_token) throw new Error(t('刷新登录失败'));
 	return creds(oauth.kind, tok, oauth);
 }
 
 // The token a request should carry, renewed (and saved) when it is about to expire.
 export async function freshOAuth(provider: Provider, save: (oauth: OAuthCredentials) => Promise<void>): Promise<OAuthCredentials> {
 	const oauth = provider.oauth;
-	if (!oauth) throw new Error(`${provider.name} 还没有登录`);
+	if (!oauth) throw new Error(t('{0} 还没有登录', [provider.name]));
 	if (oauth.expires - Date.now() > MARGIN_MS) return oauth;
 	// Refresh tokens rotate; two requests must not spend the same one.
 	refreshing ??= refresh(oauth).then(async next => { provider.oauth = next; await save(next); return next; }).finally(() => { refreshing = undefined; });
@@ -211,7 +212,7 @@ export function oauthModelsRequest(oauth: OAuthCredentials): { url: string; head
 }
 
 export async function readResponsesStream(response: Response): Promise<string> {
-	if (!response.body) throw new Error('模型没有返回内容');
+	if (!response.body) throw new Error(t('模型没有返回内容'));
 	const reader = response.body.getReader();
 	const decoder = new TextDecoder();
 	let buffer = '';

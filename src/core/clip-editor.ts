@@ -8,6 +8,7 @@ import { generalSettings, loadSettings } from '../utils/storage-utils';
 import type { Property } from '../types/types';
 import { mountEditorOutline } from '../utils/editor-outline';
 
+import { t } from '../utils/ui-text';
 const byId = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
 function renderProperties(properties: Property[]) {
@@ -61,7 +62,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 	await loadSettings();
 	const id = new URLSearchParams(location.search).get('id') || '';
 	const draft = await loadClipPreview(id);
-	if (!draft) { document.body.textContent = '剪藏草稿已过期，请从弹窗重新打开编辑'; return; }
+	if (!draft) { document.body.textContent = t('剪藏草稿已过期，请从弹窗重新打开编辑'); return; }
 
 	document.title = draft.clip.title;
 	const title = document.createElement('input');

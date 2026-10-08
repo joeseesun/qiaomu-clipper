@@ -455,13 +455,13 @@
 		"message": "提示背景"
 	},
 	"interpreterContextDescription": {
-		"message": "提供给模型的背景信息，用来理解模版中的 AI 提示。会覆盖$link_start$AI 解读设置$link_end$里的默认背景，可以使用变量。",
+		"message": "提供给模型的背景信息，帮它理解模版里的 AI 提示。会覆盖$link_start$剪藏模版$link_end$页里的默认设置，可以使用变量。",
 		"placeholders": {
 			"link_end": {
 				"content": "</a>"
 			},
 			"link_start": {
-				"content": "<a href=\"?section=interpreter\">"
+				"content": "<a href=\"?section=templates-home\">"
 			}
 		}
 	},
@@ -1107,13 +1107,13 @@
 		"message": "笔记库"
 	},
 	"vaultDescription": {
-		"message": "选择这个模版默认保存到哪个笔记库。可在$link_start$通用设置$link_end$中添加或删除笔记库。",
+		"message": "选择这个模版默认保存到哪个笔记库。可在$link_start$剪藏与保存$link_end$里选择笔记库。",
 		"placeholders": {
 			"link_end": {
 				"content": "</a>"
 			},
 			"link_start": {
-				"content": "<a href=\"?section=general\">"
+				"content": "<a href=\"?section=clip\">"
 			}
 		}
 	},
@@ -1935,5 +1935,227 @@
 	},
 	"qiaomuTranslationSetupModel": {
 		"message": "设置翻译模型"
+	},
+	"subtitleLanguage": {
+		"message": "字幕语言"
+	},
+	"subtitleGenFromAudio": {
+		"message": "识别原声…"
+	},
+	"audioPlay": {
+		"message": "播放"
+	},
+	"audioPause": {
+		"message": "暂停"
+	},
+	"audioBack": {
+		"message": "后退 15 秒"
+	},
+	"audioForward": {
+		"message": "前进 30 秒"
+	},
+	"audioSpeed": {
+		"message": "播放速度"
+	},
+	"audioSeek": {
+		"message": "播放进度"
+	},
+	"audioRefreshing": {
+		"message": "新的文字稿已生成，正在刷新…"
+	},
+	"audioStudyNone": {
+		"message": "这段内容还没有字幕。生成后，字幕会跟着播放滚动。"
+	},
+	"audioTabTranscript": {
+		"message": "文字稿"
+	},
+	"audioTabNotes": {
+		"message": "节目简介"
+	},
+	"webReading": {
+		"message": "正在读取这个网址…"
+	},
+	"subtitleGenOffline": {
+		"message": "没有连上本地助手，需要先安装或更新本地助手。"
+	},
+	"audioTabAbout": {
+		"message": "简介"
+	},
+	"audioChooseFile": {
+		"message": "选择音频或视频文件…"
+	},
+	"audioChooseHint": {
+		"message": "也可以把文件拖到这里。文件只交给本机助手处理，不会上传；mp3、m4a、wav、flac、mp4 等常见格式都可以。"
+	},
+	"audioBadType": {
+		"message": "这个文件类型不支持。"
+	},
+	"audioSending": {
+		"message": "正在把文件交给本机助手…"
+	},
+	"audioSendFailed": {
+		"message": "交给本机助手失败"
+	},
+	"subtitleGenOffer": {
+		"message": "生成字幕"
+	},
+	"subtitleGenChecking": {
+		"message": "正在检查本机环境…"
+	},
+	"subtitleGenConfirm": {
+		"message": "这个视频没有字幕。可以在本机生成：下载这条视频的音频，用本机的语音识别模型识别，全程不上传。"
+	},
+	"subtitleGenConfirmModel": {
+		"message": "首次使用还需下载约 1.6 GB 的识别模型。"
+	},
+	"subtitleGenStart": {
+		"message": "生成字幕"
+	},
+	"subtitleGenCancel": {
+		"message": "取消"
+	},
+	"subtitleGenRunning": {
+		"message": "正在生成字幕"
+	},
+	"subtitleGenModel": {
+		"message": "首次使用，正在下载识别模型（约 1.6 GB）…"
+	},
+	"subtitleGenFailed": {
+		"message": "生成失败"
+	},
+	"subtitleGenRetry": {
+		"message": "重试"
+	},
+	"subtitleGenLangAuto": {
+		"message": "自动检测语言"
+	},
+	"subtitleGenLangLabel": {
+		"message": "视频里说的语言"
+	},
+	"subtitleGenNeedsLogin": {
+		"message": "这个平台要求登录状态才允许下载音频。可以让本机助手借用这个浏览器的登录信息，只用于这一次下载，不会保存或上传（macOS 可能弹出钥匙串授权）。注意：用账号频繁下载有被平台限制的风险，建议少量使用。"
+	},
+	"subtitleGenLoginRetry": {
+		"message": "用浏览器登录状态重试"
+	},
+	"subtitleGenGenerated": {
+		"message": "字幕由语音识别生成，可能有识别错误"
+	},
+	"subtitleGenOutdated": {
+		"message": "本地助手版本较旧，请重新运行 python3 native/install.py 更新后再试。"
+	},
+	"subtitleGenMissing": {
+		"message": "还缺少生成字幕所需的工具。在终端运行下面的命令安装后，点“重新检查”："
+	},
+	"subtitleGenCloudSetup": {
+		"message": "云端识别还没配置好：请在扩展设置 → AI 模型设置 → ASR 语音识别 里填写服务和 API Key。"
+	},
+	"subtitleGenConfirmCloud": {
+		"message": "这个视频没有字幕。可以生成：下载这条视频的音频，上传到「{service}」识别。音频会离开本机，并按该服务的规则计费。"
+	},
+	"subtitleGenConfirmLocalService": {
+		"message": "这个视频没有字幕。可以生成：下载这条视频的音频，交给本机上的识别服务处理。音频不会离开这台电脑。"
+	},
+	"subtitleGenBusy": {
+		"message": "另一个视频正在生成字幕，请等它完成后再试。"
+	},
+	"subtitleGenCopy": {
+		"message": "复制命令"
+	},
+	"subtitleGenCopied": {
+		"message": "已复制"
+	},
+	"subtitleGenRecheck": {
+		"message": "重新检查"
+	},
+	"subtitleGenConfirmInstall": {
+		"message": "还需要先在本机安装「{name}」（约 {size}，包含识别模型）。安装完成后会自动开始生成，全程不上传音频。"
+	},
+	"subtitleGenInstallStart": {
+		"message": "安装并生成字幕"
+	},
+	"subtitleGenInstalling": {
+		"message": "正在安装"
+	},
+	"subtitleGenInstallFailed": {
+		"message": "安装失败"
+	},
+	"subtitleGenEngine": {
+		"message": "识别方式"
+	},
+	"subtitleGenDlgTitle": {
+		"message": "生成字幕"
+	},
+	"subtitleGenDlgSub": {
+		"message": "选一种识别方式，把声音转成带时间的字幕。"
+	},
+	"subtitleGenRememberHint": {
+		"message": "之后点「生成字幕」就直接开始，不再询问"
+	},
+	"subtitleGenAsk": {
+		"message": "选一种识别方式"
+	},
+	"subtitleGenStartCloud": {
+		"message": "生成字幕"
+	},
+	"subtitleGenAddService": {
+		"message": "＋ 添加云端服务…"
+	},
+	"subtitleGenRemember": {
+		"message": "直接开始"
+	},
+	"subtitleGenRegenerate": {
+		"message": "换模型生成文字稿"
+	},
+	"subtitleGenGeneratedVia": {
+		"message": "字幕由「{via}」生成，可能有识别错误"
+	},
+	"Language": {
+		"message": "typescript"
+	},
+	"Attribute": {
+		"message": "class"
+	},
+	"Tag": {
+		"message": "div"
+	},
+	"Format": {
+		"message": "YYYY-MM-DD"
+	},
+	"Search": {
+		"message": "old"
+	},
+	"Replacement": {
+		"message": "new"
+	},
+	"Suffix": {
+		"message": "…"
+	},
+	"Type": {
+		"message": "info"
+	},
+	"Title": {
+		"message": "Title"
+	},
+	"Expression": {
+		"message": "+10"
+	},
+	"Separator": {
+		"message": ", "
+	},
+	"Mode": {
+		"message": "keys"
+	},
+	"Direction": {
+		"message": "asc"
+	},
+	"Selector": {
+		"message": "script"
+	},
+	"xBarNone": {
+		"message": "这条内容还没有字幕，可以用语音识别生成"
+	},
+	"podcastBarNone": {
+		"message": "这集节目还没有字幕，可以用语音识别生成"
 	}
 }

@@ -1,17 +1,18 @@
 import browser from './browser-polyfill';
 
+import { t } from './ui-text';
 // Which sites "transcribe and study" works on. The first three have their own pages (a bar on the site, a study page with a
 // player); the rest are sites yt-dlp can read, studied from their address. Everything is on until the viewer turns it off.
 export interface StudySite { id: string; name: string; hosts: string[]; builtin?: boolean; note?: string }
 export const STUDY_SITES: StudySite[] = [
-	{ id: 'youtube', name: 'YouTube', hosts: ['youtube.com', 'youtu.be'], builtin: true, note: '字幕条、沉浸学习' },
-	{ id: 'bilibili', name: '哔哩哔哩', hosts: ['bilibili.com', 'b23.tv'], builtin: true, note: '字幕条、沉浸学习' },
-	{ id: 'xiaoyuzhou', name: '小宇宙', hosts: ['xiaoyuzhoufm.com'], builtin: true, note: '字幕条、沉浸学习' },
+	{ id: 'youtube', name: 'YouTube', hosts: ['youtube.com', 'youtu.be'], builtin: true, get note() { return t('字幕条、沉浸学习'); } },
+	{ id: 'bilibili', get name() { return t('哔哩哔哩'); }, hosts: ['bilibili.com', 'b23.tv'], builtin: true, get note() { return t('字幕条、沉浸学习'); } },
+	{ id: 'xiaoyuzhou', get name() { return t('小宇宙'); }, hosts: ['xiaoyuzhoufm.com'], builtin: true, get note() { return t('字幕条、沉浸学习'); } },
 	{ id: 'vimeo', name: 'Vimeo', hosts: ['vimeo.com'] },
-	{ id: 'x', name: 'X（Twitter）', hosts: ['x.com', 'twitter.com'], note: '帖子里的视频或音频：字幕条，按 A 三次进入学习' },
+	{ id: 'x', name: 'X（Twitter）', hosts: ['x.com', 'twitter.com'], get note() { return t('帖子里的视频或音频：字幕条，按 A 三次进入学习'); } },
 	{ id: 'tiktok', name: 'TikTok', hosts: ['tiktok.com'] },
-	{ id: 'douyin', name: '抖音', hosts: ['douyin.com'], note: '多数需要登录状态' },
-	{ id: 'instagram', name: 'Instagram', hosts: ['instagram.com'], note: '多数需要登录状态' },
+	{ id: 'douyin', get name() { return t('抖音'); }, hosts: ['douyin.com'], get note() { return t('多数需要登录状态'); } },
+	{ id: 'instagram', name: 'Instagram', hosts: ['instagram.com'], get note() { return t('多数需要登录状态'); } },
 	{ id: 'facebook', name: 'Facebook', hosts: ['facebook.com', 'fb.watch'] },
 	{ id: 'reddit', name: 'Reddit', hosts: ['reddit.com', 'v.redd.it'] },
 	{ id: 'twitch', name: 'Twitch', hosts: ['twitch.tv'] },
@@ -19,11 +20,11 @@ export const STUDY_SITES: StudySite[] = [
 	{ id: 'soundcloud', name: 'SoundCloud', hosts: ['soundcloud.com'] },
 	{ id: 'bandcamp', name: 'Bandcamp', hosts: ['bandcamp.com'] },
 	{ id: 'niconico', name: 'niconico', hosts: ['nicovideo.jp', 'nico.ms'] },
-	{ id: 'weibo', name: '微博视频', hosts: ['weibo.com', 'weibo.cn'] },
-	{ id: 'ximalaya', name: '喜马拉雅', hosts: ['ximalaya.com'] },
-	{ id: 'netease', name: '网易云音乐', hosts: ['music.163.com'] },
+	{ id: 'weibo', get name() { return t('微博视频'); }, hosts: ['weibo.com', 'weibo.cn'] },
+	{ id: 'ximalaya', get name() { return t('喜马拉雅'); }, hosts: ['ximalaya.com'] },
+	{ id: 'netease', get name() { return t('网易云音乐'); }, hosts: ['music.163.com'] },
 	{ id: 'ted', name: 'TED', hosts: ['ted.com'] },
-	{ id: 'applepodcasts', name: 'Apple 播客', hosts: ['podcasts.apple.com'] },
+	{ id: 'applepodcasts', get name() { return t('Apple 播客'); }, hosts: ['podcasts.apple.com'] },
 ];
 export interface StudySites { off: string[]; other: boolean }
 export const defaultStudySites = (): StudySites => ({ off: [], other: true });
