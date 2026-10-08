@@ -278,6 +278,7 @@ npm run build:chrome          # 构建 dist/
 
 - `src/`：弹窗、阅读页、编辑页、AI 对话、设置与后台脚本。
 - `native/`：静默保存助手及安装器，包含 Windows 支持（尚待真机验证）。
+- 界面语言：简体中文、繁體中文、English 完整；其他语言暂时显示英文。界面文字直接写在代码里（`t('中文原文')`），译文在 `src/i18n/`，`npm test` 会检查每条文字都有英文和繁体。
 - `integration/qmreader/`：RSS 接口参考实现与测试，不随扩展 ZIP 打包。
 - [Chrome 应用商店发布准备](docs/CHROME-WEB-STORE.md)：权限、材料、包与验收说明。
 
@@ -357,6 +358,6 @@ See [Privacy](PRIVACY.md), [Security](SECURITY.md), [video study](docs/STUDY-WOR
 
 ### Development and license
 
-Run `npm test`, `npx tsc --noEmit`, `python3 -m unittest discover -s native -p 'test_*.py'`, and `npm run build:chrome`.
+Run `npm test`, `npx tsc --noEmit`, `python3 -m unittest discover -s native -p 'test_*.py'`, and `npm run build:chrome`. Interface language: Simplified Chinese, Traditional Chinese and English are complete; other languages show English for now. Text lives in the code as `t('Chinese source')`, translations are in `src/i18n/`, and `npm test` checks that every string has English and Traditional Chinese.
 
 Independent [MIT](LICENSE) project based on [Obsidian Web Clipper](https://github.com/obsidianmd/obsidian-clipper), preserving upstream history. Built with [Defuddle](https://github.com/kepano/defuddle) and Lucide; Zhuque Fangsong uses the SIL Open Font License. Maintained by [joeseesun](https://github.com/joeseesun).
