@@ -2,6 +2,50 @@ import type { WebMedia } from './web-media-page';
 
 // Put the strip in the site's content column where possible. Short-video feeds have
 // fixed-height cards: use the free space beside their player, below site dialogs.
+// Sites keep a fixed header across the top (TikTok's coin / app / avatar row): a strip placed in that corner would sit on top of it.
+// Look at what is drawn where the strip would go and, when it is a fixed or sticky layer, start just below that layer instead.
+function clearOfFixedLayers(host: HTMLElement, doc: Document, left: number, top: number, width: number): number {
+	if (typeof doc.elementsFromPoint !== 'function') return top;
+	const win = doc.defaultView!;
+	for (let pass = 0; pass < 4; pass++) {
+		let lowest = 0;
+		for (const x of [left + 12, left + width / 2, left + width - 12]) for (const y of [top + 6, top + 36]) {
+			for (const el of doc.elementsFromPoint(x, y)) {
+				if (host.contains(el) || el === doc.body || el === doc.documentElement) continue;
+				let node: Element | null = el, layer: Element | null = null;
+				while (node && node !== doc.body) { const position = win.getComputedStyle(node).position; if (position === 'fixed' || position === 'sticky') { layer = node; break; } node = node.parentElement; }
+				if (!layer) continue;
+				const r = layer.getBoundingClientRect();
+				// A layer that covers the whole window (toast outlets, page shells) is not a header.
+				if (r.width >= win.innerWidth * 0.9 && r.height >= win.innerHeight * 0.9) continue;
+				if (r.bottom > top - 8) lowest = Math.max(lowest, r.bottom);
+			}
+		}
+		if (!lowest) break;
+		top = Math.round(lowest + 8);
+	}
+	return top;
+}
+
+// The site's own top-right pill (coins, app, avatar): the strip lines up under it, right edges aligned.
+function topRightLayer(host: HTMLElement, doc: Document): DOMRect | undefined {
+	if (typeof doc.elementsFromPoint !== 'function') return;
+	const win = doc.defaultView!;
+	let found: DOMRect | undefined;
+	for (const x of [24, 90, 160, 230, 300]) for (const y of [30, 60, 90]) {
+		for (const el of doc.elementsFromPoint(win.innerWidth - x, y)) {
+			if (host.contains(el) || el === doc.body || el === doc.documentElement) continue;
+			let node: Element | null = el, layer: Element | null = null;
+			while (node && node !== doc.body) { const position = win.getComputedStyle(node).position; if (position === 'fixed' || position === 'sticky') { layer = node; break; } node = node.parentElement; }
+			if (!layer) continue;
+			const r = layer.getBoundingClientRect();
+			if (r.width > 520 || r.height > 160 || r.height < 24 || r.top > 160 || r.right < win.innerWidth / 2) continue;
+			if (!found || r.bottom > found.bottom) found = r;
+		}
+	}
+	return found;
+}
+
 export function placeWebBar(host: HTMLElement, media: WebMedia | undefined, site: string): void {
 	const doc = host.ownerDocument, win = doc.defaultView!;
 	const video = media?.getBoundingClientRect();
@@ -47,7 +91,7 @@ export function placeWebBar(host: HTMLElement, media: WebMedia | undefined, site
 			module = module.parentElement ?? undefined;
 		}
 	}
-	host.classList.remove('is-inline', 'is-floating');
+	host.classList.remove('is-inline', 'is-floating', 'is-compact');
 	if (!host.isConnected) doc.body.append(host);
 	if (site === 'douyin' && video && video.width >= win.innerWidth - 8) {
 		// The 精选 / feed pop-up draws the player across the whole window, in a fixed layer (z-index ~500) that covers anything
@@ -67,13 +111,21 @@ export function placeWebBar(host: HTMLElement, media: WebMedia | undefined, site
 		host.style.cssText = `right:${right}px;left:auto;top:${top}px;bottom:auto;z-index:2147483000;`;
 		return;
 	}
+	// TikTok: the same quiet one-line strip as on Douyin, lined up under the site's top-right pill.
+	if (site === 'tiktok') {
+		host.classList.add('is-compact');
+		const pill = topRightLayer(host, doc);
+		if (pill) { host.style.cssText = `right:${Math.max(8, Math.round(win.innerWidth - pill.right))}px;left:auto;top:${Math.round(pill.bottom + 8)}px;bottom:auto;z-index:2147483000;`; return; }
+	}
 	const left = video ? video.right + (site === 'tiktok' ? 88 : 20) : win.innerWidth - 366;
 	const width = Math.min(340, win.innerWidth - left - 20);
 	if (video && width >= 260) {
-		host.style.cssText = `left:${left}px;right:auto;top:${Math.max(16, video.top + 12)}px;bottom:auto;width:${width}px;`;
+		const top = clearOfFixedLayers(host, doc, left, Math.max(16, video.top + 12), width);
+		host.style.cssText = `left:${left}px;right:auto;top:${top}px;bottom:auto;width:${width}px;`;
 	} else {
 		// A narrow viewport has no spare column; keep a collapsed, bounded fallback.
-		host.style.cssText = 'right:16px;bottom:16px;left:auto;top:auto;';
+		// Douyin's own control strip runs along the bottom edge on a higher layer: lift the strip clear of it and put it on top.
+		host.style.cssText = site === 'douyin' ? 'right:16px;bottom:72px;left:auto;top:auto;z-index:2147483000;' : 'right:16px;bottom:16px;left:auto;top:auto;';
 	}
 }
 
@@ -83,11 +135,11 @@ export const WEB_BAR_STYLE = `.qiaomu-web-bar{position:fixed;right:16px;bottom:1
 .qiaomu-web-bar .qiaomu-yt-bar-lines{max-height:min(48vh,calc(100vh - 250px))}
 .qiaomu-web-bar .qiaomu-yt-bar{--qm-frame:1px solid var(--qm-line);--qm-margin:0;--qm-radius:12px}
 .qiaomu-web-bar.is-floating .qiaomu-yt-bar{--qm-card:rgba(34,34,40,.68)!important;--qm-frame:0 none!important;--qm-radius:10px!important;-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);max-height:calc(100vh - 150px)}
-.qiaomu-web-bar.is-floating{width:max-content;max-width:320px}
-.qiaomu-web-bar.is-floating:has(.qiaomu-yt-bar[data-open=true]){width:320px}
-.qiaomu-web-bar.is-floating .qiaomu-yt-bar[data-open=false] .qiaomu-yt-bar-head{min-height:34px;padding:0 4px 0 10px;gap:6px}
-.qiaomu-web-bar.is-floating .qiaomu-yt-bar[data-open=false] :is(.qiaomu-yt-bar-title,.qiaomu-yt-tool-copy,.qiaomu-yt-tool-download,.qiaomu-yt-tool-settings){display:none}
-.qiaomu-web-bar.is-floating .qiaomu-yt-bar[data-open=false] .qiaomu-yt-tool{height:26px}
-.qiaomu-web-bar.is-floating .qiaomu-yt-bar[data-open=false] .qiaomu-yt-tool-study{margin:0;padding:0 8px}
-.qiaomu-web-bar.is-floating .qiaomu-yt-bar-lines{max-height:min(48vh,calc(100vh - 330px))}
+.qiaomu-web-bar:is(.is-floating,.is-compact){width:max-content;max-width:320px}
+.qiaomu-web-bar:is(.is-floating,.is-compact):has(.qiaomu-yt-bar[data-open=true]){width:320px}
+.qiaomu-web-bar:is(.is-floating,.is-compact) .qiaomu-yt-bar[data-open=false] .qiaomu-yt-bar-head{min-height:34px;padding:0 4px 0 10px;gap:6px}
+.qiaomu-web-bar:is(.is-floating,.is-compact) .qiaomu-yt-bar[data-open=false] :is(.qiaomu-yt-bar-title,.qiaomu-yt-tool-copy,.qiaomu-yt-tool-download,.qiaomu-yt-tool-settings){display:none}
+.qiaomu-web-bar:is(.is-floating,.is-compact) .qiaomu-yt-bar[data-open=false] .qiaomu-yt-tool{height:26px}
+.qiaomu-web-bar:is(.is-floating,.is-compact) .qiaomu-yt-bar[data-open=false] .qiaomu-yt-tool-study{margin:0;padding:0 8px}
+.qiaomu-web-bar:is(.is-floating,.is-compact) .qiaomu-yt-bar-lines{max-height:min(48vh,calc(100vh - 330px))}
 `;

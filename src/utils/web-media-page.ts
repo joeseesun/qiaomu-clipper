@@ -31,7 +31,9 @@ export function webMediaAddress(address: string): string | null {
 export type WebMedia = HTMLMediaElement | HTMLIFrameElement;
 export function activeWebMedia(doc: Document): WebMedia | undefined {
 	const win = doc.defaultView; if (!win) return;
-	const candidates = Array.from(doc.querySelectorAll<WebMedia>('video, audio, iframe[src*="player.vimeo.com"], iframe[src*="player.twitch.tv"], iframe[src*="dailymotion.com"]')).filter(media => !media.closest('.qiaomu-web-bar, .qiaomu-x'));
+	const candidates = Array.from(doc.querySelectorAll<WebMedia>('video, audio, iframe[src*="player.vimeo.com"], iframe[src*="player.twitch.tv"], iframe[src*="dailymotion.com"]'))
+		// A live-stream thumbnail (Douyin's right-hand 直播 card, a camera preview) keeps playing in the corner and is not the clip being watched.
+		.filter(media => !media.closest('.qiaomu-web-bar, .qiaomu-x, [class*="liveCard"]') && !(typeof MediaStream !== 'undefined' && (media as HTMLMediaElement).srcObject instanceof MediaStream));
 	const score = (media: WebMedia) => {
 		const r = media.getBoundingClientRect(), css = win.getComputedStyle(media);
 		const area = Math.max(0, Math.min(r.right, win.innerWidth) - Math.max(r.left, 0)) * Math.max(0, Math.min(r.bottom, win.innerHeight) - Math.max(r.top, 0));

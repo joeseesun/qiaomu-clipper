@@ -18,6 +18,7 @@ import { mountReaderPreviewShell } from './reader-preview-shell';
 import type { PanelSegment } from './youtube-panel-actions';
 import { durationText, parsePodcastPage, plainToHtml, type PodcastEpisode } from './podcast-page';
 import { siteOf, xStatus } from './study-sites';
+import { measureMediaDuration, pickTikTokMedia } from './web-page-media';
 import { mountAudioControls } from './audio-controls';
 import { recordStudy } from './study-home';
 import { reloadPage } from './page-reload';
@@ -246,13 +247,21 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 			status.textContent = info.error === 'unsupported' ? '这个网址读不了：下载工具不支持这个网站，或这个页面里没有音视频。' : info.error === 'needs-cookies' ? '这个网站需要有效的浏览器状态才能读取。' : info.error === 'helper-offline' || info.error === 'helper-outdated' ? text('subtitleGenOffline', '没有连上本地助手，需要先安装或更新本地助手。', 'The local helper is not connected or is out of date.') : info.error === 'missing' ? '还没有安装下载工具（yt-dlp），请先在「语音识别」里安装，或运行 brew install yt-dlp。' : info.error === 'timeout' ? '读取超时，请稍后重试。' : '读取失败' + ((info as { message?: string }).message ? '：' + (info as { message?: string }).message : '');
 			return;
 		}
+		// TikTok: the file address the download tool reports does not play outside its own session. Play the file TikTok's page loaded
+		// (the one as long as this item), which plays here once the media rule has set the site as its referrer.
+		if (siteOf(address)?.id === 'tiktok') {
+			const live = await browser.runtime.sendMessage({ action: 'qiaomuTikTokMedia', url: address, sourceTabId: options.sourceTabId }).catch(() => null) as { seconds: number | null; candidates: string[] } | null;
+			const playable = live?.candidates?.length ? await pickTikTokMedia(live.candidates, info.seconds ?? live.seconds, src => measureMediaDuration(document, src)) : undefined;
+			// No file that plays: say so below the player area instead of showing a player that cannot start.
+			if (playable) { info.mediaUrl = playable; info.video = true; } else info.mediaUrl = null;
+		}
 		key = await webKey(address); registerWebSource(key, address, isDouyin ? info.audioUrl || info.mediaUrl || undefined : undefined);
 		if (cookies) useWebCookies(key, cookies);
 		void recordStudy({ url: address, title: info.title, path: `reader.html?study=web&url=${encodeURIComponent(address)}`, kind: 'web' });
 		// A post on X says something of its own: its words stay with the media. A long description of another site waits behind a tab.
 		const words = (info.description ?? '').trim(), isPost = Boolean(xStatus(address)), short = isPost || words.length <= 400;
 		await present({ title: info.title, show: info.author || info.site, cover: info.thumbnail ?? undefined, date: info.date ?? undefined, seconds: info.seconds ?? undefined, audio: info.mediaUrl ?? '', audioUrl: info.audioUrl, picture: info.video && Boolean(info.mediaUrl), ...(words && short ? { post: plainToHtml(words) } : {}), ...(words && !short ? { notesHtml: plainToHtml(words), notesLabel: text('audioTabAbout', '简介', 'Description') } : { notesHtml: '' }) });
-		if (!info.mediaUrl) { const note = document.createElement('p'); note.className = 'qiaomu-shows-note'; note.append(document.createTextNode('这个网站没有给出可以直接播放的声音，所以这里不提供播放器；字幕照常生成，对照时请在原页面播放：')); const link = document.createElement('a'); link.href = address; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = '打开原页面'; note.append(link); holder.before(note); }
+		if (!info.mediaUrl) { const note = document.createElement('p'); note.className = 'qiaomu-shows-note'; note.append(document.createTextNode(siteOf(address)?.id === 'tiktok' ? '没能取到这条视频的播放地址（它在原页面里正常播放，需要原来的 TikTok 页面保持打开）。字幕照常生成，对照时请在原页面播放：' : '这个网站没有给出可以直接播放的声音，所以这里不提供播放器；字幕照常生成，对照时请在原页面播放：')); const link = document.createElement('a'); link.href = address; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = '打开原页面'; note.append(link); holder.before(note); }
 		if (official?.segments.length) {
 			await attach(official.segments); panel.element.hidden = true;
 			if (!official.timelineAligned) status.textContent = '官方字幕已读取，播放时间轴暂未校准。';

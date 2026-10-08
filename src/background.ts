@@ -1,4 +1,4 @@
-import { getWebPageMedia, snapshotDouyinPlayer, validateDouyinTracks } from './utils/web-page-media';
+import { getWebPageMedia, isTikTokMedia, snapshotDouyinPlayer, snapshotTikTokPlayer, tabMayLendTikTokMedia, tiktokVideoPath, validateDouyinTracks } from './utils/web-page-media';
 import { submitQiaomuClip, QiaomuClip } from './utils/qiaomu-rss';
 import browser from 'webextension-polyfill';
 import { detectBrowser } from './utils/browser-detection';
@@ -7,6 +7,7 @@ import { TextHighlightData } from './utils/highlighter';
 import { debounce } from './utils/debounce';
 import { Settings } from './types/types';
 import { debugLog } from './utils/debug';
+import { describeHelperFailure } from './utils/native-helper-prompt';
 import { incrementStat, loadSettings } from './utils/storage-utils';
 import { enabledChatModels, streamChat } from './utils/chat-llm';
 import { audioStudyPath, videoKey, videoStudyPath } from './utils/video-source';
@@ -22,19 +23,22 @@ browser.runtime.onMessage.addListener(handleAsrMessage);
 // Accept RSS writes only from our own extension pages, never a website content script.
 const qiaomuInFlight = new Map<string, Promise<unknown>>();
 const qiaomuLocalInFlight = new Map<string, Promise<unknown>>();
+// A failed native call says why (not installed, extension not allowed, helper cannot start) instead of one generic line.
+const helperDown = (error: unknown) => { const reason = error instanceof Error ? error.message : String(error); return { ok: false, reason, error: describeHelperFailure(reason) }; };
+
 browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime.MessageSender) => {
 	const message = request as { action?: string; payload?: { requestId?: string; vaultPath?: string; vault?: string; folder?: string } };
 	if (!['qiaomuLocalStatus', 'qiaomuLocalSave', 'qiaomuLocalConfigure', 'qiaomuLocalChooseVault', 'qiaomuLocalChooseFolder'].includes(message?.action || '')) return;
 	if (sender.id !== browser.runtime.id || !sender.url?.startsWith(browser.runtime.getURL(''))) return Promise.resolve({ ok: false, error: '无效的本地保存请求' });
 	if (message.action === 'qiaomuLocalStatus') return browser.runtime.sendNativeMessage('ai.qiaomu.clipper', { action: 'status' }).catch((error: unknown) => ({ ok: false, reason: error instanceof Error ? error.message : String(error) }));
 	if (message.action === 'qiaomuLocalChooseFolder') return browser.runtime.sendNativeMessage('ai.qiaomu.clipper', { action: 'chooseNoteFolder', vault: message.payload?.vault, folder: message.payload?.folder })
-		.catch(() => ({ ok: false, error: '浏览文件夹需要本地保存助手，请先安装或更新助手，也可手动填写相对路径' }));
+		.catch(error => ({ ...helperDown(error), error: `${describeHelperFailure(error instanceof Error ? error.message : String(error))}也可以手动填写相对路径。` }));
 	if (message.action === 'qiaomuLocalChooseVault') return browser.runtime.sendNativeMessage('ai.qiaomu.clipper', { action: 'chooseVault' })
-		.catch(() => ({ ok: false, error: '本地保存助手未连接，请先安装或更新助手' }));
+		.catch(helperDown);
 	if (message.action === 'qiaomuLocalConfigure') {
 		if (typeof message.payload?.vaultPath !== 'string') return Promise.resolve({ ok: false, error: '请输入笔记库路径' });
 		return browser.runtime.sendNativeMessage('ai.qiaomu.clipper', { action: 'configure', vaultPath: message.payload.vaultPath })
-			.catch(() => ({ ok: false, error: '本地保存助手未连接，请先安装或更新助手' }));
+			.catch(helperDown);
 	}
 	const payload = message.payload;
 	if (!payload || !/^[a-zA-Z0-9-]{8,80}$/.test(payload.requestId || '')) return Promise.resolve({ ok: false, error: '保存请求标识无效' });
@@ -96,19 +100,24 @@ async function enableYouTubeInnertubeRule(): Promise<void> {
 	} catch { /* Firefox/Safari use webRequest or native messaging instead */ }
 }
 
-// Douyin's video host only serves pages it knows: the study reader plays the original file as if from douyin.com.
-const DOUYIN_MEDIA_RULE_ID = 9004;
-async function enableDouyinMediaRule(): Promise<void> {
+// Some video hosts only serve a request that names their own site as the referrer, so the study reader plays their files as if from that site.
+// One row per site, only for hosts that need it (checked on live items): sending a referrer to a host that does not ask for one is pointless,
+// and sending the wrong one is refused by some. Add a row when a site's video turns out not to play in the reader.
+const MEDIA_REFERERS: Array<{ id: number; referer: string; domains: string[] }> = [
+	{ id: 9004, referer: 'https://www.douyin.com/', domains: ['douyinvod.com'] },
+	{ id: 9005, referer: 'https://www.tiktok.com/', domains: ['tiktok.com', 'tiktokcdn.com', 'tiktokcdn-us.com'] },
+];
+async function enableMediaRefererRules(): Promise<void> {
 	const dnr = typeof chrome !== 'undefined' ? chrome.declarativeNetRequest : undefined;
 	if (!dnr || !chrome.runtime?.id) return;
 	try {
 		await dnr.updateSessionRules({
-			removeRuleIds: [DOUYIN_MEDIA_RULE_ID],
-			addRules: [{
-				id: DOUYIN_MEDIA_RULE_ID, priority: 1,
-				action: { type: 'modifyHeaders' as chrome.declarativeNetRequest.RuleActionType, requestHeaders: [{ header: 'Referer', operation: 'set' as chrome.declarativeNetRequest.HeaderOperation, value: 'https://www.douyin.com/' }] },
-				condition: { requestDomains: ['douyinvod.com'], resourceTypes: ['media' as chrome.declarativeNetRequest.ResourceType], initiatorDomains: [chrome.runtime.id] },
-			}],
+			removeRuleIds: MEDIA_REFERERS.map(row => row.id),
+			addRules: MEDIA_REFERERS.map(row => ({
+				id: row.id, priority: 1,
+				action: { type: 'modifyHeaders' as chrome.declarativeNetRequest.RuleActionType, requestHeaders: [{ header: 'Referer', operation: 'set' as chrome.declarativeNetRequest.HeaderOperation, value: row.referer }] },
+				condition: { requestDomains: row.domains, resourceTypes: ['media' as chrome.declarativeNetRequest.ResourceType], initiatorDomains: [chrome.runtime.id] },
+			})),
 		});
 	} catch { /* other browsers */ }
 }
@@ -353,7 +362,7 @@ async function initialize() {
 		// Origin headers for YouTube innertube API requests.
 		await enableYouTubeEmbedRule();
 		await enableYouTubeInnertubeRule();
-		await enableDouyinMediaRule();
+		await enableMediaRefererRules();
 
 		// Set up action popup based on openBehavior setting
 		await updateActionPopup();
@@ -884,8 +893,9 @@ browser.commands.onCommand.addListener(async (command, tab) => {
 	if (command === "open_editor" && tab?.id) {
 		await runTripleKeyAction('edit', tab.id);
 	}
+	// The reading shortcut opens our reading page, the same as the Read button.
 	if (command === "toggle_reader" && tab?.id) {
-		await toggleReaderModeInTab(tab.id);
+		await runTripleKeyAction('read', tab.id);
 	}
 });
 
@@ -1182,10 +1192,10 @@ async function injectReaderScript(tabId: number) {
 
 // When set to 'reader' or 'embedded', clear the popup so action.onClicked fires
 // instead, handling the action directly without briefly opening the popup.
-const validOpenBehaviors: Settings['openBehavior'][] = ['popup', 'embedded', 'reader'];
-
+// Two ways to answer a click on the toolbar button: the popup, or straight into our reading page. (The old in-page panel option
+// is gone; a saved 'embedded' counts as the popup.)
 function parseOpenBehavior(raw: string | undefined): Settings['openBehavior'] {
-	return validOpenBehaviors.includes(raw as Settings['openBehavior']) ? raw as Settings['openBehavior'] : 'popup';
+	return raw === 'reader' ? 'reader' : 'popup';
 }
 
 async function updateActionPopup(openBehavior?: Settings['openBehavior']): Promise<void> {
@@ -1194,7 +1204,7 @@ async function updateActionPopup(openBehavior?: Settings['openBehavior']): Promi
 		openBehavior = parseOpenBehavior((data.general_settings as Record<string, string>)?.openBehavior);
 	}
 	currentOpenBehavior = openBehavior;
-	if (openBehavior === 'reader' || openBehavior === 'embedded') {
+	if (openBehavior === 'reader') {
 		await browser.action.setPopup({ popup: '' });
 	} else {
 		await browser.action.setPopup({ popup: 'popup.html' });
@@ -1247,28 +1257,20 @@ async function runTripleKeyAction(action: string, tabId: number): Promise<void> 
 	}
 }
 
-// In reader/embedded mode, opens embedded iframe instead of popup.
+// With the toolbar button set to reading mode the popup is switched off; turn it on just long enough to open it, because the
+// popup is what builds the clip that the reading page shows.
 async function openPopup(): Promise<void> {
-	if (currentOpenBehavior === 'reader' || currentOpenBehavior === 'embedded') {
-		const tabs = await browser.tabs.query({ active: true, currentWindow: true });
-		const tab = tabs[0];
-		if (tab?.id && tab.url && isValidUrl(tab.url) && !isBlankPage(tab.url)) {
-			await sendMessageToContentScript(tab.id, { action: "toggle-iframe" });
-			return;
-		}
-		// Fall through to popup if tab is invalid
-	}
-	await browser.action.openPopup();
+	const readerMode = currentOpenBehavior === 'reader';
+	if (readerMode) await browser.action.setPopup({ popup: 'popup.html' });
+	try { await browser.action.openPopup(); }
+	finally { if (readerMode) await browser.action.setPopup({ popup: '' }); }
 }
 
 browser.action.onClicked.addListener(async (tab) => {
 	if (!tab?.id || !tab.url || !isValidUrl(tab.url) || isBlankPage(tab.url)) return;
 
-	if (currentOpenBehavior === 'reader') {
-		await toggleReaderModeInTab(tab.id);
-	} else if (currentOpenBehavior === 'embedded') {
-		await sendMessageToContentScript(tab.id, { action: "toggle-iframe" });
-	}
+	// Reading mode here is our own reading page (video and podcast pages go to the study player), not the in-page reader.
+	if (currentOpenBehavior === 'reader') await runTripleKeyAction('read', tab.id);
 });
 
 browser.storage.onChanged.addListener((changes, area) => {
@@ -1409,6 +1411,26 @@ browser.runtime.onMessage.addListener((raw: unknown, sender) => {
 			return results[0]?.result || { error: '无法读取原视频页面' };
 		} catch { return { error: '原视频页面不可用，将从视频链接获取字幕' }; }
 	})();
+});
+
+// The study reader asks for the video files TikTok's own page has loaded, so it can play the video next to the transcript.
+browser.runtime.onMessage.addListener((raw: unknown, sender) => {
+	const request = raw as { action?: string; url?: string; sourceTabId?: number };
+	if (request?.action !== 'qiaomuTikTokMedia') return;
+	if (sender.id !== browser.runtime.id || !sender.url?.startsWith(browser.runtime.getURL('reader.html')) || typeof request.url !== 'string') return Promise.resolve(null);
+	const wanted = tiktokVideoPath(request.url);
+	if (!wanted) return Promise.resolve(null);
+	return (async () => {
+		let tab: { id?: number; url?: string } | undefined;
+		if (Number.isInteger(request.sourceTabId) && request.sourceTabId! >= 0) { try { tab = { ...(await browser.tabs.get(request.sourceTabId!)), id: request.sourceTabId }; } catch { /* the original tab was closed */ } }
+		if (!tab?.url || !tabMayLendTikTokMedia(tab.url, wanted)) tab = ((await browser.tabs.query({ url: 'https://*.tiktok.com/*' })) || []).find(t => tiktokVideoPath(t.url || '') === wanted);
+		if (tab?.id === undefined) return null;
+		const [result] = await browser.scripting.executeScript({ target: { tabId: tab.id }, func: snapshotTikTokPlayer });
+		const snapshot = result?.result as ReturnType<typeof snapshotTikTokPlayer> | undefined;
+		// A video page must be this item; a feed page names none, so the caller checks the length.
+		if (!snapshot?.url || (tiktokVideoPath(snapshot.url) && tiktokVideoPath(snapshot.url) !== wanted)) return null;
+		return { seconds: Number.isFinite(snapshot.seconds) ? snapshot.seconds : null, candidates: snapshot.candidates.filter(isTikTokMedia) };
+	})().catch(() => null);
 });
 
 // Only the study reader can ask for a media address from its original page.
