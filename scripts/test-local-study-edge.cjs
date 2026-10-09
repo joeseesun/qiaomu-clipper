@@ -41,7 +41,7 @@ for (let n = 0; n < 16000 * 12; n++) wav.writeInt16LE(Math.round(3000 * Math.sin
      case 'asrStart':
       f.starts++; f.force = message.force === true;
       reply = { ok: true, id: 'd'.repeat(32), videoKey: KEY, engine: 'cloud', state: f.failJob ? 'failed' : f.running ? 'transcribing' : 'completed', error: f.failJob ? 'fixture cloud failure' : null, progress: f.running ? 10 : 100, stage: '', segments: [{ start: 0, end: 3, text: f.text }], next: 1 }; break;
-     case 'asrPoll': reply = { ok: true, id: 'd'.repeat(32), videoKey: KEY, state: f.running ? 'transcribing' : 'completed', progress: f.running ? 10 : 100, stage: '', segments: [], next: 1 }; break;
+     case 'asrPoll': reply = { ok: true, id: 'd'.repeat(32), videoKey: KEY, state: f.failJob ? 'failed' : f.running ? 'transcribing' : 'completed', error: f.failJob ? 'fixture cloud failure' : null, progress: f.running ? 10 : 100, stage: '', segments: message.since === 0 ? [{ start: 0, end: 3, text: f.text }] : [], next: 1 }; break;
      default: reply = { ok: true };
     }
     if (callback) callback(reply); else return Promise.resolve(reply);
@@ -109,13 +109,26 @@ for (let n = 0; n < 16000 * 12; n++) wav.writeInt16LE(Math.round(3000 * Math.sin
   await page.locator('video').waitFor({ state: 'attached' });
   await page.locator('.transcript-segment').filter({ hasText: '更换模型后的完整字幕' }).waitFor();
   assert.equal(await worker.evaluate(() => globalThis.fixture.starts), starts); checks.push('refresh recovers cache/title; same-file reselect restores player without recognition');
-  // In-flight remakes keep the old complete transcript, and a reload rejoins instead of forcing another job.
+  // In-flight remakes keep the old complete transcript; refresh only polls the saved task ID.
   await worker.evaluate(() => { globalThis.fixture.running = true; globalThis.fixture.text = '后台完成字幕'; });
   await page.locator('.qiaomu-yt-gen[data-kind=generated] button').click(); await page.locator('.qiaomu-dlg-btn.is-primary').click();
   await page.waitForFunction(() => JSON.parse(sessionStorage.getItem('qiaomuFileStudySession')).pending === true);
+  const pendingStarts = await worker.evaluate(() => globalThis.fixture.starts);
+  await page.waitForFunction(() => JSON.parse(sessionStorage.getItem('qiaomuFileStudySession')).jobId === 'd'.repeat(32));
   await worker.evaluate(() => { globalThis.fixture.running = false; });
   await page.reload(); await page.locator('.transcript-segment').filter({ hasText: '后台完成字幕' }).waitFor();
-  assert.equal(await worker.evaluate(() => globalThis.fixture.force), false); checks.push('refresh rejoins pending helper job without force');
+  assert.equal(await worker.evaluate(() => globalThis.fixture.starts), pendingStarts); checks.push('refresh polls original task without any new recognition');
+  await worker.evaluate(() => { globalThis.fixture.running = true; });
+  await page.locator('.qiaomu-yt-gen[data-kind=generated] button').click(); await page.locator('.qiaomu-dlg-btn.is-primary').click();
+  await page.waitForFunction(() => JSON.parse(sessionStorage.getItem('qiaomuFileStudySession')).pending && JSON.parse(sessionStorage.getItem('qiaomuFileStudySession')).jobId);
+  const failedStarts = await worker.evaluate(() => globalThis.fixture.starts);
+  await worker.evaluate(() => { globalThis.fixture.running = false; globalThis.fixture.failJob = true; });
+  await page.reload(); await page.locator('.qiaomu-yt-gen[data-kind=failed]').waitFor();
+  assert.equal(await worker.evaluate(() => globalThis.fixture.starts), failedStarts);
+  await page.locator('.qiaomu-yt-gen[data-kind=failed] button').first().click(); await page.locator('.qiaomu-dlg-wrap').waitFor();
+  assert.equal(await worker.evaluate(() => globalThis.fixture.starts), failedStarts);
+  checks.push('background failure stays failed after refresh; retry requires confirmation');
+  await worker.evaluate(() => { globalThis.fixture.failJob = false; });
   // Upload errors stay visible and do not consume the handoff.
   const failure = await context.newPage(); failure.on('pageerror', error => errors.push(error.message));
   await worker.evaluate(() => { globalThis.fixture.failUpload = true; });

@@ -24,6 +24,8 @@ export interface BarGenerationOptions {
 	intervalMs?: number;
 	// File uploads always show the shared confirmation, even when another page enabled automatic starts.
 	alwaysConfirm?: boolean;
+	// Track the actual helper task; undefined means a new request has not been acknowledged yet.
+	onJob?: (videoKey: string, jobId?: string) => void;
 }
 const sizeText = (mb: number) => mb >= 1000 ? (mb / 1000).toFixed(1) + ' GB' : mb + ' MB';
 // Which engine or service is doing the work, in words for the progress line and the note on the result.
@@ -53,7 +55,7 @@ const choiceOf = (value: string): { engine: string } | { profile: string } | und
 const LANGUAGE_KEY = 'qiaomuAsrLanguage';
 const savedLanguage = (): string => { try { const value = localStorage.getItem(LANGUAGE_KEY); return value && /^[a-z]{2,4}$/.test(value) ? value : 'auto'; } catch { return 'auto'; } };
 const rememberLanguage = (value: string) => { try { localStorage.setItem(LANGUAGE_KEY, value); } catch { /* storage unavailable */ } };
-export interface BarGeneration { actions: GenerationActions; sync: () => void; markGenerated: (videoKey: string) => void; resume: () => void; reset: () => void; readonly active: boolean }
+export interface BarGeneration { actions: GenerationActions; sync: () => void; markGenerated: (videoKey: string) => void; resume: (jobId?: string) => void; reset: () => void; readonly active: boolean }
 
 // Pressing "generate subtitles" asks only what is still undecided. Once the viewer has chosen an engine or service and agreed to
 // start straight away (the "remember" box, or the setting), the press starts the job at once; the confirm step comes back only when
@@ -63,7 +65,7 @@ export function createBarGeneration(options: BarGenerationOptions): BarGeneratio
 	const sync = () => { const key = options.videoKey(); options.bar()?.setGeneration((key && uiByKey.get(key)) || null); };
 	const set = (key: string, ui: GenUi | null) => { if (ui) uiByKey.set(key, ui); else uiByKey.delete(key); sync(); };
 	const language = () => lastLanguage === 'auto' ? {} : { language: lastLanguage };
-	const run = (key: string) => { set(key, { kind: 'running', stage: '', progress: 0, modelDownload: false, via }); generation.run(key, { ...language(), ...(force ? { force: true } : {}) }); };
+	const run = (key: string) => { options.onJob?.(key); set(key, { kind: 'running', stage: '', progress: 0, modelDownload: false, via }); generation.run(key, { ...language(), ...(force ? { force: true } : {}) }); };
 	const onEvent = (event: GenerationEvent) => {
 		const key = jobKey; if (!key) return;
 		switch (event.phase) {
@@ -80,13 +82,13 @@ export function createBarGeneration(options: BarGenerationOptions): BarGeneratio
 			case 'install-cancelled': set(key, null); break;
 		}
 	};
-	generation = createGeneration(onEvent, options.deps, options.intervalMs);
-	const request = (ask = false, resume = false) => {
+	generation = createGeneration(onEvent, options.deps, options.intervalMs, options.onJob);
+	const request = (ask = false) => {
 		const key = options.videoKey(); if (!key) return; jobKey = key; set(key, { kind: 'checking' });
 		void generation.prepare(key).then(status => {
 			if (jobKey !== key || !status) return;
 			const { target, ...ui } = confirmFor(status); pendingTarget = target; selected = ui.selected ?? ''; via = viaOf(status);
-			if (status.ready && !target && (resume || (!ask && !options.alwaysConfirm && status.choices?.auto))) { run(key); return; }
+			if (status.ready && !target && !ask && !options.alwaysConfirm && status.choices?.auto) { run(key); return; }
 			set(key, ui);
 		});
 	};
@@ -95,8 +97,14 @@ export function createBarGeneration(options: BarGenerationOptions): BarGeneratio
 		get active() { return generation.active; },
 		sync,
 		markGenerated: key => set(key, { kind: 'generated' }),
-		// A previously confirmed helper job survives navigation. Join it (or its complete native cache), without force/rebilling.
-		resume() { force = false; request(false, true); },
+		// Poll the original task even if current model settings changed. Never create a task during recovery.
+		resume(jobId) {
+			force = false; via = '';
+			if (!jobId || !/^[0-9a-f]{32}$/.test(jobId)) { request(true); return; }
+			const key = options.videoKey(); if (!key) return; jobKey = key;
+			set(key, { kind: 'running', stage: '', progress: 0, modelDownload: false });
+			generation.run(key, { jobId });
+		},
 		reset() { generation.dispose(); jobKey = ''; },
 		actions: {
 			request: () => { force = false; request(); },

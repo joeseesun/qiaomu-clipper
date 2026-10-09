@@ -133,7 +133,7 @@ it('rejoins a confirmed in-flight helper job after refresh without forcing a sec
 	window.dispatchEvent(new Event('pagehide'));
 	state.job=job('后台完成的完整字幕');await startAudioStudy({kind:'file',token:TOKEN});await flush();
 	expect(document.querySelector('.transcript')?.textContent).toContain('后台完成的完整字幕');
-	const starts=state.messages.filter(m=>m.payload?.mode==='start');expect(starts).toHaveLength(2);expect(starts[1].payload.force).toBe(false);
+	const starts=state.messages.filter(m=>m.payload?.mode==='start');expect(starts).toHaveLength(1);expect(state.messages).toContainEqual({action:'qiaomuAsr',payload:{mode:'poll',jobId:'c'.repeat(32),since:0}});
 	expect(JSON.parse(sessionStorage.getItem('qiaomuFileStudySession')!).pending).toBe(false);
 });
 it('cancels a remake without losing the previous success or resuming the cancelled job after reload', async () => {
@@ -144,4 +144,24 @@ it('cancels a remake without losing the previous success or resuming the cancell
 	await press('.qiaomu-yt-gen[data-kind=running] button');
 	expect(JSON.parse(sessionStorage.getItem('qiaomuFileStudySession')!).pending).toBe(false);
 	expect(document.querySelector('.transcript')?.textContent).toContain('原完整字幕');
+});
+
+it.each(['failed', 'cancelled', 'unknown-job'])('refresh only observes the original task when it is %s; retry needs confirmation', async result => {
+ state.job = job('partial', {state:'transcribing',progress:10});
+ await startAudioStudy({kind:'file',file:new File(['video'],'lecture.mp4')}); await flush(); await press('.qiaomu-dlg-btn.is-primary');
+ expect(JSON.parse(sessionStorage.getItem('qiaomuFileStudySession')!).jobId).toBe('c'.repeat(32));
+ window.dispatchEvent(new Event('pagehide'));
+ state.job = result === 'unknown-job' ? {ok:false,error:'unknown-job'} : job('', {state:result,segments:[],next:0,error:'cloud timeout'});
+ await startAudioStudy({kind:'file',token:TOKEN}); await flush();
+ expect(state.messages.filter(m => m.payload?.mode === 'start')).toHaveLength(1);
+ expect(state.messages).toContainEqual({action:'qiaomuAsr',payload:{mode:'poll',jobId:'c'.repeat(32),since:0}});
+ await press('.qiaomu-yt-gen button');
+ expect(state.messages.filter(m => m.payload?.mode === 'start')).toHaveLength(1);
+ expect(document.querySelector('.qiaomu-dlg-wrap')).not.toBeNull();
+});
+it('asks again if a refresh happens before the helper returned a task ID', async () => {
+ sessionStorage.setItem('qiaomuFileStudySession', JSON.stringify({route:window.location.href,key:KEY,title:'lecture',at:Date.now(),pending:true}));
+ await startAudioStudy({kind:'file',token:TOKEN}); await flush();
+ expect(state.messages.some(m => m.payload?.mode === 'start')).toBe(false);
+ expect(document.querySelector('.qiaomu-dlg-wrap')).not.toBeNull();
 });

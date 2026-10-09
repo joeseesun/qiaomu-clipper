@@ -19,3 +19,13 @@ it('reports unavailable session storage without losing a completed recognition',
 	const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('full'); });
 	expect(saveFileStudySession('r', KEY, 't')).toBe(false); spy.mockRestore();
 });
+
+it('retains only a valid task ID, including legacy sessions with no ID', () => {
+ const id='c'.repeat(32);
+ saveFileStudySession('r',KEY,'lecture',true,id);
+ expect(readFileStudySession('r')).toMatchObject({pending:true,jobId:id});
+ for (const jobId of ['../private','x'.repeat(32),42,null]) {
+  sessionStorage.setItem('qiaomuFileStudySession',JSON.stringify({route:'r',key:KEY,title:'lecture',at:Date.now(),pending:true,jobId}));
+  expect(readFileStudySession('r')?.jobId).toBeUndefined();
+ }
+});

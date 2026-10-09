@@ -115,3 +115,27 @@ it('hands a status that is not ready but installable back to the caller, and sti
 	let made = make({ status: vi.fn(async () => ({ ...notReady, installable: { base: false, engines: ['mlx'] } })) }); expect(await made.generation.prepare()).toMatchObject({ ready: false }); expect(events).toEqual([]);
 	made = make({ status: vi.fn(async () => notReady) }); expect(await made.generation.prepare()).toBeUndefined(); expect(events[0]).toMatchObject({ phase: 'needs-setup', reason: 'missing' });
 });
+
+it('recovers the original task from all captions at cursor zero without status checks or starting another job', async () => {
+ const { full, generation } = make({
+  poll: vi.fn().mockResolvedValueOnce(job({segments:[seg(0,'已生成')],next:1})).mockResolvedValueOnce(job({state:'completed',segments:[seg(4,'后来生成')],next:2})),
+ });
+ generation.run(KEY, {jobId:ID}); await settle();
+ expect(full.start).not.toHaveBeenCalled(); expect(full.status).not.toHaveBeenCalled();
+ expect(full.poll).toHaveBeenNthCalledWith(1, ID, 0); expect(full.poll).toHaveBeenNthCalledWith(2, ID, 1);
+ expect(events[events.length - 1]).toMatchObject({phase:'done',segments:[{text:'已生成'},{text:'后来生成'}]});
+});
+it.each(['failed','cancelled','unknown-job','offline','wrong-source','wrong-id'])('recovery of a %s task never starts a replacement', async result => {
+ const reply = result === 'unknown-job' ? {ok:false,error:'unknown-job'} : result === 'offline' ? {ok:false,error:'helper-offline'}
+  : job({state:result === 'failed' ? 'failed' : result === 'cancelled' ? 'cancelled' : 'completed',error:'timeout',videoKey:result === 'wrong-source' ? 'file:'+'b'.repeat(32) : KEY,id:result === 'wrong-id' ? 'b'.repeat(32) : ID});
+ const {full,generation} = make({poll:vi.fn().mockResolvedValue(reply)});
+ generation.run(KEY,{jobId:ID}); await settle();
+ expect(full.start).not.toHaveBeenCalled(); expect(full.poll).toHaveBeenCalledExactlyOnceWith(ID,0);
+ expect(events[events.length - 1]?.phase).toBe(result === 'cancelled' ? 'cancelled' : 'failed');
+});
+it('disposing recovery ignores a late result and leaves the original background task running', async () => {
+ let resolve!: (value:AsrJob)=>void;
+ const {full,generation} = make({poll:vi.fn(()=>new Promise<AsrJob>(r=>{resolve=r;}))});
+ generation.run(KEY,{jobId:ID}); generation.dispose(); resolve(job({state:'completed'})); await settle();
+ expect(events).toEqual([]); expect(full.start).not.toHaveBeenCalled(); expect(full.cancel).not.toHaveBeenCalled();
+});

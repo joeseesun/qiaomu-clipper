@@ -176,6 +176,7 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 	};
 	let sourceHtml = '';
 	let key = options.key || '', title = initialTitle, attached = false;
+	let recoveryJobId = restored?.jobId;
 
 	// The player: an <audio> would do, but the transcript wiring follows a <video class="reader-video-player">, which plays audio too.
 	const showPlayer = (src: string, picture?: { poster?: string; audioUrl?: string }): HTMLVideoElement => {
@@ -198,11 +199,12 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 	};
 	const generation = createBarGeneration({
 		alwaysConfirm: options.kind === 'file',
+		onJob: (k, id) => { if (options.kind === 'file' && k === key) { recoveryJobId = id; saveFileStudySession(route, key, title, true, id); } },
 		videoKey: () => key || null,
 		bar: () => ({ setGeneration: (ui: GenUi | null) => {
 			panel.show(ui ?? { kind: 'offer' });
 			if (options.kind === 'file') {
-				if (key && ui?.kind === 'running') saveFileStudySession(route, key, title, true);
+				if (key && ui?.kind === 'running') saveFileStudySession(route, key, title, true, recoveryJobId);
 				if (key && (!ui || ui.kind === 'failed' || (ui.kind === 'generated' && !ui.via))) saveFileStudySession(route, key, title);
 				picker.disabled = Boolean(ui && ['checking', 'confirm', 'running', 'installing'].includes(ui.kind));
 				if (ui?.kind === 'confirm' && ui.selected) { picker.value = ui.selected; picker.dataset.selected = ui.selected; const choice = ui.choices?.find(item => item.value === ui.selected); if (choice) selected.textContent = t('当前识别：{0}', [choice.label]); }
@@ -217,7 +219,7 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 			if (k !== key) return;
 			// Browser storage can reorder object keys; compare caption values, not their JSON property order.
 			const complete = saved?.length === lines.length && lines.every((line, index) => ['time', 'text', 'start', 'end'].every(field => line[field as keyof PanelSegment] === saved[index][field as keyof PanelSegment]));
-			if (options.kind === 'file') saveFileStudySession(route, key, title, !complete);
+			if (options.kind === 'file') saveFileStudySession(route, key, title, !complete, recoveryJobId);
 			if (!complete) status.textContent = t('识别已成功，但浏览器字幕缓存未保存。请先导出文字稿；本机助手的成功结果仍保留。');
 		}); },
 		openSettings: () => { window.open(browser.runtime.getURL('settings.html?section=asr-models'), '_blank'); },
@@ -435,7 +437,7 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 	await refreshChoice();
 	if (options.file) await take(options.file);
 	else if (key) {
-		if (restored?.pending) { const made = await cache.read(`generated:${key}`); if (made?.length) await attach(made); generation.resume(); }
+		if (restored?.pending) { const made = await cache.read(`generated:${key}`); if (made?.length) await attach(made); generation.resume(restored.jobId); }
 		else await begin();
 		hint.textContent = t('已恢复文件标题和字幕/任务入口。浏览器刷新后需要重新选择同一文件才能播放；成功字幕缓存保留。');
 	} else if (options.token) status.textContent = t('文件交接已过期或读取失败，请重新选择文件。若之前识别成功，同一文件会恢复缓存。');
