@@ -50,6 +50,7 @@
  "RSS 同步失败，请重试": "RSS 同期失敗。再試行してください",
  "RSS 已收录": "RSS に追加されました",
  "RSS 提交失败，请重试": "RSS 送信失敗。再試行してください",
+ "RSS 连接超时，请检查网络或代理后重试": "RSS 接続がタイムアウトしました。ネットワークまたはプロキシを確認して再試行してください",
  "RSS 网络连接失败，请稍后重试": "RSS ネットワーク接続失敗。後でもう一度お試しください",
  "RSS 返回的剪藏结果无效": "RSS が無効なクリップ結果を返しました",
  "Steph Ango · 2023 年 7 月 1 日 · <a class=\"reader-preview-meta-link\" href=\"https://stephango.com/file-over-app\" target=\"_blank\">stephango.com</a>": "Steph Ango · 2023年7月1日 · <a class=\"reader-preview-meta-link\" href=\"https://stephango.com/file-over-app\" target=\"_blank\">stephango.com</a>",
