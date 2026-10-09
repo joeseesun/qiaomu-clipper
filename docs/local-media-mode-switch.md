@@ -42,3 +42,8 @@ All images contain synthetic media and mock settings.
 Channels and Xiaoetong players now also survive editor/reading navigation. Before leaving, the page stores its HTTPS media source in same-tab sessionStorage and only an opaque random reference plus playback state in the text draft. Destination preview pages reconstruct the player and wire the current edited Markdown timestamps. Signed media is not included in durable history, Markdown or notes. References expire after two hours or when the tab closes; expired or failed media offers original-link recovery while retaining edits. Storage refusal keeps the playable page open.
 
 The previous installed Channels production build reproduced video loss in both destination modes. The combined build passes 14 production Edge checks covering automatic source discovery, actual synthetic HLS playback, edited timestamps, repeated switches, preview refresh, expired recovery and no duplicate recognition. The existing seven local-file mode tests also pass. These are isolated browser fixtures with mocked recognition, not paid API or real-course end-to-end proof. The user must reload the original extension and test the combined upgrade before any PR is published.
+
+
+## PR #59 整合更新（2026-10-10）
+
+原本地文件模式修复现与在线视频播放恢复、视频号及小鹅通回放整合提交。编辑页支持自动保存，播放过期后的恢复入口先保存当前编辑并复用同一文字草稿。完整新增行为和验证范围见 [视频号与小鹅通回放](protected-study-links.md)。用户报告 r3 本机测试通过，随后授权更新本 PR；上文保留原本地文件问题的独立复现记录。
