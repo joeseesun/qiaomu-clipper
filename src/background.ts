@@ -1,3 +1,4 @@
+import { protectedPageBridge, snapshotProtectedPage } from './utils/protected-study';
 import { createContentText } from './utils/content-i18n';
 import { getWebPageMedia, isTikTokMedia, snapshotDouyinPlayer, snapshotTikTokPlayer, tabMayLendTikTokMedia, tiktokVideoPath, validateDouyinTracks } from './utils/web-page-media';
 import { submitQiaomuClip, QiaomuClip } from './utils/qiaomu-rss';
@@ -1487,4 +1488,20 @@ browser.runtime.onMessage.addListener((raw: unknown, sender) => {
 		}
 		return snapshot;
 	}).then(info => info || null);
+});
+
+// Inspect a password/login gate only in an original tab explicitly opened by this study reader.
+const protectedStudyPage = protectedPageBridge({
+ create: options => browser.tabs.create(options),
+ get: id => browser.tabs.get(id),
+ inspect: async tabId => {
+  const [result] = await browser.scripting.executeScript({ target: { tabId }, func: snapshotProtectedPage });
+  return result?.result as ReturnType<typeof snapshotProtectedPage> || { state: 'unavailable' };
+ },
+});
+browser.runtime.onMessage.addListener((raw: unknown, sender) => {
+ const request = raw as { action?: string; mode?: string; url?: string; tabId?: number };
+ if (request?.action !== 'qiaomuProtectedStudyPage') return;
+ if (sender.id !== browser.runtime.id || !sender.url?.startsWith(browser.runtime.getURL('reader.html?')) || sender.tab?.id === undefined) return Promise.resolve({ state: 'unavailable' });
+ return protectedStudyPage(sender.tab.id, request).catch(() => ({ state: 'unavailable' }));
 });

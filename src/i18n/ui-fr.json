@@ -677,5 +677,15 @@
  "交给本机助手失败：{0}": "Impossible de transmettre le fichier à l’assistant local : {0}",
  "已恢复文件标题和字幕/任务入口。浏览器刷新后需要重新选择同一文件才能播放；成功字幕缓存保留。": "Le titre et l’accès aux sous-titres ou à la tâche ont été restaurés. Après rechargement du navigateur, sélectionnez le même fichier pour le lire ; les sous-titres réussis restent en cache.",
  "文件交接已过期或读取失败，请重新选择文件。若之前识别成功，同一文件会恢复缓存。": "Le transfert du fichier a expiré ou n’a pas pu être lu. Sélectionnez à nouveau le fichier. Le même fichier restaure son cache si la reconnaissance précédente a réussi.",
- "文件已接收，但页面初始化失败：{0}。请重试；成功字幕缓存保留。": "Fichier reçu, mais l’initialisation de la page a échoué : {0}. Réessayez ; les sous-titres réussis restent en cache."
+ "文件已接收，但页面初始化失败：{0}。请重试；成功字幕缓存保留。": "Fichier reçu, mais l’initialisation de la page a échoué : {0}. Réessayez ; les sous-titres réussis restent en cache.",
+	"小鹅通": "Xiaoetong",
+	"视频号": "WeChat Channels",
+	"需在原网页验证；仅微信播放的内容需导入文件": "Vérifiez sur la page d’origine ; le contenu réservé à WeChat nécessite un fichier local",
+	"。先打开原网页完成验证": "。Ouvrez d’abord la page d’origine pour vérifier l’accès",
+	"请在原网页完成登录或输入访问密码，确认视频能在电脑浏览器播放，再回来重新读取。密码只在原网站输入。": "Connectez-vous ou saisissez le mot de passe sur le site d’origine. Vérifiez la lecture sur ordinateur, puis réessayez. Saisissez les mots de passe uniquement sur le site d’origine.",
+	"原网页不可用，请重新打开后再读取。": "La page d’origine est indisponible. Rouvrez-la et réessayez.",
+	"这个分享页只支持在微信观看，电脑网页没有可读取的视频。请使用你已获授权保存的音视频文件转写。": "Cette page est lisible uniquement dans WeChat ; aucun média lisible sur ordinateur. Transcrivez un fichier audio ou vidéo que vous êtes autorisé à conserver.",
+	"这是仍在进行的直播，请等回放可用后重试，或导入已保存的音视频文件。": "Le flux est encore en direct. Réessayez quand un replay est disponible ou importez un fichier enregistré.",
+	"请先在原网页输入访问密码，再回来重新读取。": "Saisissez le mot de passe sur le site d’origine, puis réessayez.",
+	"下载工具仍无法读取这条内容，请使用你已获授权保存的音视频文件转写。": "L’outil ne peut toujours pas lire ce contenu. Transcrivez un fichier que vous êtes autorisé à conserver."
 }

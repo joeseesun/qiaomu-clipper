@@ -2,12 +2,14 @@ import browser from './browser-polyfill';
 
 import { t } from './ui-text';
 // Which sites "transcribe and study" works on. The first three have their own pages (a bar on the site, a study page with a
-// player); the rest are sites yt-dlp can read, studied from their address. Everything is on until the viewer turns it off.
+// player); protected shares use an original-page verification flow. Other sites use yt-dlp. Everything starts enabled.
 export interface StudySite { id: string; name: string; hosts: string[]; builtin?: boolean; note?: string }
 export const STUDY_SITES: StudySite[] = [
 	{ id: 'youtube', name: 'YouTube', hosts: ['youtube.com', 'youtu.be'], builtin: true, get note() { return t('字幕条、沉浸学习'); } },
 	{ id: 'bilibili', get name() { return t('哔哩哔哩'); }, hosts: ['bilibili.com', 'b23.tv'], builtin: true, get note() { return t('字幕条、沉浸学习'); } },
 	{ id: 'xiaoyuzhou', get name() { return t('小宇宙'); }, hosts: ['xiaoyuzhoufm.com'], builtin: true, get note() { return t('字幕条、沉浸学习'); } },
+	{ id: 'xiaoe', get name() { return t('小鹅通'); }, hosts: ['xetslk.com', 'xiaoe-tech.com', 'xiaoeknow.com'], get note() { return t('需在原网页验证；仅微信播放的内容需导入文件'); } },
+	{ id: 'channels', get name() { return t('视频号'); }, hosts: ['weixin.qq.com'], get note() { return t('需在原网页验证；仅微信播放的内容需导入文件'); } },
 	{ id: 'vimeo', name: 'Vimeo', hosts: ['vimeo.com'] },
 	{ id: 'x', name: 'X（Twitter）', hosts: ['x.com', 'twitter.com'], get note() { return t('帖子里的视频或音频：字幕条，按 A 三次进入学习'); } },
 	{ id: 'tiktok', name: 'TikTok', hosts: ['tiktok.com'] },
@@ -54,7 +56,9 @@ export function xStatus(address: string): string | null {
 
 // The site an address belongs to (by host name, subdomains included).
 export function siteOf(address: string): StudySite | undefined {
-	let host: string;
-	try { const url = new URL(address); if (url.protocol !== 'https:' && url.protocol !== 'http:') return undefined; host = url.hostname.toLowerCase(); } catch { return undefined; }
+	let host: string, parsed: URL;
+	try { const url = parsed = new URL(address); if (url.protocol !== 'https:' && url.protocol !== 'http:') return undefined; host = url.hostname.toLowerCase(); } catch { return undefined; }
+	if (host === 'weixin.qq.com' && !/^\/sph\/[^/?#]+/.test(parsed.pathname)) return undefined;
+	if (host.endsWith('.weixin.qq.com') && host !== 'channels.weixin.qq.com') return undefined;
 	return STUDY_SITES.find(site => site.hosts.some(item => host === item || host.endsWith('.' + item)));
 }

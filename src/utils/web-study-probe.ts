@@ -44,7 +44,8 @@ export async function probeWebStudy(url: string, status: HTMLElement, holder: HT
 	}
 	select.value = thisBrowser();
 	const button = doc.createElement('button'); button.type = 'button'; button.className = 'qiaomu-yt-gen-button is-primary'; button.textContent = t('使用浏览器状态重试');
-	row.className = 'qiaomu-web-retry'; row.append(note, select, button); holder.append(row);
+	const link = doc.createElement('a'); link.href = url; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = t('打开原页面'); link.addEventListener('click', event => event.stopPropagation());
+	row.className = 'qiaomu-web-retry'; row.append(note, select, button, link); holder.append(row);
 	status.textContent = t('这个网站需要有效的浏览器状态才能读取，不一定需要登录。');
 	return new Promise(resolve => {
 		button.addEventListener('click', async () => {

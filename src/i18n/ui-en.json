@@ -677,5 +677,15 @@
  "交给本机助手失败：{0}": "Could not hand the file to the local helper: {0}",
  "已恢复文件标题和字幕/任务入口。浏览器刷新后需要重新选择同一文件才能播放；成功字幕缓存保留。": "File title and caption/task access restored. After a browser reload, select the same file again to play it; successful captions remain cached.",
  "文件交接已过期或读取失败，请重新选择文件。若之前识别成功，同一文件会恢复缓存。": "File handoff expired or could not be read. Select the file again. The same file restores its cache if recognition previously succeeded.",
- "文件已接收，但页面初始化失败：{0}。请重试；成功字幕缓存保留。": "File received, but page initialization failed: {0}. Retry; successful captions remain cached."
+ "文件已接收，但页面初始化失败：{0}。请重试；成功字幕缓存保留。": "File received, but page initialization failed: {0}. Retry; successful captions remain cached.",
+	"小鹅通": "Xiaoetong",
+	"视频号": "WeChat Channels",
+	"需在原网页验证；仅微信播放的内容需导入文件": "Verify on the original page; WeChat-only playback requires a local file",
+	"。先打开原网页完成验证": ". Open the original page to verify access first",
+	"请在原网页完成登录或输入访问密码，确认视频能在电脑浏览器播放，再回来重新读取。密码只在原网站输入。": "Sign in or enter the access password on the original website. Confirm the video plays in your desktop browser, then return and retry. Enter passwords only on the original website.",
+	"原网页不可用，请重新打开后再读取。": "The original page is unavailable. Reopen it and retry.",
+	"这个分享页只支持在微信观看，电脑网页没有可读取的视频。请使用你已获授权保存的音视频文件转写。": "This share page plays only in WeChat; the desktop page has no readable video. Transcribe an audio or video file you are authorized to save.",
+	"这是仍在进行的直播，请等回放可用后重试，或导入已保存的音视频文件。": "This stream is still live. Retry when a replay is available, or import a saved audio or video file.",
+	"请先在原网页输入访问密码，再回来重新读取。": "Enter the access password on the original website, then return and retry.",
+	"下载工具仍无法读取这条内容，请使用你已获授权保存的音视频文件转写。": "The downloader still cannot read this item. Transcribe an audio or video file you are authorized to save."
 }

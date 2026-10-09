@@ -677,5 +677,15 @@
  "交给本机助手失败：{0}": "Datei konnte nicht an den lokalen Helfer übergeben werden: {0}",
  "已恢复文件标题和字幕/任务入口。浏览器刷新后需要重新选择同一文件才能播放；成功字幕缓存保留。": "Dateititel und Zugang zu Untertiteln oder Aufgabe wurden wiederhergestellt. Wählen Sie nach dem Neuladen des Browsers dieselbe Datei zur Wiedergabe aus; erfolgreiche Untertitel bleiben im Cache.",
  "文件交接已过期或读取失败，请重新选择文件。若之前识别成功，同一文件会恢复缓存。": "Die Dateiübergabe ist abgelaufen oder konnte nicht gelesen werden. Wählen Sie die Datei erneut aus. Dieselbe Datei stellt ihren Cache wieder her, wenn die vorherige Erkennung erfolgreich war.",
- "文件已接收，但页面初始化失败：{0}。请重试；成功字幕缓存保留。": "Datei empfangen, aber die Seite konnte nicht initialisiert werden: {0}. Versuchen Sie es erneut; erfolgreiche Untertitel bleiben im Cache."
+ "文件已接收，但页面初始化失败：{0}。请重试；成功字幕缓存保留。": "Datei empfangen, aber die Seite konnte nicht initialisiert werden: {0}. Versuchen Sie es erneut; erfolgreiche Untertitel bleiben im Cache.",
+	"小鹅通": "Xiaoetong",
+	"视频号": "WeChat Channels",
+	"需在原网页验证；仅微信播放的内容需导入文件": "Auf der Originalseite bestätigen; nur in WeChat abspielbare Inhalte benötigen eine lokale Datei",
+	"。先打开原网页完成验证": "。Zuerst auf der Originalseite den Zugriff bestätigen",
+	"请在原网页完成登录或输入访问密码，确认视频能在电脑浏览器播放，再回来重新读取。密码只在原网站输入。": "Auf der Originalwebsite anmelden oder das Passwort eingeben. Wiedergabe im Desktop-Browser prüfen und dann erneut lesen. Passwörter nur auf der Originalwebsite eingeben.",
+	"原网页不可用，请重新打开后再读取。": "Die Originalseite ist nicht verfügbar. Erneut öffnen und lesen.",
+	"这个分享页只支持在微信观看，电脑网页没有可读取的视频。请使用你已获授权保存的音视频文件转写。": "Diese Freigabeseite spielt nur in WeChat. Auf dem Desktop ist kein Video lesbar. Eine Audio- oder Videodatei transkribieren, die Sie speichern dürfen.",
+	"这是仍在进行的直播，请等回放可用后重试，或导入已保存的音视频文件。": "Der Stream ist noch live. Nach Verfügbarkeit einer Aufzeichnung erneut versuchen oder eine gespeicherte Datei importieren.",
+	"请先在原网页输入访问密码，再回来重新读取。": "Zuerst das Passwort auf der Originalwebsite eingeben, dann erneut lesen.",
+	"下载工具仍无法读取这条内容，请使用你已获授权保存的音视频文件转写。": "Das Downloadwerkzeug kann diesen Inhalt weiterhin nicht lesen. Eine Datei transkribieren, die Sie speichern dürfen."
 }

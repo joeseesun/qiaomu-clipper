@@ -677,5 +677,15 @@
  "交给本机助手失败：{0}": "Não foi possível entregar o arquivo ao assistente local: {0}",
  "已恢复文件标题和字幕/任务入口。浏览器刷新后需要重新选择同一文件才能播放；成功字幕缓存保留。": "O título e o acesso às legendas ou à tarefa foram restaurados. Após recarregar o navegador, selecione o mesmo arquivo para reproduzi-lo; as legendas bem-sucedidas permanecem em cache.",
  "文件交接已过期或读取失败，请重新选择文件。若之前识别成功，同一文件会恢复缓存。": "A transferência do arquivo expirou ou não pôde ser lida. Selecione o arquivo novamente. O mesmo arquivo restaura seu cache se o reconhecimento anterior tiver sido concluído.",
- "文件已接收，但页面初始化失败：{0}。请重试；成功字幕缓存保留。": "Arquivo recebido, mas a inicialização da página falhou: {0}. Tente novamente; as legendas bem-sucedidas permanecem em cache."
+ "文件已接收，但页面初始化失败：{0}。请重试；成功字幕缓存保留。": "Arquivo recebido, mas a inicialização da página falhou: {0}. Tente novamente; as legendas bem-sucedidas permanecem em cache.",
+	"小鹅通": "Xiaoetong",
+	"视频号": "WeChat Channels",
+	"需在原网页验证；仅微信播放的内容需导入文件": "Verifique na página original; conteúdo exclusivo do WeChat exige um arquivo local",
+	"。先打开原网页完成验证": "。Abra a página original para verificar o acesso",
+	"请在原网页完成登录或输入访问密码，确认视频能在电脑浏览器播放，再回来重新读取。密码只在原网站输入。": "Entre ou digite a senha no site original. Confirme a reprodução no navegador do computador e tente novamente. Digite senhas apenas no site original.",
+	"原网页不可用，请重新打开后再读取。": "A página original está indisponível. Abra-a novamente e tente outra vez.",
+	"这个分享页只支持在微信观看，电脑网页没有可读取的视频。请使用你已获授权保存的音视频文件转写。": "Esta página só reproduz no WeChat; não há vídeo legível no computador. Transcreva um arquivo de áudio ou vídeo que você tenha autorização para salvar.",
+	"这是仍在进行的直播，请等回放可用后重试，或导入已保存的音视频文件。": "A transmissão ainda está ao vivo. Tente quando houver uma gravação ou importe um arquivo salvo.",
+	"请先在原网页输入访问密码，再回来重新读取。": "Digite a senha no site original e tente novamente.",
+	"下载工具仍无法读取这条内容，请使用你已获授权保存的音视频文件转写。": "A ferramenta ainda não consegue ler este conteúdo. Transcreva um arquivo que você tenha autorização para salvar."
 }

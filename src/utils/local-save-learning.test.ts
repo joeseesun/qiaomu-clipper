@@ -233,3 +233,11 @@ it('passes the current Douyin media to the helper and refuses foreign CDN URLs',
  for(const bad of ['https://example.com/a','https://douyinvod.com.evil.org/a','http://v11.douyinvod.com/a']) expect(await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'start',videoKey:KEY,web:{url,mediaUrl:bad}}},sender)).toMatchObject({error:'bad-request'});
  expect(native).not.toHaveBeenCalled();
 });
+
+it('preserves an unsupported website probe instead of falsely reporting an outdated helper', async () => {
+ const reply={ok:false,error:'unsupported',message:'No extractor for this page'};
+ native.mockResolvedValue(reply);
+ expect(await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'probe',url:'https://school.xetslk.com/sl/fixture'}},sender)).toEqual(reply);
+ native.mockResolvedValue({ok:false,error:'不支持的本地操作'});
+ expect(await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'probe',url:'https://school.xetslk.com/sl/fixture'}},sender)).toMatchObject({error:'helper-outdated'});
+});

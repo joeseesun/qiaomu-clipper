@@ -1,11 +1,12 @@
 import { mountStudyCaptionLanguage } from './study-caption-language';
+import { isProtectedStudy, probeProtectedStudy } from './protected-study';
 import { readTedMedia } from './ted-media';
 import { probeDouyinPage, probeWebStudy } from './web-study-probe';
 import DOMPurify from 'dompurify';
 import browser from './browser-polyfill';
 import { Reader } from './reader';
 import { setPageTitle, setPageUrl } from './highlighter';
-import { AUDIO_FILE, asrUpload, asrStatus, asrChoose, registerFeedEpisode, registerWebSource, useWebCookies } from './asr-client';
+import { AUDIO_FILE, asrUpload, asrStatus, asrChoose, registerFeedEpisode, registerWebSource, useWebCookies, type AsrReply, type WebInfo, type CookieBrowser } from './asr-client';
 import { confirmFor, createBarGeneration, viaOf } from './bar-generation';
 import { releaseHandedFile } from './file-handoff';
 import { readFileStudySession, saveFileStudySession } from './file-study-session';
@@ -70,12 +71,13 @@ html .qiaomu-web-retry:has(.qiaomu-web-retry-actions){display:flex;flex-directio
 html .qiaomu-web-retry b{font-size:16px;font-weight:600;line-height:24px;color:var(--text-normal,#222)}
 html .qiaomu-web-retry p{margin:0;color:var(--text-muted,#666);font-size:14px;line-height:22px}
 html .qiaomu-web-retry-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
-html .qiaomu-web-retry-actions button.qw-primary,html .qiaomu-web-retry-actions a.qw-secondary{display:inline-flex;align-items:center;justify-content:center;width:auto;min-height:36px;padding:0 16px;border:0;border-radius:10px;font-size:14px;font-weight:600;line-height:1;text-decoration:none;cursor:pointer;box-shadow:none}
+html .qiaomu-web-retry-actions button.qw-primary,html .qiaomu-web-retry-actions :is(a,button).qw-secondary{display:inline-flex;align-items:center;justify-content:center;width:auto;min-height:36px;padding:0 16px;border:0;border-radius:10px;font-size:14px;font-weight:600;line-height:1;text-decoration:none;cursor:pointer;box-shadow:none}
 html .qiaomu-web-retry-actions button.qw-primary{background:var(--text-normal,#111);color:var(--background-primary,#fff)}
 html .qiaomu-web-retry-actions button.qw-primary:hover:not(:disabled){background:var(--text-normal,#111);opacity:.86}
 html .qiaomu-web-retry-actions button.qw-primary:disabled{opacity:.5;cursor:default}
-html .qiaomu-web-retry-actions a.qw-secondary{background:var(--background-modifier-hover,rgba(127,127,127,.16));color:var(--text-normal,#222)}
-html .qiaomu-web-retry-actions a.qw-secondary:hover{background:var(--background-modifier-border,rgba(127,127,127,.26))}
+html .qiaomu-web-retry-actions :is(a,button).qw-secondary{background:var(--background-modifier-hover,rgba(127,127,127,.16));color:var(--text-normal,#222)}
+html .qiaomu-web-retry-actions :is(a,button).qw-secondary:hover{background:var(--background-modifier-border,rgba(127,127,127,.26))}
+html .qiaomu-web-retry-actions button.qw-secondary:disabled{opacity:.5;cursor:default}
 html .qiaomu-web-retry-actions :is(button,a):focus-visible{outline:2px solid var(--text-accent,#666);outline-offset:2px}
 html .qiaomu-web-retry select{appearance:none;width:auto;max-width:100%;padding:8px 12px;border:1px solid var(--background-modifier-border,#bbb);border-radius:8px;background:var(--background-primary,#fff);color:var(--text-normal,#222);margin:0 8px 8px 0}
 html .qiaomu-web-retry select:focus-visible{outline:2px solid var(--text-accent,#666);outline-offset:2px}
@@ -312,8 +314,9 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 		// The video host of Douyin may refuse a stranger's page as referrer; sending none works (checked on a live item).
 		if (isDouyin) { const meta = document.createElement('meta'); meta.name = 'referrer'; meta.content = 'no-referrer'; document.head.append(meta); }
 		const source = () => browser.runtime.sendMessage({ action: 'qiaomuWebStudySource', url: address, sourceTabId: options.sourceTabId }).catch(() => null) as Promise<import('./asr-client').WebInfo | null>;
-		const { info, cookies } = official ? { info: official, cookies: undefined }
+		const { info, cookies, sourceUrl }: { info: AsrReply<WebInfo>; cookies?: CookieBrowser; sourceUrl?: string } = official ? { info: official, cookies: undefined }
 			: isDouyin ? { ...await probeDouyinPage(address, status, holder, source), cookies: undefined }
+			: isProtectedStudy(address) ? await probeProtectedStudy(address, status, holder)
 			: await probeWebStudy(address, status, holder);
 		if (!info.ok) {
 			status.textContent = info.error === 'unsupported' ? t('这个网址读不了：下载工具不支持这个网站，或这个页面里没有音视频。') : info.error === 'needs-cookies' ? t('这个网站需要有效的浏览器状态才能读取。') : info.error === 'helper-offline' || info.error === 'helper-outdated' ? text('subtitleGenOffline', '没有连上本地助手，需要先安装或更新本地助手。', 'The local helper is not connected or is out of date.') : info.error === 'missing' ? t('还没有安装下载工具（yt-dlp），请先在「ASR 语音识别」里安装，或运行 brew install yt-dlp。') : info.error === 'timeout' ? t('读取超时，请稍后重试。') : t('读取失败') + ((info as { message?: string }).message ? '：' + (info as { message?: string }).message : '');
@@ -328,7 +331,7 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 			// No file that plays: say so below the player area instead of showing a player that cannot start.
 			if (playable) { info.mediaUrl = playable; info.video = true; } else info.mediaUrl = null;
 		}
-		key = await webKey(address); registerWebSource(key, address, isDouyin ? info.audioUrl || info.mediaUrl || undefined : undefined);
+		key = await webKey(sourceUrl || address); registerWebSource(key, sourceUrl || address, isDouyin ? info.audioUrl || info.mediaUrl || undefined : undefined);
 		if (cookies) useWebCookies(key, cookies);
 		void recordStudy({ url: address, title: info.title, path: `reader.html?study=web&url=${encodeURIComponent(address)}`, kind: 'web' });
 		// A post on X says something of its own: its words stay with the media. A long description of another site waits behind a tab.

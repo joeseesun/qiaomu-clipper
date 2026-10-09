@@ -1,3 +1,4 @@
+import { sharedStudyAddress, isProtectedStudy } from './protected-study';
 import browser from './browser-polyfill';
 import { audioStudyPath, bilibiliVideo, videoStudyPath, xiaoyuzhouEpisode } from './video-source';
 import { youtubeVideoId } from './youtube-url';
@@ -20,10 +21,10 @@ export const webPath = (href: string) => `reader.html?study=web&url=${encodeURIC
 
 // Where a pasted link should open, or undefined if it is not a link at all. Text without a scheme is taken as an address.
 export function classifyLink(input: string, sites: StudySites = defaultStudySites()): StudyLink | undefined {
-	const trimmed = input.trim(); if (!trimmed || /\s/.test(trimmed)) return undefined;
+	const trimmed = sharedStudyAddress(input); if (!trimmed) return undefined;
 	let url: URL;
 	try { url = new URL(/^[a-z][a-z0-9+.-]*:/i.test(trimmed) ? trimmed : 'https://' + trimmed); } catch { return undefined; }
-	if (!/^https?:$/.test(url.protocol) || !url.hostname.includes('.')) return undefined;
+	if (url.username || url.password || !/^https?:$/.test(url.protocol) || !url.hostname.includes('.')) return undefined;
 	const href = url.href;
 	const site = siteOf(href);
 	if (youtubeVideoId(href) && isSiteOn(sites, 'youtube')) return { kind: 'youtube', url: href, path: `reader.html?study=youtube&url=${encodeURIComponent(href)}&sourceTab=0&title=` };
@@ -219,7 +220,7 @@ export async function showStudyHome(doc: Document, actions: { open: (path: strin
 	const chips = make('div', 'qh-sites'); for (const name of SITE_CHIPS) chips.append(make('span', '', t(name)));
 	const react = () => {
 		const link = classifyLink(input.value, sites); go.disabled = !link; hint.classList.remove('is-error'); asMedia.hidden = !(link?.kind === 'page' && link.maybeMedia);
-		hintText.textContent = !input.value.trim() ? '' : link ? t('识别为：{0}{1}', [link.site ?? KIND_LABEL[link.kind], link.kind === 'page' ? (link.maybeMedia ? t('。如果是视频或音频，可以点「按音视频学习」') : '') : t('。没有字幕会自动转写')]) : t('这不像一个链接');
+		hintText.textContent = !input.value.trim() ? '' : link ? t('识别为：{0}{1}', [link.site ?? KIND_LABEL[link.kind], link.kind === 'page' ? (link.maybeMedia ? t('。如果是视频或音频，可以点「按音视频学习」') : '') : isProtectedStudy(link.url) ? t('。先打开原网页完成验证') : t('。没有字幕会自动转写')]) : t('这不像一个链接');
 	};
 	asMedia.addEventListener('click', () => { const link = classifyLink(input.value, sites); if (link?.kind === 'page') actions.open(webPath(link.url)); });
 	input.addEventListener('input', react);

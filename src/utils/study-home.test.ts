@@ -121,3 +121,13 @@ it('shows a second button to study an unknown page as audio or video, only when 
 	state.store.qiaomuStudySites = { off: [], other: false }; await home(); type('https://example.com/post'); expect(media().hidden).toBe(true); // switched off in the settings
 	state.store.qiaomuStudySites = { off: ['vimeo'], other: true }; await home(); type('https://vimeo.com/123456'); expect(hint()).toContain('网页（普通阅读）');
 });
+
+it('routes Xiaoetong and Channels shares without retaining passwords or promising automatic ASR', async () => {
+ const url = 'https://school.xetslk.com/sl/fixture';
+ expect(classifyLink('直播链接：' + url + '\n直播密码：fixture-secret')).toMatchObject({kind:'web',url,site:'小鹅通'});
+ expect(classifyLink('[视频号](https://weixin.qq.com/sph/fixture)')?.kind).toBe('web');
+ expect(classifyLink(url, {off:['xiaoe'],other:true})?.kind).toBe('page');
+ expect(classifyLink('https://user:password@school.xetslk.com/sl/x')).toBeUndefined();
+ await home(); type(url); expect(hint()).toContain('原网页'); expect(hint()).not.toContain('自动转写');
+ document.querySelector('form')!.dispatchEvent(new Event('submit',{cancelable:true}));expect(open).toHaveBeenCalledWith(expect.stringContaining('study=web'));
+});
