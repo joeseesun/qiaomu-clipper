@@ -50,6 +50,7 @@
  "RSS 同步失败，请重试": "RSS 동기화 실패. 다시 시도하세요",
  "RSS 已收录": "RSS에 추가됨",
  "RSS 提交失败，请重试": "RSS 제출 실패. 다시 시도하세요",
+ "RSS 连接超时，请检查网络或代理后重试": "RSS 연결 시간이 초과되었습니다. 네트워크 또는 프록시를 확인한 후 다시 시도하세요",
  "RSS 网络连接失败，请稍后重试": "RSS 네트워크 연결 실패. 나중에 다시 시도하세요",
  "RSS 返回的剪藏结果无效": "RSS가 유효하지 않은 클립 결과를 반환했습니다",
  "Steph Ango · 2023 年 7 月 1 日 · <a class=\"reader-preview-meta-link\" href=\"https://stephango.com/file-over-app\" target=\"_blank\">stephango.com</a>": "Steph Ango · 2023년 7월 1일 · <a class=\"reader-preview-meta-link\" href=\"https://stephango.com/file-over-app\" target=\"_blank\">stephango.com</a>",

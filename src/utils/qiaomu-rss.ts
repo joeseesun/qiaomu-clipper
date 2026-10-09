@@ -28,18 +28,39 @@ function getDeviceId(): Promise<string> {
 export async function submitQiaomuClip(clip: QiaomuClip): Promise<QiaomuResult> {
 	const payload = validateQiaomuClip(clip);
 	const deviceId = await getDeviceId();
-	const controller = new AbortController();
-	const timer = setTimeout(() => controller.abort(), 15000);
-	try {
-		const response = await fetch(`${QIAOMU_ORIGIN}/api/clipper/clips`, {
-			method: 'POST', credentials: 'omit',
-			headers: { 'Content-Type': 'application/json', 'X-Qiaomu-Client': 'web-clipper', 'X-Qiaomu-Submission-Version': '2', 'X-Qiaomu-Device': deviceId },
-			body: JSON.stringify(payload), signal: controller.signal,
-		});
-		if (response.status === 429) return { error: t('剪藏提交过于频繁，请稍后重试') };
-		if (!response.ok) return { error: t('RSS 同步失败（HTTP {0}），请稍后重试', [response.status]) };
-		const result = await response.json();
-		return result.accepted && ['user-submitted', 'qiaomu-clippings'].includes(result.sourceId) && typeof result.entryId === 'string' ? result : { error: t('RSS 返回的剪藏结果无效') };
-	} catch { return { error: t('RSS 网络连接失败，请稍后重试') }; }
-	finally { clearTimeout(timer); }
+	const body = JSON.stringify(payload);
+	const headers = { 'Content-Type': 'application/json', 'X-Qiaomu-Client': 'web-clipper', 'X-Qiaomu-Submission-Version': '2', 'X-Qiaomu-Device': deviceId };
+	// The server deduplicates by source URL, including when an acknowledgement
+	// was lost. Reuse the exact payload/device for one bounded retry. Keep each
+	// fetch below Chrome's 30-second service-worker response deadline.
+	for (let attempt = 0; attempt < 2; attempt++) {
+		if (attempt) {
+			await new Promise(resolve => setTimeout(resolve, 750));
+			// An extension API call resets the worker's inactivity timer before
+			// another slow fetch; a pending Promise alone does not keep it alive.
+			await browser.storage.local.get('qiaomuDeviceId');
+		}
+		const controller = new AbortController();
+		const timer = setTimeout(() => controller.abort(), 25000);
+		try {
+			const response = await fetch(`${QIAOMU_ORIGIN}/api/clipper/clips`, {
+				method: 'POST', credentials: 'omit', headers, body, signal: controller.signal,
+			});
+			if (response.status === 429) return { error: t('剪藏提交过于频繁，请稍后重试') };
+			if (!response.ok) {
+				if (attempt === 0 && [502, 503, 504].includes(response.status)) continue;
+				return { error: t('RSS 同步失败（HTTP {0}），请稍后重试', [response.status]) };
+			}
+			let result: any;
+			try { result = await response.json(); }
+			catch (error) {
+				if (controller.signal.aborted || !(error instanceof SyntaxError)) throw error;
+				return { error: t('RSS 返回的剪藏结果无效') };
+			}
+			return result?.accepted && ['user-submitted', 'qiaomu-clippings'].includes(result.sourceId) && typeof result.entryId === 'string' ? result : { error: t('RSS 返回的剪藏结果无效') };
+		} catch {
+			if (attempt === 1) return { error: controller.signal.aborted ? t('RSS 连接超时，请检查网络或代理后重试') : t('RSS 网络连接失败，请稍后重试') };
+		} finally { clearTimeout(timer); }
+	}
+	return { error: t('RSS 网络连接失败，请稍后重试') };
 }

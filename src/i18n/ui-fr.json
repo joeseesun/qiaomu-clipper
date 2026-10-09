@@ -50,6 +50,7 @@
  "RSS 同步失败，请重试": "Échec de la synchronisation RSS. Réessayez",
  "RSS 已收录": "Ajouté au RSS",
  "RSS 提交失败，请重试": "Échec de la soumission RSS. Réessayez",
+ "RSS 连接超时，请检查网络或代理后重试": "La connexion RSS a expiré. Vérifiez votre réseau ou proxy, puis réessayez",
  "RSS 网络连接失败，请稍后重试": "Échec de la connexion réseau RSS. Réessayez plus tard",
  "RSS 返回的剪藏结果无效": "RSS a renvoyé un résultat de clip invalide",
  "Steph Ango · 2023 年 7 月 1 日 · <a class=\"reader-preview-meta-link\" href=\"https://stephango.com/file-over-app\" target=\"_blank\">stephango.com</a>": "Steph Ango · 1er juillet 2023 · <a class=\"reader-preview-meta-link\" href=\"https://stephango.com/file-over-app\" target=\"_blank\">stephango.com</a>",
