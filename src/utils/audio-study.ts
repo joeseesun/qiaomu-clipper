@@ -332,7 +332,7 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 			// No file that plays: say so below the player area instead of showing a player that cannot start.
 			if (playable) { info.mediaUrl = playable; info.video = true; } else info.mediaUrl = null;
 		}
-		key = await webKey(sourceUrl || address); registerWebSource(key, sourceUrl || address, isDouyin ? info.audioUrl || info.mediaUrl || undefined : undefined);
+		key = await webKey(sourceUrl || address); registerWebSource(key, sourceUrl || address, isDouyin || siteOf(address)?.id === 'channels' ? info.audioUrl || info.mediaUrl || undefined : undefined);
 		if (cookies) useWebCookies(key, cookies);
 		void recordStudy({ url: address, title: info.title, path: `reader.html?study=web&url=${encodeURIComponent(address)}`, kind: 'web' });
 		// A post on X says something of its own: its words stay with the media. A long description of another site waits behind a tab.

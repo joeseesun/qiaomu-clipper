@@ -2,7 +2,7 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 vi.mock('./browser-polyfill', () => ({ default: { runtime: { getURL: (p: string) => 'chrome-extension://fixture/' + p } } }));
 vi.mock('./asr-client', () => ({ asrProbe: vi.fn(), thisBrowser: () => 'edge' }));
-import { sharedStudyAddress, isProtectedStudy, snapshotProtectedPage, protectedPageBridge, probeProtectedStudy } from './protected-study';
+import { sharedStudyAddress, xiaoeWebEntry, isProtectedStudy, snapshotProtectedPage, protectedPageBridge, probeProtectedStudy } from './protected-study';
 const url = 'https://school.xetslk.com/sl/fixture', resolved = 'https://school.mp.xiaoeknow.com/course?id=fixture';
 const settle = async () => { for (let i = 0; i < 12; i++) await Promise.resolve(); };
 beforeEach(() => document.body.replaceChildren());
@@ -35,7 +35,7 @@ it('classifies a finite playable recording, rejects a live stream and ignores hi
 });
 it('binds redirected tabs to the requesting reader and checks the platform and navigation race', async () => {
  const create=vi.fn().mockResolvedValue({id:7}), get=vi.fn().mockResolvedValue({url:resolved}), inspect=vi.fn().mockResolvedValue({state:'ready',url:resolved});
- const bridge=protectedPageBridge({create,get,inspect});
+ const bridge=protectedPageBridge({create,get,inspect,update:vi.fn()});
  expect(await bridge(1,{mode:'read',url,tabId:7})).toEqual({state:'unavailable'});expect(inspect).not.toHaveBeenCalled();
  expect(await bridge(1,{mode:'open',url})).toEqual({tabId:7});
  expect(await bridge(2,{mode:'read',url,tabId:7})).toEqual({state:'unavailable'});
@@ -72,4 +72,22 @@ it('returns missing-helper errors to the existing setup flow instead of suggesti
  const info={ok:false as const,error:'helper-offline'},probe=vi.fn().mockResolvedValue(info);
  const done=probeProtectedStudy(url,status,holder,request,probe);await settle();const [open,retry]=Array.from(holder.querySelectorAll('button'));
  open.click();await settle();retry.click();expect(await done).toEqual({info,sourceUrl:resolved});expect(holder.children).toHaveLength(0);
+});
+
+it('uses only the shop-and-resource-matched H5 handoff and classifies login', () => {
+ const make = (h5: string, overrides = {}) => 'https://appfixture.mp.xiaoeknow.com/?params=' + encodeURIComponent(btoa(JSON.stringify({app_id:'appfixture',resource_id:'l_fixture',h5_url:h5,...overrides})));
+ const h5 = 'https://appfixture.h5.xiaoeknow.com/v4/course/alive/l_fixture?app_id=appfixture';
+ expect(xiaoeWebEntry(make(h5))).toBe(h5);
+ for (const bad of [h5.replace('appfixture.h5','other.h5'),h5.replace('l_fixture?','l_other?'),h5+'&token=secret',h5.replace('https:','http:'),'https://evil.example/']) expect(xiaoeWebEntry(make(bad))).toBeUndefined();
+ expect(xiaoeWebEntry(make(h5,{app_id:'other'}))).toBeUndefined();
+ expect(xiaoeWebEntry('https://appfixture.mp.xiaoeknow.com/?params=bad')).toBeUndefined();
+ document.body.innerHTML='<input placeholder="请输入手机号"><p>验证码登录</p>';
+ expect(snapshotProtectedPage()).toEqual({state:'login'});
+});
+it('opens the provided H5 entry only in the owned original tab', async () => {
+ const h5='https://appfixture.h5.xiaoeknow.com/v4/course/alive/l_fixture?app_id=appfixture';
+ const current='https://appfixture.mp.xiaoeknow.com/?params='+encodeURIComponent(btoa(JSON.stringify({app_id:'appfixture',resource_id:'l_fixture',h5_url:h5})));
+ const update=vi.fn(),inspect=vi.fn(),bridge=protectedPageBridge({create:vi.fn().mockResolvedValue({id:7}),get:vi.fn().mockResolvedValue({url:current}),update,inspect});
+ await bridge(1,{mode:'open',url});expect(await bridge(2,{mode:'read',url,tabId:7})).toEqual({state:'unavailable'});expect(update).not.toHaveBeenCalled();
+ expect(await bridge(1,{mode:'read',url,tabId:7})).toEqual({state:'opening'});expect(update).toHaveBeenCalledWith(7,{url:h5});expect(inspect).not.toHaveBeenCalled();
 });

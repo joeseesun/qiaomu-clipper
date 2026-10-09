@@ -302,14 +302,34 @@ def douyin_media(page, media):
         params = parse_qs(parsed.query, keep_blank_values=True)
         return public_https(media) and parsed.port in (None, 443) and (host == 'douyinvod.com' or host.endswith('.douyinvod.com')) and ('__vid' not in params or params['__vid'] == [page.rsplit('/', 1)[-1]])
     except ValueError: return False
+def channels_share(page):
+    from urllib.parse import urlparse, parse_qs
+    try:
+        p = urlparse(str(page))
+        if not public_https(page) or p.port not in (None, 443) or p.fragment: return False
+        if p.hostname == 'weixin.qq.com': return bool(re.fullmatch(r'/sph/[A-Za-z0-9]{3,64}/?', p.path)) and not p.query
+        q = parse_qs(p.query)
+        return p.hostname == 'channels.weixin.qq.com' and p.path == '/finder-preview/pages/sph' and set(q) == {'id'} and len(q['id']) == 1 and bool(re.fullmatch(r'[A-Za-z0-9]{3,64}', q['id'][0]))
+    except (TypeError, ValueError): return False
+
+def channels_media(page, media):
+    from urllib.parse import urlparse
+    if not channels_share(page) or not isinstance(media, str) or len(media) > 8000: return False
+    try:
+        p = urlparse(media)
+        return public_https(media) and p.port in (None, 443) and not p.fragment and p.hostname == 'finder.video.qq.com' and bool(re.fullmatch(r'/(?:[0-9]+/){2}stodownload', p.path))
+    except ValueError: return False
+
+def page_media(page, media): return douyin_media(page, media) or channels_media(page, media)
+
 def download_page_media(directory, spec):
     import urllib.error
     page = spec['url']; media = spec['mediaUrl']
-    if not douyin_media(page, media): raise Failed('视频地址无效，请刷新原页面后重试')
+    if not page_media(page, media): raise Failed('视频地址无效，请刷新原页面后重试')
     target = directory / 'audio.src.mp4'
     write_state(directory, state='downloading', stage='正在读取原页面视频', progress=0)
     try:
-        with open_public(media, timeout=60, headers={'Referer': page, 'User-Agent': BROWSER_AGENT}, allowed=lambda url: douyin_media(page, url)) as response, target.open('wb') as out:
+        with open_public(media, timeout=60, headers={'Referer': page, 'User-Agent': BROWSER_AGENT}, allowed=lambda url: page_media(page, url)) as response, target.open('wb') as out:
             total = int(response.headers.get('Content-Length') or 0); got = 0
             if total > MAX_UPLOAD: raise Failed('视频文件太大')
             for block in iter(lambda: response.read(1 << 20), b''):
@@ -509,7 +529,7 @@ def start(base, message):
         if not public_https(ref['url']): raise ValueError('网页地址必须是公开的 https 地址')
         url = ref['url']
         if ref.get('mediaUrl') is not None:
-            if not douyin_media(url, ref['mediaUrl']): raise ValueError('原页面视频地址无效')
+            if not page_media(url, ref['mediaUrl']): raise ValueError('原页面视频地址无效')
             media_url = ref['mediaUrl']
     if video_key.startswith('file:') and not staged_file(base, video_key) and not read_json(result_path(base, video_key)): return {'ok': False, 'error': 'file-missing'}
     language = message.get('language') or 'auto'
@@ -935,6 +955,10 @@ def run_worker(base_dir):
     finally:
         for leftover in directory.glob('audio.*'): leftover.unlink(missing_ok=True)
         (directory / 'cookies.txt').unlink(missing_ok=True)  # the site's cookies live only as long as the job
+        # Signed media addresses are needed only by this worker, not by retries or the result cache.
+        if spec.get('mediaUrl') and (directory / 'spec.json').is_file():
+            try: atomic_json(directory / 'spec.json', {k: v for k, v in spec.items() if k != 'mediaUrl'}, durable=False)
+            except OSError: pass
 
 if __name__ == '__main__':
     if len(sys.argv) == 3 and sys.argv[1] == 'worker': run_worker(sys.argv[2])

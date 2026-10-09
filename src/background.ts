@@ -1,3 +1,4 @@
+import { channelsStudyBridge, parseChannelsShare, readChannelsPlayback } from './utils/channels-study';
 import { protectedPageBridge, snapshotProtectedPage } from './utils/protected-study';
 import { createContentText } from './utils/content-i18n';
 import { getWebPageMedia, isTikTokMedia, snapshotDouyinPlayer, snapshotTikTokPlayer, tabMayLendTikTokMedia, tiktokVideoPath, validateDouyinTracks } from './utils/web-page-media';
@@ -1494,6 +1495,7 @@ browser.runtime.onMessage.addListener((raw: unknown, sender) => {
 const protectedStudyPage = protectedPageBridge({
  create: options => browser.tabs.create(options),
  get: id => browser.tabs.get(id),
+ update: (id, options) => browser.tabs.update(id, options),
  inspect: async tabId => {
   const [result] = await browser.scripting.executeScript({ target: { tabId }, func: snapshotProtectedPage });
   return result?.result as ReturnType<typeof snapshotProtectedPage> || { state: 'unavailable' };
@@ -1504,4 +1506,17 @@ browser.runtime.onMessage.addListener((raw: unknown, sender) => {
  if (request?.action !== 'qiaomuProtectedStudyPage') return;
  if (sender.id !== browser.runtime.id || !sender.url?.startsWith(browser.runtime.getURL('reader.html?')) || sender.tab?.id === undefined) return Promise.resolve({ state: 'unavailable' });
  return protectedStudyPage(sender.tab.id, request).catch(() => ({ state: 'unavailable' }));
+});
+
+// User-selected third-party resolver; each reader owns only its own two tabs.
+const channelsStudy = channelsStudyBridge({
+ create: options => browser.tabs.create(options), get: id => browser.tabs.get(id),
+ parse: (tabId, share) => browser.scripting.executeScript({ target: { tabId }, world: 'MAIN', func: parseChannelsShare, args: [share] }).then(results => results[0]?.result as Awaited<ReturnType<typeof parseChannelsShare>> || { state: 'unavailable' }),
+ inspect: tabId => browser.scripting.executeScript({ target: { tabId }, world: 'MAIN', func: readChannelsPlayback }).then(results => results[0]?.result as Awaited<ReturnType<typeof readChannelsPlayback>> || { state: 'unavailable' }),
+});
+browser.runtime.onMessage.addListener((raw: unknown, sender) => {
+ const request = raw as { action?: string; mode?: string; url?: string };
+ if (request?.action !== 'qiaomuChannelsStudy') return;
+ if (sender.id !== browser.runtime.id || !sender.url?.startsWith(browser.runtime.getURL('reader.html?')) || sender.tab?.id === undefined) return Promise.resolve({ state: 'unavailable' });
+ return channelsStudy(sender.tab.id, request).catch(() => ({ state: 'unavailable' }));
 });

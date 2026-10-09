@@ -691,5 +691,9 @@
 	"无法保留本地视频，请留在当前页面重试切换。字幕不会丢失。": "Could not retain the local video. Stay on this page and retry switching modes. Your captions are safe.",
 	"本地视频的临时播放记录已过期，请重新选择同一文件。字幕和编辑内容保留，不会重新识别。": "The temporary video access has expired. Select the same file again. Captions and edits are retained; recognition will not run again.",
 	"请选择原来的同一文件。": "Select the same original file.",
-	"切换失败，请重试": "Could not switch modes. Please retry."
+	"切换失败，请重试": "Could not switch modes. Please retry.",
+	"此链接需要腾讯元宝解析。点击后将打开元宝；登录后仅将这条链接交给元宝解析，登录信息不会交给字幕识别服务。": "This link needs Tencent Yuanbao to resolve it. Clicking opens Yuanbao; after signing in, only this link is sent for parsing. Login information is not sent to the transcription service.",
+	"打开元宝并验证": "Open Yuanbao and verify",
+	"请在元宝完成登录，再回来重新读取这条视频号链接。": "Sign in on Yuanbao, then return to read this Channels link again.",
+	"官方播放页已打开，请等视频加载后重新读取。": "The official player is open. Wait for the video to load, then read it again."
 }

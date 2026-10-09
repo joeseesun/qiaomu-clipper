@@ -691,5 +691,9 @@
 	"无法保留本地视频，请留在当前页面重试切换。字幕不会丢失。": "Não foi possível manter o vídeo local. Tente mudar de modo novamente nesta página. As legendas são preservadas.",
 	"本地视频的临时播放记录已过期，请重新选择同一文件。字幕和编辑内容保留，不会重新识别。": "O acesso temporário ao vídeo expirou. Selecione o mesmo arquivo novamente. As legendas e edições são preservadas; o reconhecimento não será repetido.",
 	"请选择原来的同一文件。": "Selecione o mesmo arquivo original.",
-	"切换失败，请重试": "Não foi possível mudar de modo. Tente novamente."
+	"切换失败，请重试": "Não foi possível mudar de modo. Tente novamente.",
+	"此链接需要腾讯元宝解析。点击后将打开元宝；登录后仅将这条链接交给元宝解析，登录信息不会交给字幕识别服务。": "Este link precisa ser analisado pelo Tencent Yuanbao. Ao clicar, o Yuanbao é aberto; após o login, apenas este link é enviado para análise. Os dados de login não são enviados ao serviço de transcrição.",
+	"打开元宝并验证": "Abrir Yuanbao e verificar",
+	"请在元宝完成登录，再回来重新读取这条视频号链接。": "Entre no Yuanbao e volte para ler este link do Channels novamente.",
+	"官方播放页已打开，请等视频加载后重新读取。": "O player oficial está aberto. Aguarde o vídeo carregar e leia o link novamente."
 }

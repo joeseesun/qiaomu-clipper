@@ -8,6 +8,8 @@ on:
       - 'native/test_install_check.py'
       - '.github/workflows/native-asr.yml'
       - 'src/utils/bar-generation.test.ts'
+      - 'src/utils/channels-study*.ts'
+      - 'src/utils/protected-study*.ts'
       - 'package*.json'
   pull_request:
     paths:
@@ -17,6 +19,8 @@ on:
       - 'native/test_install_check.py'
       - '.github/workflows/native-asr.yml'
       - 'src/utils/bar-generation.test.ts'
+      - 'src/utils/channels-study*.ts'
+      - 'src/utils/protected-study*.ts'
       - 'package*.json'
 permissions:
   contents: read
@@ -34,6 +38,7 @@ jobs:
           python-version: '3.12'
       - run: python -m unittest discover -s native -p 'test_asr_install.py'
       - run: python -m unittest discover -s native -p 'test_asr_recovery.py'
+      - run: python -m unittest discover -s native -p 'test_asr_page_media.py'
       - run: python -m unittest discover -s native -p 'test_install_check.py'
       - if: runner.os == 'Linux'
         run: python -m unittest discover -s native -p 'test_*.py'

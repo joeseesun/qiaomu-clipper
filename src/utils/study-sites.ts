@@ -9,7 +9,7 @@ export const STUDY_SITES: StudySite[] = [
 	{ id: 'bilibili', get name() { return t('哔哩哔哩'); }, hosts: ['bilibili.com', 'b23.tv'], builtin: true, get note() { return t('字幕条、沉浸学习'); } },
 	{ id: 'xiaoyuzhou', get name() { return t('小宇宙'); }, hosts: ['xiaoyuzhoufm.com'], builtin: true, get note() { return t('字幕条、沉浸学习'); } },
 	{ id: 'xiaoe', get name() { return t('小鹅通'); }, hosts: ['xetslk.com', 'xiaoe-tech.com', 'xiaoeknow.com'], get note() { return t('需在原网页验证；仅微信播放的内容需导入文件'); } },
-	{ id: 'channels', get name() { return t('视频号'); }, hosts: ['weixin.qq.com'], get note() { return t('需在原网页验证；仅微信播放的内容需导入文件'); } },
+	{ id: 'channels', get name() { return t('视频号'); }, hosts: ['weixin.qq.com'], get note() { return t('打开元宝并验证'); } },
 	{ id: 'vimeo', name: 'Vimeo', hosts: ['vimeo.com'] },
 	{ id: 'x', name: 'X（Twitter）', hosts: ['x.com', 'twitter.com'], get note() { return t('帖子里的视频或音频：字幕条，按 A 三次进入学习'); } },
 	{ id: 'tiktok', name: 'TikTok', hosts: ['tiktok.com'] },
