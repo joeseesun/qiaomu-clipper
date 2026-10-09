@@ -258,3 +258,10 @@ it('never exports Channels login even when automatic browser login is enabled', 
  await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'start',videoKey:'web:'+'a'.repeat(12),cookies:'chrome',web:{url:'https://weixin.qq.com/sph/Fixture123',mediaUrl:'https://finder.video.qq.com/251/20302/stodownload?encfilekey=fixture'}}},sender);
  const request=native.mock.calls[0][1];expect(request.cookies).toBeUndefined();expect(request.cookiesTxt).toBeUndefined();expect(asrStore.data.qiaomuAsrSettings).toMatchObject({autoLogin:true});
 });
+
+it('passes Xiaoetong replay media without exporting browser login to the helper',async()=>{
+ asrStore.data.qiaomuAsrSettings={mode:'local',engine:'auto',autoLogin:true,profiles:[],routes:{}};native.mockResolvedValue({ok:true});
+ const url='https://appfixture123.h5.xiaoeknow.com/v4/course/alive/l_fixture123456?app_id=appfixture123',mediaUrl='https://video.xet.tech/fixture.m3u8?sign=fixture';
+ await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'start',videoKey:'web:'+'a'.repeat(12),web:{url,mediaUrl}}},sender);
+ expect(native.mock.calls[0][1]).toMatchObject({web:{url,mediaUrl}});expect(native.mock.calls[0][1].cookies).toBeUndefined();expect(native.mock.calls[0][1].cookiesTxt).toBeUndefined();
+});

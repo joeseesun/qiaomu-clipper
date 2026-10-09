@@ -140,5 +140,9 @@
  "正在不使用登录状态重试视频下载": "Retrying the video download without browser sign-in",
  "正在重试 YouTube 音频下载": "Retrying the YouTube audio download",
  "YouTube 拒绝了当前登录状态，匿名下载也需要验证身份；请更新 YouTube 登录状态后重试": "YouTube rejected the current sign-in session, and downloading without it also requires verification. Sign in to YouTube again and retry.",
- "字幕生成进程意外退出，请重试": "Subtitle generation stopped unexpectedly. Please retry."
+ "字幕生成进程意外退出，请重试": "Subtitle generation stopped unexpectedly. Please retry.",
+ "回放地址无效，请重新打开学习页": "The replay address is invalid. Reopen the study page",
+ "回放地址已过期，请重新打开学习页再生成字幕": "The replay address has expired. Reopen the study page and generate subtitles again",
+ "回放下载失败：": "Replay download failed: ",
+ "正在下载小鹅通回放": "Downloading the Xiaoe replay"
 }

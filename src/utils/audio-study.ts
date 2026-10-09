@@ -1,7 +1,8 @@
+import { bindRemotePreviewMedia } from './remote-preview-media';
 import { mountStudyCaptionLanguage } from './study-caption-language';
 import { isProtectedStudy, probeProtectedStudy } from './protected-study';
 import { readTedMedia } from './ted-media';
-import { probeDouyinPage, probeWebStudy } from './web-study-probe';
+import { probeDouyinPage, probeWebStudy, probeXiaoeLive, type XiaoeAnswer } from './web-study-probe';
 import DOMPurify from 'dompurify';
 import browser from './browser-polyfill';
 import { Reader } from './reader';
@@ -184,6 +185,7 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 	// The player: an <audio> would do, but the transcript wiring follows a <video class="reader-video-player">, which plays audio too.
 	const showPlayer = (src: string, picture?: { poster?: string; audioUrl?: string }): HTMLVideoElement => {
 		const player = mountMediaStudyPlayer(article, holder, src, Boolean(picture), picture?.poster, picture?.audioUrl);
+		bindRemotePreviewMedia(session.draft, player, src, Boolean(picture), picture?.poster, picture?.audioUrl);
 		if (!picture) player.parentElement!.append(mountAudioControls(document, player, { play: text('audioPlay', '播放', 'Play'), pause: text('audioPause', '暂停', 'Pause'), back: text('audioBack', '后退 15 秒', 'Back 15 s'), forward: text('audioForward', '前进 30 秒', 'Forward 30 s'), speed: text('audioSpeed', '播放速度', 'Playback speed'), seek: text('audioSeek', '播放进度', 'Position') }));
 		return player;
 	};
@@ -253,7 +255,7 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 		if (episode.post) { const post = document.createElement('div'); post.className = 'qiaomu-post-text'; post.innerHTML = DOMPurify.sanitize(episode.post); sourceHtml = post.outerHTML; holder.before(post); }
 		const player = episode.audio ? showPlayer(episode.audio, episode.picture ? { poster: episode.cover, audioUrl: episode.audioUrl } : undefined) : undefined;
 		// Local edition: save the file being played. A video whose picture and sound are two files would need merging; that is not offered.
-		if (__LOCAL_EDITION__ && player && episode.audio && /^https:\/\//.test(episode.audio) && !(episode.picture && episode.audioUrl)) {
+		if (__LOCAL_EDITION__ && player && episode.audio && /^https:\/\//.test(episode.audio) && !/\.m3u8(?:$|\?)/i.test(episode.audio) && !(episode.picture && episode.audioUrl)) {
 			const url = episode.audio, video = Boolean(episode.picture), name = title;
 			void (async () => {
 				const CHOICE_KEY = 'qiaomuDownloadChoice';
@@ -307,18 +309,34 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 		await present({ ...episode, seconds: episode.minutes ? episode.minutes * 60 : undefined }); await begin(); return;
 	}
 	if (options.kind === 'web') {
-		const address = options.webUrl ?? '';
+		let address = options.webUrl ?? '';
 		if (!/^https:\/\//.test(address)) { status.textContent = t('只支持 https 网址'); return; }
+		const isXiaoe = siteOf(address)?.id === 'xiaoe';
 		status.textContent = text('webReading', '正在读取这个网址…', 'Reading this address…');
-		const official = await readTedMedia(address, async url => { const reply = await browser.runtime.sendMessage({ action: 'fetchProxy', url, options: {} }) as { text?: string }; return reply?.text || ''; });
+		const official = isXiaoe ? null : await readTedMedia(address, async url => { const reply = await browser.runtime.sendMessage({ action: 'fetchProxy', url, options: {} }) as { text?: string }; return reply?.text || ''; });
 		const isDouyin = siteOf(address)?.id === 'douyin';
 		// The video host of Douyin may refuse a stranger's page as referrer; sending none works (checked on a live item).
 		if (isDouyin) { const meta = document.createElement('meta'); meta.name = 'referrer'; meta.content = 'no-referrer'; document.head.append(meta); }
 		const source = () => browser.runtime.sendMessage({ action: 'qiaomuWebStudySource', url: address, sourceTabId: options.sourceTabId }).catch(() => null) as Promise<import('./asr-client').WebInfo | null>;
 		const { info, cookies, sourceUrl }: { info: AsrReply<WebInfo>; cookies?: CookieBrowser; sourceUrl?: string } = official ? { info: official, cookies: undefined }
 			: isDouyin ? { ...await probeDouyinPage(address, status, holder, source), cookies: undefined }
+			: isXiaoe ? await (async () => {
+				const read = () => browser.runtime.sendMessage({ action: 'qiaomuXiaoeLive', url: address }) as Promise<XiaoeAnswer>;
+				const found = await probeXiaoeLive(status, holder, read, url => { browser.tabs.create({ url, active: true }).catch(() => { window.open(url, '_blank', 'noopener'); }); });
+				if ('info' in found) { address = found.address; return { info: found.info, cookies: undefined }; }
+				return { info: { ok: false as const, error: 'xiaoe-' + found.error, message: found.message }, cookies: undefined };
+			})()
 			: isProtectedStudy(address) ? await probeProtectedStudy(address, status, holder)
 			: await probeWebStudy(address, status, holder);
+		if (!info.ok && info.error.startsWith('xiaoe-')) {
+			const why: Record<string, string> = {
+				'xiaoe-not-live': t('没能识别这个小鹅通链接。目前支持直播回放：请粘贴直播间的分享链接，或浏览器里打开直播后地址栏的地址。'),
+				'xiaoe-no-replay': t('这场直播暂时没有可以播放的回放（可能还在生成，或店铺关闭了回放）。'),
+				'xiaoe-denied': t('小鹅通没有允许读取这场直播：') + ((info as { message?: string }).message || ''),
+			};
+			status.textContent = why[info.error] || t('读取小鹅通失败，请稍后重试。');
+			return;
+		}
 		if (!info.ok) {
 			status.textContent = info.error === 'unsupported' ? t('这个网址读不了：下载工具不支持这个网站，或这个页面里没有音视频。') : info.error === 'needs-cookies' ? t('这个网站需要有效的浏览器状态才能读取。') : info.error === 'helper-offline' || info.error === 'helper-outdated' ? text('subtitleGenOffline', '没有连上本地助手，需要先安装或更新本地助手。', 'The local helper is not connected or is out of date.') : info.error === 'missing' ? t('还没有安装下载工具（yt-dlp），请先在「ASR 语音识别」里安装，或运行 brew install yt-dlp。') : info.error === 'timeout' ? t('读取超时，请稍后重试。') : t('读取失败') + ((info as { message?: string }).message ? '：' + (info as { message?: string }).message : '');
 			if (info.error === 'helper-offline' || info.error === 'helper-outdated' || info.error === 'missing') setupFromStatus(info.error);
@@ -332,13 +350,16 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 			// No file that plays: say so below the player area instead of showing a player that cannot start.
 			if (playable) { info.mediaUrl = playable; info.video = true; } else info.mediaUrl = null;
 		}
-		key = await webKey(sourceUrl || address); registerWebSource(key, sourceUrl || address, isDouyin || siteOf(address)?.id === 'channels' ? info.audioUrl || info.mediaUrl || undefined : undefined);
+		// 小鹅通: the helper downloads the replay playlist itself; this page plays it only where the browser plays HLS.
+		const xiaoeMedia = isXiaoe ? info.mediaUrl || undefined : undefined;
+		if (isXiaoe && info.mediaUrl && !document.createElement('video').canPlayType('application/vnd.apple.mpegurl')) info.mediaUrl = null;
+		key = await webKey(sourceUrl || address); registerWebSource(key, sourceUrl || address, isDouyin || siteOf(address)?.id === 'channels' ? info.audioUrl || info.mediaUrl || undefined : xiaoeMedia);
 		if (cookies) useWebCookies(key, cookies);
 		void recordStudy({ url: address, title: info.title, path: `reader.html?study=web&url=${encodeURIComponent(address)}`, kind: 'web' });
 		// A post on X says something of its own: its words stay with the media. A long description of another site waits behind a tab.
 		const words = (info.description ?? '').trim(), isPost = Boolean(xStatus(address)), short = isPost || words.length <= 400;
 		await present({ title: info.title, show: info.author || info.site, cover: info.thumbnail ?? undefined, date: info.date ?? undefined, seconds: info.seconds ?? undefined, audio: info.mediaUrl ?? '', audioUrl: info.audioUrl, picture: info.video && Boolean(info.mediaUrl), ...(words && short ? { post: plainToHtml(words) } : {}), ...(words && !short ? { notesHtml: plainToHtml(words), notesLabel: text('audioTabAbout', '简介', 'Description') } : { notesHtml: '' }) });
-		if (!info.mediaUrl) { const note = document.createElement('p'); note.className = 'qiaomu-shows-note'; note.append(document.createTextNode(siteOf(address)?.id === 'tiktok' ? t('没能取到这条视频的播放地址（它在原页面里正常播放，需要原来的 TikTok 页面保持打开）。字幕照常生成，对照时请在原页面播放：') : t('这个网站没有给出可以直接播放的声音，所以这里不提供播放器；字幕照常生成，对照时请在原页面播放：'))); const link = document.createElement('a'); link.href = address; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = t('打开原页面'); note.append(link); holder.before(note); }
+		if (!info.mediaUrl) { const note = document.createElement('p'); note.className = 'qiaomu-shows-note'; note.append(document.createTextNode(siteOf(address)?.id === 'tiktok' ? t('没能取到这条视频的播放地址（它在原页面里正常播放，需要原来的 TikTok 页面保持打开）。字幕照常生成，对照时请在原页面播放：') : isXiaoe ? t('这个浏览器不能直接播放小鹅通的回放，所以这里不提供播放器；字幕照常生成，对照时请在小鹅通里播放：') : t('这个网站没有给出可以直接播放的声音，所以这里不提供播放器；字幕照常生成，对照时请在原页面播放：'))); const link = document.createElement('a'); link.href = address; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = t('打开原页面'); note.append(link); holder.before(note); }
 		if (official?.segments.length) {
 			await attach(official.segments); panel.element.hidden = true;
 			if (!official.timelineAligned) status.textContent = t('官方字幕已读取，播放时间轴暂未校准。');

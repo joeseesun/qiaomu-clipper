@@ -1,3 +1,4 @@
+import { preserveRemotePreviewMedia, mountRemotePreviewMedia } from './remote-preview-media';
 import type { ClipPreview } from './clip-preview';
 import { updateClipPreview } from './clip-preview';
 import { putHandedFile, takeHandedFile, releaseHandedFile } from './file-handoff';
@@ -15,7 +16,7 @@ export function bindLocalPreviewMedia(draft: ClipPreview, file: File, player: HT
  active.set(draft, { file, player, token });
 }
 export async function preserveLocalPreviewMedia(draft: ClipPreview): Promise<void> {
- const media = active.get(draft); if (!media) return;
+ const media = active.get(draft); if (!media) { await preserveRemotePreviewMedia(draft); return; }
  const previous = draft.localMedia;
  let token = media.token;
  if (!token || !await takeHandedFile(token)) token = await putHandedFile(media.file);
@@ -31,7 +32,7 @@ export async function preserveLocalPreviewMedia(draft: ClipPreview): Promise<voi
 
 // No helper upload/ASR call is needed to play an already recognised local file.
 export async function mountLocalPreviewMedia(draft: ClipPreview, parent: HTMLElement, before: HTMLElement, ready?: () => Promise<void>): Promise<void> {
- const info = draft.localMedia; if (!info) return;
+ const info = draft.localMedia; if (!info) { await mountRemotePreviewMedia(draft, parent, before, ready); return; }
  const mount = async (file: File, token?: string) => {
   const src = URL.createObjectURL(file), player = mountMediaStudyPlayer(parent, before, src, isVideoFile(file));
   player.controls = true; // Native controls also keep audio usable in the editor.

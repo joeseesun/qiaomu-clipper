@@ -9,7 +9,7 @@ The learning page owns a File and a document-local blob URL. The mode bar naviga
 ## Change
 
 - Before a file-learning page opens the editor, commit a separate temporary File handoff and save its random token, file metadata and playback position/rate/volume/mute in the preview draft. Await both the IndexedDB transaction and draft save before navigating. A failure stays on the playable page and shows an error.
-- The editor and reading preview read that handoff without consuming it, create their own blob URL, restore playback state after metadata loads, and revoke their own URL on pagehide. Playback starts paused. Plain clips and online videos do not use this path.
+- The editor and reading preview read that handoff without consuming it, create their own blob URL, restore playback state after metadata loads, and revoke their own URL on pagehide. Playback starts paused. Plain clips do not use this file path; online study players use the separate session-scoped playback path described below.
 - Reading uses the current edited Markdown timestamp paragraphs to rebuild the transcript; it does not replace edits with old ASR output. Changed editor content resets the previous transcript-export snapshot to avoid appending duplicate captions on subsequent switches.
 - If temporary playback access expired, offer reselect of the same name/size/modified file while retaining captions and edits. This recovery path makes no helper upload or recognition request.
 - Files are held only in the existing one-hour handoff store, swept on reads/writes/background wake. The original upload token is still deleted after receipt; the playback token is separate and created only for mode navigation. No File bytes or blob URL are stored in Chrome text storage, sessionStorage, URLs, Markdown exports or notes. The local temporary File reference can consume browser storage; storage failure is visible and blocks navigation instead of silently losing the player.
@@ -35,3 +35,10 @@ All images contain synthetic media and mock settings.
 |---|---|
 | ![Editor without video](local-media-mode/before-edit.png) | ![Editor with video](local-media-mode/after-edit.png) |
 | ![Reading without video](local-media-mode/before-read.png) | ![Reading with edited captions and video](local-media-mode/after-read.png) |
+
+
+## Combined online study upgrade (2026-10-09)
+
+Channels and Xiaoetong players now also survive editor/reading navigation. Before leaving, the page stores its HTTPS media source in same-tab sessionStorage and only an opaque random reference plus playback state in the text draft. Destination preview pages reconstruct the player and wire the current edited Markdown timestamps. Signed media is not included in durable history, Markdown or notes. References expire after two hours or when the tab closes; expired or failed media offers original-link recovery while retaining edits. Storage refusal keeps the playable page open.
+
+The previous installed Channels production build reproduced video loss in both destination modes. The combined build passes 14 production Edge checks covering automatic source discovery, actual synthetic HLS playback, edited timestamps, repeated switches, preview refresh, expired recovery and no duplicate recognition. The existing seven local-file mode tests also pass. These are isolated browser fixtures with mocked recognition, not paid API or real-course end-to-end proof. The user must reload the original extension and test the combined upgrade before any PR is published.

@@ -17,6 +17,7 @@ import { enabledChatModels, streamChat } from './utils/chat-llm';
 import { audioStudyPath, videoKey, videoStudyPath } from './utils/video-source';
 import { isSiteOn, loadStudySites, siteOf } from './utils/study-sites';
 import { isMediaItemAddress, webMediaAddress } from './utils/web-media-page';
+import { followXiaoeLink, readXiaoeLive, xiaoeParts } from './utils/xiaoe';
 import { hasStoredHighlights } from './utils/url-utils';
 import { cookiesGranted, handleAsrMessage, handleLearningNativeMessage } from './utils/local-save';
 import { enableYouTubeEmbedRule, disableYouTubeEmbedRule } from './utils/youtube-embed-rules';
@@ -1519,4 +1520,38 @@ browser.runtime.onMessage.addListener((raw: unknown, sender) => {
  if (request?.action !== 'qiaomuChannelsStudy') return;
  if (sender.id !== browser.runtime.id || !sender.url?.startsWith(browser.runtime.getURL('reader.html?')) || sender.tab?.id === undefined) return Promise.resolve({ state: 'unavailable' });
  return channelsStudy(sender.tab.id, request).catch(() => ({ state: 'unavailable' }));
+});
+
+// 小鹅通: the study reader asks for a live replay. The shop's API answers only a signed-in viewer, so it is asked as that viewer:
+// first from here (the extension may send the shop's cookies), then from an open tab of the shop (where the viewer signed in).
+// Serialized by scripting.executeScript: self-contained, no async/await.
+function fetchShopJson(path: string, origin: string): Promise<unknown> {
+ if (location.origin !== origin || !/^\/_alive\/v3\/(?:get_lookback_list|base_info)\?/.test(path)) return Promise.resolve(null);
+ const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 20000);
+ return fetch(path, { credentials: 'include', redirect: 'error', signal: controller.signal }).then(response => location.origin === origin && response.ok ? response.json() : null).catch(() => null).finally(() => clearTimeout(timer));
+}
+browser.runtime.onMessage.addListener((raw: unknown, sender) => {
+	const request = raw as { action?: string; url?: string };
+	if (request?.action !== 'qiaomuXiaoeLive') return;
+	if (sender.id !== browser.runtime.id || !sender.url?.startsWith(browser.runtime.getURL('reader.html')) || typeof request.url !== 'string' || request.url.length > 2000 || !/^https:\/\//.test(request.url)) return Promise.resolve(null);
+	return (async () => {
+		const address = await followXiaoeLink(request.url!);
+		if (!address) return { ok: false, error: 'not-live' };
+		const origin = `https://${xiaoeParts(address)!.app}.h5.xiaoeknow.com`;
+		type Reply = { code?: number; msg?: string; data?: unknown } | null;
+		const fromHere = async (path: string): Promise<Reply> => { try { return await (await fetch(origin + path, { credentials: 'include' })).json(); } catch { return null; } };
+		const fromTab = async (path: string): Promise<Reply> => {
+			for (const tab of (await browser.tabs.query({ url: origin + '/*' })) || []) {
+				if (tab.id === undefined) continue;
+				try {
+					const [result] = await browser.scripting.executeScript({ target: { tabId: tab.id }, func: fetchShopJson, args: [path, origin] });
+					const reply = result?.result as Reply; if (reply && typeof reply === 'object') return reply;
+				} catch { /* tab not ready or not the shop any more */ }
+			}
+			return null;
+		};
+		const api = async (path: string): Promise<Reply> => { const here = await fromHere(path); if (here && here.code !== 11302) return here; return (await fromTab(path)) || here; };
+		const playlist = async (url: string) => { const response = await fetch(url, { credentials: 'omit' }); if (!response.ok) throw new Error(String(response.status)); return (await response.text()).slice(0, 4_000_000); };
+		return readXiaoeLive(address, api, playlist);
+	})().catch(() => ({ ok: false, error: 'failed' }));
 });

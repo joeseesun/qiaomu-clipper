@@ -489,7 +489,7 @@ async function showClipPreview(id: string) {
     await loadSettings();
     const {chat} = mountReaderPreviewShell(draft);
     const article = document.querySelector<HTMLElement>('article')!;
-    if (draft.localMedia) {
+    if (draft.localMedia || draft.remoteMedia) {
         const anchor = document.createElement('div'); article.prepend(anchor);
         const transcript = prepareLocalPreviewTranscript(article);
         await mountLocalPreviewMedia(draft, article, anchor, async () => {

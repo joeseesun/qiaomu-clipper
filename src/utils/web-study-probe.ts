@@ -61,3 +61,53 @@ export async function probeWebStudy(url: string, status: HTMLElement, holder: HT
 		});
 	});
 }
+
+// 小鹅通: the replay is read as the signed-in viewer. Not signed in: open the shop's own sign-in page (WeChat scan, phone code),
+// then read again. The study reader never sees the viewer's sign-in; the shop page keeps it.
+export type XiaoeAnswer = import('./xiaoe').XiaoeReply | null;
+export async function probeXiaoeLive(status: HTMLElement, holder: HTMLElement, read: () => Promise<XiaoeAnswer>,
+	openTab: (url: string) => void): Promise<{ info: WebInfo; address: string } | { error: string; message?: string }> {
+	const safeRead = async (): Promise<XiaoeAnswer> => { try { return await read(); } catch { return null; } };
+	let reply = await safeRead();
+	if (reply?.ok) return { info: reply.info, address: reply.address };
+	if (!reply || reply.error !== 'login') return { error: reply?.error || 'failed', message: reply && 'message' in reply ? reply.message : undefined };
+	const doc = holder.ownerDocument, row = doc.createElement('div'); row.className = 'qiaomu-web-retry'; row.setAttribute('role', 'group');
+	const title = doc.createElement('b'); title.textContent = t('需要先登录小鹅通');
+	const note = doc.createElement('p'); note.textContent = t('点「打开登录页」，在新页面用微信扫码（或手机验证码）登录这家店铺，登录完成后回到这里点「我已登录，重新读取」。请用你平时看课的同一个微信。');
+	const actions = doc.createElement('div'); actions.className = 'qiaomu-web-retry-actions';
+	const again = doc.createElement('button'); again.type = 'button'; again.className = 'qw-primary'; again.textContent = t('我已登录，重新读取');
+	const login = doc.createElement('a'); login.href = reply.loginUrl; login.target = '_blank'; login.rel = 'noopener'; login.className = 'qw-secondary'; login.textContent = t('打开登录页');
+	actions.append(again, login); row.append(title, note, actions); holder.append(row);
+	status.textContent = '';
+	return new Promise(resolve => {
+		let done = false, busy = false, timer: ReturnType<typeof setInterval> | undefined;
+		doc.defaultView?.addEventListener('pagehide', () => { done = true; clearInterval(timer); }, { once: true });
+		const settle = (value: { info: WebInfo; address: string } | { error: string; message?: string }) => { if (done) return; done = true; clearInterval(timer); row.remove(); resolve(value); };
+		// One read; true when the page may move on.
+		const attempt = async (): Promise<boolean> => {
+			if (busy || done) return false; busy = true;
+			try {
+				reply = await safeRead();
+				if (reply?.ok) { settle({ info: reply.info, address: reply.address }); return true; }
+				if (reply && reply.error !== 'login') { settle({ error: reply.error, message: 'message' in reply ? reply.message : undefined }); return true; }
+				return false;
+			} finally { busy = false; }
+		};
+		// The reader turns links in the article into reader pages; the shop's sign-in page must open as itself, in its own tab.
+		login.addEventListener('click', event => {
+			event.preventDefault(); event.stopPropagation();
+			openTab(login.href);
+			note.textContent = t('登录页已在新标签页打开。登录完成后这里会自动继续；也可以点「我已登录，重新读取」。');
+			// Watch for the sign-in for a few minutes, so coming back is enough.
+			clearInterval(timer); let left = 60;
+			timer = setInterval(() => { if (--left < 0) { clearInterval(timer); return; } void attempt(); }, 3000);
+		});
+		again.addEventListener('click', async () => {
+			again.disabled = true; again.textContent = t('正在读取…');
+			const moved = await attempt();
+			if (moved || done) return;
+			note.textContent = t('还没读到登录状态。请确认登录页已经显示「我的」页面，并且不要关掉它，再点「我已登录，重新读取」。');
+			again.disabled = false; again.textContent = t('我已登录，重新读取');
+		});
+	});
+}

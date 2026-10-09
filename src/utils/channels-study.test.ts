@@ -6,7 +6,7 @@ const share='https://weixin.qq.com/sph/Fixture123';
 const playback='https://channels.weixin.qq.com/finder-preview/pages/feed?token=fixture-token&eid=fixture-id';
 const media='https://finder.video.qq.com/251/20302/stodownload?encfilekey=fixture';
 const info={ok:true as const,title:'Fixture',author:'',seconds:110,thumbnail:null,site:'WeChat Channels',mediaUrl:media,video:true};
-beforeEach(()=>document.body.replaceChildren());afterEach(()=>{vi.unstubAllGlobals();vi.restoreAllMocks();});
+beforeEach(()=>document.body.replaceChildren());afterEach(()=>{window.dispatchEvent(new Event('pagehide'));vi.useRealTimers();vi.unstubAllGlobals();vi.restoreAllMocks();});
 it('accepts only canonical shares and Tencent media; never uses bearer playback URLs as history',()=>{
  expect(channelsShareAddress(share)).toBe(share);expect(channelsShareAddress('https://channels.weixin.qq.com/finder-preview/pages/sph?id=Fixture123')).toBe(share);
  for(const u of [playback,share+'?token=x','http://weixin.qq.com/sph/Fixture123','https://user:pw@weixin.qq.com/sph/Fixture123','https://weixin.qq.com.evil.org/sph/Fixture123'])expect(channelsShareAddress(u)).toBeUndefined();
@@ -41,11 +41,24 @@ it('starts no parsing until a disclosed user action and returns only stable sour
  const holder=document.createElement('div'),status=document.createElement('p');document.body.append(holder,status);
  const request=vi.fn().mockResolvedValueOnce({state:'opened'}).mockResolvedValueOnce({state:'login'}).mockResolvedValueOnce({state:'loading'}).mockResolvedValueOnce({state:'ready',info,sourceUrl:share});const done=probeChannelsStudy(share,status,holder,request);
  const settle=async()=>{for(let i=0;i<12;i++)await Promise.resolve();};expect(request).not.toHaveBeenCalled();expect(holder.textContent).toContain('腾讯元宝解析');
- const [open,retry]=Array.from(holder.querySelectorAll('button'));expect(retry.disabled).toBe(true);open.click();await settle();retry.click();await settle();expect(holder.textContent).toContain('完成登录');retry.click();await settle();expect(holder.textContent).toContain('官方播放页');retry.click();expect(await done).toEqual({info,sourceUrl:share});
+ const [open,retry]=Array.from(holder.querySelectorAll('button'));expect(retry.disabled).toBe(true);open.click();await settle();retry.click();await settle();expect(holder.textContent).toContain('登录完成');retry.click();await settle();expect(holder.textContent).toContain('官方播放页');retry.click();expect(await done).toEqual({info,sourceUrl:share});
 });
 
 it('rejects navigation during playback inspection even when the media itself is valid', async () => {
  const create=vi.fn().mockResolvedValueOnce({id:7}).mockResolvedValue({id:8}),get=vi.fn().mockResolvedValue({url:'https://yuanbao.tencent.com/'}),parse=vi.fn().mockResolvedValue({state:'ready',playbackUrl:playback}),inspect=vi.fn().mockResolvedValue({state:'ready',info}),bridge=channelsStudyBridge({create,get,parse,inspect});
  await bridge(1,{mode:'open',url:share});await bridge(1,{mode:'read',url:share});get.mockResolvedValueOnce({url:playback}).mockResolvedValueOnce({url:playback+'&eid=other'});
  expect(await bridge(1,{mode:'read',url:share})).toEqual({state:'unavailable'});expect(inspect).toHaveBeenCalledTimes(1);
+});
+
+it('automatically reads through login and playback loading after one disclosed open action',async()=>{
+ vi.useFakeTimers();const holder=document.createElement('div'),status=document.createElement('p');document.body.append(holder,status);
+ const request=vi.fn().mockResolvedValueOnce({state:'opened'}).mockResolvedValueOnce({state:'login'}).mockResolvedValueOnce({state:'loading'}).mockResolvedValue({state:'ready',info,sourceUrl:share});const done=probeChannelsStudy(share,status,holder,request);
+ holder.querySelector('button')!.click();await vi.advanceTimersByTimeAsync(10000);expect(await done).toEqual({info,sourceUrl:share});expect(request).toHaveBeenCalledTimes(4);await vi.advanceTimersByTimeAsync(20000);expect(request).toHaveBeenCalledTimes(4);
+});
+it('bounds automatic login checks and cancels further reads when the reader closes',async()=>{
+ vi.useFakeTimers();const holder=document.createElement('div'),status=document.createElement('p');document.body.append(holder,status);const request=vi.fn().mockResolvedValueOnce({state:'opened'}).mockResolvedValue({state:'login'});
+ void probeChannelsStudy(share,status,holder,request);holder.querySelector('button')!.click();await vi.advanceTimersByTimeAsync(184000);const count=request.mock.calls.length;await vi.advanceTimersByTimeAsync(30000);expect(request).toHaveBeenCalledTimes(count);expect(holder.textContent).toContain('自动读取已暂停');window.dispatchEvent(new Event('pagehide'));expect(vi.getTimerCount()).toBe(0);
+});
+it('waits for freshly opened tabs instead of treating navigation as a failed video',async()=>{
+ const create=vi.fn().mockResolvedValue({id:7}),get=vi.fn().mockResolvedValue({url:'about:blank',status:'loading'}),parse=vi.fn(),inspect=vi.fn(),bridge=channelsStudyBridge({create,get,parse,inspect});await bridge(1,{mode:'open',url:share});expect(await bridge(1,{mode:'read',url:share})).toEqual({state:'loading'});expect(parse).not.toHaveBeenCalled();
 });

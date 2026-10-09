@@ -1,3 +1,4 @@
+import type { RemotePreviewMedia } from './remote-preview-media';
 import browser from './browser-polyfill';
 import { LocalSavePayload, saveLocalClip } from './local-save';
 import { QiaomuClip, QiaomuResult } from './qiaomu-rss';
@@ -17,6 +18,7 @@ export interface ClipPreview {
     transcriptExport?: { source: string; previous: string; mode?: 'original' | 'translated' | 'bilingual' };
     readerAppendix?: string;
     localMedia?: LocalPreviewMedia;
+    remoteMedia?: RemotePreviewMedia;
     localDone?: boolean;
     rssDone?: boolean;
 }

@@ -56,7 +56,7 @@ export function readChannelsPlayback(): Promise<{ state: 'ready'; info: WebInfo 
 
 export function channelsStudyBridge(api: {
  create(options: { url: string }): Promise<{ id?: number }>;
- get(id: number): Promise<{ url?: string }>;
+ get(id: number): Promise<{ url?: string; status?: string }>;
  parse(id: number, share: string): Promise<ParsedShare>;
  inspect(id: number): ReturnType<typeof readChannelsPlayback>;
 }) {
@@ -74,6 +74,7 @@ export function channelsStudyBridge(api: {
   try {
    if (session.playback !== undefined && session.playbackUrl) {
     const tab = await api.get(session.playback);
+    if (!tab.url || tab.url === 'about:blank' || tab.status === 'loading') return { state: 'loading' };
     if (tab.url !== session.playbackUrl || !playbackAddress(tab.url)) { session.playback = undefined; session.playbackUrl = undefined; return { state: 'unavailable' }; }
     const result = await api.inspect(session.playback);
     if ((await api.get(session.playback)).url !== session.playbackUrl) return { state: 'unavailable' };
@@ -82,6 +83,7 @@ export function channelsStudyBridge(api: {
     return { state: result.state === 'ready' ? 'unavailable' : result.state };
    }
    const tab = await api.get(session.resolver);
+   if (!tab.url || tab.url === 'about:blank' || tab.status === 'loading') return { state: 'loading' };
    if (!tab.url || new URL(tab.url).origin !== 'https://yuanbao.tencent.com') return { state: 'unavailable' };
    const parsed = await api.parse(session.resolver, source);
    if ((await api.get(session.resolver)).url !== tab.url) return { state: 'unavailable' };
@@ -101,18 +103,40 @@ export function probeChannelsStudy(url: string, status: HTMLElement, holder: HTM
  const open = doc.createElement('button'); open.type = 'button'; open.className = 'qw-primary'; open.textContent = t('打开元宝并验证');
  const retry = doc.createElement('button'); retry.type = 'button'; retry.className = 'qw-secondary'; retry.textContent = t('重新读取'); retry.disabled = true;
  const actions = doc.createElement('div'); actions.className = 'qiaomu-web-retry-actions'; actions.append(open, retry); row.append(heading, note, actions); holder.append(row); status.textContent = '';
- open.addEventListener('click', () => {
-  open.disabled = true;
-  void request({ action: 'qiaomuChannelsStudy', mode: 'open', url }).then(result => {
-   if (result.state === 'opened') { retry.disabled = false; note.textContent = t('请在元宝完成登录，再回来重新读取这条视频号链接。'); }
-   else note.textContent = t('原网页不可用，请重新打开后再读取。');
-  }).catch(() => { note.textContent = t('原网页不可用，请重新打开后再读取。'); }).finally(() => { open.disabled = false; });
+ return new Promise(resolve => {
+  let done = false, busy = false, opened = false, timer: number | undefined, deadline = 0, failures = 0;
+  const win = doc.defaultView!;
+  const stop = () => { win.clearTimeout(timer); timer = undefined; };
+  win.addEventListener('pagehide', () => { done = true; stop(); }, { once: true });
+  const attempt = async () => {
+   if (busy || done || !opened) return;
+   busy = true; open.disabled = true; retry.disabled = true;
+   try {
+    const result = await request({ action: 'qiaomuChannelsStudy', mode: 'read', url });
+    if (done) return;
+    if (result.state === 'ready' && result.info && result.sourceUrl) { done = true; stop(); row.remove(); resolve({ info: result.info, sourceUrl: result.sourceUrl }); return; }
+    failures = result.state === 'unavailable' ? failures + 1 : 0;
+    note.textContent = result.state === 'login' ? t('元宝已打开，登录完成后这里会自动继续；也可以点「重新读取」。') : result.state === 'loading' ? t('官方播放页正在加载，取得视频后会自动继续，请稍候。') : t('原网页不可用，请重新打开后再读取。');
+   } catch { failures++; note.textContent = t('原网页不可用，请重新打开后再读取。'); }
+   finally { busy = false; if (!done) { retry.disabled = false; open.disabled = false; } }
+  };
+  const schedule = () => {
+   stop(); if (done || failures >= 3) return;
+   if (Date.now() >= deadline) { note.textContent = t('自动读取已暂停。请确认元宝已登录，然后点「重新读取」。'); return; }
+   timer = win.setTimeout(() => { void attempt().then(schedule); }, 3000);
+  };
+  open.addEventListener('click', () => {
+   if (busy || done) return;
+   stop(); busy = true; open.disabled = true; retry.disabled = true; opened = false;
+   void request({ action: 'qiaomuChannelsStudy', mode: 'open', url }).then(result => {
+    if (done) return;
+    if (result.state === 'opened') { opened = true; failures = 0; deadline = Date.now() + 180000; note.textContent = t('元宝已打开，登录完成后这里会自动继续；也可以点「重新读取」。'); schedule(); }
+    else note.textContent = t('原网页不可用，请重新打开后再读取。');
+   }).catch(() => { note.textContent = t('原网页不可用，请重新打开后再读取。'); }).finally(() => { busy = false; open.disabled = false; retry.disabled = !opened; });
+  });
+  retry.addEventListener('click', () => {
+   stop(); failures = 0; deadline = Date.now() + 180000;
+   void attempt().then(schedule);
+  });
  });
- return new Promise(resolve => retry.addEventListener('click', () => {
-  retry.disabled = true; open.disabled = true;
-  void request({ action: 'qiaomuChannelsStudy', mode: 'read', url }).then(result => {
-   if (result.state === 'ready' && result.info && result.sourceUrl) { row.remove(); resolve({ info: result.info, sourceUrl: result.sourceUrl }); }
-   else note.textContent = result.state === 'login' ? t('请在元宝完成登录，再回来重新读取这条视频号链接。') : result.state === 'loading' ? t('官方播放页已打开，请等视频加载后重新读取。') : t('原网页不可用，请重新打开后再读取。');
-  }).catch(() => { note.textContent = t('原网页不可用，请重新打开后再读取。'); }).finally(() => { retry.disabled = false; open.disabled = false; });
- }));
 }
