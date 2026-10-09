@@ -713,5 +713,9 @@
 	"重新打开转写学习": "Transkribieren und Lernen erneut öffnen",
 	"元宝已打开，登录完成后这里会自动继续；也可以点「重新读取」。": "Yuanbao ist geöffnet. Nach der Anmeldung geht es hier automatisch weiter. Du kannst auch „Erneut lesen“ wählen.",
 	"官方播放页正在加载，取得视频后会自动继续，请稍候。": "Der offizielle Player wird geladen. Sobald das Video bereit ist, geht es automatisch weiter. Bitte warten.",
-	"自动读取已暂停。请确认元宝已登录，然后点「重新读取」。": "Das automatische Lesen wurde pausiert. Prüfe die Anmeldung bei Yuanbao und wähle „Erneut lesen“."
+	"自动读取已暂停。请确认元宝已登录，然后点「重新读取」。": "Das automatische Lesen wurde pausiert. Prüfe die Anmeldung bei Yuanbao und wähle „Erneut lesen“.",
+	"编辑内容自动保存失败，请先复制或下载文字后重试。": "Die Änderungen konnten nicht automatisch gespeichert werden. Kopieren oder laden Sie den Text herunter, bevor Sie es erneut versuchen.",
+	"原编辑草稿无法恢复，请返回原编辑页导出文字后重试。": "Der ursprünglich bearbeitete Entwurf konnte nicht wiederhergestellt werden. Kehren Sie zum ursprünglichen Editor zurück und exportieren Sie den Text, bevor Sie es erneut versuchen.",
+	"编辑内容已恢复，但视频播放状态无法保存，请先留在当前页面。": "Ihre Änderungen wurden wiederhergestellt, aber der Wiedergabestatus konnte nicht gespeichert werden. Bleiben Sie vorerst auf dieser Seite.",
+	"编辑内容保存失败，请留在当前页面重试或先导出文字。": "Ihre Änderungen konnten nicht gespeichert werden. Versuchen Sie es auf dieser Seite erneut oder exportieren Sie zuerst den Text."
 }

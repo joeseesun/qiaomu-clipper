@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import browser from './browser-polyfill';
-import { ClipPreview, saveClipPreview } from './clip-preview';
+import { ClipPreview, saveClipPreview, loadClipPreview, loadEditedStudyPreview, openClipPreview } from './clip-preview';
 import { saveToObsidian } from './obsidian-note-creator';
 vi.mock('./obsidian-note-creator', () => ({ saveToObsidian: vi.fn() }));
 vi.mock('./storage-utils', () => ({ loadSettings: vi.fn(), incrementStat: vi.fn(), setLocalStorage: vi.fn() }));
@@ -46,4 +46,22 @@ describe('preview clipping destinations', () => {
         expect(saveToObsidian).toHaveBeenCalledWith(clip.local.content, '修改后的标题', clip.local.folder, clip.local.vault, 'create');
         expect(result).toEqual(['已发送到 Obsidian']);
     });
+});
+
+it('retains edited study drafts after temporary expiry, matching only the source and newest edit', async()=>{
+ const old={...draft(),createdAt:Date.now()-3*86400000,studyEditedAt:Date.now()-100,studySource:'https://shop.xet.tech/s/Fixture123'};
+ const fresh={...old,studyEditedAt:Date.now(),local:{...old.local,requestId:'newest'},clip:{...old.clip,markdown:'Newest edits'}};
+ const raw={...old,studyEditedAt:undefined,local:{...old.local,requestId:'raw'}};
+ const saved={'qiaomuPreview:stable-id':old,'qiaomuPreview:newest':fresh,'qiaomuPreview:raw':raw};
+ vi.spyOn(browser.storage.local,'get').mockImplementation(async key=>key===null?saved:{[String(key)]:saved[String(key) as keyof typeof saved]});
+ const remove=vi.fn().mockResolvedValue(undefined);Object.assign(browser.storage.local,{remove});Object.assign(browser.tabs,{create:vi.fn().mockResolvedValue({})});
+ expect(await loadClipPreview('stable-id')).toBe(old);expect(await loadClipPreview('raw')).toBeNull();
+ expect(await loadEditedStudyPreview(old.studySource)).toBe(fresh);expect(await loadEditedStudyPreview('https://example.com/unrelated')).toBeNull();
+ await openClipPreview(draft());expect(remove).toHaveBeenCalledWith(['qiaomuPreview:raw']);
+});
+
+it('recovers legacy mode-switch drafts whose transcript was already manually edited',async()=>{
+ const legacy={...draft(),createdAt:Date.now()-2*86400000,remoteMedia:{token:'fixture',time:4,rate:1,volume:1,muted:false}};
+ vi.spyOn(browser.storage.local,'get').mockResolvedValue({'qiaomuPreview:stable-id':legacy});
+ expect(await loadClipPreview('stable-id')).toBe(legacy);expect(await loadEditedStudyPreview(legacy.clip.url)).toBe(legacy);
 });

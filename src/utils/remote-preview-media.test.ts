@@ -30,7 +30,7 @@ it('keeps edits and offers an explicit stable source link when the temporary ses
  await mountRemotePreviewMedia(data,document.querySelector('article')!,document.getElementById('anchor')!);
  expect(document.querySelector('video')).toBeNull();expect(document.querySelector('.local-preview-reselect')?.textContent).toContain('字幕和编辑内容保留');
  const click=new MouseEvent('click',{bubbles:true,cancelable:true});document.querySelector('a')!.dispatchEvent(click);
- expect(click.defaultPrevented).toBe(true);expect(state.open).toHaveBeenCalledWith({url:'chrome-extension://fixture/reader.html?study=web&url='+encodeURIComponent(data.clip.url)});expect(data.clip.markdown).toBe('Edited transcript');
+ await vi.waitFor(() => expect(state.open).toHaveBeenCalled()); expect(click.defaultPrevented).toBe(true);expect(state.open).toHaveBeenCalledWith({url:'chrome-extension://fixture/reader.html?study=web&url='+encodeURIComponent(data.clip.url)+'&resume=fixture'});expect(data.clip.markdown).toBe('Edited transcript');
 });
 it('blocks navigation when session storage cannot preserve the current player', async () => {
  vi.spyOn(Storage.prototype,'setItem').mockImplementation(()=>{throw Error('quota');});const data=draft();
@@ -50,4 +50,15 @@ it('preserves a separate audio track and displays a single recovery note on play
 it('refuses credential-bearing or insecure playback addresses', async () => {
  for(const src of ['http://example.com/video','https://user:pass@example.com/video','javascript:alert(1)']){const data=draft();bindRemotePreviewMedia(data,document.createElement('video'),src,true);await preserveRemotePreviewMedia(data);expect(data.remoteMedia).toBeUndefined();}
  expect(state.update).not.toHaveBeenCalled();
+});
+
+it('saves pending edits before opening recovery and stops when persistence fails', async () => {
+ const data=draft();await preserve(data);sessionStorage.clear();
+ const save=vi.fn(async()=>{data.clip.markdown='New unsaved edits';});
+ await mountRemotePreviewMedia(data,document.querySelector('article')!,document.getElementById('anchor')!,undefined,save);
+ document.querySelector('a')!.click();await vi.waitFor(()=>expect(state.open).toHaveBeenCalledTimes(1));
+ expect(save).toHaveBeenCalledTimes(1);expect(data.clip.markdown).toBe('New unsaved edits');
+ state.open.mockClear();state.update.mockRejectedValue(Error('full'));document.querySelector('a')!.click();
+ await vi.waitFor(()=>expect(document.querySelector('.local-preview-reselect')?.textContent).toContain('编辑内容保存失败'));
+ expect(state.open).not.toHaveBeenCalled();
 });

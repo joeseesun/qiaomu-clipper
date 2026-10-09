@@ -713,5 +713,9 @@
 	"重新打开转写学习": "Reopen transcribe and study",
 	"元宝已打开，登录完成后这里会自动继续；也可以点「重新读取」。": "Yuanbao is open. This page will continue after sign-in; you can also click “Read again”.",
 	"官方播放页正在加载，取得视频后会自动继续，请稍候。": "The official player is loading. This page will continue once the video is ready. Please wait.",
-	"自动读取已暂停。请确认元宝已登录，然后点「重新读取」。": "Automatic reading has paused. Check that Yuanbao is signed in, then click “Read again”."
+	"自动读取已暂停。请确认元宝已登录，然后点「重新读取」。": "Automatic reading has paused. Check that Yuanbao is signed in, then click “Read again”.",
+	"编辑内容自动保存失败，请先复制或下载文字后重试。": "Edits could not be saved automatically. Copy or download your text before trying again.",
+	"原编辑草稿无法恢复，请返回原编辑页导出文字后重试。": "The original edited draft could not be restored. Return to the original editor and export your text before trying again.",
+	"编辑内容已恢复，但视频播放状态无法保存，请先留在当前页面。": "Your edits have been restored, but playback state could not be saved. Stay on this page for now.",
+	"编辑内容保存失败，请留在当前页面重试或先导出文字。": "Your edits could not be saved. Stay here and retry, or export your text first."
 }

@@ -1,4 +1,6 @@
-import { bindRemotePreviewMedia } from './remote-preview-media';
+import { marked } from 'marked';
+import { updateClipPreview } from './clip-preview';
+import { bindRemotePreviewMedia, preserveRemotePreviewMedia, restoreRemotePreviewPlayback } from './remote-preview-media';
 import { mountStudyCaptionLanguage } from './study-caption-language';
 import { isProtectedStudy, probeProtectedStudy } from './protected-study';
 import { readTedMedia } from './ted-media';
@@ -31,7 +33,7 @@ import { mountAudioControls } from './audio-controls';
 import { recordStudy } from './study-home';
 import { fetchFeed, rssKey, webKey } from './podcast-feed';
 import { isVideoFile, mountMediaStudyPlayer } from './media-study-player';
-import { bindLocalPreviewMedia } from './local-preview-media';
+import { bindLocalPreviewMedia, prepareLocalPreviewTranscript } from './local-preview-media';
 
 import { t } from './ui-text';
 // Study mode for audio: a podcast episode, or a file the viewer chose. The same page as for a video: the player on top, the
@@ -52,6 +54,7 @@ export interface AudioStudyOptions {
 	// Any other site yt-dlp can read: its address.
 	webUrl?: string;
 	sourceTabId?: number;
+    resumeId?: string;
 }
 const text = (id: string, zh: string, en: string) => { try { return browser.i18n.getMessage(id) || (/^zh/i.test(navigator.language) ? zh : en); } catch { return /^zh/i.test(navigator.language) ? zh : en; } };
 const FILE_PAGE_URL = 'https://qiaomu.local/audio';
@@ -153,7 +156,9 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 	if (restored) { options = { ...options, key: restored.key, title: restored.title }; }
 	const initialTitle = options.title || (options.kind === 'file' ? t('本地音频学习') : options.kind === 'web' ? t('视频学习') : t('播客学习'));
 	const url = options.webUrl || options.url || FILE_PAGE_URL;
-	const session = await createReaderSourceDraft(url, initialTitle);
+	let session: Awaited<ReturnType<typeof createReaderSourceDraft>>;
+    try { session = await createReaderSourceDraft(url, initialTitle, options.resumeId, options.kind === 'web'); }
+    catch { document.body.textContent = t('原编辑草稿无法恢复，请返回原编辑页导出文字后重试。'); return; }
 	Reader.onEdit = () => {};
 	Object.defineProperty(document, 'URL', { value: url, configurable: true });
 	Reader.isReaderPage = true;
@@ -178,6 +183,12 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 		setup.addEventListener('click', () => { void browser.runtime.sendMessage({ action: 'openSettings', section: helper ? 'clip' : 'asr-models' }); });
 		status.append(document.createTextNode(' '), setup);
 	};
+    // Render the user's text even while original-site verification is pending.
+    if (session.restored) {
+        const content = document.createElement('div'); content.className = 'qiaomu-restored-study';
+        content.innerHTML = DOMPurify.sanitize(await marked.parse(session.draft.clip.markdown));
+        article.append(content); document.title = session.draft.clip.title; shell.refresh(); shell.setPending(false);
+    }
 	let sourceHtml = '';
 	let key = options.key || '', title = initialTitle, attached = false;
 	let recoveryJobId = restored?.jobId;
@@ -186,6 +197,7 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 	const showPlayer = (src: string, picture?: { poster?: string; audioUrl?: string }): HTMLVideoElement => {
 		const player = mountMediaStudyPlayer(article, holder, src, Boolean(picture), picture?.poster, picture?.audioUrl);
 		bindRemotePreviewMedia(session.draft, player, src, Boolean(picture), picture?.poster, picture?.audioUrl);
+        if (session.restored) restoreRemotePreviewPlayback(session.draft, player);
 		if (!picture) player.parentElement!.append(mountAudioControls(document, player, { play: text('audioPlay', '播放', 'Play'), pause: text('audioPause', '暂停', 'Pause'), back: text('audioBack', '后退 15 秒', 'Back 15 s'), forward: text('audioForward', '前进 30 秒', 'Forward 30 s'), speed: text('audioSpeed', '播放速度', 'Playback speed'), seek: text('audioSeek', '播放进度', 'Position') }));
 		return player;
 	};
@@ -230,7 +242,7 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 		openSettings: () => { window.open(browser.runtime.getURL('settings.html?section=asr-models'), '_blank'); },
 	});
 	const panel = buildGenerationPanel(document, generationStrings(text), generation.actions);
-	holder.append(panel.element);
+	holder.append(panel.element); if (session.restored) panel.element.hidden = true;
 	window.addEventListener('pagehide', () => { generation.reset(); window.removeEventListener('resize', place); }, { once: true });
 	// With a key, use what was made before, else ask to make it now.
 	const begin = async () => {
@@ -243,7 +255,7 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 	// An episode with a cover, a show, a date and show notes: from a Xiaoyuzhou page or from an RSS feed.
 	// `post`: a short text that belongs with the media (a post's words), shown under the heading rather than behind a tab.
 	const present = async (episode: { title: string; show: string; cover?: string; date?: string; seconds?: number; audio: string; audioUrl?: string; picture?: boolean; notesHtml: string; notesLabel?: string; post?: string }) => {
-		title = episode.title || initialTitle; document.title = title; setPageTitle(title);
+		title = session.restored ? session.draft.clip.title : episode.title || initialTitle; document.title = title; setPageTitle(title);
 		const heading = document.querySelector('main h1'); if (heading) heading.textContent = title;
 		// The show, the date and the length, with the cover: what the listener knows the episode by.
 		const hero = document.createElement('div'); hero.className = 'qiaomu-audio-hero';
@@ -355,11 +367,22 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 		if (isXiaoe && info.mediaUrl && !document.createElement('video').canPlayType('application/vnd.apple.mpegurl')) info.mediaUrl = null;
 		key = await webKey(sourceUrl || address); registerWebSource(key, sourceUrl || address, isDouyin || siteOf(address)?.id === 'channels' ? info.audioUrl || info.mediaUrl || undefined : xiaoeMedia);
 		if (cookies) useWebCookies(key, cookies);
+        session.draft.studySource = address;
 		void recordStudy({ url: address, title: info.title, path: `reader.html?study=web&url=${encodeURIComponent(address)}`, kind: 'web' });
 		// A post on X says something of its own: its words stay with the media. A long description of another site waits behind a tab.
 		const words = (info.description ?? '').trim(), isPost = Boolean(xStatus(address)), short = isPost || words.length <= 400;
 		await present({ title: info.title, show: info.author || info.site, cover: info.thumbnail ?? undefined, date: info.date ?? undefined, seconds: info.seconds ?? undefined, audio: info.mediaUrl ?? '', audioUrl: info.audioUrl, picture: info.video && Boolean(info.mediaUrl), ...(words && short ? { post: plainToHtml(words) } : {}), ...(words && !short ? { notesHtml: plainToHtml(words), notesLabel: text('audioTabAbout', '简介', 'Description') } : { notesHtml: '' }) });
 		if (!info.mediaUrl) { const note = document.createElement('p'); note.className = 'qiaomu-shows-note'; note.append(document.createTextNode(siteOf(address)?.id === 'tiktok' ? t('没能取到这条视频的播放地址（它在原页面里正常播放，需要原来的 TikTok 页面保持打开）。字幕照常生成，对照时请在原页面播放：') : isXiaoe ? t('这个浏览器不能直接播放小鹅通的回放，所以这里不提供播放器；字幕照常生成，对照时请在小鹅通里播放：') : t('这个网站没有给出可以直接播放的声音，所以这里不提供播放器；字幕照常生成，对照时请在原页面播放：'))); const link = document.createElement('a'); link.href = address; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = t('打开原页面'); note.append(link); holder.before(note); }
+        if (session.restored) {
+            const content = article.querySelector<HTMLElement>('.qiaomu-restored-study')!;
+            const transcript = prepareLocalPreviewTranscript(content);
+            if (transcript) await Reader.attachYouTubeTranscript(document, transcript, session.draft.clip.title, shell.chat);
+            panel.element.hidden = true; status.textContent = ''; shell.refresh(); shell.setPending(false);
+            await updateClipPreview(session.draft);
+            try { await preserveRemotePreviewMedia(session.draft); }
+            catch { status.textContent = t('编辑内容已恢复，但视频播放状态无法保存，请先留在当前页面。'); }
+            return;
+        }
 		if (official?.segments.length) {
 			await attach(official.segments); panel.element.hidden = true;
 			if (!official.timelineAligned) status.textContent = t('官方字幕已读取，播放时间轴暂未校准。');

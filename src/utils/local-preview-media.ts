@@ -31,8 +31,8 @@ export async function preserveLocalPreviewMedia(draft: ClipPreview): Promise<voi
 }
 
 // No helper upload/ASR call is needed to play an already recognised local file.
-export async function mountLocalPreviewMedia(draft: ClipPreview, parent: HTMLElement, before: HTMLElement, ready?: () => Promise<void>): Promise<void> {
- const info = draft.localMedia; if (!info) { await mountRemotePreviewMedia(draft, parent, before, ready); return; }
+export async function mountLocalPreviewMedia(draft: ClipPreview, parent: HTMLElement, before: HTMLElement, ready?: () => Promise<void>, beforeRecover?: () => Promise<void>): Promise<void> {
+ const info = draft.localMedia; if (!info) { await mountRemotePreviewMedia(draft, parent, before, ready, beforeRecover); return; }
  const mount = async (file: File, token?: string) => {
   const src = URL.createObjectURL(file), player = mountMediaStudyPlayer(parent, before, src, isVideoFile(file));
   player.controls = true; // Native controls also keep audio usable in the editor.
