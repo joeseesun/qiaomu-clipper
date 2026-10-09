@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { followXiaoeLink, isXiaoeMedia, playlistIsPlain, playlistSeconds, readXiaoeLive, xiaoeAddress } from './xiaoe';
+import { followXiaoeLink, isXiaoeLink, isXiaoeMedia, playlistIsPlain, playlistSeconds, readXiaoeLive, xiaoeAddress } from './xiaoe';
 
 const APP = 'appfixture123', LIVE = 'l_fixture123456';
 const CANON = `https://${APP}.h5.xiaoeknow.com/v4/course/alive/${LIVE}?app_id=${APP}`;
@@ -84,4 +84,15 @@ describe('readXiaoeLive', () => {
 it('does not mistake a running playlist or unsupported encryption for a finished replay',()=>{
  expect(playlistSeconds(PLAYLIST.replace('#EXT-X-ENDLIST',''))).toBeNull();expect(playlistIsPlain('#EXTM3U\n#EXT-X-KEY:METHOD=AES-128-SAMPLE,URI="key"\n')).toBe(false);
  expect(xiaoeAddress(CANON.replace('.com/', '.com:8080/'))).toBeNull();expect(xiaoeAddress(CANON+'#fragment')).toBeNull();
+});
+
+
+it('follows both Xiaoetong short-link domains and rejects look-alikes', async () => {
+ const get = (async () => ({ url: `https://${APP}.mp.xiaoeknow.com/?app_id=${APP}&params=${b64({app_id:APP,resource_id:LIVE})}`, text: async () => '' })) as unknown as typeof fetch;
+ for (const url of ['https://school.xet.tech/s/Fixture123','https://school.xetslk.com/sl/Fixture123']) {
+  expect(isXiaoeLink(url)).toBe(true);expect(await followXiaoeLink(url,get)).toBe(CANON);
+ }
+ for (const url of ['https://school.xet.tech.evil.example/s/Fixture123','https://notxet.tech/s/Fixture123']) {
+  expect(isXiaoeLink(url)).toBe(false);expect(await followXiaoeLink(url,get)).toBeNull();
+ }
 });

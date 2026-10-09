@@ -131,3 +131,11 @@ it('routes Xiaoetong and Channels shares without retaining passwords or promisin
  await home(); type(url); expect(hint()).toContain('原网页'); expect(hint()).not.toContain('自动转写');
  document.querySelector('form')!.dispatchEvent(new Event('submit',{cancelable:true}));expect(open).toHaveBeenCalledWith(expect.stringContaining('study=web'));
 });
+
+
+it('starts Xiaoetong xet.tech shares in media study rather than the ordinary reader', () => {
+ const url='https://school.xet.tech/s/Fixture123';
+ expect(classifyLink(url)).toMatchObject({kind:'web',site:'小鹅通',path:'reader.html?study=web&url='+encodeURIComponent(url)});
+ expect(classifyLink(url,{off:['xiaoe'],other:true})).toMatchObject({kind:'page',maybeMedia:false});
+ expect(classifyLink('https://school.xet.tech.evil.example/s/Fixture123')?.kind).toBe('page');
+});

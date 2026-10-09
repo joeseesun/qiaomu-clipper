@@ -9,7 +9,7 @@ const APP = /^app[0-9a-z]{6,24}$/;
 const LIVE = /^l_[0-9a-z]{8,40}$/;
 const SHOP = /^(app[0-9a-z]{6,24})\.(?:h5|mp)\.xiaoeknow\.com$/;
 // Hosts a pasted link may be on (the short-link host only redirects).
-export const XIAOE_HOSTS = ['xiaoeknow.com', 'xetslk.com', 'xiaoe-tech.com'];
+export const XIAOE_HOSTS = ['xiaoeknow.com', 'xetslk.com', 'xiaoe-tech.com', 'xet.tech'];
 // Hosts a replay playlist may come from (the default line, Huawei and ByteDance CDNs of the same file).
 const MEDIA_HOSTS = ['xiaoeknow.com', 'xet.tech', 'xiaoe-tech.com', 'xiaoecloud.com'];
 
