@@ -8,6 +8,7 @@ import { audioKey } from '../utils/video-source';
 import { PLAYER_SELECTOR } from '../utils/video-source';
 import { mountReaderPreviewShell } from '../utils/reader-preview-shell';
 import { createReaderSourceDraft } from '../utils/reader-source-draft';
+import { mountLocalPreviewMedia, prepareLocalPreviewTranscript } from '../utils/local-preview-media';
 import { marked } from 'marked';
 import { highlightExtension } from '../utils/marked-highlight';
 
@@ -487,6 +488,14 @@ async function showClipPreview(id: string) {
     document.title = draft.clip.title;
     await loadSettings();
     const {chat} = mountReaderPreviewShell(draft);
+    const article = document.querySelector<HTMLElement>('article')!;
+    if (draft.localMedia) {
+        const anchor = document.createElement('div'); article.prepend(anchor);
+        const transcript = prepareLocalPreviewTranscript(article);
+        await mountLocalPreviewMedia(draft, article, anchor, async () => {
+            if (transcript) await Reader.attachYouTubeTranscript(document, transcript, draft.clip.title, chat);
+        });
+    }
     if (document.querySelector(`article ${PLAYER_SELECTOR}`)) {
         await mountYouTubeStudy(document, document.querySelector('article')!, draft.clip.title, draft.clip.url, chat);
     }

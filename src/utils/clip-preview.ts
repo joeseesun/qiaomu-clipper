@@ -6,6 +6,7 @@ import { Property } from '../types/types';
 import { incrementStat, loadSettings, setLocalStorage } from './storage-utils';
 
 import { t } from './ui-text';
+import type { LocalPreviewMedia } from './local-preview-media';
 export interface ClipPreview {
     local: LocalSavePayload;
     clip: QiaomuClip;
@@ -15,6 +16,7 @@ export interface ClipPreview {
     createdAt?: number;
     transcriptExport?: { source: string; previous: string; mode?: 'original' | 'translated' | 'bilingual' };
     readerAppendix?: string;
+    localMedia?: LocalPreviewMedia;
     localDone?: boolean;
     rssDone?: boolean;
 }

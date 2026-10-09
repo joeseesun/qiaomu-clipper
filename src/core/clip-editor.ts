@@ -7,6 +7,7 @@ import { translatePage } from '../utils/i18n';
 import { generalSettings, loadSettings } from '../utils/storage-utils';
 import type { Property } from '../types/types';
 import { mountEditorOutline } from '../utils/editor-outline';
+import { mountLocalPreviewMedia, preserveLocalPreviewMedia } from '../utils/local-preview-media';
 
 import { t } from '../utils/ui-text';
 const byId = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -49,12 +50,14 @@ async function syncDraft(draft: ClipPreview, title: HTMLInputElement) {
 	const name = title.value.trim() || 'Untitled';
 	const markdown = byId<HTMLTextAreaElement>('ce-markdown').value;
 	const properties = readProperties();
+	if (markdown !== draft.clip.markdown) draft.transcriptExport = undefined;
 	draft.properties = properties;
 	draft.clip.title = name;
 	draft.clip.markdown = markdown;
 	draft.local.name = `${sanitizeFileName(name)}.md`;
 	draft.local.content = await generateFrontmatter(properties) + markdown;
 	await updateClipPreview(draft);
+	await preserveLocalPreviewMedia(draft);
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -74,6 +77,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 	else document.querySelector('.ce-props h2')?.setAttribute('hidden', '');
 
 	const textarea = byId<HTMLTextAreaElement>('ce-markdown');
+	await mountLocalPreviewMedia(draft, document.querySelector<HTMLElement>('.ce-body')!, textarea);
 	mountEditorOutline(document.querySelector<HTMLElement>('.ce-props')!, textarea, !!draft.properties?.length);
 	const chat = mountClipChat({
 		getContext: () => ({ title: title.value || draft.clip.title, markdown: textarea.value, url: draft.clip.url }),

@@ -29,6 +29,7 @@ import { mountAudioControls } from './audio-controls';
 import { recordStudy } from './study-home';
 import { fetchFeed, rssKey, webKey } from './podcast-feed';
 import { isVideoFile, mountMediaStudyPlayer } from './media-study-player';
+import { bindLocalPreviewMedia } from './local-preview-media';
 
 import { t } from './ui-text';
 // Study mode for audio: a podcast episode, or a file the viewer chose. The same page as for a video: the player on top, the
@@ -397,7 +398,8 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 		article.querySelector(TRANSCRIPT_SELECTOR)?.remove(); attached = false;
 		article.querySelector('.player-container, .reader-video-wrapper')?.remove();
 		if (objectUrl) URL.revokeObjectURL(objectUrl);
-		objectUrl = URL.createObjectURL(file); showPlayer(objectUrl, isVideoFile(file) ? {} : undefined);
+		objectUrl = URL.createObjectURL(file);
+		bindLocalPreviewMedia(session.draft, file, showPlayer(objectUrl, isVideoFile(file) ? {} : undefined));
 	};
 	window.addEventListener('pagehide', () => { if (objectUrl) URL.revokeObjectURL(objectUrl); }, { once: true });
 	const take = async (file: File | undefined) => {

@@ -677,5 +677,9 @@
  "交给本机助手失败：{0}": "Datei konnte nicht an den lokalen Helfer übergeben werden: {0}",
  "已恢复文件标题和字幕/任务入口。浏览器刷新后需要重新选择同一文件才能播放；成功字幕缓存保留。": "Dateititel und Zugang zu Untertiteln oder Aufgabe wurden wiederhergestellt. Wählen Sie nach dem Neuladen des Browsers dieselbe Datei zur Wiedergabe aus; erfolgreiche Untertitel bleiben im Cache.",
  "文件交接已过期或读取失败，请重新选择文件。若之前识别成功，同一文件会恢复缓存。": "Die Dateiübergabe ist abgelaufen oder konnte nicht gelesen werden. Wählen Sie die Datei erneut aus. Dieselbe Datei stellt ihren Cache wieder her, wenn die vorherige Erkennung erfolgreich war.",
- "文件已接收，但页面初始化失败：{0}。请重试；成功字幕缓存保留。": "Datei empfangen, aber die Seite konnte nicht initialisiert werden: {0}. Versuchen Sie es erneut; erfolgreiche Untertitel bleiben im Cache."
+ "文件已接收，但页面初始化失败：{0}。请重试；成功字幕缓存保留。": "Datei empfangen, aber die Seite konnte nicht initialisiert werden: {0}. Versuchen Sie es erneut; erfolgreiche Untertitel bleiben im Cache.",
+ "无法保留本地视频，请留在当前页面重试切换。字幕不会丢失。": "Das lokale Video konnte nicht beibehalten werden. Versuchen Sie den Moduswechsel auf dieser Seite erneut. Die Untertitel bleiben erhalten.",
+ "本地视频的临时播放记录已过期，请重新选择同一文件。字幕和编辑内容保留，不会重新识别。": "Der temporäre Videozugriff ist abgelaufen. Wählen Sie dieselbe Datei erneut. Untertitel und Änderungen bleiben erhalten; die Erkennung wird nicht erneut ausgeführt.",
+ "请选择原来的同一文件。": "Wählen Sie dieselbe ursprüngliche Datei.",
+ "切换失败，请重试": "Der Moduswechsel ist fehlgeschlagen. Bitte erneut versuchen."
 }

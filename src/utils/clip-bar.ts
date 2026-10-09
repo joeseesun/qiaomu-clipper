@@ -88,8 +88,8 @@ export function createClipBar({ mode, id, draft, title, domain, url, sync, onTog
 		tab.textContent = getMessage(target === 'read' ? 'qiaomuActionReadShort' : 'qiaomuActionEditShort');
 		if (target !== mode) {
 			tab.addEventListener('click', async () => {
-				await sync?.(target);
-				location.href = pageFor(target, id);
+				try { await sync?.(target); location.href = pageFor(target, id); }
+				catch (error) { showClipStatus(error instanceof Error ? error.message : 'Could not switch mode'); }
 			});
 		}
 		segment.appendChild(tab);

@@ -677,5 +677,9 @@
  "交给本机助手失败：{0}": "Impossible de transmettre le fichier à l’assistant local : {0}",
  "已恢复文件标题和字幕/任务入口。浏览器刷新后需要重新选择同一文件才能播放；成功字幕缓存保留。": "Le titre et l’accès aux sous-titres ou à la tâche ont été restaurés. Après rechargement du navigateur, sélectionnez le même fichier pour le lire ; les sous-titres réussis restent en cache.",
  "文件交接已过期或读取失败，请重新选择文件。若之前识别成功，同一文件会恢复缓存。": "Le transfert du fichier a expiré ou n’a pas pu être lu. Sélectionnez à nouveau le fichier. Le même fichier restaure son cache si la reconnaissance précédente a réussi.",
- "文件已接收，但页面初始化失败：{0}。请重试；成功字幕缓存保留。": "Fichier reçu, mais l’initialisation de la page a échoué : {0}. Réessayez ; les sous-titres réussis restent en cache."
+ "文件已接收，但页面初始化失败：{0}。请重试；成功字幕缓存保留。": "Fichier reçu, mais l’initialisation de la page a échoué : {0}. Réessayez ; les sous-titres réussis restent en cache.",
+ "无法保留本地视频，请留在当前页面重试切换。字幕不会丢失。": "Impossible de conserver la vidéo locale. Réessayez de changer de mode depuis cette page. Les sous-titres sont conservés.",
+ "本地视频的临时播放记录已过期，请重新选择同一文件。字幕和编辑内容保留，不会重新识别。": "L’accès temporaire à la vidéo a expiré. Sélectionnez à nouveau le même fichier. Les sous-titres et les modifications sont conservés, sans nouvelle reconnaissance.",
+ "请选择原来的同一文件。": "Sélectionnez le même fichier d’origine.",
+ "切换失败，请重试": "Impossible de changer de mode. Réessayez."
 }
