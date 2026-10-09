@@ -50,6 +50,7 @@
  "RSS 同步失败，请重试": "Sincronização de RSS falhou. Tente novamente",
  "RSS 已收录": "Adicionado ao RSS",
  "RSS 提交失败，请重试": "Envio de RSS falhou. Tente novamente",
+ "RSS 连接超时，请检查网络或代理后重试": "A conexão RSS expirou. Verifique a rede ou o proxy e tente novamente",
  "RSS 网络连接失败，请稍后重试": "Conexão de rede do RSS falhou. Tente novamente mais tarde",
  "RSS 返回的剪藏结果无效": "RSS retornou um resultado de clipe inválido",
  "Steph Ango · 2023 年 7 月 1 日 · <a class=\"reader-preview-meta-link\" href=\"https://stephango.com/file-over-app\" target=\"_blank\">stephango.com</a>": "Steph Ango · 1º de julho de 2023 · <a class=\"reader-preview-meta-link\" href=\"https://stephango.com/file-over-app\" target=\"_blank\">stephango.com</a>",

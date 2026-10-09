@@ -50,6 +50,7 @@
  "RSS 同步失败，请重试": "RSS sync failed. Try again",
  "RSS 已收录": "Added to RSS",
  "RSS 提交失败，请重试": "RSS submission failed. Try again",
+ "RSS 连接超时，请检查网络或代理后重试": "RSS connection timed out. Check your network or proxy and try again",
  "RSS 网络连接失败，请稍后重试": "RSS network connection failed. Try again later",
  "RSS 返回的剪藏结果无效": "RSS returned an invalid clip result",
  "Steph Ango · 2023 年 7 月 1 日 · <a class=\"reader-preview-meta-link\" href=\"https://stephango.com/file-over-app\" target=\"_blank\">stephango.com</a>": "Steph Ango · July 1, 2023 · <a class=\"reader-preview-meta-link\" href=\"https://stephango.com/file-over-app\" target=\"_blank\">stephango.com</a>",
