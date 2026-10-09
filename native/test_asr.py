@@ -42,6 +42,22 @@ class AsrTests(unittest.TestCase):
  def work(self,job_id):
   asr.run_worker(str(asr.job_dir(self.base,job_id)))
   return asr.handle({'action':'asrPoll','jobId':job_id},self.base)
+ def test_restore_poll_reads_terminal_job_without_spawning_a_new_worker(self):
+  started=self.run_job();directory=asr.job_dir(self.base,started['id'])
+  for state in ('failed','cancelled','completed'):
+   asr.write_state(directory,state=state,error='fixture timeout' if state=='failed' else None)
+   with patch.object(asr,'spawn_worker') as spawn:
+    reply=asr.handle({'action':'asrPoll','jobId':started['id'],'since':0},self.base)
+   self.assertTrue(reply['ok'],reply);self.assertEqual(reply['id'],started['id']);self.assertEqual(reply['state'],state);spawn.assert_not_called()
+ def test_restore_poll_pages_through_a_completed_long_transcript(self):
+  started=self.run_job();directory=asr.job_dir(self.base,started['id']);count=asr.MAX_POLL_SEGMENTS+1
+  (directory/'segments.jsonl').write_text(''.join(json.dumps({'start':i,'end':i+1,'text':str(i)})+'\n' for i in range(count)),encoding='utf8')
+  asr.write_state(directory,state='completed',segmentCount=count)
+  with patch.object(asr,'spawn_worker') as spawn:
+   first=asr.handle({'action':'asrPoll','jobId':started['id'],'since':0},self.base)
+   second=asr.handle({'action':'asrPoll','jobId':started['id'],'since':first['next']},self.base)
+  self.assertEqual(first['state'],'completed');self.assertEqual(len(first['segments']),asr.MAX_POLL_SEGMENTS)
+  self.assertEqual(first['segmentCount'],count);self.assertEqual(second['next'],count);self.assertEqual(len(second['segments']),1);spawn.assert_not_called()
  def test_status_reports_tools_engine_and_install_hints(self):
   s=asr.handle({'action':'asrStatus'},self.base);self.assertTrue(s['ready']);self.assertEqual(s['engine'],'mlx');self.assertFalse(s['modelDownloadNeeded'])
   with patch.dict(os.environ,{'QIAOMU_TOOL_DIRS':''}),patch.object(asr,'TOOL_DIRS',[]),patch.dict(os.environ,{'PATH':'/nonexistent'}):

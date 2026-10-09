@@ -664,5 +664,18 @@
  "2. macOS 安装包版使用 /Library/QiaomuClipper/bin/qiaomu-helper --check 诊断，并用 /Library/QiaomuClipper/bin/qiaomu-helper --extension-id {0} 注册当前扩展。其他系统或源码安装按 README 操作，在仓库目录运行 python3 native/install.py --extension-id {0}；Windows 可用 python 或 py -3。": "2. Pour le paquet macOS, diagnostiquez avec /Library/QiaomuClipper/bin/qiaomu-helper --check et enregistrez cette extension avec /Library/QiaomuClipper/bin/qiaomu-helper --extension-id {0}. Pour les autres systèmes ou installations depuis les sources, suivez le README et exécutez python3 native/install.py --extension-id {0} dans le dépôt ; sur Windows, utilisez python ou py -3.",
  "3. 不要编造扩展 ID 或 Obsidian 库路径。多个库时先让我选择；诊断失败时读取 error、hint 和 problems 处理。用当前安装方式对应的 --check 命令确认 \"ok\": true，再提醒我重新加载扩展并重试。": "3. N'inventez pas d'ID d'extension ni de chemins de coffre Obsidian. Demandez-moi de choisir s'il y a plusieurs coffres. Gérez les échecs de diagnostic en utilisant error, hint et problems. Vérifiez \"ok\": true avec la commande --check pour la méthode installée, puis rappelez-moi de recharger l'extension et de réessayer.",
  "本地保存助手已安装，但尚未允许当前扩展 ID。请到「剪藏与保存」复制修复提示，让 Agent 注册当前扩展。": "L'assistant local d'enregistrement est installé mais n'a pas autorisé cet ID d'extension. Copiez l'invite de réparation dans Clipping et enregistrement et demandez à un agent d'enregistrer cette extension.",
- "（部分翻译）": " (partiellement traduit)"
+ "（部分翻译）": " (partiellement traduit)",
+ "识别已成功，字幕显示失败。请刷新恢复缓存或重新选择同一文件。": "La reconnaissance a réussi, mais les sous-titres ne peuvent pas être affichés. Rechargez pour restaurer le cache ou sélectionnez à nouveau le même fichier.",
+ "识别已成功，但浏览器字幕缓存未保存。请先导出文字稿；本机助手的成功结果仍保留。": "La reconnaissance a réussi, mais le cache des sous-titres du navigateur n’a pas été enregistré. Exportez d’abord la transcription ; l’assistant local conserve le résultat réussi.",
+ "也可以把文件拖到这里。助手先在本机接收文件；选择云端识别时，音频会上传到所选服务并可能计费。重新生成也可能产生额外费用。": "Vous pouvez aussi déposer un fichier ici. L’assistant le reçoit d’abord sur cet ordinateur. La reconnaissance dans le cloud envoie l’audio au service sélectionné et peut être facturée. Une nouvelle génération peut aussi entraîner des frais supplémentaires.",
+ "无法读取识别配置：{0}": "Impossible de lire les réglages de reconnaissance : {0}",
+ "请选择识别方式": "Choisissez un service de reconnaissance",
+ "当前识别：{0}": "Reconnaissance actuelle : {0}",
+ "切换识别方式失败：{0}": "Impossible de changer de service de reconnaissance : {0}",
+ "切换识别方式失败，请重新检查后重试。": "Impossible de changer de service de reconnaissance. Vérifiez à nouveau et réessayez.",
+ "文件已接收，但标签页恢复信息未保存。刷新后请重新选择同一文件，成功字幕仍由本机助手保留。": "Fichier reçu, mais les informations de restauration de l’onglet n’ont pas été enregistrées. Après rechargement, sélectionnez le même fichier ; l’assistant local conserve les sous-titres réussis.",
+ "交给本机助手失败：{0}": "Impossible de transmettre le fichier à l’assistant local : {0}",
+ "已恢复文件标题和字幕/任务入口。浏览器刷新后需要重新选择同一文件才能播放；成功字幕缓存保留。": "Le titre et l’accès aux sous-titres ou à la tâche ont été restaurés. Après rechargement du navigateur, sélectionnez le même fichier pour le lire ; les sous-titres réussis restent en cache.",
+ "文件交接已过期或读取失败，请重新选择文件。若之前识别成功，同一文件会恢复缓存。": "Le transfert du fichier a expiré ou n’a pas pu être lu. Sélectionnez à nouveau le fichier. Le même fichier restaure son cache si la reconnaissance précédente a réussi.",
+ "文件已接收，但页面初始化失败：{0}。请重试；成功字幕缓存保留。": "Fichier reçu, mais l’initialisation de la page a échoué : {0}. Réessayez ; les sous-titres réussis restent en cache."
 }

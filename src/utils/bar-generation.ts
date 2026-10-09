@@ -22,11 +22,15 @@ export interface BarGenerationOptions {
 	// Where "add a cloud service" leads (the settings page); a page that cannot open it leaves this out.
 	openSettings?: () => void;
 	intervalMs?: number;
+	// File uploads always show the shared confirmation, even when another page enabled automatic starts.
+	alwaysConfirm?: boolean;
+	// Track the actual helper task; undefined means a new request has not been acknowledged yet.
+	onJob?: (videoKey: string, jobId?: string) => void;
 }
 const sizeText = (mb: number) => mb >= 1000 ? (mb / 1000).toFixed(1) + ' GB' : mb + ' MB';
 // Which engine or service is doing the work, in words for the progress line and the note on the result.
 export function viaOf(status: AsrStatus): string {
-	if (status.mode === 'cloud') return status.cloudLocal ? status.cloudLabel || t('本机服务') : t('{0} · 云端', [status.cloudLabel || t('云端服务')]);
+	if (status.mode === 'cloud') { const label = [status.cloudLabel || t('云端服务'), status.cloudModel].filter(Boolean).join(' · '); return status.cloudLocal ? label : t('{0} · 云端', [label]); }
 	const engine = (status.local ?? []).find(item => item.id === status.engine) ?? (status.local ?? []).find(item => item.id === status.choices?.engine);
 	return engine ? t('{0} · 本机', [engine.name]) : t('本机识别');
 }
@@ -37,7 +41,7 @@ export function confirmFor(status: AsrStatus): Extract<GenUi, { kind: 'confirm' 
 	const chosenLocal = status.choices && status.choices.engine !== 'auto' ? status.choices.engine : (status.engine && status.engine !== 'cloud' ? status.engine : recommended);
 	const choices: GenChoice[] = [
 		...locals.map(item => ({ value: 'local:' + item.id, kind: 'local' as const, label: item.name, note: item.installed ? t('本机 · 音频不上传 · 免费') : t('本机 · 音频不上传 · 需先下载 {0}', [sizeText(item.sizeMb)]) })),
-		...(status.choices?.profiles ?? []).filter(item => item.configured).map(item => ({ value: 'cloud:' + item.id, kind: 'cloud' as const, label: item.label + (item.local ? t('（本机服务）') : ''), note: item.local ? t('本机服务 · 音频不离开这台电脑') : t('云端 · 音频会上传到该服务并按其规则计费') })),
+		...(status.choices?.profiles ?? []).filter(item => item.configured).map(item => ({ value: 'cloud:' + item.id, kind: 'cloud' as const, label: [item.label, item.model].filter(Boolean).join(' · ') + (item.local ? t('（本机服务）') : ''), note: item.local ? t('本机服务 · 音频不离开这台电脑') : t('云端 · 音频会上传到该服务并按其规则计费') })),
 	];
 	const picked = cloud ? 'cloud:' + status.choices?.active : 'local:' + chosenLocal;
 	// What is missing: the engine the viewer picked (a cloud service needs none), or just the download and audio tools.
@@ -51,7 +55,7 @@ const choiceOf = (value: string): { engine: string } | { profile: string } | und
 const LANGUAGE_KEY = 'qiaomuAsrLanguage';
 const savedLanguage = (): string => { try { const value = localStorage.getItem(LANGUAGE_KEY); return value && /^[a-z]{2,4}$/.test(value) ? value : 'auto'; } catch { return 'auto'; } };
 const rememberLanguage = (value: string) => { try { localStorage.setItem(LANGUAGE_KEY, value); } catch { /* storage unavailable */ } };
-export interface BarGeneration { actions: GenerationActions; sync: () => void; markGenerated: (videoKey: string) => void; reset: () => void; readonly active: boolean }
+export interface BarGeneration { actions: GenerationActions; sync: () => void; markGenerated: (videoKey: string) => void; resume: (jobId?: string) => void; reset: () => void; readonly active: boolean }
 
 // Pressing "generate subtitles" asks only what is still undecided. Once the viewer has chosen an engine or service and agreed to
 // start straight away (the "remember" box, or the setting), the press starts the job at once; the confirm step comes back only when
@@ -61,7 +65,7 @@ export function createBarGeneration(options: BarGenerationOptions): BarGeneratio
 	const sync = () => { const key = options.videoKey(); options.bar()?.setGeneration((key && uiByKey.get(key)) || null); };
 	const set = (key: string, ui: GenUi | null) => { if (ui) uiByKey.set(key, ui); else uiByKey.delete(key); sync(); };
 	const language = () => lastLanguage === 'auto' ? {} : { language: lastLanguage };
-	const run = (key: string) => { set(key, { kind: 'running', stage: '', progress: 0, modelDownload: false, via }); generation.run(key, { ...language(), ...(force ? { force: true } : {}) }); };
+	const run = (key: string) => { options.onJob?.(key); set(key, { kind: 'running', stage: '', progress: 0, modelDownload: false, via }); generation.run(key, { ...language(), ...(force ? { force: true } : {}) }); };
 	const onEvent = (event: GenerationEvent) => {
 		const key = jobKey; if (!key) return;
 		switch (event.phase) {
@@ -78,13 +82,13 @@ export function createBarGeneration(options: BarGenerationOptions): BarGeneratio
 			case 'install-cancelled': set(key, null); break;
 		}
 	};
-	generation = createGeneration(onEvent, options.deps, options.intervalMs);
+	generation = createGeneration(onEvent, options.deps, options.intervalMs, options.onJob);
 	const request = (ask = false) => {
 		const key = options.videoKey(); if (!key) return; jobKey = key; set(key, { kind: 'checking' });
 		void generation.prepare(key).then(status => {
 			if (jobKey !== key || !status) return;
 			const { target, ...ui } = confirmFor(status); pendingTarget = target; selected = ui.selected ?? ''; via = viaOf(status);
-			if (!ask && status.choices?.auto && status.ready && !target) { run(key); return; }
+			if (status.ready && !target && !ask && !options.alwaysConfirm && status.choices?.auto) { run(key); return; }
 			set(key, ui);
 		});
 	};
@@ -93,6 +97,14 @@ export function createBarGeneration(options: BarGenerationOptions): BarGeneratio
 		get active() { return generation.active; },
 		sync,
 		markGenerated: key => set(key, { kind: 'generated' }),
+		// Poll the original task even if current model settings changed. Never create a task during recovery.
+		resume(jobId) {
+			force = false; via = '';
+			if (!jobId || !/^[0-9a-f]{32}$/.test(jobId)) { request(true); return; }
+			const key = options.videoKey(); if (!key) return; jobKey = key;
+			set(key, { kind: 'running', stage: '', progress: 0, modelDownload: false });
+			generation.run(key, { jobId });
+		},
 		reset() { generation.dispose(); jobKey = ''; },
 		actions: {
 			request: () => { force = false; request(); },
@@ -105,7 +117,8 @@ export function createBarGeneration(options: BarGenerationOptions): BarGeneratio
 			// A different engine or service: save it as the default and show the confirm step again for it.
 			choose(value) {
 				const choice = choiceOf(value); const key = options.videoKey(); if (!key || !choice) return;
-				void (options.choose ?? asrChoose)({ ...choice, videoKey: key }).then(() => { if (jobKey === key) request(true); });
+				set(key, { kind: 'checking' });
+				void (options.choose ?? asrChoose)({ ...choice, videoKey: key }).then(reply => { if (jobKey !== key) return; if (!reply.ok) { set(key, { kind: 'failed', error: reply.error }); return; } request(true); }).catch(() => { if (jobKey === key) set(key, { kind: 'failed', error: t('与本地助手的连接中断，任务可能仍在后台进行，稍后重新点击即可继续查看') }); });
 			},
 			// Make them again another way (different engine or service); the new result replaces the old one.
 			regenerate() { force = true; request(true); },

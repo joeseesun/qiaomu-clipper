@@ -73,7 +73,7 @@ export function wireTranscript(
 	const listen = (target: EventTarget, type: string, handler: (event: any) => void, options?: boolean | AddEventListenerOptions) => {
 		target.addEventListener(type, handler, options); disposers.push(() => target.removeEventListener(type, handler, options));
 	};
-	cleanups.set(article, () => { for (const dispose of disposers) dispose(); toggleBar.remove(); currentPosButton.remove(); delete transcript.dataset.readerWired; });
+	cleanups.set(article, () => { for (const dispose of disposers) dispose(); toggleGroup.remove(); toggleBar.remove(); currentPosButton.remove(); delete transcript.dataset.readerWired; });
 	transcript.dataset.readerWired = 'true';
 	// Reuse a pre-existing container when subtitles arrive after the live player.
 	const playerContainer = playerEl.closest<HTMLElement>('.player-container') || doc.createElement('div');

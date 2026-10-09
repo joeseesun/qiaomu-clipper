@@ -26,7 +26,7 @@ it('hands a chosen file to the study page through a token, and falls back to ask
 	const files = document.querySelector<HTMLInputElement>('input[type=file]')!, talk = new File(['x'], 'talk.m4a');
 	Object.defineProperty(files, 'files', { value: [talk], configurable: true }); state.put.mockResolvedValueOnce('a'.repeat(24)); files.dispatchEvent(new Event('change')); await settled();
 	expect(state.put).toHaveBeenCalledWith(talk); expect(state.create).toHaveBeenLastCalledWith({ url: 'chrome-extension://test/reader.html?study=file&token=' + 'a'.repeat(24) });
-	state.put.mockResolvedValueOnce(undefined); files.dispatchEvent(new Event('change')); await settled(); expect(state.create).toHaveBeenLastCalledWith({ url: 'chrome-extension://test/reader.html?study=file' });
+	state.put.mockResolvedValueOnce(undefined); files.dispatchEvent(new Event('change')); await settled(); expect(state.create).toHaveBeenLastCalledWith({ url: 'chrome-extension://test/reader.html?study=file&token=unavailable' });
 });
 
 it('looks again at what was studied each time the page is shown, and at the sites that were switched off', async () => {

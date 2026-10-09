@@ -5,8 +5,11 @@ import DOMPurify from 'dompurify';
 import browser from './browser-polyfill';
 import { Reader } from './reader';
 import { setPageTitle, setPageUrl } from './highlighter';
-import { AUDIO_FILE, asrUpload, registerFeedEpisode, registerWebSource, useWebCookies } from './asr-client';
-import { createBarGeneration } from './bar-generation';
+import { AUDIO_FILE, asrUpload, asrStatus, asrChoose, registerFeedEpisode, registerWebSource, useWebCookies } from './asr-client';
+import { confirmFor, createBarGeneration, viaOf } from './bar-generation';
+import { releaseHandedFile } from './file-handoff';
+import { readFileStudySession, saveFileStudySession } from './file-study-session';
+import { unwireTranscript } from './reader-transcript';
 import { buildGenerationPanel, GENERATION_STYLE, type GenUi } from './subtitle-generation-panel';
 import { generationStrings } from './subtitle-generation-strings';
 import { toLines } from './subtitle-generation';
@@ -24,7 +27,6 @@ import { mountDownloadButton } from './download-button';
 import { guessChoice } from './media-download';
 import { mountAudioControls } from './audio-controls';
 import { recordStudy } from './study-home';
-import { reloadPage } from './page-reload';
 import { fetchFeed, rssKey, webKey } from './podcast-feed';
 import { isVideoFile, mountMediaStudyPlayer } from './media-study-player';
 
@@ -40,6 +42,7 @@ export interface AudioStudyOptions {
 	key?: string;
 	// A file already chosen (on the study home page): hand it over straight away instead of asking again.
 	file?: File;
+	token?: string;
 	// An episode of a podcast feed: the feed's address and the episode's id in it.
 	feed?: string;
 	guid?: string;
@@ -58,6 +61,11 @@ export async function fetchEpisode(pageUrl: string): Promise<PodcastEpisode> {
 }
 
 const STYLE = `
+.qiaomu-audio-chooser button[hidden]{display:none!important}
+.qiaomu-file-recognizer{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:8px 0 20px;font-size:13px}
+.qiaomu-file-recognizer>p{flex-basis:100%}
+.qiaomu-file-recognizer label{display:flex;align-items:center;gap:8px}
+.qiaomu-file-recognizer select{max-width:min(360px,65vw);padding:6px 10px;border:1px solid var(--background-modifier-border,#ccc);border-radius:8px;background:var(--background-primary,#fff);color:var(--text-normal,#222);font:inherit}
 html .qiaomu-web-retry:has(.qiaomu-web-retry-actions){display:flex;flex-direction:column;align-items:flex-start;gap:6px;margin:8px 0 16px;padding:18px 20px;border-radius:16px;background:linear-gradient(var(--background-secondary,rgba(127,127,127,.1)),var(--background-secondary,rgba(127,127,127,.1))),var(--background-primary,#fff);box-shadow:0 0 0 1px var(--background-modifier-border,rgba(127,127,127,.16))}
 html .qiaomu-web-retry b{font-size:16px;font-weight:600;line-height:24px;color:var(--text-normal,#222)}
 html .qiaomu-web-retry p{margin:0;color:var(--text-muted,#666);font-size:14px;line-height:22px}
@@ -136,6 +144,9 @@ article[data-audio-tab=transcript] .qiaomu-shownotes{display:none}
 `;
 
 export async function startAudioStudy(options: AudioStudyOptions): Promise<void> {
+	const route = window.location.href;
+	const restored = options.kind === 'file' ? readFileStudySession(route) : undefined;
+	if (restored) { options = { ...options, key: restored.key, title: restored.title }; }
 	const initialTitle = options.title || (options.kind === 'file' ? t('本地音频学习') : options.kind === 'web' ? t('视频学习') : t('播客学习'));
 	const url = options.webUrl || options.url || FILE_PAGE_URL;
 	const session = await createReaderSourceDraft(url, initialTitle);
@@ -164,7 +175,8 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 		status.append(document.createTextNode(' '), setup);
 	};
 	let sourceHtml = '';
-	let key = options.key || '', title = initialTitle, attached = false, remade = false; // `remade`: this transcript replaces one already on the page
+	let key = options.key || '', title = initialTitle, attached = false;
+	let recoveryJobId = restored?.jobId;
 
 	// The player: an <audio> would do, but the transcript wiring follows a <video class="reader-video-player">, which plays audio too.
 	const showPlayer = (src: string, picture?: { poster?: string; audioUrl?: string }): HTMLVideoElement => {
@@ -186,17 +198,35 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 		shell.refresh(); shell.setPending(false);
 	};
 	const generation = createBarGeneration({
+		alwaysConfirm: options.kind === 'file',
+		onJob: (k, id) => { if (options.kind === 'file' && k === key) { recoveryJobId = id; saveFileStudySession(route, key, title, true, id); } },
 		videoKey: () => key || null,
-		bar: () => ({ setGeneration: (ui: GenUi | null) => panel.show(ui ?? { kind: 'offer' }) }) as never,
-		apply: (_key, lines, done) => { if (done) { remade = attached; void attach(lines); } },
+		bar: () => ({ setGeneration: (ui: GenUi | null) => {
+			panel.show(ui ?? { kind: 'offer' });
+			if (options.kind === 'file') {
+				if (key && ui?.kind === 'running') saveFileStudySession(route, key, title, true, recoveryJobId);
+				if (key && (!ui || ui.kind === 'failed' || (ui.kind === 'generated' && !ui.via))) saveFileStudySession(route, key, title);
+				picker.disabled = Boolean(ui && ['checking', 'confirm', 'running', 'installing'].includes(ui.kind));
+				if (ui?.kind === 'confirm' && ui.selected) { picker.value = ui.selected; picker.dataset.selected = ui.selected; const choice = ui.choices?.find(item => item.value === ui.selected); if (choice) selected.textContent = t('当前识别：{0}', [choice.label]); }
+				if (ui && (ui.kind === 'running' || ui.kind === 'generated') && ui.via) selected.textContent = t('当前识别：{0}', [ui.via]);
+			}
+		} }) as never,
+		apply: (k, lines, done) => { if (done && k === key) void attach(lines, attached).catch(() => { status.textContent = t('识别已成功，字幕显示失败。请刷新恢复缓存或重新选择同一文件。'); }); },
 		revert: () => { panel.show({ kind: 'offer' }); },
-		// A transcript made again (another model) replaces the one on the page. The page's transcript is wired once, so it is read again from the
-		// saved copy by loading the page again, once the copy is written.
-		save: (k, lines) => { void cache.write(`generated:${k}`, lines).then(() => { if (remade) { status.textContent = text('audioRefreshing', '新的文字稿已生成，正在刷新…', 'The new transcript is ready — refreshing…'); reloadPage(); } }); },
+		// Publish the completed replacement in place, independently of storage availability. Never refresh a page holding a File.
+		save: (k, lines) => { void cache.write(`generated:${k}`, lines).then(async () => {
+			const saved = await cache.read(`generated:${k}`);
+			if (k !== key) return;
+			// Browser storage can reorder object keys; compare caption values, not their JSON property order.
+			const complete = saved?.length === lines.length && lines.every((line, index) => ['time', 'text', 'start', 'end'].every(field => line[field as keyof PanelSegment] === saved[index][field as keyof PanelSegment]));
+			if (options.kind === 'file') saveFileStudySession(route, key, title, !complete, recoveryJobId);
+			if (!complete) status.textContent = t('识别已成功，但浏览器字幕缓存未保存。请先导出文字稿；本机助手的成功结果仍保留。');
+		}); },
 		openSettings: () => { window.open(browser.runtime.getURL('settings.html?section=asr-models'), '_blank'); },
 	});
 	const panel = buildGenerationPanel(document, generationStrings(text), generation.actions);
 	holder.append(panel.element);
+	window.addEventListener('pagehide', () => { generation.reset(); window.removeEventListener('resize', place); }, { once: true });
 	// With a key, use what was made before, else ask to make it now.
 	const begin = async () => {
 		const made = await cache.read(`generated:${key}`);
@@ -331,25 +361,84 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 	const chooser = document.createElement('div'); chooser.className = 'qiaomu-audio-chooser';
 	const input = document.createElement('input'); input.type = 'file'; input.accept = 'audio/*,video/*,.mp3,.m4a,.aac,.wav,.flac,.ogg,.opus,.wma,.webm,.mp4,.mkv,.mov,.m4v,.aiff,.amr'; input.hidden = true;
 	const pick = document.createElement('button'); pick.type = 'button'; pick.className = 'qiaomu-yt-gen-button is-primary'; pick.textContent = text('audioChooseFile', '选择音频或视频文件…', 'Choose an audio or video file…');
-	const hint = document.createElement('p'); hint.className = 'qiaomu-yt-gen-text'; hint.textContent = text('audioChooseHint', '也可以把文件拖到这里。文件只交给本机助手处理，不会上传；mp3、m4a、wav、flac、mp4 等常见格式都可以。', 'You can also drop a file here. It is only handed to the local helper, never uploaded; mp3, m4a, wav, flac, mp4 and similar formats work.');
+	const hint = document.createElement('p'); hint.className = 'qiaomu-yt-gen-text'; hint.textContent = t('也可以把文件拖到这里。助手先在本机接收文件；选择云端识别时，音频会上传到所选服务并可能计费。重新生成也可能产生额外费用。');
 	chooser.append(pick, hint, input); holder.append(chooser);
+	// Reuse the shared choices and background route settings, including the exact configured model. This placeholder only scopes status/choice to files; it never starts a job.
+	const choiceKey = () => key || 'file:' + '0'.repeat(32);
+	const recognizer = document.createElement('div'); recognizer.className = 'qiaomu-file-recognizer';
+	const selected = document.createElement('p'); selected.className = 'qiaomu-yt-gen-text'; selected.setAttribute('role', 'status');
+	const label = document.createElement('label'); label.textContent = generationStrings(text).engineLabel;
+	const picker = document.createElement('select'); picker.setAttribute('aria-label', label.textContent); label.append(picker);
+	const configure = document.createElement('button'); configure.type = 'button'; configure.className = 'qiaomu-yt-gen-button'; configure.textContent = generationStrings(text).addService;
+	configure.addEventListener('click', () => generation.actions.addService?.());
+	const check = document.createElement('button'); check.type = 'button'; check.className = 'qiaomu-yt-gen-button'; check.textContent = generationStrings(text).recheck;
+	const refreshChoice = async () => {
+		picker.disabled = true;
+		const reply = await asrStatus(choiceKey());
+		if (!reply.ok) { selected.textContent = t('无法读取识别配置：{0}', [reply.error]); picker.replaceChildren(); return; }
+		const ui = confirmFor(reply); picker.replaceChildren();
+		for (const choice of ui.choices ?? []) { const item = document.createElement('option'); item.value = choice.value; item.textContent = choice.label; picker.append(item); }
+		// No selected configuration: show an empty option, never silently select an uninstalled local engine.
+		if (!ui.selected) { const empty = document.createElement('option'); empty.value = ''; empty.textContent = t('请选择识别方式'); picker.prepend(empty); }
+		picker.value = ui.selected ?? ''; picker.dataset.selected = picker.value; selected.textContent = t('当前识别：{0}', [viaOf(reply)]);
+		picker.disabled = generation.active;
+	};
+	picker.addEventListener('change', () => {
+		const value = picker.value; if (!value) return; picker.disabled = true;
+		const choice = value.startsWith('cloud:') ? { profile: value.slice(6) } : { engine: value.slice(6) };
+		void asrChoose({ ...choice, videoKey: choiceKey() }).then(async reply => { if (!reply.ok) { selected.textContent = t('切换识别方式失败：{0}', [reply.error]); picker.value = picker.dataset.selected ?? ''; picker.disabled = false; return; } await refreshChoice(); }).catch(() => { selected.textContent = t('切换识别方式失败，请重新检查后重试。'); picker.value = picker.dataset.selected ?? ''; picker.disabled = false; });
+	});
+	check.addEventListener('click', () => { if (!generation.active && panel.kind() !== 'confirm' && !uploading) void refreshChoice(); });
+	recognizer.append(selected, label, configure, check); holder.prepend(recognizer);
+	let uploading = false, objectUrl = '', chosenFile: File | undefined;
+	const displayFile = (file: File) => {
+		article.dispatchEvent(new CustomEvent('qiaomu-transcript-replaced'));
+		unwireTranscript(article);
+		article.querySelector(TRANSCRIPT_SELECTOR)?.remove(); attached = false;
+		article.querySelector('.player-container, .reader-video-wrapper')?.remove();
+		if (objectUrl) URL.revokeObjectURL(objectUrl);
+		objectUrl = URL.createObjectURL(file); showPlayer(objectUrl, isVideoFile(file) ? {} : undefined);
+	};
+	window.addEventListener('pagehide', () => { if (objectUrl) URL.revokeObjectURL(objectUrl); }, { once: true });
 	const take = async (file: File | undefined) => {
-		if (!file) return;
+		if (!file || uploading || generation.active) return;
 		if (!AUDIO_FILE.test(file.name)) { hint.textContent = text('audioBadType', '这个文件类型不支持。', 'This file type is not supported.'); return; }
-		chooser.hidden = true; title = file.name.replace(/\.[^.]+$/, '') || initialTitle; document.title = title; setPageTitle(title);
-		const heading = document.querySelector('main h1'); if (heading) heading.textContent = title;
-		showPlayer(URL.createObjectURL(file), isVideoFile(file) ? {} : undefined);
+		uploading = true; chooser.hidden = true; picker.disabled = true; chosenFile = file;
+		let received = false;
 		status.textContent = text('audioSending', '正在把文件交给本机助手…', 'Handing the file to the local helper…');
+		try {
 		const sent = await asrUpload(file, fraction => { status.textContent = t('{0} {1}%', [text('audioSending', '正在把文件交给本机助手…', 'Handing the file to the local helper…'), Math.round(fraction * 100)]); });
 		if (!sent.ok) {
 			status.textContent = sent.error === 'helper-offline' || sent.error === 'helper-outdated' ? text('subtitleGenOffline', '没有连上本地助手，需要先安装或更新本地助手。', 'The local helper is not connected or is out of date.') : sent.error === 'no-space' ? t('磁盘空间不足') : t('{0}：{1}', [text('audioSendFailed', '交给本机助手失败', 'Could not hand the file over'), sent.error]);
 			if (sent.error === 'helper-offline' || sent.error === 'helper-outdated') setupFromStatus(sent.error);
 			chooser.hidden = false; return;
 		}
-		key = sent.key; await begin();
+		received = true;
+		if (key && key !== sent.key) { generation.reset(); article.dispatchEvent(new CustomEvent('qiaomu-transcript-replaced')); article.querySelector(TRANSCRIPT_SELECTOR)?.remove(); attached = false; }
+		key = sent.key; title = file.name.replace(/\.[^.]+$/, '') || initialTitle; document.title = title; setPageTitle(title);
+		const heading = document.querySelector('main h1'); if (heading) heading.textContent = title;
+		displayFile(file);
+		const remembered = saveFileStudySession(route, key, title);
+		if (options.token) await releaseHandedFile(options.token).catch(() => {});
+		await refreshChoice(); await begin();
+		if (!remembered) status.textContent = t('文件已接收，但标签页恢复信息未保存。刷新后请重新选择同一文件，成功字幕仍由本机助手保留。');
+		} catch (error) { status.textContent = received ? t('文件已接收，但页面初始化失败：{0}。请重试；成功字幕缓存保留。', [error instanceof Error ? error.message : String(error)]) : t('交给本机助手失败：{0}', [error instanceof Error ? error.message : String(error)]); chooser.hidden = false; }
+		finally { uploading = false; picker.disabled = generation.active || panel.kind() === 'confirm'; input.value = ''; }
 	};
-	if (options.file) void take(options.file);
 	pick.addEventListener('click', () => input.click());
+	const retry = document.createElement('button'); retry.type = 'button'; retry.className = 'qiaomu-yt-gen-button'; retry.textContent = generationStrings(text).retry;
+	retry.addEventListener('click', () => { void take(chosenFile); }); chooser.append(retry); retry.hidden = true;
+	const observe = new MutationObserver(() => { retry.hidden = !chosenFile || chooser.hidden; }); observe.observe(chooser, { attributes: true, attributeFilter: ['hidden'] });
+	window.addEventListener('pagehide', () => observe.disconnect(), { once: true });
 	input.addEventListener('change', () => { void take(input.files?.[0]); });
-	for (const type of ['dragover', 'drop']) document.addEventListener(type, event => { event.preventDefault(); if (type === 'drop' && !chooser.hidden && !key) void take((event as DragEvent).dataTransfer?.files?.[0]); });
+	const drop = (event: Event) => { event.preventDefault(); if (event.type === 'drop' && !chooser.hidden) void take((event as DragEvent).dataTransfer?.files?.[0]); };
+	for (const type of ['dragover', 'drop']) document.addEventListener(type, drop);
+	window.addEventListener('pagehide', () => { for (const type of ['dragover', 'drop']) document.removeEventListener(type, drop); }, { once: true });
+	await refreshChoice();
+	if (options.file) await take(options.file);
+	else if (key) {
+		if (restored?.pending) { const made = await cache.read(`generated:${key}`); if (made?.length) await attach(made); generation.resume(restored.jobId); }
+		else await begin();
+		hint.textContent = t('已恢复文件标题和字幕/任务入口。浏览器刷新后需要重新选择同一文件才能播放；成功字幕缓存保留。');
+	} else if (options.token) status.textContent = t('文件交接已过期或读取失败，请重新选择文件。若之前识别成功，同一文件会恢复缓存。');
 }

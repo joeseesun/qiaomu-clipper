@@ -8,7 +8,7 @@ import type { GenUi } from './subtitle-generation-panel';
 const KEY = 'bilibili:BV1hM4m1U7rA:20', OTHER = 'youtube:dbqweBCynuI', ID = 'b'.repeat(32);
 const job = (over: Partial<AsrJob> = {}): AsrJob => ({ ok: true, id: ID, videoKey: KEY, state: 'transcribing', stage: 'x', progress: 10, segments: [], next: 0, ...over });
 let current: string | null, shown: Array<GenUi | null>, applied: Array<[string, number, boolean]>, saved: Array<[string, number]>, reverted: string[];
-const make = (deps: Partial<GenerationDeps> = {}, extra: { openSettings?: () => void } = {}) => {
+const make = (deps: Partial<GenerationDeps> = {}, extra: { openSettings?: () => void; alwaysConfirm?: boolean } = {}) => {
 	const full: GenerationDeps = { status: vi.fn(async () => ({ ok: true as const, ready: true, missing: [], hints: [], engine: 'mlx', modelDownloadNeeded: true })), start: vi.fn(async () => job()), poll: vi.fn(async () => job({ state: 'completed', progress: 100, segments: [{ start: 0, end: 2, text: '你好' }], next: 1, language: 'zh' })), cancel: vi.fn(async () => job({ state: 'cancelled' })), ...deps };
 	const bar = { setGeneration: (ui: GenUi | null) => shown.push(ui) } as any;
 	const gen = createBarGeneration({ videoKey: () => current, bar: () => bar, apply: (k, lines, done) => applied.push([k, lines.length, done]), revert: k => reverted.push(k), save: (k, lines) => saved.push([k, lines.length]), deps: full, intervalMs: 5, ...extra });
@@ -197,4 +197,11 @@ it.each([['helper-offline', 'clip'], ['helper-outdated', 'clip'], ['cloud-not-co
  gen.actions.setup!(reason);
  expect(send).toHaveBeenCalledWith({ action: 'openSettings', section });
  expect(full.start).not.toHaveBeenCalled();
+});
+
+it('lets a file page require confirmation without changing automatic starts on other pages', async () => {
+ const {gen,full}=make({status:vi.fn(async()=>ready({choices:{mode:'cloud',engine:'auto',auto:true,active:'sf',profiles:[{id:'sf',label:'硅基流动',model:'Qwen3-ASR',local:false,configured:true}]},mode:'cloud',cloudLabel:'硅基流动',cloudModel:'Qwen3-ASR'}))},{alwaysConfirm:true});
+ gen.actions.request();await settle();expect(full.start).not.toHaveBeenCalled();expect(shown[shown.length-1]).toMatchObject({kind:'confirm',selected:'cloud:sf'});
+ expect(viaOf({ ...base,mode:'cloud',cloudLabel:'硅基流动',cloudModel:'Qwen3-ASR' })).toContain('Qwen3-ASR');
+ gen.actions.confirm();await settle();expect(full.start).toHaveBeenCalledOnce();
 });
