@@ -687,5 +687,9 @@
 	"这个分享页只支持在微信观看，电脑网页没有可读取的视频。请使用你已获授权保存的音视频文件转写。": "Diese Freigabeseite spielt nur in WeChat. Auf dem Desktop ist kein Video lesbar. Eine Audio- oder Videodatei transkribieren, die Sie speichern dürfen.",
 	"这是仍在进行的直播，请等回放可用后重试，或导入已保存的音视频文件。": "Der Stream ist noch live. Nach Verfügbarkeit einer Aufzeichnung erneut versuchen oder eine gespeicherte Datei importieren.",
 	"请先在原网页输入访问密码，再回来重新读取。": "Zuerst das Passwort auf der Originalwebsite eingeben, dann erneut lesen.",
-	"下载工具仍无法读取这条内容，请使用你已获授权保存的音视频文件转写。": "Das Downloadwerkzeug kann diesen Inhalt weiterhin nicht lesen. Eine Datei transkribieren, die Sie speichern dürfen."
+	"下载工具仍无法读取这条内容，请使用你已获授权保存的音视频文件转写。": "Das Downloadwerkzeug kann diesen Inhalt weiterhin nicht lesen. Eine Datei transkribieren, die Sie speichern dürfen.",
+	"无法保留本地视频，请留在当前页面重试切换。字幕不会丢失。": "Das lokale Video konnte nicht beibehalten werden. Versuchen Sie den Moduswechsel auf dieser Seite erneut. Die Untertitel bleiben erhalten.",
+	"本地视频的临时播放记录已过期，请重新选择同一文件。字幕和编辑内容保留，不会重新识别。": "Der temporäre Videozugriff ist abgelaufen. Wählen Sie dieselbe Datei erneut. Untertitel und Änderungen bleiben erhalten; die Erkennung wird nicht erneut ausgeführt.",
+	"请选择原来的同一文件。": "Wählen Sie dieselbe ursprüngliche Datei.",
+	"切换失败，请重试": "Der Moduswechsel ist fehlgeschlagen. Bitte erneut versuchen."
 }

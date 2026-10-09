@@ -12,6 +12,13 @@
 	}
 }
 #clip-editor .ce-body { flex: 1; min-width: 0; display: flex; }
+#clip-editor .ce-body:has(.local-preview-media), #clip-editor .ce-body:has(.local-preview-reselect) { flex-direction: column; min-height: 0; }
+#clip-editor .ce-body > .player-container { flex: none; width: 100%; max-width: 860px; margin: 0 auto; position: static; }
+#clip-editor .ce-body .youtube-mode-bar, #clip-editor .ce-body .youtube-player-resize { display: none; }
+html .local-preview-media video.reader-video-player { display: block !important; width: 100%; max-height: 35vh; background: #000; object-fit: contain; }
+html .local-preview-media.is-audio video.reader-video-player { height: 54px; background: transparent; }
+.local-preview-reselect { display: block; padding: 12px 20px; }
+#clip-editor .ce-body:has(.local-preview-media) #ce-markdown { min-height: 0; height: auto; }
 #clip-editor .ce-props.is-collapsed { width: 44px; padding-inline: 8px; }
 #clip-editor .ce-toc { margin-bottom: 20px; display: flex; flex-direction: column; gap: 4px;
 	button { height: auto; padding: 5px 8px; border: none; box-shadow: none; background: transparent; color: var(--text-muted); text-align: start; overflow-wrap: anywhere; font-size: 13px; cursor: pointer; }
