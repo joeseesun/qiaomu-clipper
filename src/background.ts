@@ -1533,13 +1533,13 @@ function fetchShopJson(path: string, origin: string): Promise<unknown> {
 browser.runtime.onMessage.addListener((raw: unknown, sender) => {
 	const request = raw as { action?: string; url?: string };
 	if (request?.action !== 'qiaomuXiaoeLive') return;
-	if (sender.id !== browser.runtime.id || !sender.url?.startsWith(browser.runtime.getURL('reader.html')) || typeof request.url !== 'string' || request.url.length > 2000 || !/^https:\/\//.test(request.url)) return Promise.resolve(null);
+	if (sender.id !== browser.runtime.id || !sender.url?.startsWith(browser.runtime.getURL('reader.html')) || typeof request.url !== 'string' || request.url.length > 12000 || !/^https:\/\//.test(request.url)) return Promise.resolve(null);
 	return (async () => {
 		const address = await followXiaoeLink(request.url!);
 		if (!address) return { ok: false, error: 'not-live' };
-		const origin = `https://${xiaoeParts(address)!.app}.h5.xiaoeknow.com`;
+		const origin = xiaoeParts(address)!.origin;
 		type Reply = { code?: number; msg?: string; data?: unknown } | null;
-		const fromHere = async (path: string): Promise<Reply> => { try { return await (await fetch(origin + path, { credentials: 'include' })).json(); } catch { return null; } };
+		const fromHere = async (path: string): Promise<Reply> => { const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 20000); try { const response = await fetch(origin + path, { credentials: 'include', redirect: 'error', signal: controller.signal }); return response.ok ? await response.json() : null; } catch { return null; } finally { clearTimeout(timer); } };
 		const fromTab = async (path: string): Promise<Reply> => {
 			for (const tab of (await browser.tabs.query({ url: origin + '/*' })) || []) {
 				if (tab.id === undefined) continue;

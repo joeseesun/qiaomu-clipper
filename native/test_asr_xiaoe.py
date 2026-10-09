@@ -62,4 +62,15 @@ class XiaoeDownloadTest(unittest.TestCase):
                 with self.assertRaises(asr.Failed):asr.download(directory,{'videoKey':'web:'+asr.sha(PAGE,12),'url':PAGE,'mediaUrl':MEDIA},{},{'yt-dlp':'fixture-ytdlp'})
             self.assertEqual(execute.call_count,3)
 
+class XiaoeAliasTest(unittest.TestCase):
+    def test_aliases_and_legacy_mixed_case_ids_keep_the_same_shop(self):
+        app='appFixtureAbC123';live='l_5ed8c094db164_GjDIuS0G'
+        for suffix in ['h5.xiaoeknow.com','h5.xiaoe-tech.com','xet.citv.cn','h5.xet.citv.cn','xet.pomoho.com','h5.xet.pomoho.com']:
+            page=f'https://{app.lower()}.{suffix}/v4/course/alive/{live}?app_id={app}'
+            self.assertTrue(asr.xiaoe_media(page,MEDIA),suffix)
+            self.assertFalse(asr.xiaoe_media(page.replace('?app_id='+app,'?app_id=appother12345'),MEDIA))
+    def test_alias_lookalikes_and_unbound_pages_are_rejected(self):
+        for suffix in ['h5.xet.citv.cn.evil.example','evil.pomoho.com','citv.cn','h5.xiaoeknow.com:8080']:
+            self.assertFalse(asr.xiaoe_media(f'https://appfixture123.{suffix}/v4/course/alive/l_fixture123456?app_id=appfixture123',MEDIA))
+
 if __name__ == '__main__': unittest.main()

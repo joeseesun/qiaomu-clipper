@@ -25,8 +25,10 @@ export function classifyLink(input: string, sites: StudySites = defaultStudySite
 	let url: URL;
 	try { url = new URL(/^[a-z][a-z0-9+.-]*:/i.test(trimmed) ? trimmed : 'https://' + trimmed); } catch { return undefined; }
 	if (url.username || url.password || !/^https?:$/.test(url.protocol) || !url.hostname.includes('.')) return undefined;
+	const site = siteOf(url.href);
+	// Older official shares are HTTP links: use HTTPS before reading a shop.
+	if (site?.id === 'xiaoe' && url.protocol === 'http:') url.protocol = 'https:';
 	const href = url.href;
-	const site = siteOf(href);
 	if (youtubeVideoId(href) && isSiteOn(sites, 'youtube')) return { kind: 'youtube', url: href, path: `reader.html?study=youtube&url=${encodeURIComponent(href)}&sourceTab=0&title=` };
 	if (bilibiliVideo(href) && isSiteOn(sites, 'bilibili')) { const path = videoStudyPath(href, 0, ''); if (path) return { kind: 'bilibili', url: href, path }; }
 	if (xiaoyuzhouEpisode(href) && isSiteOn(sites, 'xiaoyuzhou')) { const path = audioStudyPath(href, ''); if (path) return { kind: 'podcast', url: href, path }; }

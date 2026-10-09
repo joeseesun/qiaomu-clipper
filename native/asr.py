@@ -322,12 +322,13 @@ def channels_media(page, media):
 
 def page_media(page, media): return douyin_media(page, media) or channels_media(page, media)
 
-XIAOE_SHOP = re.compile(r'https://(app[0-9a-z]{6,24})\.h5\.xiaoeknow\.com/v4/course/alive/(l_[0-9a-z]{8,40})\?app_id=\1')
+XIAOE_SHOP = re.compile(r'https://(app[0-9a-z]{6,24})\.(?:h5\.(?:xiaoeknow|xiaoe-tech)\.com|(?:h5\.)?xet\.(?:citv\.cn|pomoho\.com))/v4/course/alive/(l_[0-9a-z_]{8,64})\?app_id=(app[0-9a-z]{6,24})', re.I)
 XIAOE_MEDIA_HOSTS = ('xiaoeknow.com', 'xet.tech', 'xiaoe-tech.com', 'xiaoecloud.com')
 def xiaoe_media(page, media):
     """A 小鹅通 live replay: the page is the live's own address, the media one of the shop's HLS playlists."""
     from urllib.parse import urlparse
-    if not isinstance(media, str) or len(media) > 4000 or not XIAOE_SHOP.fullmatch(str(page)): return False
+    shop = XIAOE_SHOP.fullmatch(str(page))
+    if not isinstance(media, str) or len(media) > 4000 or not shop or shop.group(1).lower() != shop.group(3).lower(): return False
     try:
         parsed = urlparse(media); host = (parsed.hostname or '').lower()
         return public_https(media) and parsed.port in (None, 443) and any(host == h or host.endswith('.' + h) for h in XIAOE_MEDIA_HOSTS) and parsed.path.lower().endswith('.m3u8')

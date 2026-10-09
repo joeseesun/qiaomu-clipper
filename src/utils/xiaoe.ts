@@ -5,60 +5,23 @@ import type { WebInfo } from './asr-client';
 // program still answer this API in a browser once the viewer has signed in on the shop's web page, so that is what we use.
 // Links people get look like https://xxx.xetslk.com/sl/SHARECODE (a short link) → https://<app>.mp.xiaoeknow.com/?params=<base64 json>.
 
-const APP = /^app[0-9a-z]{6,24}$/;
-const LIVE = /^l_[0-9a-z]{8,40}$/;
-const SHOP = /^(app[0-9a-z]{6,24})\.(?:h5|mp)\.xiaoeknow\.com$/;
-// Hosts a pasted link may be on (the short-link host only redirects).
-export const XIAOE_HOSTS = ['xiaoeknow.com', 'xetslk.com', 'xiaoe-tech.com', 'xet.tech'];
-// Hosts a replay playlist may come from (the default line, Huawei and ByteDance CDNs of the same file).
+import { isXiaoeLink, xiaoeAddress, xiaoeParts } from './xiaoe-address';
+export { XIAOE_HOSTS, isXiaoeLink, xiaoeAddress, xiaoeLiveAddress, xiaoeParts } from './xiaoe-address';
 const MEDIA_HOSTS = ['xiaoeknow.com', 'xet.tech', 'xiaoe-tech.com', 'xiaoecloud.com'];
-
 const hostIn = (host: string, list: string[]) => list.some(item => host === item || host.endsWith('.' + item));
-const decodeBase64Json = (text: string): Record<string, unknown> | null => {
-	try {
-		const padded = text.replace(/-/g, '+').replace(/_/g, '/'); const bin = atob(padded + '='.repeat((4 - padded.length % 4) % 4));
-		const bytes = Uint8Array.from(bin, c => c.charCodeAt(0)); const value = JSON.parse(new TextDecoder().decode(bytes));
-		return value && typeof value === 'object' ? value as Record<string, unknown> : null;
-	} catch { return null; }
-};
-export const xiaoeLiveAddress = (app: string, live: string) => `https://${app}.h5.xiaoeknow.com/v4/course/alive/${live}?app_id=${app}`;
-
-// The one address a live is known by (the transcript is cached under it), from any of the forms a link takes. Short links need
-// following first (resolveXiaoeLink); they give null here.
-export function xiaoeAddress(address: string): string | null {
-	let url: URL; try { url = new URL(address); } catch { return null; }
-	if (url.protocol !== 'https:' || url.username || url.password || (url.port && url.port !== '443') || url.hash) return null;
-	const host = url.hostname.toLowerCase(), shop = host.match(SHOP)?.[1];
-	if (!shop) return null;
-	const app = url.searchParams.get('app_id') || shop; if (app !== shop || !APP.test(app)) return null;
-	const live = url.pathname.match(/\/course\/alive\/(l_[0-9a-z]+)/)?.[1];
-	if (live && LIVE.test(live)) return xiaoeLiveAddress(app, live);
-	// The mini-program landing page carries the item in `params` (base64 JSON with resource_id and the web address).
-	const params = url.searchParams.get('params'); const inner = params ? decodeBase64Json(params) : null;
-	const fromParams = inner && typeof inner.resource_id === 'string' ? inner.resource_id : '';
-	if (LIVE.test(fromParams) && (inner!.app_id === undefined || inner!.app_id === app)) return xiaoeLiveAddress(app, fromParams);
-	// The older room address: /content_page/<base64 json with resource_id>.
-	const page = url.pathname.match(/\/content_page\/([A-Za-z0-9_\-+/=]+)/)?.[1]; const old = page ? decodeBase64Json(page) : null;
-	if (old && (old.app_id === undefined || old.app_id === app) && typeof old.resource_id === 'string' && LIVE.test(old.resource_id)) return xiaoeLiveAddress(app, old.resource_id);
-	return null;
-}
-export const isXiaoeLink = (address: string): boolean => { try { const u = new URL(address); return u.protocol === 'https:' && hostIn(u.hostname.toLowerCase(), XIAOE_HOSTS); } catch { return false; } };
-export function xiaoeParts(address: string): { app: string; live: string } | null {
-	const canonical = xiaoeAddress(address); if (!canonical) return null;
-	const u = new URL(canonical); return { app: u.searchParams.get('app_id')!, live: u.pathname.split('/').pop()! };
-}
 
 // A short link answers with a redirect (or a page that moves on by script) to the shop's address.
 export async function followXiaoeLink(address: string, get: typeof fetch = (...args) => fetch(...args)): Promise<string | null> {
 	const own = xiaoeAddress(address); if (own) return own;
 	if (!isXiaoeLink(address)) return null;
+	const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 25000);
 	try {
-		const response = await get(address, { redirect: 'follow', credentials: 'omit' });
+		const response = await get(address, { redirect: 'follow', credentials: 'omit', signal: controller.signal });
 		const landed = xiaoeAddress(response.url); if (landed) return landed;
 		// A landing page that moves on by script: the shop address is written in it.
 		const html = (await response.text()).slice(0, 200000);
-		for (const found of html.match(/https:\/\/app[0-9a-z]+\.(?:h5|mp)\.xiaoeknow\.com\/[^"'\s<>\\]+/g) || []) { const next = xiaoeAddress(found.replace(/&amp;/g, '&')); if (next) return next; }
-	} catch { /* not reachable */ }
+		for (const found of html.match(/https:\/\/app[0-9a-z]+\.[^"'\s<>\\]+/gi) || []) { const next = xiaoeAddress(found.replace(/&amp;/g, '&')); if (next) return next; }
+	} catch { /* not reachable */ } finally { clearTimeout(timer); }
 	return null;
 }
 
@@ -83,15 +46,15 @@ export const playlistIsPlain = (text: string): boolean => !/#EXT-X-KEY:(?![^\n]*
 export type XiaoeReply = { ok: true; info: WebInfo; address: string } | { ok: false; error: 'login'; address: string; loginUrl: string } | { ok: false; error: 'not-live' | 'no-replay' | 'denied' | 'failed'; address?: string; message?: string };
 type Api = (path: string) => Promise<{ code?: number; msg?: string; message?: string; data?: unknown } | null>;
 
-const loginUrlOf = (app: string) => `https://${app}.h5.xiaoeknow.com/p/t/free/v1/basic-platform/h5_basic/login/auth?redirect_url=${encodeURIComponent(`https://${app}.h5.xiaoeknow.com/p/decorate/personal_center`)}`;
+const loginUrlOf = (origin: string) => `${origin}/p/t/free/v1/basic-platform/h5_basic/login/auth?redirect_url=${encodeURIComponent(origin + '/p/decorate/personal_center')}`;
 
 // Read the replay through the shop's API (`api` runs the request as the signed-in viewer), then measure the playlist.
 export async function readXiaoeLive(address: string, api: Api, playlist: (url: string) => Promise<string>): Promise<XiaoeReply> {
 	const parts = xiaoeParts(address); if (!parts) return { ok: false, error: 'not-live' };
-	const { app, live } = parts, canonical = xiaoeLiveAddress(app, live);
+	const { app, live, origin } = parts, canonical = xiaoeAddress(address)!;
 	const lines = await api(`/_alive/v3/get_lookback_list?app_id=${app}&alive_id=${live}`);
 	if (!lines) return { ok: false, error: 'failed', address: canonical };
-	if (lines.code === 11302) return { ok: false, error: 'login', address: canonical, loginUrl: loginUrlOf(app) };
+	if (lines.code === 11302) return { ok: false, error: 'login', address: canonical, loginUrl: loginUrlOf(origin) };
 	if (lines.code !== 0) return { ok: false, error: 'denied', address: canonical, message: String(lines.msg || lines.message || lines.code || '').slice(0, 200) };
 	const urls: string[] = [];
 	for (const line of Array.isArray(lines.data) ? lines.data as Array<{ default?: boolean; line_sharpness?: Array<{ url?: unknown; default?: boolean }> }> : []) {

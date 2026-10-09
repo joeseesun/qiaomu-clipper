@@ -1,4 +1,5 @@
 import browser from './browser-polyfill';
+import { XIAOE_HOSTS } from './xiaoe-address';
 
 import { t } from './ui-text';
 // Which sites "transcribe and study" works on. The first three have their own pages (a bar on the site, a study page with a
@@ -13,7 +14,7 @@ export const STUDY_SITES: StudySite[] = [
 	{ id: 'x', name: 'X（Twitter）', hosts: ['x.com', 'twitter.com'], get note() { return t('帖子里的视频或音频：字幕条，按 A 三次进入学习'); } },
 	{ id: 'tiktok', name: 'TikTok', hosts: ['tiktok.com'] },
 	{ id: 'douyin', get name() { return t('抖音'); }, hosts: ['douyin.com'], get note() { return t('多数需要登录状态'); } },
-	{ id: 'xiaoe', get name() { return t('小鹅通'); }, hosts: ['xiaoeknow.com', 'xetslk.com', 'xiaoe-tech.com', 'xet.tech'], get note() { return t('直播回放：先在网页登录小鹅通'); } },
+	{ id: 'xiaoe', get name() { return t('小鹅通'); }, hosts: XIAOE_HOSTS, get note() { return t('直播回放：先在网页登录小鹅通'); } },
 	{ id: 'instagram', name: 'Instagram', hosts: ['instagram.com'], get note() { return t('多数需要登录状态'); } },
 	{ id: 'facebook', name: 'Facebook', hosts: ['facebook.com', 'fb.watch'] },
 	{ id: 'reddit', name: 'Reddit', hosts: ['reddit.com', 'v.redd.it'] },
