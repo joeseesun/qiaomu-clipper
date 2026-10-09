@@ -139,3 +139,20 @@ it('disposing recovery ignores a late result and leaves the original background 
  generation.run(KEY,{jobId:ID}); generation.dispose(); resolve(job({state:'completed'})); await settle();
  expect(events).toEqual([]); expect(full.start).not.toHaveBeenCalled(); expect(full.cancel).not.toHaveBeenCalled();
 });
+
+it('reads all pages of a completed long transcript before publishing or saving success', async () => {
+ const {full,generation} = make({poll:vi.fn()
+  .mockResolvedValueOnce(job({state:'completed',segments:[seg(0,'第一批')],next:1,segmentCount:2}))
+  .mockResolvedValueOnce(job({state:'completed',segments:[seg(4,'最后一批')],next:2,segmentCount:2}))});
+ generation.run(KEY,{jobId:ID});await settle();
+ expect(full.poll).toHaveBeenNthCalledWith(2,ID,1);
+ expect(events[events.length-1]).toMatchObject({phase:'done',segments:[{text:'第一批'},{text:'最后一批'}]});
+ expect(events.filter(e=>e.phase==='done')).toHaveLength(1);expect(full.start).not.toHaveBeenCalled();
+});
+
+it('fails an incomplete terminal response that stops advancing instead of saving partial captions or polling forever', async () => {
+ const {full,generation}=make({poll:vi.fn().mockResolvedValue(job({state:'completed',next:0,segmentCount:2}))});
+ generation.run(KEY,{jobId:ID});await settle();
+ expect(events[events.length-1]).toMatchObject({phase:'failed'});
+ expect(events.some(e=>e.phase==='done')).toBe(false);expect(full.start).not.toHaveBeenCalled();expect(full.poll).toHaveBeenCalledTimes(2);
+});

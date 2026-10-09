@@ -37,6 +37,8 @@ export function createGeneration(onEvent: (event: GenerationEvent) => void, give
 	const setup = (failure: AsrFailure) => onEvent({ phase: 'needs-setup', reason: (SETUP as string[]).includes(failure.error) ? failure.error as SetupReason : 'helper-offline', missing: failure.missing || [], hints: failure.hints || [] });
 	const report = (job: AsrJob) => onEvent({ phase: 'running', stage: job.stage, progress: job.progress, processedSec: job.processedSec ?? undefined, totalSec: job.totalSec ?? undefined, segments: lines, modelDownload: job.state === 'downloadingModel' });
 	const finish = (job: AsrJob): boolean => {
+		// A terminal task can still have more caption pages (the helper caps every response at 2,000 lines).
+		if (job.state === 'completed' && typeof job.segmentCount === 'number' && job.next < job.segmentCount) return false;
 		if (job.state === 'completed') onEvent({ phase: 'done', segments: lines, language: job.language ?? null, cached: Boolean(job.cached) });
 		else if (job.state === 'failed') onEvent({ phase: 'failed', error: job.error || t('生成字幕失败'), code: job.errorCode ?? undefined, segments: lines });
 		else if (job.state === 'cancelled') onEvent({ phase: 'cancelled', segments: lines });
@@ -73,6 +75,7 @@ export function createGeneration(onEvent: (event: GenerationEvent) => void, give
 						if (mine !== token) return;
 						if (!polled.ok) { if (++failures >= MAX_POLL_FAILURES) { onEvent({ phase: 'failed', error: t('与本地助手的连接中断，任务可能仍在后台进行，稍后重新点击即可继续查看'), segments: lines }); return; } continue; }
 						if (resumeId && (polled.videoKey !== videoKey || polled.id !== resumeId)) { onEvent({ phase: 'failed', error: 'bad-request', segments: lines }); return; }
+						if (polled.state === 'completed' && typeof polled.segmentCount === 'number' && polled.next < polled.segmentCount && polled.next <= since) { onEvent({ phase: 'failed', error: 'bad-request', segments: lines }); return; }
 						failures = 0; lines = lines.concat(toLines(polled.segments)); since = polled.next;
 						if (finish(polled)) return;
 						report(polled);
