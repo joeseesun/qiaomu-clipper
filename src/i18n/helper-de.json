@@ -140,5 +140,9 @@
  "正在不使用登录状态重试视频下载": "Der Videodownload wird ohne die Browser-Anmeldung erneut versucht",
  "正在重试 YouTube 音频下载": "Der YouTube-Audiodownload wird erneut versucht",
  "YouTube 拒绝了当前登录状态，匿名下载也需要验证身份；请更新 YouTube 登录状态后重试": "YouTube hat die aktuelle Anmeldung abgelehnt. Auch der Download ohne Anmeldung erfordert eine Bestätigung. Melden Sie sich erneut bei YouTube an und versuchen Sie es noch einmal.",
- "字幕生成进程意外退出，请重试": "Die Untertitelerstellung wurde unerwartet beendet. Bitte versuchen Sie es erneut."
+ "字幕生成进程意外退出，请重试": "Die Untertitelerstellung wurde unerwartet beendet. Bitte versuchen Sie es erneut.",
+ "回放地址无效，请重新打开学习页": "Die Adresse der Aufzeichnung ist ungültig. Öffnen Sie die Lernseite erneut",
+ "回放地址已过期，请重新打开学习页再生成字幕": "Die Adresse der Aufzeichnung ist abgelaufen. Öffnen Sie die Lernseite erneut und erstellen Sie die Untertitel noch einmal",
+ "回放下载失败：": "Download der Aufzeichnung fehlgeschlagen: ",
+ "正在下载小鹅通回放": "Xiaoe-Aufzeichnung wird heruntergeladen"
 }

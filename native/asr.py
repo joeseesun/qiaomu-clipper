@@ -302,6 +302,37 @@ def douyin_media(page, media):
         params = parse_qs(parsed.query, keep_blank_values=True)
         return public_https(media) and parsed.port in (None, 443) and (host == 'douyinvod.com' or host.endswith('.douyinvod.com')) and ('__vid' not in params or params['__vid'] == [page.rsplit('/', 1)[-1]])
     except ValueError: return False
+XIAOE_SHOP = re.compile(r'https://(app[0-9a-z]{6,24})\.h5\.xiaoeknow\.com/v4/course/alive/(l_[0-9a-z]{8,40})\?app_id=\1')
+XIAOE_MEDIA_HOSTS = ('xiaoeknow.com', 'xet.tech', 'xiaoe-tech.com', 'xiaoecloud.com')
+def xiaoe_media(page, media):
+    """A 小鹅通 live replay: the page is the live's own address, the media one of the shop's HLS playlists."""
+    from urllib.parse import urlparse
+    if not isinstance(media, str) or len(media) > 4000 or not XIAOE_SHOP.fullmatch(str(page)): return False
+    try:
+        parsed = urlparse(media); host = (parsed.hostname or '').lower()
+        return public_https(media) and parsed.port in (None, 443) and any(host == h or host.endswith('.' + h) for h in XIAOE_MEDIA_HOSTS) and parsed.path.lower().endswith('.m3u8')
+    except ValueError: return False
+def download_hls(directory, spec, env, tools):
+    """A replay playlist: yt-dlp reads the segments (several at a time) into one file; the picture is dropped when converting."""
+    page = spec['url']; media = spec['mediaUrl']
+    if not xiaoe_media(page, media): raise Failed('回放地址无效，请重新打开学习页')
+    pattern = re.compile(r'\[download\]\s+([0-9.]+)%')
+    command = [tools['yt-dlp'], '--no-playlist', '--no-warnings', '--newline', '--no-continue', '--retries', '4', '--fragment-retries', '6',
+               '--concurrent-fragments', '6', '--fixup', 'never', '-f', 'best', '--add-header', 'Referer:' + page.split('/v4/')[0] + '/',
+               '--user-agent', BROWSER_AGENT, '-o', str(directory / 'audio.%(ext)s'), media]
+    def progress(line):
+        match = pattern.search(line)
+        if match: write_state(directory, state='downloading', stage='正在下载小鹅通回放', progress=round(min(float(match.group(1)), 100) * 0.15, 1))
+    for attempt in range(3):
+        for leftover in directory.glob('audio.*'): leftover.unlink(missing_ok=True)
+        write_state(directory, state='downloading', stage='正在下载小鹅通回放', progress=0)
+        code, tail = stream(command, env, progress)
+        audio = next((p for p in directory.glob('audio.*') if p.suffix not in ('.part', '.ytdl', '.wav', '.json') and not p.name.endswith('.part')), None)
+        if code == 0 and audio: return audio
+        text = ' '.join(tail).lower()
+        if '403' in text or '410' in text or 'expired' in text: raise Failed('回放地址已过期，请重新打开学习页再生成字幕', code='media-expired')
+        time.sleep(attempt + 1)
+    raise Failed('回放下载失败：' + (tail[-1] if tail else '未知错误')[:200])
 def download_page_media(directory, spec):
     import urllib.error
     page = spec['url']; media = spec['mediaUrl']
@@ -509,7 +540,7 @@ def start(base, message):
         if not public_https(ref['url']): raise ValueError('网页地址必须是公开的 https 地址')
         url = ref['url']
         if ref.get('mediaUrl') is not None:
-            if not douyin_media(url, ref['mediaUrl']): raise ValueError('原页面视频地址无效')
+            if not douyin_media(url, ref['mediaUrl']) and not xiaoe_media(url, ref['mediaUrl']): raise ValueError('原页面视频地址无效')
             media_url = ref['mediaUrl']
     if video_key.startswith('file:') and not staged_file(base, video_key) and not read_json(result_path(base, video_key)): return {'ok': False, 'error': 'file-missing'}
     language = message.get('language') or 'auto'
@@ -755,6 +786,7 @@ def download(directory, spec, env, tools):
     if spec['videoKey'].startswith('xiaoyuzhou:'): return download_podcast(directory, spec)
     if spec['videoKey'].startswith('rss:'): return download_rss(directory, spec)
     if spec['videoKey'].startswith('file:'): return copy_staged(directory, spec, directory.parent.parent.parent)
+    if spec['videoKey'].startswith('web:') and spec.get('mediaUrl') and xiaoe_media(spec['url'], spec['mediaUrl']): return download_hls(directory, spec, env, tools)
     if spec['videoKey'].startswith('web:') and spec.get('mediaUrl'): return download_page_media(directory, spec)
     command = [tools['yt-dlp'], '--no-playlist', '--no-warnings', '--newline', '--no-continue', '--retries', '4', '--fragment-retries', '4', '-f', 'bestaudio/best', '--write-info-json', '-o', str(directory / 'audio.%(ext)s')]
     cookie_args = []

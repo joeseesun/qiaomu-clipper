@@ -140,5 +140,9 @@
  "正在不使用登录状态重试视频下载": "Tentando baixar o vídeo novamente sem a sessão do navegador",
  "正在重试 YouTube 音频下载": "Tentando baixar o áudio do YouTube novamente",
  "YouTube 拒绝了当前登录状态，匿名下载也需要验证身份；请更新 YouTube 登录状态后重试": "O YouTube rejeitou a sessão atual, e o download sem login também exige verificação. Entre no YouTube novamente e tente outra vez.",
- "字幕生成进程意外退出，请重试": "A geração de legendas foi interrompida inesperadamente. Tente novamente."
+ "字幕生成进程意外退出，请重试": "A geração de legendas foi interrompida inesperadamente. Tente novamente.",
+ "回放地址无效，请重新打开学习页": "O endereço do replay é inválido. Reabra a página de estudo",
+ "回放地址已过期，请重新打开学习页再生成字幕": "O endereço do replay expirou. Reabra a página de estudo e gere as legendas novamente",
+ "回放下载失败：": "Falha ao baixar o replay: ",
+ "正在下载小鹅通回放": "Baixando o replay do Xiaoe"
 }

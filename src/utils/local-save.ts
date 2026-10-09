@@ -1,5 +1,6 @@
 import { classifyHelperError, helperIsOutdated, helperProblemText } from './helper-install';
 import { isDouyinMedia } from './web-page-media';
+import { isXiaoeMedia } from './xiaoe';
 import browser from './browser-polyfill';
 import { Template } from '../types/types';
 import { siteOf } from './study-sites';
@@ -92,7 +93,7 @@ export function handleAsrMessage(request: unknown, sender: { id?: string; url?: 
             const pageAddress = webMediaAddress(sender.url || '');
             const own = Boolean(ref && typeof ref.url === 'string' && webMediaAddress(ref.url) && (pageAddress ? webMediaAddress(ref.url) === pageAddress : ['tiktok', 'douyin'].includes(siteOf(sender.url || '')?.id || '') && siteOf(ref.url)?.id === siteOf(sender.url || '')?.id));
             if (!(sender.url?.startsWith(browser.runtime.getURL('')) || own) || !ref || typeof ref.url !== 'string' || ref.url.length > 1500 || !/^https:\/\//.test(ref.url)) return Promise.resolve({ ok: false, error: 'bad-request' });
-            if (ref.mediaUrl !== undefined && !isDouyinMedia(ref.url, ref.mediaUrl)) return Promise.resolve({ ok: false, error: 'bad-request' });
+            if (ref.mediaUrl !== undefined && !isDouyinMedia(ref.url, ref.mediaUrl) && !isXiaoeMedia(ref.url, ref.mediaUrl)) return Promise.resolve({ ok: false, error: 'bad-request' });
             body.web = { url: ref.url, ...(ref.mediaUrl ? { mediaUrl: ref.mediaUrl } : {}) };
         }
         Object.assign(body, { videoKey: payload.videoKey, language: payload.language || 'auto', force: payload.force === true, ...(payload.cookies ? { cookies: payload.cookies } : {}) });
