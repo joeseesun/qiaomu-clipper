@@ -1,3 +1,6 @@
+import { marked } from 'marked';
+import type { ClipPreview } from './clip-preview';
+import { prepareLocalPreviewTranscript } from './local-preview-media';
 import { mountStudyCaptionLanguage } from './study-caption-language';
 import Defuddle from 'defuddle';
 import DOMPurify from 'dompurify';
@@ -45,7 +48,7 @@ export function firstWithTranscript<T extends { content?: string }>(jobs: Promis
 }
 
 // Render the learning page before doing any page fetch or subtitle extraction.
-export async function startYouTubeStudy(url: string, sourceTabId: number, initialTitle: string, onReady: (result: any) => Promise<void>, mountShell?: () => {chat: {toggle: () => boolean}; ready: () => void}): Promise<void> {
+export async function startYouTubeStudy(url: string, sourceTabId: number, initialTitle: string, onReady: (result: any) => Promise<void>, mountShell?: () => {chat: {toggle: () => boolean}; ready: () => void}, restoredDraft?: ClipPreview): Promise<void> {
 	if (!videoKey(url)) throw new Error(t('无效的视频链接'));
 	const title = initialTitle.replace(/\s*- YouTube$/, '') || t('YouTube 视频学习');
 	Object.defineProperty(document, 'URL', { value: url, configurable: true });
@@ -58,6 +61,13 @@ export async function startYouTubeStudy(url: string, sourceTabId: number, initia
 	const shell = mountShell?.();
 	await mountYouTubeStudy(document, article, title, url, shell?.chat);
 	const status = article.querySelector<HTMLElement>('.youtube-study-status')!;
+    if (restoredDraft) {
+        const content = document.createElement('div'); content.className = 'qiaomu-restored-study';
+        content.innerHTML = DOMPurify.sanitize(await marked.parse(restoredDraft.clip.markdown)); article.append(content);
+        const transcript = prepareLocalPreviewTranscript(content);
+        if (transcript) await Reader.attachYouTubeTranscript(document, transcript, restoredDraft.clip.title, shell?.chat);
+        status.textContent = ''; shell?.ready(); return;
+    }
 	const clip = document.getElementById('qiaomu-reader-clip') as HTMLButtonElement | null;
 	if (clip) clip.disabled = true;
 	const retry = document.createElement('button');

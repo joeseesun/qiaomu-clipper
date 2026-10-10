@@ -1,5 +1,5 @@
 import browser from './browser-polyfill';
-import { ClipPreview, saveClipPreview, updateClipPreview } from './clip-preview';
+import { ClipPreview, saveClipPreview, patchClipPreview } from './clip-preview';
 import { copyToClipboard } from './clipboard-utils';
 import { getMessage } from './i18n';
 import { createElement, Copy, Download, Paperclip, Highlighter, WandSparkles } from 'lucide';
@@ -17,11 +17,20 @@ interface ClipBarOptions {
 	url?: string;
 	// Editing page: copy form fields back into the draft before any action.
 	sync?: (action?: ClipSyncAction) => Promise<void>;
+    getExport?: () => Promise<{content:string; name:string}>;
 	// Opens or closes the AI chat panel; returns whether it is now open.
 	onToggleChat?: () => boolean;
 }
 
-const pageFor = (mode: ClipMode, id: string) => browser.runtime.getURL(mode === 'read' ? `reader.html?preview=${id}` : `editor.html?id=${id}`);
+export const clipPageFor = (mode: ClipMode, id: string, draft: ClipPreview) => {
+    if (mode === 'read' && draft.mediaReadUrl) {
+        const route = new URL(draft.mediaReadUrl, browser.runtime.getURL('reader.html'));
+        if (route.origin === new URL(browser.runtime.getURL('reader.html')).origin && route.pathname.endsWith('/reader.html')) {
+            route.searchParams.set('resume', id); return route.href;
+        }
+    }
+    return browser.runtime.getURL(mode === 'read' ? `reader.html?preview=${id}` : `editor.html?id=${id}`);
+};
 
 function button(id: string, icon: Parameters<typeof createElement>[0] | null, labelKey: string, className = ''): HTMLButtonElement {
 	const el = document.createElement('button');
@@ -51,7 +60,7 @@ export function showClipStatus(text: string): void {
 }
 
 // One top bar for both reading and editing: switch mode, share to RSS, copy, download, clip.
-export function createClipBar({ mode, id, draft, title, domain, url, sync, onToggleChat }: ClipBarOptions): HTMLElement {
+export function createClipBar({ mode, id, draft, title, domain, url, sync, getExport, onToggleChat }: ClipBarOptions): HTMLElement {
 	const bar = document.createElement('header');
 	bar.className = 'clip-bar';
 	// Slot for page-specific tools (the reader's font settings) so they live in the bar, not beside it.
@@ -88,7 +97,7 @@ export function createClipBar({ mode, id, draft, title, domain, url, sync, onTog
 		tab.textContent = getMessage(target === 'read' ? 'qiaomuActionReadShort' : 'qiaomuActionEditShort');
 		if (target !== mode) {
 			tab.addEventListener('click', async () => {
-				try { await sync?.(target); location.href = pageFor(target, id); }
+				try { await sync?.(target); location.href = clipPageFor(target, id, draft); }
 				catch (error) { showClipStatus(error instanceof Error ? error.message : 'Could not switch mode'); }
 			});
 		}
@@ -105,22 +114,22 @@ export function createClipBar({ mode, id, draft, title, domain, url, sync, onTog
 	rssSwitch.checked = draft.aggregate;
 	rssSwitch.addEventListener('change', async () => {
 		draft.aggregate = rssSwitch.checked;
-		await updateClipPreview(draft);
+		await patchClipPreview(draft, {aggregate:draft.aggregate});
 	});
 	rss.append(rssText, rssSwitch);
 
 	const copy = button('clip-bar-copy', Copy, 'qiaomuActionCopy');
 	copy.addEventListener('click', async () => {
-		await sync?.('copy');
-		showClipStatus(await copyToClipboard(draft.local.content) ? getMessage('qiaomuEditorCopied') : getMessage('copyToClipboard'));
+		const exported = getExport ? await getExport() : (await sync?.('copy'), draft.local);
+		showClipStatus(await copyToClipboard(exported.content) ? getMessage('qiaomuEditorCopied') : getMessage('copyToClipboard'));
 	});
 
 	const download = button('clip-bar-download', Download, 'qiaomuActionDownload');
 	download.addEventListener('click', async () => {
-		await sync?.('download');
+		const exported = getExport ? await getExport() : (await sync?.('download'), draft.local);
 		const link = document.createElement('a');
-		link.href = URL.createObjectURL(new Blob([draft.local.content], { type: 'text/markdown' }));
-		link.download = draft.local.name;
+		link.href = URL.createObjectURL(new Blob([exported.content], { type: 'text/markdown' }));
+		link.download = exported.name;
 		link.click();
 		setTimeout(() => URL.revokeObjectURL(link.href), 1000);
 	});

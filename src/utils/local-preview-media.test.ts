@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 const state = vi.hoisted(() => ({ put: vi.fn(), take: vi.fn(), release: vi.fn(), update: vi.fn() }));
 vi.mock('./file-handoff', () => ({ putHandedFile: state.put, takeHandedFile: state.take, releaseHandedFile: state.release }));
-vi.mock('./clip-preview', () => ({ updateClipPreview: state.update }));
+vi.mock('./clip-preview', () => ({ patchClipPreview: state.update }));
 import { bindLocalPreviewMedia, preserveLocalPreviewMedia, mountLocalPreviewMedia, prepareLocalPreviewTranscript } from './local-preview-media';
 import type { ClipPreview } from './clip-preview';
 const file = () => new File(['synthetic video'], 'lesson.mp4', { type: 'video/mp4', lastModified: 123 });
@@ -19,7 +19,7 @@ it('waits for the File transaction before persisting a token and playback metada
  const data = draft(), player = document.createElement('video'); player.currentTime = 5; player.playbackRate = 1.5; player.volume = .4; player.muted = true;
  bindLocalPreviewMedia(data, file(), player); await preserveLocalPreviewMedia(data);
  expect(data.localMedia).toEqual({ token: TOKEN, name:'lesson.mp4', size:15, modified:123, time:5, rate:1.5, volume:.4, muted:true });
- expect(state.update).toHaveBeenCalledWith(data); expect(JSON.stringify(data)).not.toMatch(/blob:|synthetic video/);
+ expect(state.update).toHaveBeenCalledWith(data, { localMedia: data.localMedia }); expect(JSON.stringify(data)).not.toMatch(/blob:|synthetic video/);
  await preserveLocalPreviewMedia(data); expect(state.put).toHaveBeenCalledTimes(1);
 });
 it('does not leave the playable page if IndexedDB could not commit a handoff', async () => {

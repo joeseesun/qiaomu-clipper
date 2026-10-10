@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 const state = vi.hoisted(() => ({ update: vi.fn(), open: vi.fn() }));
-vi.mock('./clip-preview', () => ({ updateClipPreview: state.update }));
+vi.mock('./clip-preview', () => ({ patchClipPreview: state.update }));
 vi.mock('./browser-polyfill', () => ({ default: { runtime: { getURL: (p: string) => 'chrome-extension://fixture/' + p }, tabs: { create: state.open }, storage: { local: { get: async () => ({}), set: async () => {} }, onChanged: { addListener: () => {} } } } }));
 import { bindRemotePreviewMedia, preserveRemotePreviewMedia, mountRemotePreviewMedia } from './remote-preview-media';
 import type { ClipPreview } from './clip-preview';
@@ -16,7 +16,7 @@ const preserve = async (data: ClipPreview) => {
 it('puts only a random token and playback state in the durable text draft', async () => {
  const data = draft(); await preserve(data);
  expect(data.remoteMedia).toMatchObject({time:4,rate:1.5,volume:.4,muted:true}); expect(JSON.stringify(data)).not.toContain('private-fixture');
- expect(sessionStorage.getItem('qiaomuPreviewMedia:'+data.remoteMedia!.token)).toContain(source); expect(state.update).toHaveBeenCalledWith(data);
+ expect(sessionStorage.getItem('qiaomuPreviewMedia:'+data.remoteMedia!.token)).toContain(source); expect(state.update).toHaveBeenCalledWith(data, { remoteMedia: data.remoteMedia });
 });
 it('restores the same video across document navigation with seek and sound settings', async () => {
  const data=draft();await preserve(data); const restored=JSON.parse(JSON.stringify(data)),ready=vi.fn();
@@ -58,7 +58,7 @@ it('saves pending edits before opening recovery and stops when persistence fails
  await mountRemotePreviewMedia(data,document.querySelector('article')!,document.getElementById('anchor')!,undefined,save);
  document.querySelector('a')!.click();await vi.waitFor(()=>expect(state.open).toHaveBeenCalledTimes(1));
  expect(save).toHaveBeenCalledTimes(1);expect(data.clip.markdown).toBe('New unsaved edits');
- state.open.mockClear();state.update.mockRejectedValue(Error('full'));document.querySelector('a')!.click();
+ state.open.mockClear();save.mockRejectedValueOnce(Error('full'));document.querySelector('a')!.click();
  await vi.waitFor(()=>expect(document.querySelector('.local-preview-reselect')?.textContent).toContain('编辑内容保存失败'));
  expect(state.open).not.toHaveBeenCalled();
 });

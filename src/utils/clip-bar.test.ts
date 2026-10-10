@@ -3,7 +3,7 @@ import { expect, it, vi } from 'vitest';
 
 vi.mock('./browser-polyfill', () => ({ default: { runtime: { getURL: (p: string) => p }, storage: { local: { set: vi.fn(), get: vi.fn() } } } }));
 vi.mock('./i18n', () => ({ getMessage: (key: string) => key }));
-vi.mock('./clip-preview', () => ({ saveClipPreview: vi.fn(), updateClipPreview: vi.fn() }));
+vi.mock('./clip-preview', () => ({ saveClipPreview: vi.fn(), patchClipPreview: vi.fn() }));
 vi.mock('./clipboard-utils', () => ({ copyToClipboard: vi.fn() }));
 
 import { createClipBar, autoHideBar } from './clip-bar';
@@ -44,4 +44,10 @@ it('ignores scrolling inside the chat panel', () => {
 	list.scrollTop = 0; list.dispatchEvent(new Event('scroll'));
 	list.scrollTop = 300; list.dispatchEvent(new Event('scroll'));
 	expect(bar.classList.contains('is-hidden')).toBe(false);
+});
+
+it('uses rescue content for copy and download without depending on a failing persistence sync', async()=>{
+ const sync=vi.fn().mockRejectedValue(Error('quota')),getExport=vi.fn().mockResolvedValue({content:'Pending rescue text',name:'Rescued.md'});
+ const bar=createClipBar({mode:'edit',id:'rescue',draft,title:document.createElement('input'),sync,getExport});
+ const clipboard=await import('./clipboard-utils');bar.querySelector<HTMLButtonElement>('#clip-bar-copy')!.click();await vi.waitFor(()=>expect(clipboard.copyToClipboard).toHaveBeenCalledWith('Pending rescue text'));expect(sync).not.toHaveBeenCalled();
 });

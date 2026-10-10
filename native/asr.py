@@ -2,7 +2,7 @@
 """Generate subtitles for a video that has none, entirely on this machine: yt-dlp -> ffmpeg -> Whisper.
 
 The native host starts a job as a detached worker (`asr.py worker <job dir>`) and answers short status requests from
-the job's files, so nothing listens on a port and the browser only ever talks to the host. Audio never leaves the
+the job's files, so the browser only ever talks to the host. HLS downloads use a short-lived, token-protected loopback relay. Audio never leaves the
 machine and is deleted when the job ends; only the text of the result is kept (a cache keyed by the video).
 """
 import base64, hashlib, json, os, platform, re, shutil, signal, subprocess, sys, tempfile, time, uuid
@@ -41,7 +41,16 @@ def atomic_json(path, data, durable=True):
         with os.fdopen(fd, 'w', encoding='utf8') as f:
             json.dump(data, f, ensure_ascii=False); f.flush()
             if durable: os.fsync(f.fileno())
-        os.replace(name, path)
+        # Polling readers and antivirus can briefly deny replacement on Windows.
+        # Keep the same staged file; never hide disk errors or a permanent denial.
+        for attempt in range(40):
+            try:
+                os.replace(name, path)
+                break
+            except PermissionError as error:
+                if sys.platform != 'win32' or getattr(error, 'winerror', None) not in (5, 32, 33) or attempt == 39:
+                    raise
+                time.sleep(0.05)
     finally:
         if os.path.exists(name): os.unlink(name)
 def asr_root(base): return base / 'asr'
@@ -57,7 +66,7 @@ def write_state(directory, **changes):
     state = read_state(directory); now = time.time()
     quiet = set(changes) <= {'progress', 'processedSec', 'segmentCount', 'stage', 'updatedAt'} and all(state.get(k) == changes.get(k) for k in ('stage',) if k in changes)
     if quiet and now - _last_write.get(str(directory), 0) < 0.4: return {**state, **changes}
-    state.update(changes); state['updatedAt'] = now; _last_write[str(directory)] = now; atomic_json(directory / 'state.json', state, durable=False); return state
+    state.update(changes); state['updatedAt'] = now; atomic_json(directory / 'state.json', state, durable=False); _last_write[str(directory)] = now; return state
 
 # ---- tools --------------------------------------------------------------------------------------------------------
 def tool_dirs():
@@ -333,13 +342,104 @@ def xiaoe_media(page, media):
         parsed = urlparse(media); host = (parsed.hostname or '').lower()
         return public_https(media) and parsed.port in (None, 443) and any(host == h or host.endswith('.' + h) for h in XIAOE_MEDIA_HOSTS) and parsed.path.lower().endswith('.m3u8')
     except ValueError: return False
+def xiaoe_resource(page, address):
+    from urllib.parse import urlparse
+    try:
+        p = urlparse(address)
+        return isinstance(address, str) and len(address) <= 8000 and xiaoe_media(page, 'https://xet.tech/validation.m3u8') and public_https(address) and p.port in (None, 443) and not p.fragment and any(p.hostname == h or p.hostname.endswith('.' + h) for h in XIAOE_MEDIA_HOSTS)
+    except (ValueError, AttributeError): return False
+
+def rewrite_xiaoe_playlist(text, base, register):
+    """Every nested playlist, segment, initialization file and AES key passes the same guarded fetch."""
+    from urllib.parse import urljoin
+    if not text.lstrip().startswith('#EXTM3U') or '#EXT-X-DEFINE' in text: raise OSError('回放清单无效')
+    output = []
+    for line in text.splitlines():
+        if line.startswith('#'):
+            # HLS URI attributes are quoted; reject malformed ones rather than leaving a network escape.
+            if re.search(r'(?:^|[,:])(?:[A-Z-]*URI)=(?!")', line): raise OSError('回放清单地址无效')
+            line = re.sub(r'((?:[A-Z-]*URI)=)"([^"\r\n]+)"', lambda m: m.group(1) + '"' + register(urljoin(base, m.group(2))) + '"', line)
+        elif line.strip():
+            line = register(urljoin(base, line.strip()))
+        output.append(line)
+    return '\n'.join(output) + '\n'
+
+from contextlib import contextmanager
+@contextmanager
+def xiaoe_hls_relay(page, media):
+    # yt-dlp sees only rewritten loopback URLs. The helper guards every upstream request,
+    # including redirects; signed addresses and errors never enter the downloader's log.
+    import http.server, threading
+    from urllib.parse import urlparse
+    resources = {}; token = uuid.uuid4().hex
+    class Server(http.server.ThreadingHTTPServer): daemon_threads = True
+    server = Server(('127.0.0.1', 0), None)
+    def register(address):
+        if not xiaoe_resource(page, address) or len(resources) >= 100000: raise OSError('回放清单包含不允许的地址')
+        key = '/' + token + '/' + hashlib.sha256(address.encode()).hexdigest()
+        resources[key] = address
+        return 'http://127.0.0.1:' + str(server.server_port) + key + ('.m3u8' if urlparse(address).path.lower().endswith('.m3u8') else '')
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def log_message(self, *_args): pass
+        def do_GET(self):
+            key = self.path.removesuffix('.m3u8')
+            address = resources.get(key)
+            if not address: self.send_error(404); return
+            try:
+                headers = {'Referer': page.split('/v4/')[0] + '/', 'User-Agent': BROWSER_AGENT}
+                byte_range = self.headers.get('Range')
+                if byte_range:
+                    if not re.fullmatch(r'bytes=\d+-\d*', byte_range): raise OSError('无效范围')
+                    headers['Range'] = byte_range
+                with open_public(address, timeout=30, headers=headers, allowed=lambda value: xiaoe_resource(page, value)) as response:
+                    if urlparse(address).path.lower().endswith('.m3u8'):
+                        parts = []; total = 0; deadline = time.monotonic() + 30
+                        while True:
+                            if time.monotonic() > deadline: raise OSError('回放清单读取超时')
+                            block = response.read1(65536)
+                            if not block: break
+                            total += len(block)
+                            if total > 4_000_000: raise OSError('回放清单过大')
+                            parts.append(block)
+                        body = b''.join(parts)
+                        body = rewrite_xiaoe_playlist(body.decode('utf8'), response.geturl(), register).encode('utf8')
+                        self.send_response(200); self.send_header('Content-Type', 'application/vnd.apple.mpegurl'); self.send_header('Content-Length', str(len(body))); self.end_headers(); self.wfile.write(body)
+                    else:
+                        # Stage a bounded fragment before replying, so a failed/oversized read
+                        # cannot look like a successfully downloaded partial segment.
+                        limit = 128 * 1024 * 1024
+                        if int(response.headers.get('Content-Length', 0)) > limit: raise OSError('回放片段过大')
+                        with tempfile.SpooledTemporaryFile(max_size=2 * 1024 * 1024) as body:
+                            total = 0; deadline = time.monotonic() + 120
+                            while True:
+                                if time.monotonic() > deadline: raise OSError('回放片段读取超时')
+                                block = response.read1(65536)
+                                if not block: break
+                                total += len(block)
+                                if total > limit: raise OSError('回放片段过大')
+                                body.write(block)
+                            expected = response.headers.get('Content-Length')
+                            if expected and total != int(expected): raise OSError('回放片段不完整')
+                            body.seek(0); self.send_response(getattr(response, 'status', 200))
+                            self.send_header('Content-Type', response.headers.get('Content-Type', 'application/octet-stream')); self.send_header('Content-Length', str(total))
+                            if response.headers.get('Content-Range'): self.send_header('Content-Range', response.headers['Content-Range'])
+                            self.end_headers(); shutil.copyfileobj(body, self.wfile)
+            except Exception:
+                # Do not leak signed upstream URLs in errors returned to yt-dlp.
+                try: self.send_error(502, 'Replay resource unavailable')
+                except OSError: pass
+    server.RequestHandlerClass = Handler
+    thread = threading.Thread(target=server.serve_forever, daemon=True); thread.start()
+    try: yield register(media)
+    finally: server.shutdown(); server.server_close(); thread.join(timeout=2)
+
 def download_hls(directory, spec, env, tools):
     """A replay playlist: yt-dlp reads the segments (several at a time) into one file; the picture is dropped when converting."""
     page = spec['url']; media = spec['mediaUrl']
     if not xiaoe_media(page, media): raise Failed('回放地址无效，请重新打开学习页')
     pattern = re.compile(r'\[download\]\s+([0-9.]+)%')
-    command = [tools['yt-dlp'], '--no-playlist', '--no-warnings', '--newline', '--no-continue', '--retries', '4', '--fragment-retries', '6',
-               '--concurrent-fragments', '6', '--abort-on-unavailable-fragments', '--fixup', 'never', '-f', 'best', '--add-header', 'Referer:' + page.split('/v4/')[0] + '/',
+    command = [tools['yt-dlp'], '--ignore-config', '--no-playlist', '--no-warnings', '--newline', '--no-continue', '--retries', '4', '--fragment-retries', '6',
+               '--hls-prefer-native', '--concurrent-fragments', '6', '--abort-on-unavailable-fragments', '--fixup', 'never', '-f', 'best', '--add-header', 'Referer:' + page.split('/v4/')[0] + '/',
                '--user-agent', BROWSER_AGENT, '-o', str(directory / 'audio.%(ext)s'), media]
     def progress(line):
         match = pattern.search(line)
@@ -347,7 +447,8 @@ def download_hls(directory, spec, env, tools):
     for attempt in range(3):
         for leftover in directory.glob('audio.*'): leftover.unlink(missing_ok=True)
         write_state(directory, state='downloading', stage='正在下载小鹅通回放', progress=0)
-        code, tail = stream(command, env, progress)
+        with xiaoe_hls_relay(page, media) as relay:
+            code, tail = stream([*command[:-1], relay], env, progress)
         audio = next((p for p in directory.glob('audio.*') if p.suffix not in ('.part', '.ytdl', '.wav', '.json') and not p.name.endswith('.part')), None)
         if code == 0 and audio: return audio
         text = ' '.join(tail).lower()

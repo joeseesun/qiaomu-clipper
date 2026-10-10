@@ -56,7 +56,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 	}
 
 	if (params.get('study') === 'youtube' || params.get('study') === 'bilibili') {
-		const session = await createReaderSourceDraft(url, params.get('title') || '');
+		const session = await createReaderSourceDraft(url, params.get('title') || '', params.get('resume') || undefined);
+        const route = new URL(location.href); route.searchParams.delete('resume'); session.draft.mediaReadUrl = route.href;
 		// Suppress the legacy reader controls before rendering, just as a normal preview does.
 		Reader.onEdit = () => {};
 		await startYouTubeStudy(url, Number(params.get('sourceTab')), session.draft.clip.title, async result => {
@@ -66,7 +67,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 		}, () => {
 			const shell = mountReaderPreviewShell(session.draft, true);
 			return {chat:shell.chat, ready: () => { shell.refresh(); shell.setPending(false); }};
-		});
+		}, session.restored ? session.draft : undefined);
 		return;
 	}
 

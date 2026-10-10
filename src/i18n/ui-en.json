@@ -718,5 +718,6 @@
 	"编辑内容自动保存失败，请先复制或下载文字后重试。": "Edits could not be saved automatically. Copy or download your text before trying again.",
 	"原编辑草稿无法恢复，请返回原编辑页导出文字后重试。": "The original edited draft could not be restored. Return to the original editor and export your text before trying again.",
 	"编辑内容已恢复，但视频播放状态无法保存，请先留在当前页面。": "Your edits have been restored, but playback state could not be saved. Stay on this page for now.",
-	"编辑内容保存失败，请留在当前页面重试或先导出文字。": "Your edits could not be saved. Stay here and retry, or export your text first."
+	"编辑内容保存失败，请留在当前页面重试或先导出文字。": "Your edits could not be saved. Stay here and retry, or export your text first.",
+ "草稿已在另一个页面修改。请先复制或下载当前文字，再重新打开最新草稿。": "This draft was changed in another page. Copy or download your current text before reopening the latest draft."
 }

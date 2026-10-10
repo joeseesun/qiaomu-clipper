@@ -74,3 +74,52 @@ class XiaoeAliasTest(unittest.TestCase):
             self.assertFalse(asr.xiaoe_media(f'https://appfixture123.{suffix}/v4/course/alive/l_fixture123456?app_id=appfixture123',MEDIA))
 
 if __name__ == '__main__': unittest.main()
+
+class XiaoePlaylistBoundaryTest(unittest.TestCase):
+    def test_nested_segment_key_and_map_are_all_guarded(self):
+        from urllib.parse import urljoin
+        seen=[]
+        def register(url):
+            self.assertTrue(asr.xiaoe_resource(PAGE,url));seen.append(url);return 'http://127.0.0.1/fixture/'+str(len(seen))
+        body='#EXTM3U\n#EXT-X-KEY:METHOD=AES-128,URI="key.bin"\n#EXT-X-MAP:URI="init.mp4"\nchild.m3u8\nhttps://video.xet.tech/segment.ts\n'
+        rewritten=asr.rewrite_xiaoe_playlist(body,MEDIA,register)
+        self.assertEqual(len(seen),4);self.assertNotIn('https:',rewritten);self.assertIn('URI="http://127.0.0.1/fixture/1"',rewritten)
+    def test_refuses_insecure_private_external_and_malformed_resources(self):
+        def register(url):
+            if not asr.xiaoe_resource(PAGE,url):raise OSError('blocked')
+            return url
+        for url in ['http://video.xet.tech/segment.ts','https://127.0.0.1/key','https://evil.example/key','https://xet.tech.evil.example/key','https://user:secret@video.xet.tech/key','https://video.xet.tech:8080/key']:
+            for body in ['#EXTM3U\n'+url, '#EXTM3U\n#EXT-X-KEY:METHOD=AES-128,URI="'+url+'"']:
+                with self.subTest(url=url),self.assertRaises(OSError):asr.rewrite_xiaoe_playlist(body,MEDIA,register)
+        with self.assertRaises(OSError):asr.rewrite_xiaoe_playlist('#EXTM3U\n#EXT-X-KEY:METHOD=AES-128,URI=https://evil.example/key',MEDIA,register)
+    def test_redirect_guard_rejects_other_domains_and_private_addresses(self):
+        import urllib.request
+        from unittest.mock import patch
+        def build(handler):
+            for address in ['https://evil.example/playlist.m3u8','http://video.xet.tech/segment.ts','https://127.0.0.1/segment.ts']:
+                with self.assertRaises(OSError):handler().redirect_request(None,None,302,'Found',{},address)
+            class Opener:
+                def open(self,*args,**kw):return 'guarded'
+            return Opener()
+        with patch.object(urllib.request,'build_opener',side_effect=build):self.assertEqual(asr.open_public(MEDIA,allowed=lambda u:asr.xiaoe_resource(PAGE,u)),'guarded')
+
+class XiaoeRelayTest(unittest.TestCase):
+    def test_relay_localizes_nested_manifest_keys_and_segments_and_rejects_private_uris(self):
+        import io, urllib.request
+        from unittest.mock import patch
+        class Response(io.BytesIO):
+            def __init__(self,url,data):super().__init__(data);self.url=url;self.headers={'Content-Type':'application/octet-stream'};self.status=200
+            def geturl(self):return self.url
+        seen=[]
+        def fetch(url,**options):
+            self.assertTrue(options['allowed'](url));self.assertFalse(options['allowed']('https://evil.example/segment.ts'));seen.append(url)
+            body=b'#EXTM3U\nchild.m3u8\n' if url==MEDIA else b'#EXTM3U\n#EXT-X-KEY:METHOD=AES-128,URI="key.bin"\n#EXTINF:1\nsegment.ts\n#EXT-X-ENDLIST\n' if url.endswith('child.m3u8') else b'fixture'
+            return Response(url,body)
+        with patch.object(asr,'open_public',side_effect=fetch),asr.xiaoe_hls_relay(PAGE,MEDIA) as relay:
+            master=urllib.request.urlopen(relay).read().decode();child=master.splitlines()[1];nested=urllib.request.urlopen(child).read().decode()
+            key=__import__('re').search(r'URI="([^"]+)"',nested).group(1);segment=next(line for line in nested.splitlines() if line.startswith('http'))
+            self.assertEqual(urllib.request.urlopen(key).read(),b'fixture');self.assertEqual(urllib.request.urlopen(segment).read(),b'fixture');self.assertNotIn('https:',master+nested)
+        self.assertEqual(len(seen),4)
+        with patch.object(asr,'open_public',return_value=Response(MEDIA,b'#EXTM3U\nhttps://127.0.0.1/private.ts\n')),asr.xiaoe_hls_relay(PAGE,MEDIA) as relay:
+            with self.assertRaises(urllib.error.HTTPError) as failed:urllib.request.urlopen(relay)
+            self.assertEqual(failed.exception.code,502)

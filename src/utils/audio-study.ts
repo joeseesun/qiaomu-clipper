@@ -1,5 +1,5 @@
 import { marked } from 'marked';
-import { updateClipPreview } from './clip-preview';
+import { patchClipPreview } from './clip-preview';
 import { bindRemotePreviewMedia, preserveRemotePreviewMedia, restoreRemotePreviewPlayback } from './remote-preview-media';
 import { mountStudyCaptionLanguage } from './study-caption-language';
 import { isProtectedStudy, probeProtectedStudy } from './protected-study';
@@ -378,7 +378,7 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
             const transcript = prepareLocalPreviewTranscript(content);
             if (transcript) await Reader.attachYouTubeTranscript(document, transcript, session.draft.clip.title, shell.chat);
             panel.element.hidden = true; status.textContent = ''; shell.refresh(); shell.setPending(false);
-            await updateClipPreview(session.draft);
+            await patchClipPreview(session.draft, {studySource:session.draft.studySource});
             try { await preserveRemotePreviewMedia(session.draft); }
             catch { status.textContent = t('编辑内容已恢复，但视频播放状态无法保存，请先留在当前页面。'); }
             return;

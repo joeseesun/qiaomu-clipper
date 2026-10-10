@@ -718,5 +718,6 @@
 	"编辑内容自动保存失败，请先复制或下载文字后重试。": "Não foi possível salvar as edições automaticamente. Copie ou baixe o texto antes de tentar novamente.",
 	"原编辑草稿无法恢复，请返回原编辑页导出文字后重试。": "Não foi possível restaurar o rascunho editado original. Volte ao editor original e exporte o texto antes de tentar novamente.",
 	"编辑内容已恢复，但视频播放状态无法保存，请先留在当前页面。": "Suas edições foram restauradas, mas não foi possível salvar o estado de reprodução. Permaneça nesta página por enquanto.",
-	"编辑内容保存失败，请留在当前页面重试或先导出文字。": "Não foi possível salvar suas edições. Tente novamente nesta página ou exporte o texto primeiro."
+	"编辑内容保存失败，请留在当前页面重试或先导出文字。": "Não foi possível salvar suas edições. Tente novamente nesta página ou exporte o texto primeiro.",
+ "草稿已在另一个页面修改。请先复制或下载当前文字，再重新打开最新草稿。": "Este rascunho foi alterado em outra página. Copie ou baixe o texto atual antes de reabrir o rascunho mais recente."
 }

@@ -1,6 +1,6 @@
 import { preserveRemotePreviewMedia, mountRemotePreviewMedia } from './remote-preview-media';
 import type { ClipPreview } from './clip-preview';
-import { updateClipPreview } from './clip-preview';
+import { patchClipPreview } from './clip-preview';
 import { putHandedFile, takeHandedFile, releaseHandedFile } from './file-handoff';
 import { isVideoFile, mountMediaStudyPlayer } from './media-study-player';
 import { t } from './ui-text';
@@ -24,7 +24,7 @@ export async function preserveLocalPreviewMedia(draft: ClipPreview): Promise<voi
  const player = media.player;
  draft.localMedia = { token, name: media.file.name, size: media.file.size, modified: media.file.lastModified,
   time: player.currentTime, rate: player.playbackRate, volume: player.volume, muted: player.muted };
- try { await updateClipPreview(draft); }
+ try { await patchClipPreview(draft, { localMedia: draft.localMedia }); }
  catch (error) { draft.localMedia = previous; if (token !== media.token) await releaseHandedFile(token); throw error; }
  media.token = token;
  if (previous?.token && previous.token !== token) await releaseHandedFile(previous.token);

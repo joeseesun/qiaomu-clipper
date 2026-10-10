@@ -17,7 +17,7 @@ import { enabledChatModels, streamChat } from './utils/chat-llm';
 import { audioStudyPath, videoKey, videoStudyPath } from './utils/video-source';
 import { isSiteOn, loadStudySites, siteOf } from './utils/study-sites';
 import { isMediaItemAddress, webMediaAddress } from './utils/web-media-page';
-import { followXiaoeLink, readXiaoeLive, xiaoeParts } from './utils/xiaoe';
+import { followXiaoeLink, readXiaoeLive, xiaoeParts, fetchXiaoePlaylist } from './utils/xiaoe';
 import { hasStoredHighlights } from './utils/url-utils';
 import { cookiesGranted, handleAsrMessage, handleLearningNativeMessage } from './utils/local-save';
 import { enableYouTubeEmbedRule, disableYouTubeEmbedRule } from './utils/youtube-embed-rules';
@@ -1551,7 +1551,7 @@ browser.runtime.onMessage.addListener((raw: unknown, sender) => {
 			return null;
 		};
 		const api = async (path: string): Promise<Reply> => { const here = await fromHere(path); if (here && here.code !== 11302) return here; return (await fromTab(path)) || here; };
-		const playlist = async (url: string) => { const response = await fetch(url, { credentials: 'omit' }); if (!response.ok) throw new Error(String(response.status)); return (await response.text()).slice(0, 4_000_000); };
+		const playlist = (url: string) => fetchXiaoePlaylist(url);
 		return readXiaoeLive(address, api, playlist);
 	})().catch(() => ({ ok: false, error: 'failed' }));
 });

@@ -80,3 +80,25 @@ export async function readXiaoeLive(address: string, api: Api, playlist: (url: s
 		description: [text(about.product_name, 200), text(about.summary, 2000)].filter(Boolean).join('\n'), date: start,
 	} };
 }
+
+// Bound the actual response body, including slow readers; slicing text after download is too late.
+export async function fetchXiaoePlaylist(url: string, get: typeof fetch = fetch, maxBytes = 4_000_000, timeoutMs = 20000): Promise<string> {
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout>;
+    const timedOut = new Promise<never>((_, reject) => { timer = setTimeout(() => { controller.abort(); reject(new Error('Replay playlist timed out')); }, timeoutMs); });
+    let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+    const read = async () => {
+        const response = await get(url, {credentials:'omit', redirect:'error', signal:controller.signal});
+        if (!response.ok || !response.body) throw new Error('Replay playlist unavailable');
+        if (Number(response.headers.get('content-length')) > maxBytes) throw new Error('Replay playlist too large');
+        reader = response.body.getReader(); const decoder = new TextDecoder(); let bytes = 0, text = '';
+        while (true) {
+            const {value, done} = await reader.read(); if (done) break;
+            bytes += value.byteLength; if (bytes > maxBytes) throw new Error('Replay playlist too large');
+            text += decoder.decode(value, {stream:true});
+        }
+        return text + decoder.decode();
+    };
+    try { return await Promise.race([read(), timedOut]); }
+    finally { clearTimeout(timer!); controller.abort(); void reader?.cancel().catch(() => {}); }
+}

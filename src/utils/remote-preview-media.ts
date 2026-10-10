@@ -1,6 +1,6 @@
 import browser from './browser-polyfill';
 import type { ClipPreview } from './clip-preview';
-import { updateClipPreview } from './clip-preview';
+import { patchClipPreview } from './clip-preview';
 import { mountMediaStudyPlayer } from './media-study-player';
 import { t } from './ui-text';
 
@@ -27,7 +27,7 @@ export async function preserveRemotePreviewMedia(draft: ClipPreview): Promise<vo
   const { player, ...source } = current;
   win.sessionStorage.setItem(key, JSON.stringify({ ...source, expires: Date.now() + 2 * 3600000 })); wrote = true;
   draft.remoteMedia = { token, time: player.currentTime, rate: player.playbackRate, volume: player.volume, muted: player.muted };
-  await updateClipPreview(draft);
+  await patchClipPreview(draft, { remoteMedia: draft.remoteMedia });
  } catch {
   draft.remoteMedia = previous;
   if (wrote) { try { if (prior === null) win.sessionStorage.removeItem(key); else win.sessionStorage.setItem(key, prior); } catch { /* keep the playable page */ } }
@@ -51,7 +51,7 @@ export async function mountRemotePreviewMedia(draft: ClipPreview, parent: HTMLEl
    const link = doc.createElement('a'); link.textContent = t('重新打开转写学习'); link.href = browser.runtime.getURL('reader.html?study=web&url=' + encodeURIComponent(draft.clip.url) + '&resume=' + encodeURIComponent(draft.local.requestId)); link.target = '_blank'; link.rel = 'noopener noreferrer';
    let opening = false;
    link.addEventListener('click', event => { event.preventDefault(); event.stopPropagation(); if (opening) return; opening = true; void (async () => {
-    try { await beforeRecover?.(); await updateClipPreview(draft); await browser.tabs.create({ url: link.href }); }
+    try { await beforeRecover?.(); await browser.tabs.create({ url: link.href }); }
     catch { note.textContent = t('编辑内容保存失败，请留在当前页面重试或先导出文字。'); }
     finally { opening = false; }
    })(); }); recovery.append(link);
