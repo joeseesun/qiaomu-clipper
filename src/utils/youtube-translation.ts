@@ -172,6 +172,7 @@ export function mountTranslation(article: HTMLElement, toolbar: HTMLElement, sta
 		restoreSelection(savedSelection);
 	};
 	async function translate() {
+		const sessionId = crypto.randomUUID();
 		controller?.abort(); const current = ++generation; const abort = new AbortController(); controller = abort; retry.hidden = true; setup.hidden = true;
 		const progress = () => { showFeedback(`${getMessage('qiaomuTranslationProgress')} ${cache.size}/${parts.length}`); };
 		progress();
@@ -188,7 +189,7 @@ export function mountTranslation(article: HTMLElement, toolbar: HTMLElement, sta
 				const arm = () => { clearTimeout(timer); timer = setTimeout(() => { timedOut = true; request.abort(); }, INACTIVITY_MS); };
 				abort.signal.addEventListener('abort', stop, { once: true }); arm();
 				const content = JSON.stringify(items.map(part => ({ id: part.id, text: withoutMusicCues(part.text), contextBefore: withoutMusicCues(parts[part.id - 1]?.text || '').slice(-500), contextAfter: withoutMusicCues(parts[part.id + 1]?.text || '').slice(0, 500) })));
-				try { return await streamChat({ model, signal: request.signal, onDelta: arm, system, messages: [{ role: 'user', content }] }); }
+				try { return await streamChat({ model, sessionId, signal: request.signal, onDelta: arm, system, messages: [{ role: 'user', content }] }); }
 				catch (error) { throw timedOut && !abort.signal.aborted ? new TranslationTimeoutError() : error; }
 				finally { clearTimeout(timer); abort.signal.removeEventListener('abort', stop); }
 			};

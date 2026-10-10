@@ -66,6 +66,13 @@ describe('provider model discovery', () => {
 		await vi.advanceTimersByTimeAsync(15000);
 		await assertion;
 	});
+	it('carries the OpenCode session header, and finds models next to the chat endpoint', () => {
+		const request = modelListRequest({ ...provider, baseUrl: 'https://opencode.ai/zen/go/v1/chat/completions' });
+		expect(request.url.href).toBe('https://opencode.ai/zen/go/v1/models');
+		expect(request.headers['x-opencode-session']).toBeTruthy();
+		expect(request.headers['x-opencode-client']).toBe('qiaomu-clipper');
+		expect(request.headers.Authorization).toBe('Bearer test-key');
+	});
 	it('names a model the vendor lists by id only, and never overrides a name the vendor gave', () => {
 		expect(readableName('kimi-k2.6')).toBe('Kimi K2.6');
 		expect(readableName('kimi-k2.6', 'kimi-k2.6')).toBe('Kimi K2.6');
@@ -79,4 +86,22 @@ describe('provider model discovery', () => {
 		expect(common[0].name).toBe('DeepSeek V4.1 Flash');
 		expect(fallbackModels({ name: 'My gateway', baseUrl: 'https://gw.example/v1/chat/completions' })).toEqual([]);
 	});
+});
+
+
+it('filters the bare Go catalog to documented Chat Completions models', async () => {
+ vi.mocked(fetch).mockResolvedValue(reply({ data: ['gpt-6-luna', 'minimax-m3', 'glm-5.3-flash', 'kimi-k3', 'unknown-future-model'].map(id => ({ id })) }));
+ expect((await fetchProviderModels({ ...provider, baseUrl: 'https://opencode.ai/zen/go/v1/chat/completions' })).map(m => m.id)).toEqual(['glm-5.3-flash', 'kimi-k3']);
+});
+
+
+it('keeps Go fallbacks compatible and hides other endpoint capabilities', () => {
+ const go = { presetId: 'opencode-go', name: 'Renamed', baseUrl: 'https://opencode.ai/zen/go/v1/chat/completions' };
+ expect(fallbackModels(go).map(m => m.id)).toEqual(['deepseek-v4.1-flash', 'glm-5.3-flash', 'kimi-k3', 'longcat-2.0', 'mimo-v2.6-flash']);
+ expect(fallbackModels({ ...go, baseUrl: 'https://opencode.ai/zen/go/v1/messages' })).toEqual([]);
+});
+
+it('does not override explicit protocol incompatibility with the Go snapshot', async () => {
+ vi.mocked(fetch).mockResolvedValue(reply({ data: [{ id: 'kimi-k3', supported_protocols: ['anthropic:messages'] }] }));
+ expect(await fetchProviderModels({ ...provider, baseUrl: 'https://opencode.ai/zen/go/v1/chat/completions' })).toEqual([]);
 });

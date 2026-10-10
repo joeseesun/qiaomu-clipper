@@ -719,5 +719,7 @@
 	"原编辑草稿无法恢复，请返回原编辑页导出文字后重试。": "Le brouillon modifié d’origine n’a pas pu être restauré. Revenez à l’éditeur d’origine et exportez le texte avant de réessayer.",
 	"编辑内容已恢复，但视频播放状态无法保存，请先留在当前页面。": "Vos modifications ont été restaurées, mais l’état de lecture n’a pas pu être enregistré. Restez sur cette page pour le moment.",
 	"编辑内容保存失败，请留在当前页面重试或先导出文字。": "Vos modifications n’ont pas pu être enregistrées. Réessayez sur cette page ou exportez d’abord le texte.",
- "草稿已在另一个页面修改。请先复制或下载当前文字，再重新打开最新草稿。": "Ce brouillon a été modifié dans une autre page. Copiez ou téléchargez votre texte actuel avant de rouvrir le dernier brouillon."
+ "草稿已在另一个页面修改。请先复制或下载当前文字，再重新打开最新草稿。": "Ce brouillon a été modifié dans une autre page. Copiez ou téléchargez votre texte actuel avant de rouvrir le dernier brouillon.",
+ "仅显示当前支持的聊天模型": "Modèles de chat actuellement pris en charge uniquement",
+ "此 OpenCode Go 模型或端点尚不支持，请从聊天模型列表中选择。": "Ce modèle ou point de terminaison OpenCode Go n’est pas encore pris en charge. Choisissez un modèle dans la liste de chat."
 }

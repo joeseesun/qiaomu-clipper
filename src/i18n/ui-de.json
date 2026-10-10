@@ -719,5 +719,7 @@
 	"原编辑草稿无法恢复，请返回原编辑页导出文字后重试。": "Der ursprünglich bearbeitete Entwurf konnte nicht wiederhergestellt werden. Kehren Sie zum ursprünglichen Editor zurück und exportieren Sie den Text, bevor Sie es erneut versuchen.",
 	"编辑内容已恢复，但视频播放状态无法保存，请先留在当前页面。": "Ihre Änderungen wurden wiederhergestellt, aber der Wiedergabestatus konnte nicht gespeichert werden. Bleiben Sie vorerst auf dieser Seite.",
 	"编辑内容保存失败，请留在当前页面重试或先导出文字。": "Ihre Änderungen konnten nicht gespeichert werden. Versuchen Sie es auf dieser Seite erneut oder exportieren Sie zuerst den Text.",
- "草稿已在另一个页面修改。请先复制或下载当前文字，再重新打开最新草稿。": "Dieser Entwurf wurde auf einer anderen Seite geändert. Kopieren oder laden Sie den aktuellen Text herunter, bevor Sie den neuesten Entwurf erneut öffnen."
+ "草稿已在另一个页面修改。请先复制或下载当前文字，再重新打开最新草稿。": "Dieser Entwurf wurde auf einer anderen Seite geändert. Kopieren oder laden Sie den aktuellen Text herunter, bevor Sie den neuesten Entwurf erneut öffnen.",
+ "仅显示当前支持的聊天模型": "Nur derzeit unterstützte Chatmodelle",
+ "此 OpenCode Go 模型或端点尚不支持，请从聊天模型列表中选择。": "Dieses OpenCode Go-Modell oder dieser Endpunkt wird noch nicht unterstützt. Wählen Sie ein Modell aus der Chatliste."
 }

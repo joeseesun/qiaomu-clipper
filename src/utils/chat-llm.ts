@@ -4,6 +4,8 @@ import browser from './browser-polyfill';
 import type { ModelConfig, Provider } from '../types/types';
 
 import { t } from './ui-text';
+import { opencodeHeaders, supportsOpenCodeGoChat } from './opencode-go';
+export { opencodeHeaders } from './opencode-go';
 export interface ChatTurn { role: 'user' | 'assistant'; content: string }
 
 interface StreamOptions {
@@ -11,6 +13,7 @@ interface StreamOptions {
 	system: string;
 	messages: ChatTurn[];
 	signal?: AbortSignal;
+	sessionId?: string;
 	onDelta: (text: string) => void;
 }
 
@@ -45,8 +48,8 @@ export function enabledChatModels(): ModelConfig[] {
 	return generalSettings.models.filter(model => model.enabled && generalSettings.providers.some(p => p.id === model.providerId));
 }
 
-function buildRequest(provider: Provider, model: ModelConfig, system: string, messages: ChatTurn[]): { url: string; init: RequestInit } {
-	const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+function buildRequest(provider: Provider, model: ModelConfig, system: string, messages: ChatTurn[], sessionId?: string): { url: string; init: RequestInit } {
+	const headers: Record<string, string> = { 'Content-Type': 'application/json', ...(opencodeHeaders(provider.baseUrl, sessionId) || {}) };
 	const name = provider.name.toLowerCase();
 	let url = provider.baseUrl;
 	let body: unknown;
@@ -120,21 +123,22 @@ function streamViaBackground(options: StreamOptions): Promise<string> {
 		port.onDisconnect.addListener(() => finish(new Error(t('AI 连接已中断，请重试'))));
 		if (options.signal?.aborted) { abort(); return; }
 		options.signal?.addEventListener('abort', abort, { once: true });
-		port.postMessage({ modelId: options.model.id, system: options.system, messages: options.messages });
+		port.postMessage({ modelId: options.model.id, system: options.system, messages: options.messages, ...(options.sessionId !== undefined ? { sessionId: options.sessionId } : {}) });
 	});
 }
 
-export async function streamChat({ model, system, messages, signal, onDelta }: StreamOptions): Promise<string> {
+export async function streamChat({ model, system, messages, signal, onDelta, sessionId }: StreamOptions): Promise<string> {
 	if (typeof location !== 'undefined' && /^https?:$/.test(location.protocol)) {
-		return streamViaBackground({ model, system, messages, signal, onDelta });
+		return streamViaBackground({ model, system, messages, signal, onDelta, sessionId });
 	}
 	const provider = generalSettings.providers.find(p => p.id === model.providerId);
 	if (!provider) throw new Error(`Provider not found for model ${model.name}`);
 	if (!provider.oauth && provider.apiKeyRequired && !provider.apiKey) throw new Error(`API key is not set for provider ${provider.name}`);
 
+	if (!provider.oauth && !supportsOpenCodeGoChat(provider.baseUrl, model.providerModelId)) throw new Error(t('此 OpenCode Go 模型或端点尚不支持，请从聊天模型列表中选择。'));
 	const { url, init } = provider.oauth
 		? responsesRequest(await freshOAuth(provider, () => saveSettings()), model, system, messages)
-		: buildRequest(provider, model, system, messages);
+		: buildRequest(provider, model, system, messages, sessionId);
 	const response = await fetch(url, { ...init, signal });
 	if (!response.ok) {
 		const text = (await response.text()).slice(0, 300);
