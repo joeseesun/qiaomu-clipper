@@ -2,7 +2,7 @@ import { beforeEach, expect, it, vi } from 'vitest';
 const tabs=vi.hoisted(()=>vi.fn());
 const native=vi.hoisted(()=>vi.fn());
 const asrStore=vi.hoisted(()=>({data:{} as Record<string,unknown>}));
-vi.mock('./browser-polyfill',()=>({default:{tabs:{create:(...args:unknown[])=>tabs(...args)},runtime:{id:'test-id',getURL:(path:string)=>`chrome-extension://test-id/${path}`,sendNativeMessage:(...args:unknown[])=>native(...args)},storage:{local:{get:async(key:string)=>({[key]:asrStore.data[key]}),set:async(value:Record<string,unknown>)=>{Object.assign(asrStore.data,value);}}}}}));
+vi.mock('./browser-polyfill',()=>({default:{tabs:{create:(...args:unknown[])=>tabs(...args)},permissions:{contains:async()=>true},runtime:{id:'test-id',getURL:(path:string)=>`chrome-extension://test-id/${path}`,sendNativeMessage:(...args:unknown[])=>native(...args)},storage:{local:{get:async(key:string)=>({[key]:asrStore.data[key]}),set:async(value:Record<string,unknown>)=>{Object.assign(asrStore.data,value);}}}}}));
 import { handleLearningNativeMessage } from './local-save';
 const sender={id:'test-id',url:'chrome-extension://test-id/reader.html'};
 beforeEach(()=>{ native.mockReset(); asrStore.data={}; });
@@ -53,6 +53,7 @@ it('says to update the helper when it does not know attachments, and when it is 
 });
 
 import { handleAsrMessage } from './local-save';
+import { saveAsrSettings } from './asr-settings';
 it('forwards subtitle-generation requests with checked arguments and explains an old or absent helper', async () => {
  native.mockReset(); native.mockResolvedValue({ok:true,ready:true});
  const KEY='bilibili:BV1hM4m1U7rA:20',ID='a'.repeat(32);
@@ -77,6 +78,9 @@ it('passes only a known browser name for a borrowed login', async () => {
  const KEY='youtube:dbqweBCynuI';
  await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'start',videoKey:KEY,cookies:'chrome'}},sender);
  expect(native.mock.calls[0][1]).toMatchObject({action:'asrStart',cookies:'chrome'}); native.mockClear();
+ // The viewer agreed once: from then on a start for that site carries the login by itself, until it is turned off.
+ await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'start',videoKey:KEY}},sender); expect(native.mock.calls[0][1]).toMatchObject({cookies:'chrome'}); native.mockClear();
+ await saveAsrSettings({autoLogin:false});
  await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'start',videoKey:KEY}},sender); expect('cookies' in native.mock.calls[0][1]).toBe(false); native.mockClear();
  for (const bad of ['/etc/passwd','chrome; rm -rf ~','Chrome','', 'chrome:Profile 1']) expect(await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'start',videoKey:KEY,cookies:bad}},sender)).toMatchObject({error:'bad-request'});
  expect(native).not.toHaveBeenCalled();
@@ -131,7 +135,8 @@ it('uses the active one of several saved services, lets a page switch between th
  expect(native.mock.calls[0][1]).toMatchObject({cloudKey:'sk-b',cloud:{label:'智谱'}});native.mockClear();
  const switched=await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'choose',profile:'a'}},sender) as any;
  expect(native.mock.calls[0][1]).toEqual({action:'asrStatus',cloud:true});expect((asrStore.data.qiaomuAsrSettings as any).active).toBe('a');
- expect(switched.choices).toEqual({mode:'cloud',engine:'auto',auto:false,active:'a',profiles:[{id:'a',label:'硅基流动',local:false,configured:true},{id:'b',label:'智谱',local:false,configured:true}]});
+ expect(switched.choices).toEqual({mode:'cloud',engine:'auto',auto:false,active:'a',profiles:[{id:'a',label:'硅基流动',model:'Qwen/Qwen3-ASR-1.7B',local:false,configured:true},{id:'b',label:'智谱',model:'glm-asr-2512',local:false,configured:true}]});
+ expect(switched.cloudModel).toBe('Qwen/Qwen3-ASR-1.7B');
  expect(JSON.stringify(switched)).not.toContain('sk-');
  native.mockClear();expect(await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'choose',profile:'nope'}},sender)).toMatchObject({error:'bad-request'});expect(await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'choose'}},sender)).toMatchObject({error:'bad-request'});expect(native).not.toHaveBeenCalled();
 });
@@ -227,4 +232,36 @@ it('passes the current Douyin media to the helper and refuses foreign CDN URLs',
  expect(native.mock.calls[0][1]).toMatchObject({web:{url,mediaUrl}});native.mockClear();
  for(const bad of ['https://example.com/a','https://douyinvod.com.evil.org/a','http://v11.douyinvod.com/a']) expect(await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'start',videoKey:KEY,web:{url,mediaUrl:bad}}},sender)).toMatchObject({error:'bad-request'});
  expect(native).not.toHaveBeenCalled();
+});
+
+it('preserves an unsupported website probe instead of falsely reporting an outdated helper', async () => {
+ const reply={ok:false,error:'unsupported',message:'No extractor for this page'};
+ native.mockResolvedValue(reply);
+ expect(await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'probe',url:'https://school.xetslk.com/sl/fixture'}},sender)).toEqual(reply);
+ native.mockResolvedValue({ok:false,error:'不支持的本地操作'});
+ expect(await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'probe',url:'https://school.xetslk.com/sl/fixture'}},sender)).toMatchObject({error:'helper-outdated'});
+});
+
+it('accepts verified Channels media only from the extension reader and rejects foreign recipients', async () => {
+ const url='https://weixin.qq.com/sph/Fixture123',mediaUrl='https://finder.video.qq.com/251/20302/stodownload?encfilekey=fixture',KEY='web:'+'a'.repeat(12);
+ native.mockResolvedValue({ok:true});
+ await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'start',videoKey:KEY,web:{url,mediaUrl}}},sender);
+ expect(native.mock.calls[0][1]).toMatchObject({action:'asrStart',web:{url,mediaUrl}});native.mockClear();
+ for(const [source,media] of [[url,'https://evil.org/file'],['https://mp.weixin.qq.com/s/fixture',mediaUrl],[url,'https://finder.video.qq.com.evil.org/251/20302/stodownload']])expect(await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'start',videoKey:KEY,web:{url:source,mediaUrl:media}}},sender)).toMatchObject({error:'bad-request'});
+ expect(await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'start',videoKey:KEY,web:{url,mediaUrl}}},{id:'test-id',url})).toMatchObject({error:'bad-request'});expect(native).not.toHaveBeenCalled();
+});
+
+
+it('never exports Channels login even when automatic browser login is enabled', async () => {
+ asrStore.data.qiaomuAsrSettings={mode:'local',engine:'auto',autoLogin:true,profiles:[],routes:{}};
+ native.mockResolvedValue({ok:true});
+ await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'start',videoKey:'web:'+'a'.repeat(12),cookies:'chrome',web:{url:'https://weixin.qq.com/sph/Fixture123',mediaUrl:'https://finder.video.qq.com/251/20302/stodownload?encfilekey=fixture'}}},sender);
+ const request=native.mock.calls[0][1];expect(request.cookies).toBeUndefined();expect(request.cookiesTxt).toBeUndefined();expect(asrStore.data.qiaomuAsrSettings).toMatchObject({autoLogin:true});
+});
+
+it('passes Xiaoetong replay media without exporting browser login to the helper',async()=>{
+ asrStore.data.qiaomuAsrSettings={mode:'local',engine:'auto',autoLogin:true,profiles:[],routes:{}};native.mockResolvedValue({ok:true});
+ const url='https://appfixture123.h5.xiaoeknow.com/v4/course/alive/l_fixture123456?app_id=appfixture123',mediaUrl='https://video.xet.tech/fixture.m3u8?sign=fixture';
+ await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'start',videoKey:'web:'+'a'.repeat(12),web:{url,mediaUrl}}},sender);
+ expect(native.mock.calls[0][1]).toMatchObject({web:{url,mediaUrl}});expect(native.mock.calls[0][1].cookies).toBeUndefined();expect(native.mock.calls[0][1].cookiesTxt).toBeUndefined();
 });

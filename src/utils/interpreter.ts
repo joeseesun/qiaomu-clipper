@@ -9,6 +9,7 @@ import { getMessage } from './i18n';
 import { updateTokenCount } from './token-counter';
 import { freshOAuth, responsesRequest, readResponsesStream } from './oauth/accounts';
 
+import { t } from './ui-text';
 const RATE_LIMIT_RESET_TIME = 5000; // guards against double clicks; retries after a failure stay quick
 let lastRequestTime = 0;
 
@@ -54,7 +55,7 @@ export async function sendToLLM(promptContext: string, content: string, promptVa
 			const response = await fetch(url, init);
 			if (!response.ok) throw new Error(`${provider.name} error: ${response.status} ${(await response.text()).slice(0, 300)}`);
 			const text = await readResponsesStream(response);
-			if (!text) throw new Error(`${provider.name} 没有返回内容`);
+			if (!text) throw new Error(t('{0} 没有返回内容', [provider.name]));
 			lastRequestTime = now;
 			return parseLLMResponse(text, promptVariables);
 		}

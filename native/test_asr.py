@@ -9,7 +9,7 @@ spec=importlib.util.spec_from_file_location('asr_host',HERE/'host.py');host=impo
 KEY='bilibili:BV1hM4m1U7rA:20'
 FAKE_YTDLP='''#!/bin/bash
 # fake yt-dlp: honours -o and fails on request
-out=""; while [ $# -gt 0 ]; do if [ "$1" = "-o" ]; then out="$2"; fi; if [ "$1" = "--cookies-from-browser" ]; then echo "cookies=$2" >> "$FAKE_LOG"; fi; last="$1"; shift; done
+out=""; while [ $# -gt 0 ]; do if [ "$1" = "-o" ]; then out="$2"; fi; if [ "$1" = "--cookies-from-browser" ]; then echo "cookies=$2" >> "$FAKE_LOG"; fi; if [ "$1" = "--cookies" ]; then echo "cookiefile=$(head -c 22 "$2" | head -1)" >> "$FAKE_LOG"; fi; last="$1"; shift; done
 [ -n "$FAKE_NEEDS_LOGIN" ] && [ ! -s "$FAKE_LOG" ] && { echo "ERROR: [youtube] x: Sign in to confirm you’re not a bot. Use --cookies-from-browser" >&2; exit 1; }
 [ -n "$FAKE_YTDLP_FAIL" ] && { echo "ERROR: $FAKE_YTDLP_FAIL" >&2; exit 1; }
 echo "[download]  50.0% of 1MiB"; echo "[download] 100.0% of 1MiB"
@@ -42,6 +42,22 @@ class AsrTests(unittest.TestCase):
  def work(self,job_id):
   asr.run_worker(str(asr.job_dir(self.base,job_id)))
   return asr.handle({'action':'asrPoll','jobId':job_id},self.base)
+ def test_restore_poll_reads_terminal_job_without_spawning_a_new_worker(self):
+  started=self.run_job();directory=asr.job_dir(self.base,started['id'])
+  for state in ('failed','cancelled','completed'):
+   asr.write_state(directory,state=state,error='fixture timeout' if state=='failed' else None)
+   with patch.object(asr,'spawn_worker') as spawn:
+    reply=asr.handle({'action':'asrPoll','jobId':started['id'],'since':0},self.base)
+   self.assertTrue(reply['ok'],reply);self.assertEqual(reply['id'],started['id']);self.assertEqual(reply['state'],state);spawn.assert_not_called()
+ def test_restore_poll_pages_through_a_completed_long_transcript(self):
+  started=self.run_job();directory=asr.job_dir(self.base,started['id']);count=asr.MAX_POLL_SEGMENTS+1
+  (directory/'segments.jsonl').write_text(''.join(json.dumps({'start':i,'end':i+1,'text':str(i)})+'\n' for i in range(count)),encoding='utf8')
+  asr.write_state(directory,state='completed',segmentCount=count)
+  with patch.object(asr,'spawn_worker') as spawn:
+   first=asr.handle({'action':'asrPoll','jobId':started['id'],'since':0},self.base)
+   second=asr.handle({'action':'asrPoll','jobId':started['id'],'since':first['next']},self.base)
+  self.assertEqual(first['state'],'completed');self.assertEqual(len(first['segments']),asr.MAX_POLL_SEGMENTS)
+  self.assertEqual(first['segmentCount'],count);self.assertEqual(second['next'],count);self.assertEqual(len(second['segments']),1);spawn.assert_not_called()
  def test_status_reports_tools_engine_and_install_hints(self):
   s=asr.handle({'action':'asrStatus'},self.base);self.assertTrue(s['ready']);self.assertEqual(s['engine'],'mlx');self.assertFalse(s['modelDownloadNeeded'])
   with patch.dict(os.environ,{'QIAOMU_TOOL_DIRS':''}),patch.object(asr,'TOOL_DIRS',[]),patch.dict(os.environ,{'PATH':'/nonexistent'}):
@@ -92,6 +108,17 @@ class AsrTests(unittest.TestCase):
    retry=self.work(self.run_job(cookies='chrome')['id']);self.assertEqual(retry['state'],'completed',retry);self.assertIn('cookies=chrome',self.log.read_text())
   with self.assertRaises(ValueError):asr.handle({'action':'asrStart','videoKey':KEY,'cookies':'chrome; rm -rf ~'},self.base)
   with self.assertRaises(ValueError):asr.handle({'action':'asrStart','videoKey':KEY,'cookies':'/etc/passwd'},self.base)
+ def test_cookies_the_extension_read_are_used_from_a_private_file_that_goes_away_with_the_job(self):
+  text='# Netscape HTTP Cookie File\n#HttpOnly_.youtube.com\tTRUE\t/\tTRUE\t0\tSID\tabc\n'
+  done=self.work(self.run_job(cookies='chrome',cookiesTxt=text)['id']);self.assertEqual(done['state'],'completed',done)
+  log=self.log.read_text();self.assertIn('cookiefile=# Netscape HTTP Cooki',log);self.assertNotIn('cookies=chrome',log)
+  self.assertFalse((asr.job_dir(self.base,done['id'])/'cookies.txt').exists())
+  for bad in ('not a cookie file',text+'x'*(asr.COOKIE_FILE_MAX+1),'a\tb\tc'):
+   with self.assertRaises(ValueError):asr.handle({'action':'asrStart','videoKey':KEY,'cookies':'chrome','cookiesTxt':bad},self.base)
+  path=asr.write_private(self.base/'c.txt','x') or self.base/'c.txt';self.assertEqual(stat.S_IMODE(path.stat().st_mode),0o600)
+ def test_a_browser_cookie_file_the_helper_may_not_open_is_reported_as_such(self):
+  with patch.dict(os.environ,{'FAKE_YTDLP_FAIL':'could not find chrome cookies database in "/Users/x/Library/Application Support/Google/Chrome"'}):
+   done=self.work(self.run_job(cookies='chrome')['id']);self.assertEqual(done['state'],'failed');self.assertEqual(done['errorCode'],'cookies-unreadable')
  def test_a_video_longer_than_the_limit_is_refused(self):
   with patch.dict(os.environ,{'FAKE_DURATION':str(asr.MAX_DURATION+10)}):
    done=self.work(self.run_job()['id']);self.assertEqual(done['state'],'failed');self.assertIn('小时',done['error'])

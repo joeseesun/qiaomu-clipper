@@ -1,6 +1,7 @@
 import type { WebInfo } from './asr-client';
 import { webMediaAddress, type WebMedia } from './web-media-page';
 
+import { t } from './ui-text';
 // Serialized by scripting.executeScript: keep this function self-contained.
 // This also works when an older content script no longer answers after an update.
 export function snapshotDouyinPlayer(): { url: string; info?: WebInfo; observed?: true; candidates?: string[] } {
@@ -39,7 +40,7 @@ export function snapshotDouyinPlayer(): { url: string; info?: WebInfo; observed?
 		for (const name of plain) { const key = new URL(name).searchParams.get('l') || ''; if (key) byGroup.set(key, [...(byGroup.get(key) || []), name]); }
 		const candidates = [...byGroup.values()].map(names => names.map(name => ({ name, rate: Number(new URL(name).searchParams.get('br')) || Infinity })).sort((x, y) => x.rate - y.rate)[0].name);
 		if (candidates.length && candidates.length <= 6 && Number.isFinite(visible.duration)) {
-			return { url, observed: true, candidates, info: { ok: true, title, author: '', site: '抖音', video: true, thumbnail: null, seconds: visible.duration, mediaUrl: candidates[0], description: title } };
+			return { url, observed: true, candidates, info: { ok: true, title, author: '', site: t('抖音'), video: true, thumbnail: null, seconds: visible.duration, mediaUrl: candidates[0], description: title } };
 		}
 		const navigation = performance.getEntriesByType('navigation')[0];
 		if (!navigation) return { url };
@@ -50,10 +51,10 @@ export function snapshotDouyinPlayer(): { url: string; info?: WebInfo; observed?
 		const audio = distinct(files.filter(name => new URL(name).pathname.includes('/media-audio-')));
 		const picture = distinct(files.filter(name => new URL(name).pathname.includes('/media-video-')));
 		if (audio.length !== 1 || picture.length !== 1 || !new URL(audio[0]).searchParams.get('l') || new URL(audio[0]).searchParams.get('l') !== new URL(picture[0]).searchParams.get('l')) return { url };
-		return { url, info: { ok: true, title, author: '', site: '抖音', video: true, thumbnail: null,
+		return { url, info: { ok: true, title, author: '', site: t('抖音'), video: true, thumbnail: null,
 			seconds: Number.isFinite(visible.duration) ? visible.duration : null, mediaUrl: picture[0], audioUrl: audio[0], description: title } };
 	}
-	return { url, info: { ok: true, title, author: '', site: '抖音', video: true,
+	return { url, info: { ok: true, title, author: '', site: t('抖音'), video: true,
 		seconds: Number.isFinite(video.duration) ? video.duration : null, thumbnail: null,
 		mediaUrl: video.currentSrc || video.src, description: title } };
 }
@@ -93,7 +94,7 @@ export function readPageMedia(doc: Document, page: string, media?: WebMedia): We
 	const title = (doc.querySelector('h1')?.textContent || doc.title).trim().slice(0, 600);
 	return { ok: true, title, author: '', seconds: Number.isFinite(media.duration) ? media.duration : null,
 		thumbnail: media instanceof HTMLVideoElement ? media.poster || null : null,
-		site: '抖音', mediaUrl: media.currentSrc, video: media.tagName === 'VIDEO', description: title };
+		site: t('抖音'), mediaUrl: media.currentSrc, video: media.tagName === 'VIDEO', description: title };
 }
 
 export async function getWebPageMedia(url: string, sourceTabId: number | undefined,
@@ -120,6 +121,80 @@ export async function getWebPageMedia(url: string, sourceTabId: number | undefin
 		if (answer.info.audioUrl && !isDouyinMedia(canonical, answer.info.audioUrl)) return;
 		return { ok: true, title: String(answer.info.title || '').slice(0, 600), author: String(answer.info.author || '').slice(0, 200),
 			seconds: Number.isFinite(answer.info.seconds) ? answer.info.seconds : null, thumbnail: null,
-			site: '抖音', mediaUrl: answer.info.mediaUrl, ...(answer.info.audioUrl ? { audioUrl: answer.info.audioUrl } : {}), video: true, description: String(answer.info.description || '').slice(0, 6000) };
+			site: t('抖音'), mediaUrl: answer.info.mediaUrl, ...(answer.info.audioUrl ? { audioUrl: answer.info.audioUrl } : {}), video: true, description: String(answer.info.description || '').slice(0, 6000) };
 	} catch { return; }
 }
+
+// TikTok's player streams from blob: URLs, and the file address the download tool reports only works inside that tool's own session.
+// The files the page itself fetched do play for the study reader once they carry the site as Referer (see the media rule in background).
+// Serialized by scripting.executeScript: keep this function self-contained, without async/await.
+export function snapshotTikTokPlayer(): { url: string; seconds: number | null; candidates: string[] } {
+	const page = new URL(location.href);
+	if (page.protocol !== 'https:' || !(page.hostname === 'www.tiktok.com' || page.hostname === 'tiktok.com')) return { url: '', seconds: null, candidates: [] };
+	const shown = Array.from(document.querySelectorAll('video')).filter(v => {
+		const r = v.getBoundingClientRect(), css = getComputedStyle(v);
+		return r.width > 0 && r.height > 0 && css.visibility !== 'hidden' && css.display !== 'none' && Number.isFinite(v.duration);
+	});
+	const visible = shown.find(v => !v.paused) || shown[0];
+	const names = typeof performance.getEntriesByType === 'function' ? performance.getEntriesByType('resource').map(e => e.name) : [];
+	const files = new Map<string, string>();
+	for (const name of names) {
+		try {
+			const u = new URL(name), host = u.hostname;
+			const own = host === 'tiktok.com' || host.endsWith('.tiktok.com') || host === 'tiktokcdn.com' || host.endsWith('.tiktokcdn.com') || host.endsWith('.tiktokcdn-us.com');
+			if (u.protocol === 'https:' && !u.username && !u.password && (!u.port || u.port === '443') && own && u.pathname.includes('/video/tos/') && u.searchParams.get('mime_type') === 'video_mp4') files.set(u.pathname, name);
+		} catch { /* not an address */ }
+	}
+	const found = Array.from(files.values()).slice(-6).reverse();
+	// A video page also carries its own item in the page data, with the addresses the player starts from. That list names this item
+	// (so a preloaded neighbour cannot be mistaken for it) and does not depend on the browser still remembering the network requests,
+	// which a busy page overflows.
+	const own: string[] = [];
+	try {
+		const id = page.pathname.match(/\/video\/(\d+)/)?.[1];
+		const data = JSON.parse(document.getElementById('__UNIVERSAL_DATA_FOR_REHYDRATION__')?.textContent || '{}');
+		const item = data?.__DEFAULT_SCOPE__?.['webapp.video-detail']?.itemInfo?.itemStruct;
+		if (id && item?.id === id && item.video) {
+			if (typeof item.video.playAddr === 'string') own.push(item.video.playAddr);
+			for (const rate of item.video.bitrateInfo || []) for (const address of rate?.PlayAddr?.UrlList || []) if (typeof address === 'string') own.push(address);
+		}
+	} catch { /* no usable page data */ }
+	return { url: page.href, seconds: visible ? visible.duration : null, candidates: Array.from(new Set(own.concat(found))).slice(0, 12) };
+}
+
+// A page can lend only a file from TikTok's own video hosts, never an arbitrary address.
+export function isTikTokMedia(media: unknown): media is string {
+	if (typeof media !== 'string' || media.length > 8000) return false;
+	try {
+		const u = new URL(media), host = u.hostname;
+		return u.protocol === 'https:' && !u.username && !u.password && (!u.port || u.port === '443') && u.pathname.includes('/video/tos/')
+			&& (host === 'tiktok.com' || host.endsWith('.tiktok.com') || host === 'tiktokcdn.com' || host.endsWith('.tiktokcdn.com') || host.endsWith('.tiktokcdn-us.com'));
+	} catch { return false; }
+}
+
+// Several videos can be preloaded in a feed: the one as long as the item being studied is the one to play.
+export async function pickTikTokMedia(candidates: string[], seconds: number | null | undefined, measure: (src: string) => Promise<number>): Promise<string | undefined> {
+	if (!Number.isFinite(seconds) || !seconds || seconds <= 0) return;
+	for (const candidate of candidates.filter(isTikTokMedia)) {
+		const duration = await measure(candidate);
+		if (Number.isFinite(duration) && Math.abs(duration - seconds) <= Math.max(.5, seconds * .01)) return candidate;
+	}
+}
+
+export function measureMediaDuration(doc: Document, src: string, timeoutMs = 6000): Promise<number> {
+	return new Promise(resolve => {
+		const node = doc.createElement('video'); node.preload = 'metadata'; node.muted = true;
+		const finish = (value: number) => { clearTimeout(timer); node.onloadedmetadata = null; node.onerror = null; node.removeAttribute('src'); node.load(); resolve(value); };
+		const timer = setTimeout(() => finish(NaN), timeoutMs);
+		node.onloadedmetadata = () => finish(node.duration); node.onerror = () => finish(NaN); node.src = src;
+	});
+}
+
+// TikTok pages: a video page names its item in the address; the feed ("for you", following) shows whichever item is on screen.
+export const tiktokVideoPath = (address: string): string => {
+	try { const u = new URL(address); return /(^|\.)tiktok\.com$/.test(u.hostname) && /^\/@[^/]+\/video\/\d+/.test(u.pathname) ? u.pathname : ''; } catch { return ''; }
+};
+export const isTikTokPage = (address: string): boolean => { try { const u = new URL(address); return u.protocol === 'https:' && /(^|\.)tiktok\.com$/.test(u.hostname); } catch { return false; } };
+// A tab may lend its player when it is TikTok and is not showing a different video page. A feed tab is allowed: the study reader opened from
+// a feed item has only the feed to ask, and the length of the video (checked by the caller) tells the item from its preloaded neighbours.
+export const tabMayLendTikTokMedia = (tabUrl: string, wantedPath: string): boolean => isTikTokPage(tabUrl) && (!tiktokVideoPath(tabUrl) || tiktokVideoPath(tabUrl) === wantedPath);

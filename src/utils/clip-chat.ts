@@ -9,8 +9,10 @@ import { Conversation, StoredTurn, loadConversations, saveConversation, deleteCo
 import { FONT_PRESETS } from './font-utils';
 import { showClipStatus } from './clip-bar';
 import { CHAT_PREFERENCES_KEY, DEFAULT_CHAT_PREFERENCES, MAX_QUICK_PROMPTS, QuickPrompt, normalizeChatPreferences, chatFontFamily, chatSystemPrompt, defaultQuickPrompts, visibleQuickPrompts } from './chat-preferences';
+import { createModelPicker } from './model-picker';
 import { learningSelection } from './learning-composer';
 
+import { t } from './ui-text';
 export interface ClipChatOptions {
 	// Current article text; read fresh on every question so edits are included.
 	getContext: () => { title: string; markdown: string; url: string };
@@ -55,8 +57,8 @@ function selectedArticleText(): string {
 	return selection.toString().trim();
 }
 
-// Side panel for asking questions about the article, using the models configured under "AI 解读".
-export function mountClipChat(options: ClipChatOptions): { toggle: () => boolean } {
+// Side panel using the models configured under LLM providers and models.
+export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boolean) => boolean } {
 	const root = document.documentElement;
 	const panel = el('aside', 'clip-chat');
 	panel.hidden = true;
@@ -65,13 +67,18 @@ export function mountClipChat(options: ClipChatOptions): { toggle: () => boolean
 	const header = el('div', 'clip-chat-header');
 	const title = el('div', 'clip-chat-title');
 	title.append(icon(WandSparkles), el('span', '', getMessage('qiaomuChatTitle')));
-	const modelSelect = el('select', 'clip-chat-model');
+	const picker = createModelPicker({
+		getModels: enabledChatModels,
+		getProviders: () => generalSettings.providers,
+		onSelect: id => { void setLocalStorage('qiaomuChatModel', id); },
+		onManage: () => { void browser.tabs.create({ url: browser.runtime.getURL('settings.html?section=interpreter') }); }
+	});
 	const historyButton = iconButton('clip-chat-icon', History, getMessage('qiaomuChatHistory'));
 	const newChat = iconButton('clip-chat-icon', Plus, getMessage('qiaomuChatNew'));
 	const close = iconButton('clip-chat-icon', X, getMessage('close'));
 	const settingsButton = iconButton('clip-chat-icon', Settings2, getMessage('qiaomuChatPreferences'));
 	settingsButton.setAttribute('aria-expanded', 'false');
-	header.append(title, modelSelect, historyButton, newChat, settingsButton, close);
+	header.append(title, picker.trigger, historyButton, newChat, settingsButton, close);
 
 	const historyList = el('div', 'clip-chat-history');
 	historyList.hidden = true;
@@ -97,7 +104,7 @@ export function mountClipChat(options: ClipChatOptions): { toggle: () => boolean
 	const resizer = el('div', 'clip-chat-resize');
 	resizer.setAttribute('role', 'separator');
 	resizer.setAttribute('aria-orientation', 'vertical');
-	panel.append(resizer, header, historyList, context, messagesEl, suggestions, quoteBar, composer);
+	panel.append(resizer, header, picker.popover, historyList, context, messagesEl, suggestions, quoteBar, composer);
 	document.body.appendChild(panel);
 
 	let preferences = normalizeChatPreferences(null);
@@ -118,9 +125,16 @@ export function mountClipChat(options: ClipChatOptions): { toggle: () => boolean
 	settingsButton.setAttribute('aria-controls', settingsForm.id);
 	settingsForm.hidden = true;
 	settingsForm.setAttribute('aria-label', getMessage('qiaomuChatPreferences'));
-	panel.appendChild(settingsForm);
+	// The preferences open as a centred dialog over the page: the side panel is too narrow for them.
+	settingsForm.setAttribute('role', 'dialog');
+	settingsForm.setAttribute('aria-modal', 'true');
+	const backdrop = el('div', 'clip-chat-backdrop');
+	backdrop.hidden = true;
+	backdrop.addEventListener('click', () => closePreferences());
+	panel.append(backdrop, settingsForm);
 	function closePreferences() {
 		settingsForm.hidden = true;
+		backdrop.hidden = true;
 		settingsButton.setAttribute('aria-expanded', 'false');
 		applyAppearance();
 		settingsButton.focus();
@@ -146,7 +160,8 @@ export function mountClipChat(options: ClipChatOptions): { toggle: () => boolean
 			const root = el('label', 'clip-chat-switch'); root.append(input, el('span', 'clip-chat-switch-track'));
 			return { root, input };
 		};
-		settingsForm.append(el('h3', '', getMessage('qiaomuChatPreferences')), el('p', 'clip-chat-settings-note', getMessage('qiaomuChatPreferencesScope')));
+		const dialogClose = iconButton('clip-chat-icon clip-chat-settings-close', X, getMessage('close')); dialogClose.addEventListener('click', () => closePreferences());
+		settingsForm.append(dialogClose, el('h3', '', getMessage('qiaomuChatPreferences')), el('p', 'clip-chat-settings-note', getMessage('qiaomuChatPreferencesScope')));
 
 		const looks = section('qiaomuChatSectionAppearance');
 		const font = el('select');
@@ -267,7 +282,7 @@ export function mountClipChat(options: ClipChatOptions): { toggle: () => boolean
 			} catch { status.textContent = getMessage('qiaomuChatPreferencesSaveError'); }
 			finally { save.disabled = false; }
 		};
-		refresh(); settingsForm.style.top = `${header.offsetHeight}px`; settingsForm.hidden = false; settingsButton.setAttribute('aria-expanded', 'true'); font.focus();
+		refresh(); settingsForm.hidden = false; backdrop.hidden = false; settingsButton.setAttribute('aria-expanded', 'true'); font.focus();
 	}
 	settingsButton.addEventListener('click', () => { void openPreferences(); });
 	settingsForm.addEventListener('keydown', event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closePreferences(); } });
@@ -279,7 +294,7 @@ export function mountClipChat(options: ClipChatOptions): { toggle: () => boolean
 		const value = `${clampWidth(width)}px`;
 		root.style.setProperty('--clip-chat-width', value);
 		if (!panel.hidden) root.style.setProperty('--clipper-sidebar-width', value);
-		settingsForm.style.top = historyList.style.top = `${header.offsetHeight}px`;
+		historyList.style.top = picker.popover.style.top = `${header.offsetHeight}px`;
 	};
 	resizer.addEventListener('pointerdown', event => {
 		event.preventDefault();
@@ -299,7 +314,7 @@ export function mountClipChat(options: ClipChatOptions): { toggle: () => boolean
 	};
 	resizer.addEventListener('pointerup', stopDrag);
 	resizer.addEventListener('pointercancel', stopDrag);
-	window.addEventListener('resize', () => { if (!panel.hidden) applyWidth(panel.offsetWidth); settingsForm.style.top = `${header.offsetHeight}px`; });
+	window.addEventListener('resize', () => { if (!panel.hidden) applyWidth(panel.offsetWidth); });
 
 	const newConversation = (): Conversation => ({ id: crypto.randomUUID(), title: '', updatedAt: 0, messages: [] });
 	let conversation = newConversation();
@@ -343,8 +358,8 @@ export function mountClipChat(options: ClipChatOptions): { toggle: () => boolean
 		insert.addEventListener('click', async () => { await options.onInsert(answer); showClipStatus(getMessage('qiaomuChatInserted')); });
 		actions.append(copy, insert);
 		if (options.onLearningAi) {
-			const diary = iconButton('clip-chat-action', NotebookPen, '加入今日日记的 AI 补充');
-			diary.append(el('span', '', '加入日记'));
+			const diary = iconButton('clip-chat-action', NotebookPen, t('加入今日日记的 AI 补充'));
+			diary.append(el('span', '', t('加入日记')));
 			diary.addEventListener('click', () => options.onLearningAi!(answer));
 			actions.append(diary);
 		}
@@ -384,9 +399,9 @@ export function mountClipChat(options: ClipChatOptions): { toggle: () => boolean
 		if (!models.length) {
 			const empty = el('div', 'clip-chat-empty');
 			empty.append(el('p', '', getMessage('qiaomuChatNoModel')));
-			const open = el('button', 'clip-chat-link', getMessage('qiaomuChatOpenSettings'));
+			const open = el('button', 'clip-chat-link clip-chat-model-setup', getMessage('qiaomuChatOpenSettings'));
 			open.type = 'button';
-			open.addEventListener('click', () => { void browser.runtime.openOptionsPage(); });
+			open.addEventListener('click', () => { void browser.tabs.create({ url: browser.runtime.getURL('settings.html?section=interpreter') }); });
 			empty.appendChild(open);
 			messagesEl.appendChild(empty);
 			input.disabled = true; send.disabled = true;
@@ -404,9 +419,7 @@ export function mountClipChat(options: ClipChatOptions): { toggle: () => boolean
 	async function populateModels() {
 		const models = enabledChatModels();
 		const saved = await getLocalStorage('qiaomuChatModel');
-		modelSelect.replaceChildren(...models.map(model => { const option = el('option', '', model.name); option.value = model.id; return option; }));
-		modelSelect.value = models.some(m => m.id === saved) ? saved : (models[0]?.id ?? '');
-		modelSelect.hidden = models.length < 2;
+		picker.setModels(models.some(m => m.id === saved) ? saved : (models[0]?.id ?? ''));
 	}
 
 	const apiTurn = (turn: StoredTurn): ChatTurn => ({
@@ -418,7 +431,7 @@ export function mountClipChat(options: ClipChatOptions): { toggle: () => boolean
 		await preferencesReady;
 		const text = question.trim();
 		if (!text || controller) return;
-		const model = enabledChatModels().find(m => m.id === modelSelect.value);
+		const model = enabledChatModels().find(m => m.id === picker.value);
 		if (!model) return;
 		historyList.hidden = true;
 		suggestions.replaceChildren();
@@ -502,7 +515,6 @@ export function mountClipChat(options: ClipChatOptions): { toggle: () => boolean
 		if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); composer.requestSubmit(); }
 		if (event.key === 'Escape') toggle();
 	});
-	modelSelect.addEventListener('change', () => { void setLocalStorage('qiaomuChatModel', modelSelect.value); });
 	historyButton.addEventListener('click', () => { if (!settingsForm.hidden) closePreferences(); void showHistory(); });
 	newChat.addEventListener('click', () => { if (!settingsForm.hidden) closePreferences(); controller?.abort(); conversation = newConversation(); historyList.hidden = true; renderConversation(); refreshContext(); input.focus(); });
 	close.addEventListener('click', () => toggle());
@@ -512,6 +524,7 @@ export function mountClipChat(options: ClipChatOptions): { toggle: () => boolean
 	void getLocalStorage('qiaomuChatWidth').then(width => { storedWidth = Number(width) || 0; });
 	let initialized = false;
 	function toggle(open = panel.hidden): boolean {
+		if (!open) picker.close();
 		if (!open && !settingsForm.hidden) closePreferences();
 		panel.hidden = !open;
 		root.classList.toggle('clip-chat-open', open);
@@ -573,7 +586,7 @@ function mountSelectionPill(onAsk: (text: string) => void, onHighlight?: () => v
 	ask.addEventListener('click', () => { hide(); onAsk(text); });
 	pill.appendChild(ask);
 	if (onLearningRecord && generalSettings.learningNotes !== false) {
-		const diary = segment(NotebookPen, '记笔记');
+		const diary = segment(NotebookPen, t('记笔记'));
  diary.addEventListener('click', () => { const quote = learningSelection(document); hide(); if (quote) onLearningRecord(quote); });
 		pill.appendChild(diary);
 	}

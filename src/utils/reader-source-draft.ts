@@ -1,5 +1,5 @@
 import { createMarkdownContent } from 'defuddle/full';
-import { ClipPreview, updateClipPreview } from './clip-preview';
+import { ClipPreview, updateClipPreview, loadClipPreview, loadEditedStudyPreview } from './clip-preview';
 import { generalSettings, loadSettings } from './storage-utils';
 import browser from './browser-polyfill';
 import { loadTemplates } from '../managers/template-manager';
@@ -9,18 +9,23 @@ import { generateFrontmatter } from './obsidian-note-creator';
 import { sanitizeFileName } from './string-utils';
 import { findMatchingTemplate, initializeTriggers } from './triggers';
 
-export async function createReaderSourceDraft(url: string, initialTitle: string) {
+import { t } from './ui-text';
+export async function createReaderSourceDraft(url: string, initialTitle: string, resumeId?: string, restoreEdits = false) {
+    const previous = resumeId ? await loadClipPreview(resumeId) : restoreEdits ? await loadEditedStudyPreview(url) : null;
+    if (resumeId && (!previous || previous.clip.url !== url)) throw new Error(t('原编辑草稿无法恢复，请返回原编辑页导出文字后重试。'));
+    if (previous && !previous.studyEditedAt) previous.studyEditedAt = Date.now();
+    if (previous) return { draft: previous, restored: true, async populate(_result: any) { /* Refresh media only; never replace edited text with recognition cache. */ } };
 	await loadSettings();
 	const templates = await loadTemplates();
 	const template = templates.find(item => item.id === generalSettings.defaultTemplateId) || templates[0];
 	const saved = await browser.storage.local.get(['lastSelectedVault','qiaomuRssEnabled','qiaomuNativeConfigured']) as {lastSelectedVault?:string; qiaomuRssEnabled?:boolean; qiaomuNativeConfigured?:boolean};
-	const title = initialTitle.replace(/\s*- YouTube$/, '') || 'YouTube 视频学习';
+	const title = initialTitle.replace(/\s*- YouTube$/, '') || t('YouTube 视频学习');
 	const draft: ClipPreview = {
-		createdAt:Date.now(), aggregate:saved.qiaomuRssEnabled === true, native:saved.qiaomuNativeConfigured === true,
+		studySource:url, createdAt:Date.now(), aggregate:saved.qiaomuRssEnabled === true, native:saved.qiaomuNativeConfigured === true,
 		clip:{url,title,markdown:''}, properties:[],
 		local:{requestId:crypto.randomUUID(), content:'', name:`${sanitizeFileName(title)}.md`, folder:template.path, vault:template.vault || saved.lastSelectedVault || generalSettings.vaults[0] || '', behavior:template.behavior},
 	};
-	return {draft, async populate(result: any) {
+	return {draft, restored: false, async populate(result: any) {
 		initializeTriggers(templates);
 		const selected = await findMatchingTemplate(url, async () => result.schemaOrgData) || template;
 		const initialized = await initializePageContent(result.content || '', '', result.variables || {}, url, result.schemaOrgData || {}, result.content || '', [], result.title || title, result.author || '', result.description || '', result.favicon || '', result.image || '', result.published || '', result.site || '', result.wordCount || 0, result.language || '', result.metaTags || []);

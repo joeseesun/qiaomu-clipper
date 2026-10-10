@@ -2,7 +2,7 @@
 """Generate subtitles for a video that has none, entirely on this machine: yt-dlp -> ffmpeg -> Whisper.
 
 The native host starts a job as a detached worker (`asr.py worker <job dir>`) and answers short status requests from
-the job's files, so nothing listens on a port and the browser only ever talks to the host. Audio never leaves the
+the job's files, so the browser only ever talks to the host. HLS downloads use a short-lived, token-protected loopback relay. Audio never leaves the
 machine and is deleted when the job ends; only the text of the result is kept (a cache keyed by the video).
 """
 import base64, hashlib, json, os, platform, re, shutil, signal, subprocess, sys, tempfile, time, uuid
@@ -25,9 +25,11 @@ TOOL_DIRS = ['/opt/homebrew/bin', '/usr/local/bin', str(Path.home() / '.local/bi
 LANGUAGES = {'auto', 'zh', 'en', 'ja', 'ko', 'de', 'fr', 'es', 'ru', 'pt', 'it'}
 # Browsers yt-dlp can borrow a login from. Only ever used when the viewer explicitly asked for it for this video.
 COOKIE_BROWSERS = {'chrome', 'edge', 'brave', 'chromium', 'firefox', 'safari'}
-NEEDS_LOGIN = re.compile(r'sign in to confirm|not a bot|use --cookies|fresh cookies|login required|412', re.I)
+COOKIES_UNREADABLE = re.compile(r'cookies? database|could not (find|decrypt).{0,40}cookie|keyring', re.I)  # the helper started by the browser is not always allowed to open the browser's own cookie file
+NEEDS_LOGIN = re.compile(r'sign in to confirm|not a bot|use --cookies|fresh cookies|login required|412|ip address is blocked|blocked from accessing', re.I)  # TikTok answers an anonymous download with "IP address is blocked"; a signed-in browser is let through
 # What a downloader that has fallen behind the site looks like (YouTube changes its player every few weeks). Worth one update and one retry.
 STALE_TOOL = re.compile(r'needs to be reloaded|unable to extract|nsig|signature|player response|precondition check failed|requested format is not available|http error 403|sabr|po token|js runtime|challenge', re.I)
+YOUTUBE_CLIENT_ERROR = re.compile(r'needs to be reloaded|player response|precondition check failed|unable to extract.{0,40}(?:player|initial)', re.I)
 UPDATE_EVERY = 12 * 3600
 # Lines Whisper tends to invent over silence or music. Only dropped when they stand alone in a short segment.
 HALLUCINATIONS = ('谢谢观看', '感谢观看', '请不吝点赞', '字幕由', '字幕 by', '字幕by', '订阅', 'thanks for watching', 'thank you for watching', 'subtitles by', 'amara.org')
@@ -36,10 +38,19 @@ HALLUCINATIONS = ('谢谢观看', '感谢观看', '请不吝点赞', '字幕由'
 def atomic_json(path, data, durable=True):
     fd, name = tempfile.mkstemp(dir=path.parent)
     try:
-        with os.fdopen(fd, 'w') as f:
+        with os.fdopen(fd, 'w', encoding='utf8') as f:
             json.dump(data, f, ensure_ascii=False); f.flush()
             if durable: os.fsync(f.fileno())
-        os.replace(name, path)
+        # Polling readers and antivirus can briefly deny replacement on Windows.
+        # Keep the same staged file; never hide disk errors or a permanent denial.
+        for attempt in range(40):
+            try:
+                os.replace(name, path)
+                break
+            except PermissionError as error:
+                if sys.platform != 'win32' or getattr(error, 'winerror', None) not in (5, 32, 33) or attempt == 39:
+                    raise
+                time.sleep(0.05)
     finally:
         if os.path.exists(name): os.unlink(name)
 def asr_root(base): return base / 'asr'
@@ -55,12 +66,25 @@ def write_state(directory, **changes):
     state = read_state(directory); now = time.time()
     quiet = set(changes) <= {'progress', 'processedSec', 'segmentCount', 'stage', 'updatedAt'} and all(state.get(k) == changes.get(k) for k in ('stage',) if k in changes)
     if quiet and now - _last_write.get(str(directory), 0) < 0.4: return {**state, **changes}
-    state.update(changes); state['updatedAt'] = now; _last_write[str(directory)] = now; atomic_json(directory / 'state.json', state, durable=False); return state
+    state.update(changes); state['updatedAt'] = now; atomic_json(directory / 'state.json', state, durable=False); _last_write[str(directory)] = now; return state
 
 # ---- tools --------------------------------------------------------------------------------------------------------
 def tool_dirs():
     extra = [x for x in os.environ.get('QIAOMU_TOOL_DIRS', '').split(os.pathsep) if x]
     return extra + eng.private_bin_dirs() + TOOL_DIRS
+COOKIE_FILE_MAX = 1_000_000
+def clean_cookie_text(value):
+    """Cookies the extension read from its own browser, in the Netscape file format yt-dlp reads: only that, and not too much of it."""
+    if value is None: return None
+    if not isinstance(value, str) or len(value) > COOKIE_FILE_MAX or '\x00' in value: raise ValueError('cookies 无效')
+    lines = [line for line in value.splitlines() if line.strip()]
+    for line in lines:
+        if line.startswith('#') and not line.startswith('#HttpOnly_'): continue
+        if len(line.split('\t')) != 7: raise ValueError('cookies 无效')
+    return '\n'.join(lines) + '\n'
+def write_private(path, text):
+    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(descriptor, 'w', encoding='utf8') as handle: handle.write(text)
 def find_tool(name):
     found = shutil.which(name, path=os.pathsep.join(tool_dirs() + [os.environ.get('PATH', '')]))
     if not found and name == 'ffmpeg':
@@ -146,9 +170,16 @@ def is_private(path):
     """Only the copy the helper installed is the helper's to update; a Homebrew one belongs to the person."""
     return bool(path) and str(Path(path).parent) == str(eng.venv_bin('base'))
 def is_standalone(path):
-    """pip's yt-dlp is a small script; the standalone one is a compiled program."""
+    """pip uses a script on Unix and an executable with an embedded script ZIP on Windows."""
     try:
-        with open(path, 'rb') as f: return f.read(2) != b'#!'
+        with open(path, 'rb') as f:
+            if f.read(2) == b'#!': return False
+        if eng.windows():
+            import zipfile
+            try:
+                with zipfile.ZipFile(path) as launcher: return '__main__.py' not in launcher.namelist()
+            except zipfile.BadZipFile: pass
+        return True
     except OSError: return False
 def update_stamp(): return eng.tools_home() / 'ytdlp-update.json'
 def run_steps(steps, env):
@@ -290,14 +321,158 @@ def douyin_media(page, media):
         params = parse_qs(parsed.query, keep_blank_values=True)
         return public_https(media) and parsed.port in (None, 443) and (host == 'douyinvod.com' or host.endswith('.douyinvod.com')) and ('__vid' not in params or params['__vid'] == [page.rsplit('/', 1)[-1]])
     except ValueError: return False
+def channels_share(page):
+    from urllib.parse import urlparse, parse_qs
+    try:
+        p = urlparse(str(page))
+        if not public_https(page) or p.port not in (None, 443) or p.fragment: return False
+        if p.hostname == 'weixin.qq.com': return bool(re.fullmatch(r'/sph/[A-Za-z0-9]{3,64}/?', p.path)) and not p.query
+        q = parse_qs(p.query)
+        return p.hostname == 'channels.weixin.qq.com' and p.path == '/finder-preview/pages/sph' and set(q) == {'id'} and len(q['id']) == 1 and bool(re.fullmatch(r'[A-Za-z0-9]{3,64}', q['id'][0]))
+    except (TypeError, ValueError): return False
+
+def channels_media(page, media):
+    from urllib.parse import urlparse
+    if not channels_share(page) or not isinstance(media, str) or len(media) > 8000: return False
+    try:
+        p = urlparse(media)
+        return public_https(media) and p.port in (None, 443) and not p.fragment and p.hostname == 'finder.video.qq.com' and bool(re.fullmatch(r'/(?:[0-9]+/){2}stodownload', p.path))
+    except ValueError: return False
+
+def page_media(page, media): return douyin_media(page, media) or channels_media(page, media)
+
+XIAOE_SHOP = re.compile(r'https://(app[0-9a-z]{6,24})\.(?:h5\.(?:xiaoeknow|xiaoe-tech)\.com|(?:h5\.)?xet\.(?:citv\.cn|pomoho\.com))/v4/course/alive/(l_[0-9a-z_]{8,64})\?app_id=(app[0-9a-z]{6,24})', re.I)
+XIAOE_MEDIA_HOSTS = ('xiaoeknow.com', 'xet.tech', 'xiaoe-tech.com', 'xiaoecloud.com')
+def xiaoe_media(page, media):
+    """A 小鹅通 live replay: the page is the live's own address, the media one of the shop's HLS playlists."""
+    from urllib.parse import urlparse
+    shop = XIAOE_SHOP.fullmatch(str(page))
+    if not isinstance(media, str) or len(media) > 4000 or not shop or shop.group(1).lower() != shop.group(3).lower(): return False
+    try:
+        parsed = urlparse(media); host = (parsed.hostname or '').lower()
+        return public_https(media) and parsed.port in (None, 443) and any(host == h or host.endswith('.' + h) for h in XIAOE_MEDIA_HOSTS) and parsed.path.lower().endswith('.m3u8')
+    except ValueError: return False
+def xiaoe_resource(page, address):
+    from urllib.parse import urlparse
+    try:
+        p = urlparse(address)
+        return isinstance(address, str) and len(address) <= 8000 and xiaoe_media(page, 'https://xet.tech/validation.m3u8') and public_https(address) and p.port in (None, 443) and not p.fragment and any(p.hostname == h or p.hostname.endswith('.' + h) for h in XIAOE_MEDIA_HOSTS)
+    except (ValueError, AttributeError): return False
+
+def rewrite_xiaoe_playlist(text, base, register):
+    """Every nested playlist, segment, initialization file and AES key passes the same guarded fetch."""
+    from urllib.parse import urljoin
+    if not text.lstrip().startswith('#EXTM3U') or '#EXT-X-DEFINE' in text: raise OSError('回放清单无效')
+    output = []
+    for line in text.splitlines():
+        if line.startswith('#'):
+            # HLS URI attributes are quoted; reject malformed ones rather than leaving a network escape.
+            if re.search(r'(?:^|[,:])(?:[A-Z-]*URI)=(?!")', line): raise OSError('回放清单地址无效')
+            line = re.sub(r'((?:[A-Z-]*URI)=)"([^"\r\n]+)"', lambda m: m.group(1) + '"' + register(urljoin(base, m.group(2))) + '"', line)
+        elif line.strip():
+            line = register(urljoin(base, line.strip()))
+        output.append(line)
+    return '\n'.join(output) + '\n'
+
+from contextlib import contextmanager
+@contextmanager
+def xiaoe_hls_relay(page, media):
+    # yt-dlp sees only rewritten loopback URLs. The helper guards every upstream request,
+    # including redirects; signed addresses and errors never enter the downloader's log.
+    import http.server, threading
+    from urllib.parse import urlparse
+    resources = {}; token = uuid.uuid4().hex
+    class Server(http.server.ThreadingHTTPServer): daemon_threads = True
+    server = Server(('127.0.0.1', 0), None)
+    def register(address):
+        if not xiaoe_resource(page, address) or len(resources) >= 100000: raise OSError('回放清单包含不允许的地址')
+        key = '/' + token + '/' + hashlib.sha256(address.encode()).hexdigest()
+        resources[key] = address
+        return 'http://127.0.0.1:' + str(server.server_port) + key + ('.m3u8' if urlparse(address).path.lower().endswith('.m3u8') else '')
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def log_message(self, *_args): pass
+        def do_GET(self):
+            key = self.path.removesuffix('.m3u8')
+            address = resources.get(key)
+            if not address: self.send_error(404); return
+            try:
+                headers = {'Referer': page.split('/v4/')[0] + '/', 'User-Agent': BROWSER_AGENT}
+                byte_range = self.headers.get('Range')
+                if byte_range:
+                    if not re.fullmatch(r'bytes=\d+-\d*', byte_range): raise OSError('无效范围')
+                    headers['Range'] = byte_range
+                with open_public(address, timeout=30, headers=headers, allowed=lambda value: xiaoe_resource(page, value)) as response:
+                    if urlparse(address).path.lower().endswith('.m3u8'):
+                        parts = []; total = 0; deadline = time.monotonic() + 30
+                        while True:
+                            if time.monotonic() > deadline: raise OSError('回放清单读取超时')
+                            block = response.read1(65536)
+                            if not block: break
+                            total += len(block)
+                            if total > 4_000_000: raise OSError('回放清单过大')
+                            parts.append(block)
+                        body = b''.join(parts)
+                        body = rewrite_xiaoe_playlist(body.decode('utf8'), response.geturl(), register).encode('utf8')
+                        self.send_response(200); self.send_header('Content-Type', 'application/vnd.apple.mpegurl'); self.send_header('Content-Length', str(len(body))); self.end_headers(); self.wfile.write(body)
+                    else:
+                        # Stage a bounded fragment before replying, so a failed/oversized read
+                        # cannot look like a successfully downloaded partial segment.
+                        limit = 128 * 1024 * 1024
+                        if int(response.headers.get('Content-Length', 0)) > limit: raise OSError('回放片段过大')
+                        with tempfile.SpooledTemporaryFile(max_size=2 * 1024 * 1024) as body:
+                            total = 0; deadline = time.monotonic() + 120
+                            while True:
+                                if time.monotonic() > deadline: raise OSError('回放片段读取超时')
+                                block = response.read1(65536)
+                                if not block: break
+                                total += len(block)
+                                if total > limit: raise OSError('回放片段过大')
+                                body.write(block)
+                            expected = response.headers.get('Content-Length')
+                            if expected and total != int(expected): raise OSError('回放片段不完整')
+                            body.seek(0); self.send_response(getattr(response, 'status', 200))
+                            self.send_header('Content-Type', response.headers.get('Content-Type', 'application/octet-stream')); self.send_header('Content-Length', str(total))
+                            if response.headers.get('Content-Range'): self.send_header('Content-Range', response.headers['Content-Range'])
+                            self.end_headers(); shutil.copyfileobj(body, self.wfile)
+            except Exception:
+                # Do not leak signed upstream URLs in errors returned to yt-dlp.
+                try: self.send_error(502, 'Replay resource unavailable')
+                except OSError: pass
+    server.RequestHandlerClass = Handler
+    thread = threading.Thread(target=server.serve_forever, daemon=True); thread.start()
+    try: yield register(media)
+    finally: server.shutdown(); server.server_close(); thread.join(timeout=2)
+
+def download_hls(directory, spec, env, tools):
+    """A replay playlist: yt-dlp reads the segments (several at a time) into one file; the picture is dropped when converting."""
+    page = spec['url']; media = spec['mediaUrl']
+    if not xiaoe_media(page, media): raise Failed('回放地址无效，请重新打开学习页')
+    pattern = re.compile(r'\[download\]\s+([0-9.]+)%')
+    command = [tools['yt-dlp'], '--ignore-config', '--no-playlist', '--no-warnings', '--newline', '--no-continue', '--retries', '4', '--fragment-retries', '6',
+               '--hls-prefer-native', '--concurrent-fragments', '6', '--abort-on-unavailable-fragments', '--fixup', 'never', '-f', 'best', '--add-header', 'Referer:' + page.split('/v4/')[0] + '/',
+               '--user-agent', BROWSER_AGENT, '-o', str(directory / 'audio.%(ext)s'), media]
+    def progress(line):
+        match = pattern.search(line)
+        if match: write_state(directory, state='downloading', stage='正在下载小鹅通回放', progress=round(min(float(match.group(1)), 100) * 0.15, 1))
+    for attempt in range(3):
+        for leftover in directory.glob('audio.*'): leftover.unlink(missing_ok=True)
+        write_state(directory, state='downloading', stage='正在下载小鹅通回放', progress=0)
+        with xiaoe_hls_relay(page, media) as relay:
+            code, tail = stream([*command[:-1], relay], env, progress)
+        audio = next((p for p in directory.glob('audio.*') if p.suffix not in ('.part', '.ytdl', '.wav', '.json') and not p.name.endswith('.part')), None)
+        if code == 0 and audio: return audio
+        text = ' '.join(tail).lower()
+        if '403' in text or '410' in text or 'expired' in text: raise Failed('回放地址已过期，请重新打开学习页再生成字幕', code='media-expired')
+        time.sleep(attempt + 1)
+    raise Failed('回放下载失败，请重新读取原链接后重试')
 def download_page_media(directory, spec):
     import urllib.error
     page = spec['url']; media = spec['mediaUrl']
-    if not douyin_media(page, media): raise Failed('视频地址无效，请刷新原页面后重试')
+    if not page_media(page, media): raise Failed('视频地址无效，请刷新原页面后重试')
     target = directory / 'audio.src.mp4'
     write_state(directory, state='downloading', stage='正在读取原页面视频', progress=0)
     try:
-        with open_public(media, timeout=60, headers={'Referer': page, 'User-Agent': BROWSER_AGENT}, allowed=lambda url: douyin_media(page, url)) as response, target.open('wb') as out:
+        with open_public(media, timeout=60, headers={'Referer': page, 'User-Agent': BROWSER_AGENT}, allowed=lambda url: page_media(page, url)) as response, target.open('wb') as out:
             total = int(response.headers.get('Content-Length') or 0); got = 0
             if total > MAX_UPLOAD: raise Failed('视频文件太大')
             for block in iter(lambda: response.read(1 << 20), b''):
@@ -405,18 +580,44 @@ def clean_segments(segments):
 RUNNING = ('queued', 'downloading', 'converting', 'downloadingModel', 'transcribing')
 def pid_alive(pid):
     """Alive and still our worker: a recycled process id must neither keep a dead job running nor be killed by a cancel."""
+    if not isinstance(pid, int) or pid <= 0: return False
+    if eng.windows():
+        # os.kill(pid, 0) terminates a process on Windows instead of probing it.
+        query = f"[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new(); (Get-CimInstance Win32_Process -Filter 'ProcessId = {pid}').CommandLine"
+        try:
+            command = subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', query], capture_output=True, text=True, encoding='utf8', errors='replace', timeout=10, creationflags=0x08000000).stdout
+        except (OSError, subprocess.SubprocessError): return False
+        return 'asr.py' in command and ('worker' in command or 'install' in command)
     try: os.kill(pid, 0)
     except (OSError, TypeError): return False
     try: command = subprocess.run(['ps', '-o', 'command=', '-p', str(pid)], capture_output=True, text=True, timeout=5).stdout
     except (OSError, subprocess.SubprocessError): return True
     return 'asr.py' in command and ('worker' in command or ' install ' in command)
+
+def stop_worker(pid):
+    if eng.windows():
+        if not pid_alive(pid): return
+        try: subprocess.run(['taskkill.exe', '/PID', str(pid), '/T', '/F'], capture_output=True, timeout=10, creationflags=0x08000000)
+        except (OSError, subprocess.SubprocessError): pass
+        return
+    for sig in (signal.SIGTERM, signal.SIGKILL):
+        try: os.killpg(pid, sig)
+        except (OSError, TypeError): break
+        time.sleep(0.3)
+        if not pid_alive(pid): break
 def job_state(base, job_id):
     if not re.fullmatch(r'[0-9a-f]{32}', str(job_id)): return None, None
     directory = job_dir(base, job_id)
     if not directory.is_dir(): return None, None
     state = read_state(directory)
     # A worker that died (crash, killed, machine slept through a reboot) must not stay "running" forever.
-    if state.get('state') in RUNNING and not pid_alive(state.get('pid')): state = write_state(directory, state='failed', error=state.get('error') or '识别进程意外退出，请重试')
+    if state.get('state') in RUNNING and not pid_alive(state.get('pid')):
+        # Process inspection can take seconds on Windows. The worker may have written its real
+        # terminal result and exited while we inspected the PID; do not overwrite that fresh result
+        # with an error derived from the stale state read before the inspection.
+        state = read_state(directory)
+        if state.get('state') in RUNNING:
+            state = write_state(directory, state='failed', stage='失败', error=state.get('error') or '字幕生成进程意外退出，请重试')
     return directory, state
 def active_job(base):
     jobs = asr_root(base) / 'jobs'
@@ -471,13 +672,14 @@ def start(base, message):
         if not public_https(ref['url']): raise ValueError('网页地址必须是公开的 https 地址')
         url = ref['url']
         if ref.get('mediaUrl') is not None:
-            if not douyin_media(url, ref['mediaUrl']): raise ValueError('原页面视频地址无效')
+            if not page_media(url, ref['mediaUrl']) and not xiaoe_media(url, ref['mediaUrl']): raise ValueError('原页面视频地址无效')
             media_url = ref['mediaUrl']
     if video_key.startswith('file:') and not staged_file(base, video_key) and not read_json(result_path(base, video_key)): return {'ok': False, 'error': 'file-missing'}
     language = message.get('language') or 'auto'
     if language not in LANGUAGES: raise ValueError('不支持的语言')
     cookies = message.get('cookies') or None
     if cookies is not None and cookies not in COOKIE_BROWSERS: raise ValueError('不支持的浏览器')
+    cookie_text = clean_cookie_text(message.get('cookiesTxt')) if cookies else None
     cloud = None; key = None
     if message.get('cloud'):
         import asr_cloud
@@ -493,13 +695,16 @@ def start(base, message):
         return {'ok': False, 'error': 'busy', 'jobId': running_id, 'videoKey': running.get('videoKey')}
     job_id = uuid.uuid4().hex; directory = job_dir(base, job_id); directory.mkdir(parents=True, mode=0o700)
     cached = read_json(result_path(base, video_key))
-    if cached and cached.get('segments') and cached.get('version') == RESULT_VERSION and not message.get('force'):
+    engine = 'cloud' if cloud else info['engine']
+    # A previous cloud result is valid, but must not masquerade as a new local-engine result (or vice versa).
+    cached_language = (cached or {}).get('requestedLanguage', (cached or {}).get('language') or 'auto')
+    if cached and cached.get('segments') and cached.get('version') == RESULT_VERSION and cached.get('engine') == engine and cached_language == language and not message.get('force'):
         with (directory / 'segments.jsonl').open('w', encoding='utf8') as f:
             for segment in cached['segments']: f.write(json.dumps(segment, ensure_ascii=False) + '\n')
         state = write_state(directory, id=job_id, videoKey=video_key, state='completed', stage='已从本机缓存读取', progress=100, engine=cached.get('engine'), language=cached.get('language'), cached=True, segmentCount=len(cached['segments']), totalSec=cached.get('duration'), processedSec=cached.get('duration'))
         return view(directory, state)
-    engine = 'cloud' if cloud else info['engine']
     spec = {'id': job_id, 'videoKey': video_key, 'url': url, 'language': language, 'engine': engine, 'cookies': cookies, 'cloud': cloud, 'context': message.get('context') is not False, **({'rss': rss} if rss else {}), **({'mediaUrl': media_url} if media_url else {})}
+    if cookie_text: write_private(directory / 'cookies.txt', cookie_text); spec['cookiesFile'] = True
     atomic_json(directory / 'spec.json', spec)
     write_state(directory, id=job_id, videoKey=video_key, state='queued', stage='正在准备', progress=0, engine=engine, language=language, segmentCount=0, createdAt=time.time())
     write_state(directory, pid=spawn_worker(directory, key))
@@ -513,14 +718,7 @@ def cancel(base, message):
     directory, state = job_state(base, message.get('jobId'))
     if not state: return {'ok': False, 'error': 'unknown-job'}
     if state.get('state') in RUNNING:
-        pid = state.get('pid')
-        for sig in (signal.SIGTERM, signal.SIGKILL):
-            try:
-                if sys.platform == 'win32': os.kill(pid, signal.SIGTERM)
-                else: os.killpg(pid, sig)
-            except (OSError, TypeError): break
-            time.sleep(0.3)
-            if not pid_alive(pid): break
+        stop_worker(state.get('pid'))
         state = write_state(directory, state='cancelled', stage='已取消', error=None)
     for leftover in directory.glob('audio.*'): leftover.unlink(missing_ok=True)
     return view(directory, state)
@@ -531,16 +729,24 @@ def probe(message):
     if not isinstance(url, str) or len(url) > 1500 or not public_https(url): raise ValueError('网页地址必须是公开的 https 地址')
     cookies = message.get('cookies') or None
     if cookies is not None and cookies not in COOKIE_BROWSERS: raise ValueError('不支持的浏览器')
+    cookie_text = clean_cookie_text(message.get('cookiesTxt')) if cookies else None
     ytdlp = find_tool('yt-dlp')
     if not ytdlp: return {'ok': False, 'error': 'missing', 'missing': ['yt-dlp']}
     command = [ytdlp, '--dump-single-json', '--no-playlist', '--skip-download', '--no-warnings', '--socket-timeout', '20', '-f', 'bestaudio/best']
-    if cookies: command += ['--cookies-from-browser', cookies]
+    cookie_path = None
+    if cookie_text:
+        import tempfile
+        handle, cookie_path = tempfile.mkstemp(prefix='qm-cookies-', suffix='.txt'); os.close(handle); write_private(cookie_path, cookie_text)
+        command += ['--cookies', cookie_path]
+    elif cookies: command += ['--cookies-from-browser', cookies]
     command.append(url)
     try: result = subprocess.run(command, capture_output=True, text=True, timeout=60, env=tool_env())
     except subprocess.TimeoutExpired: return {'ok': False, 'error': 'timeout'}
+    finally:
+        if cookie_path: Path(cookie_path).unlink(missing_ok=True)
     if result.returncode != 0:
         text = (result.stderr or '').strip(); low = text.lower()
-        return {'ok': False, 'error': 'unsupported' if 'unsupported url' in low else 'needs-cookies' if NEEDS_LOGIN.search(low) else 'failed', 'message': (text.splitlines() or [''])[-1][:200]}
+        return {'ok': False, 'error': 'unsupported' if 'unsupported url' in low else 'cookies-unreadable' if COOKIES_UNREADABLE.search(low) else 'needs-cookies' if NEEDS_LOGIN.search(low) else 'failed', 'message': (text.splitlines() or [''])[-1][:200]}
     try: info = json.loads(result.stdout)
     except ValueError: return {'ok': False, 'error': 'failed'}
     # Something the page can play as it is: a plain file (not a stream), with the picture if the site has one that is not too large.
@@ -589,7 +795,11 @@ def install_state(base, job_id):
     directory = installs_dir(base) / job_id
     if not directory.is_dir(): return None, None
     state = read_state(directory)
-    if state.get('state') in INSTALLING and not pid_alive(state.get('pid')): state = write_state(directory, state='failed', error=state.get('error') or '安装进程意外退出，请重试')
+    if state.get('state') in INSTALLING and not pid_alive(state.get('pid')):
+        # PID inspection may finish after the installer writes its terminal result.
+        state = read_state(directory)
+        if state.get('state') in INSTALLING:
+            state = write_state(directory, state='failed', stage='失败', error=state.get('error') or '安装进程意外退出，请重试')
     return directory, state
 def active_install(base):
     for entry in (installs_dir(base).iterdir() if installs_dir(base).is_dir() else []):
@@ -624,14 +834,7 @@ def install_cancel(base, message):
     directory, state = install_state(base, message.get('jobId'))
     if not state: return {'ok': False, 'error': 'unknown-job'}
     if state.get('state') in INSTALLING:
-        pid = state.get('pid')
-        for sig in (signal.SIGTERM, signal.SIGKILL):
-            try:
-                if sys.platform == 'win32': os.kill(pid, signal.SIGTERM)
-                else: os.killpg(pid, sig)
-            except (OSError, TypeError): break
-            time.sleep(0.3)
-            if not pid_alive(pid): break
+        stop_worker(state.get('pid'))
         state = write_state(directory, state='cancelled', stage='已取消', error=None)
         # A half-made environment is worse than none: the next attempt starts clean.
         if state.get('engine') and not (eng.base_installed() if state['engine'] == 'base' else eng.installed(state['engine'])): shutil.rmtree(eng.venv_dir(state['engine']), ignore_errors=True)
@@ -679,7 +882,7 @@ def unquarantine(path):
     except (OSError, subprocess.SubprocessError): pass
 def link_ffmpeg():
     """pip puts the bundled ffmpeg under an odd name; give it the plain one so every tool finds it."""
-    binary = eng.private_ffmpeg(); link = eng.venv_bin('base') / ('ffmpeg.exe' if sys.platform == 'win32' else 'ffmpeg')
+    binary = eng.private_ffmpeg(); link = eng.venv_executable('base', 'ffmpeg')
     if binary and not link.exists():
         try: link.symlink_to(binary)
         except OSError: shutil.copy2(binary, link)
@@ -715,31 +918,63 @@ def download(directory, spec, env, tools):
     if spec['videoKey'].startswith('xiaoyuzhou:'): return download_podcast(directory, spec)
     if spec['videoKey'].startswith('rss:'): return download_rss(directory, spec)
     if spec['videoKey'].startswith('file:'): return copy_staged(directory, spec, directory.parent.parent.parent)
+    if spec['videoKey'].startswith('web:') and spec.get('mediaUrl') and xiaoe_media(spec['url'], spec['mediaUrl']): return download_hls(directory, spec, env, tools)
     if spec['videoKey'].startswith('web:') and spec.get('mediaUrl'): return download_page_media(directory, spec)
     command = [tools['yt-dlp'], '--no-playlist', '--no-warnings', '--newline', '--no-continue', '--retries', '4', '--fragment-retries', '4', '-f', 'bestaudio/best', '--write-info-json', '-o', str(directory / 'audio.%(ext)s')]
-    if spec.get('cookies') in COOKIE_BROWSERS: command += ['--cookies-from-browser', spec['cookies']]
+    cookie_args = []
+    if spec.get('cookiesFile') and (directory / 'cookies.txt').is_file(): cookie_args = ['--cookies', str(directory / 'cookies.txt')]
+    elif spec.get('cookies') in COOKIE_BROWSERS: cookie_args = ['--cookies-from-browser', spec['cookies']]
+    command += cookie_args
     command.append(spec['url'])
     def progress(line):
         match = pattern.search(line)
         if match: write_state(directory, state='downloading', stage='正在下载音频', progress=round(min(float(match.group(1)), 100) * 0.15, 1))
-    refreshed = False
-    for attempt in range(3):
+    refreshed = False; client_retry = False; anonymous_retry = False; network_retries = 0
+    # Only YouTube needs room for the extra client retry; preserve other sites' three-attempt limit.
+    for attempt in range((6 if cookie_args else 5) if spec['videoKey'].startswith('youtube:') else 3):
         for leftover in directory.glob('audio.*'): leftover.unlink(missing_ok=True)  # never resume a truncated CDN stream as if it were whole
-        write_state(directory, state='downloading', stage='正在下载音频', progress=0)
+        write_state(directory, state='downloading', stage='正在不使用登录状态重试视频下载' if anonymous_retry else '正在下载音频', progress=0)
         code, tail = stream(command, env, progress)
+        using_login = bool(cookie_args) and not anonymous_retry
+        print(f'[asr] Download attempt {attempt + 1}: client={"default,web_embedded" if client_retry and not anonymous_retry else "default"}, login={using_login}, exit={code}', flush=True)
         audio = next((p for p in directory.glob('audio.*') if p.suffix not in ('.part', '.ytdl', '.wav', '.json')), None)
         if code == 0 and audio:
             info = read_json(directory / 'audio.info.json')
             if info: save_meta(directory, asr_context.from_ytdlp(info))
             return audio
         text = ' '.join(tail).lower()
-        if attempt < 2 and (any(x in text for x in ('timed out', 'connection reset', 'incomplete read', 'unexpected end', 'http error 5')) or re.search(r'downloaded.{0,20}expected', text)): time.sleep(attempt + 1); continue
-        if NEEDS_LOGIN.search(text) and not spec.get('cookies'): raise Failed('这个平台要求登录状态才能下载这条视频的音频', code='needs-cookies')
+        if network_retries < 2 and (any(x in text for x in ('timed out', 'connection reset', 'winerror 10054', 'incomplete read', 'unexpected end', 'http error 5')) or re.search(r'downloaded.{0,20}expected', text)):
+            network_retries += 1; time.sleep(network_retries); continue
+        if NEEDS_LOGIN.search(text) and not using_login:
+            if anonymous_retry: raise Failed('YouTube 拒绝了当前登录状态，匿名下载也需要验证身份；请更新 YouTube 登录状态后重试', code='cookies-rejected')
+            raise Failed('这个平台要求登录状态才能下载这条视频的音频', code='needs-cookies')
+        if COOKIES_UNREADABLE.search(text): raise Failed('没能读取浏览器的登录状态：系统不允许本地助手访问浏览器的数据', code='cookies-unreadable')
         if STALE_TOOL.search(text) and not refreshed:
             # The site changed under the downloader: update it once, then try again with the new one.
             refreshed = True
             if update_ytdlp(env, force=True, on_stage=lambda stage: write_state(directory, state='downloading', stage=stage)):
                 command[0] = tools['yt-dlp'] = find_tool('yt-dlp'); continue
+        if spec['videoKey'].startswith('youtube:') and YOUTUBE_CLIENT_ERROR.search(text) and not client_retry:
+            # Keep the user's explicit login choice and all other download arguments. This is only a
+            # bounded retry for YouTube player extraction failures, never a change for other sites.
+            client_retry = True
+            command[-1:-1] = ['--extractor-args', 'youtube:player_client=default,web_embedded']
+            write_state(directory, stage='正在重试 YouTube 音频下载')
+            continue
+        if spec['videoKey'].startswith('youtube:') and YOUTUBE_CLIENT_ERROR.search(text) and using_login and not anonymous_retry:
+            # Current authenticated defaults already contain web_embedded. A rejected cookie session
+            # can fail every signed-in client while the public video works anonymously. Try without
+            # credentials once, at lower privilege; never change the saved login choice or cookie file.
+            anonymous_retry = True
+            for flag in ('--cookies', '--cookies-from-browser'):
+                if flag in command:
+                    index = command.index(flag); del command[index:index + 2]
+            # Recompute defaults for an anonymous session; do not carry the authenticated client's
+            # embedded override into it (that client can fail fetching its config on Windows).
+            if '--extractor-args' in command:
+                index = command.index('--extractor-args'); del command[index:index + 2]
+            command[-1:-1] = ['--no-cookies', '--no-cookies-from-browser']
+            continue
         if STALE_TOOL.search(text): raise Failed('这个视频暂时下载不了：下载工具已是最新，但站点最近有变化，过几天更新后再试。（' + (tail[-1] if tail else '')[:160] + '）', code='tool-outdated')
         raise Failed('音频下载失败：' + (tail[-1] if tail else '未知错误')[:200])
     raise Failed('音频下载失败')
@@ -803,6 +1038,7 @@ def recognise(directory, spec, wav, total, env, found, tools):
         command = [found['path'], '-m', found['model'], '-f', str(wav), '-l', language, '-sns']
     segments = []
     def on_line(line):
+        if line.startswith('[asr] '): print(line, flush=True)
         item = parse_line(line)
         if not item: return
         window = segments[-2:]; kept = clean_segments(window + [item])
@@ -854,7 +1090,7 @@ def run_worker(base_dir):
         wav, total = convert(directory, audio, env, tools)
         segments, language = recognise_cloud(directory, spec, wav, total, env, tools) if spec.get('cloud') else recognise(directory, spec, wav, total, env, found, tools)
         (asr_root(base) / 'results').mkdir(parents=True, exist_ok=True)
-        atomic_json(result_path(base, spec['videoKey']), {'version': RESULT_VERSION, 'videoKey': spec['videoKey'], 'engine': 'cloud' if spec.get('cloud') else found['id'], 'language': language, 'duration': round(total, 1), 'createdAt': time.time(), 'segments': segments})
+        atomic_json(result_path(base, spec['videoKey']), {'version': RESULT_VERSION, 'videoKey': spec['videoKey'], 'engine': 'cloud' if spec.get('cloud') else found['id'], 'language': language, 'requestedLanguage': spec.get('language') or 'auto', 'duration': round(total, 1), 'createdAt': time.time(), 'segments': segments})
         with (directory / 'segments.jsonl').open('w', encoding='utf8') as f:
             for segment in segments: f.write(json.dumps(segment, ensure_ascii=False) + '\n')
         write_state(directory, state='completed', stage='字幕已生成', progress=100, language=language, segmentCount=len(segments), processedSec=round(total, 1), error=None)
@@ -862,6 +1098,11 @@ def run_worker(base_dir):
     except Exception as error: write_state(directory, state='failed', stage='失败', error='生成字幕时出错：' + str(error)[:200])
     finally:
         for leftover in directory.glob('audio.*'): leftover.unlink(missing_ok=True)
+        (directory / 'cookies.txt').unlink(missing_ok=True)  # the site's cookies live only as long as the job
+        # Signed media addresses are needed only by this worker, not by retries or the result cache.
+        if spec.get('mediaUrl') and (directory / 'spec.json').is_file():
+            try: atomic_json(directory / 'spec.json', {k: v for k, v in spec.items() if k != 'mediaUrl'}, durable=False)
+            except OSError: pass
 
 if __name__ == '__main__':
     if len(sys.argv) == 3 and sys.argv[1] == 'worker': run_worker(sys.argv[2])

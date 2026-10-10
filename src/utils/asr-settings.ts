@@ -1,5 +1,6 @@
 import browser from './browser-polyfill';
 
+import { t } from './ui-text';
 // How subtitles are generated for a video that has none: on this computer with Whisper (default, nothing uploaded), or by
 // a cloud recognition service the viewer chose and pays for. The service's key is kept in this browser only (storage.local,
 // never synced) and is read by the background worker, so no page ever sees it.
@@ -17,28 +18,28 @@ export type AsrPlatform = 'youtube' | 'bilibili' | 'xiaoyuzhou' | 'file' | 'web'
 export const PLATFORMS: AsrPlatform[] = ['youtube', 'bilibili', 'xiaoyuzhou', 'file', 'web'];
 // A way of recognising, written 'local:<engine>' (a local engine; 'local:auto' = the best one installed) or 'cloud:<saved service id>'.
 export type Recognizer = string;
-export interface AsrSettings { useContext: boolean; mode: AsrMode; engine: LocalEngineId; profiles: AsrProfile[]; active: string; autoStart: boolean; routes: Partial<Record<AsrPlatform, Recognizer>> }
+export interface AsrSettings { useContext: boolean; mode: AsrMode; engine: LocalEngineId; profiles: AsrProfile[]; active: string; autoStart: boolean; autoLogin: boolean; routes: Partial<Record<AsrPlatform, Recognizer>> }
 export interface CloudConfig { contextMode?: 'doubao' | 'prompt'; protocol: AsrProtocol; baseUrl: string; model: string; timestamps: 'none' | 'segments'; languageParam: boolean; label: string; chunkSeconds?: number; maxChunkSeconds?: number }
 
 // Tried with real keys on a 5-minute Chinese lecture (all within 0.3 points of each other against a local Whisper reference): SiliconFlow
 // (Qwen3-ASR is fast and steady; SenseVoice queues), Doubao, GLM, StepFun and Xiaomi MiMo. Groq and OpenAI follow the same published
 // OpenAI-style API but were not tried here.
 export const PROVIDERS: AsrProvider[] = [
-	{ id: 'siliconflow', label: '硅基流动 SiliconFlow', protocol: 'openai-transcriptions', baseUrl: 'https://api.siliconflow.cn/v1', defaultModel: 'Qwen/Qwen3-ASR-1.7B', models: ['Qwen/Qwen3-ASR-1.7B', 'FunAudioLLM/SenseVoiceSmall', 'XingChenAGI/XingChenASR-V3.2', 'XingChenAGI/XingChenASR-Diarize-V3.0'], keyHelp: 'https://cloud.siliconflow.cn/account/ak', note: '推荐 Qwen3-ASR：5 分钟音频约 5 秒，术语识别准确。SenseVoice 排队时很慢。' },
-	{ id: 'doubao', contextMode: 'doubao', label: '豆包语音（火山引擎）', protocol: 'doubao-flash', baseUrl: 'https://openspeech.bytedance.com/api/v3', defaultModel: 'bigmodel', models: ['bigmodel'], chunkSeconds: 300, maxChunkSeconds: 540, keyHelp: 'https://console.volcengine.com/speech/new/experience/asr', note: '录音文件识别极速版：服务端直接返回逐句时间，时间轴最准；API Key 是控制台里的 UUID，需先开通「极速版」。' },
-	{ id: 'glm', label: '智谱 GLM', protocol: 'openai-transcriptions', baseUrl: 'https://open.bigmodel.cn/api/paas/v4', defaultModel: 'glm-asr-2512', models: ['glm-asr-2512'], chunkSeconds: 18, maxChunkSeconds: 28, keyHelp: 'https://open.bigmodel.cn/usercenter/proj-mgmt/apikeys', note: '单次最长 30 秒，扩展会自动按 28 秒内切块；速度很快。' },
-	{ id: 'stepfun', label: '阶跃星辰 StepFun', protocol: 'openai-transcriptions', baseUrl: 'https://api.stepfun.com/v1', defaultModel: 'stepaudio-2.5-asr', models: ['stepaudio-2.5-asr', 'step-asr'], keyHelp: 'https://platform.stepfun.com/interface-key', note: '5 分钟音频约 15–20 秒。' },
-	{ id: 'mimo', label: '小米 MiMo', protocol: 'chat-audio', baseUrl: 'https://api.xiaomimimo.com/v1', defaultModel: 'mimo-v2.5-asr', models: ['mimo-v2.5-asr'], note: '支持粤语、吴语、闽南语、四川话；语言只分 中文 / 英文 / 自动。' },
-	{ id: 'groq', contextMode: 'prompt', label: 'Groq（Whisper）', protocol: 'openai-transcriptions', baseUrl: 'https://api.groq.com/openai/v1', defaultModel: 'whisper-large-v3-turbo', models: ['whisper-large-v3-turbo', 'whisper-large-v3'], keyHelp: 'https://console.groq.com/keys', note: '返回句子级时间戳。未在本机实测。' },
-	{ id: 'openai', contextMode: 'prompt', label: 'OpenAI', protocol: 'openai-transcriptions', baseUrl: 'https://api.openai.com/v1', defaultModel: 'whisper-1', models: ['whisper-1', 'gpt-4o-mini-transcribe', 'gpt-4o-transcribe'], keyHelp: 'https://platform.openai.com/api-keys', note: 'whisper-1 返回句子级时间戳。未在本机实测。' },
-	{ id: 'local', label: '本机服务（OpenAI 兼容）', protocol: 'openai-transcriptions', baseUrl: 'http://127.0.0.1:8765/v1', defaultModel: 'Qwen/Qwen3-ASR-0.6B', models: ['Qwen/Qwen3-ASR-0.6B', 'whisper-1'], note: '你自己在本机运行的识别服务，音频不离开这台电脑，不需要 API Key。已用 mlx-qwen3-asr 试过：uvx --from "mlx-qwen3-asr[serve]" mlx-qwen3-asr serve --host 127.0.0.1（5 分钟音频约 10 秒）。whisper.cpp server、faster-whisper-server 等同样适用。' },
-	{ id: 'custom', label: '自定义（OpenAI 兼容接口）', protocol: 'openai-transcriptions', baseUrl: '', defaultModel: '', models: [], note: '任何兼容 /audio/transcriptions 的服务都行。地址填 http://127.0.0.1:端口/v1 就是本机上的识别服务（如 whisper.cpp server、faster-whisper-server），音频不会离开这台电脑。' },
+	{ id: 'siliconflow', get label() { return t('硅基流动 SiliconFlow'); }, protocol: 'openai-transcriptions', baseUrl: 'https://api.siliconflow.cn/v1', defaultModel: 'Qwen/Qwen3-ASR-1.7B', models: ['Qwen/Qwen3-ASR-1.7B', 'FunAudioLLM/SenseVoiceSmall', 'XingChenAGI/XingChenASR-V3.2', 'XingChenAGI/XingChenASR-Diarize-V3.0'], keyHelp: 'https://cloud.siliconflow.cn/account/ak', get note() { return t('推荐 Qwen3-ASR：5 分钟音频约 5 秒，术语识别准确。SenseVoice 排队时很慢。'); } },
+	{ id: 'doubao', contextMode: 'doubao', get label() { return t('豆包语音（火山引擎）'); }, protocol: 'doubao-flash', baseUrl: 'https://openspeech.bytedance.com/api/v3', defaultModel: 'bigmodel', models: ['bigmodel'], chunkSeconds: 300, maxChunkSeconds: 540, keyHelp: 'https://console.volcengine.com/speech/new/experience/asr', get note() { return t('录音文件识别极速版：服务端直接返回逐句时间，时间轴最准；API Key 是控制台里的 UUID，需先开通「极速版」。'); } },
+	{ id: 'glm', get label() { return t('智谱 GLM'); }, protocol: 'openai-transcriptions', baseUrl: 'https://open.bigmodel.cn/api/paas/v4', defaultModel: 'glm-asr-2512', models: ['glm-asr-2512'], chunkSeconds: 18, maxChunkSeconds: 28, keyHelp: 'https://open.bigmodel.cn/usercenter/proj-mgmt/apikeys', get note() { return t('单次最长 30 秒，扩展会自动按 28 秒内切块；速度很快。'); } },
+	{ id: 'stepfun', get label() { return t('阶跃星辰 StepFun'); }, protocol: 'openai-transcriptions', baseUrl: 'https://api.stepfun.com/v1', defaultModel: 'stepaudio-2.5-asr', models: ['stepaudio-2.5-asr', 'step-asr'], keyHelp: 'https://platform.stepfun.com/interface-key', get note() { return t('5 分钟音频约 15–20 秒。'); } },
+	{ id: 'mimo', get label() { return t('小米 MiMo'); }, protocol: 'chat-audio', baseUrl: 'https://api.xiaomimimo.com/v1', defaultModel: 'mimo-v2.5-asr', models: ['mimo-v2.5-asr'], get note() { return t('支持粤语、吴语、闽南语、四川话；语言只分 中文 / 英文 / 自动。'); } },
+	{ id: 'groq', contextMode: 'prompt', label: 'Groq（Whisper）', protocol: 'openai-transcriptions', baseUrl: 'https://api.groq.com/openai/v1', defaultModel: 'whisper-large-v3-turbo', models: ['whisper-large-v3-turbo', 'whisper-large-v3'], keyHelp: 'https://console.groq.com/keys', get note() { return t('返回句子级时间戳。未在本机实测。'); } },
+	{ id: 'openai', contextMode: 'prompt', label: 'OpenAI', protocol: 'openai-transcriptions', baseUrl: 'https://api.openai.com/v1', defaultModel: 'whisper-1', models: ['whisper-1', 'gpt-4o-mini-transcribe', 'gpt-4o-transcribe'], keyHelp: 'https://platform.openai.com/api-keys', get note() { return t('whisper-1 返回句子级时间戳。未在本机实测。'); } },
+	{ id: 'local', get label() { return t('本机服务（OpenAI 兼容）'); }, protocol: 'openai-transcriptions', baseUrl: 'http://127.0.0.1:8765/v1', defaultModel: 'Qwen/Qwen3-ASR-0.6B', models: ['Qwen/Qwen3-ASR-0.6B', 'whisper-1'], get note() { return t('你自己在本机运行的识别服务，音频不离开这台电脑，不需要 API Key。已用 mlx-qwen3-asr 试过：uvx --from "mlx-qwen3-asr[serve]" mlx-qwen3-asr serve --host 127.0.0.1（5 分钟音频约 10 秒）。whisper.cpp server、faster-whisper-server 等同样适用。'); } },
+	{ id: 'custom', get label() { return t('自定义（OpenAI 兼容接口）'); }, protocol: 'openai-transcriptions', baseUrl: '', defaultModel: '', models: [], get note() { return t('任何兼容 /audio/transcriptions 的服务都行。地址填 http://127.0.0.1:端口/v1 就是本机上的识别服务（如 whisper.cpp server、faster-whisper-server），音频不会离开这台电脑。'); } },
 ];
 export const providerOf = (id: string): AsrProvider => PROVIDERS.find(provider => provider.id === id) ?? PROVIDERS[PROVIDERS.length - 1];
 
 export const LOCAL_ENGINE_IDS: LocalEngineId[] = ['auto', 'mlx', 'mlx-qwen3', 'faster-whisper', 'whispercpp'];
 export const MAX_PROFILES = 12;
-export const defaultAsrSettings = (): AsrSettings => ({ mode: 'local', engine: 'auto', profiles: [], active: '', autoStart: false, routes: {}, useContext: true });
+export const defaultAsrSettings = (): AsrSettings => ({ mode: 'local', engine: 'auto', profiles: [], active: '', autoStart: false, autoLogin: false, routes: {}, useContext: true });
 const KEY = 'qiaomuAsrSettings';
 const newId = () => 'p' + Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-3);
 export const newProfile = (provider: AsrProviderId = 'siliconflow'): AsrProfile => { const info = providerOf(provider); return { id: newId(), provider: info.id, baseUrl: info.baseUrl, model: info.defaultModel, apiKey: '', protocol: info.protocol }; };
@@ -65,7 +66,7 @@ const clean = (value: unknown): AsrSettings => {
 	const active = profiles.some(item => item.id === v.active) ? String(v.active) : (profiles[0]?.id ?? '');
 	const routes: AsrSettings['routes'] = {};
 	if (v.routes && typeof v.routes === 'object') for (const platform of PLATFORMS) { const value = (v.routes as Record<string, unknown>)[platform]; if (typeof value === 'string' && validRecognizer(value, profiles)) routes[platform] = value; }
-	return { mode: v.mode === 'cloud' ? 'cloud' : 'local', engine: LOCAL_ENGINE_IDS.includes(v.engine as LocalEngineId) ? v.engine as LocalEngineId : 'auto', profiles, active, autoStart: v.autoStart === true, routes, useContext: v.useContext !== false };
+	return { mode: v.mode === 'cloud' ? 'cloud' : 'local', engine: LOCAL_ENGINE_IDS.includes(v.engine as LocalEngineId) ? v.engine as LocalEngineId : 'auto', profiles, active, autoStart: v.autoStart === true, autoLogin: v.autoLogin === true, routes, useContext: v.useContext !== false };
 };
 export async function loadAsrSettings(): Promise<AsrSettings> {
 	try { return clean((await browser.storage.local.get(KEY))[KEY]); } catch { return defaultAsrSettings(); }
@@ -99,7 +100,7 @@ export const choosePatch = (settings: AsrSettings, value: Recognizer, platform?:
 export function profileLabel(profile: AsrProfile, all: AsrProfile[] = []): string {
 	if (profile.name?.trim()) return profile.name.trim();
 	const info = providerOf(profile.provider);
-	const base = isLocalService(profile.baseUrl) ? '本机服务' : info.id === 'custom' ? (() => { try { return new URL(profile.baseUrl).hostname; } catch { return '自定义'; } })() : info.label.split(/[\s（(]/)[0];
+	const base = isLocalService(profile.baseUrl) ? t('本机服务') : info.id === 'custom' ? (() => { try { return new URL(profile.baseUrl).hostname; } catch { return t('自定义'); } })() : info.label.split(/[\s（(]/)[0];
 	return all.filter(item => item.provider === profile.provider).length > 1 && profile.model ? `${base} · ${profile.model.split('/').pop()}` : base;
 }
 
@@ -133,7 +134,7 @@ export const ICONS: Record<string, { text: string; hue: number }> = {
 export const iconOf = (id: string) => ICONS[id] ?? ICONS.custom;
 export interface LocalEngineInfo { id: LocalEngineId; name: string; sizeMb: number; note: string }
 export const LOCAL_ENGINES: LocalEngineInfo[] = [
-	{ id: 'mlx', name: 'Whisper large-v3-turbo（MLX）', sizeMb: 1700, note: 'Apple 芯片上最快，41 分钟的视频约 1 分钟' },
-	{ id: 'mlx-qwen3', name: 'Qwen3-ASR 0.6B（MLX）', sizeMb: 1300, note: '中文术语识别准确，体积较小' },
-	{ id: 'faster-whisper', name: 'Whisper large-v3-turbo（faster-whisper）', sizeMb: 1700, note: '任何电脑都能用，没有 GPU 也行，较慢' },
+	{ id: 'mlx', name: 'Whisper large-v3-turbo（MLX）', sizeMb: 1700, get note() { return t('Apple 芯片上最快，41 分钟的视频约 1 分钟'); } },
+	{ id: 'mlx-qwen3', name: 'Qwen3-ASR 0.6B（MLX）', sizeMb: 1300, get note() { return t('中文术语识别准确，体积较小'); } },
+	{ id: 'faster-whisper', name: 'Whisper large-v3-turbo（faster-whisper）', sizeMb: 1700, get note() { return t('任何电脑都能用，没有 GPU 也行，较慢'); } },
 ];

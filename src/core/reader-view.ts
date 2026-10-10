@@ -8,6 +8,7 @@ import { audioKey } from '../utils/video-source';
 import { PLAYER_SELECTOR } from '../utils/video-source';
 import { mountReaderPreviewShell } from '../utils/reader-preview-shell';
 import { createReaderSourceDraft } from '../utils/reader-source-draft';
+import { mountLocalPreviewMedia, prepareLocalPreviewTranscript } from '../utils/local-preview-media';
 import { marked } from 'marked';
 import { highlightExtension } from '../utils/marked-highlight';
 
@@ -26,6 +27,7 @@ import { loadSettings, generalSettings } from '../utils/storage-utils';
 import Defuddle from 'defuddle';
 import { withReliableBilibili } from '../utils/bilibili-captions';
 
+import { t } from '../utils/ui-text';
 type MessageListener = (request: any, sender: any, sendResponse: (response?: any) => void) => true | undefined;
 let readerPageMessageListener: MessageListener | null = null;
 
@@ -39,8 +41,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 	let url = params.get('url');
 
 	// Audio: a file chosen on this page, or a podcast episode.
-	if (params.get('study') === 'file') { const file = await takeHandedFile(params.get('token') || ''); await startAudioStudy({ kind: 'file', title: params.get('title') || '', ...(file ? { file } : {}) }); return; }
-	if (params.get('study') === 'web' && url) { await startAudioStudy({ kind: 'web', webUrl: url, sourceTabId: params.has('sourceTab') ? Number(params.get('sourceTab')) : undefined, title: params.get('title') || '' }); return; }
+	if (params.get('study') === 'file') { const token = params.get('token') || ''; const file = await takeHandedFile(token); await startAudioStudy({ kind: 'file', token, title: params.get('title') || '', ...(file ? { file } : {}) }); return; }
+	if (params.get('study') === 'web' && url) { await startAudioStudy({ kind: 'web', webUrl: url, resumeId: params.get('resume') || undefined, sourceTabId: params.has('sourceTab') ? Number(params.get('sourceTab')) : undefined, title: params.get('title') || '' }); return; }
 	if (params.get('study') === 'feed' && params.get('feed') && params.get('guid')) { await startAudioStudy({ kind: 'feed', feed: params.get('feed')!, guid: params.get('guid')!, title: params.get('title') || '' }); return; }
 	if (params.get('study') === 'audio' && url) {
 		const key = audioKey(url);
@@ -54,7 +56,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 	}
 
 	if (params.get('study') === 'youtube' || params.get('study') === 'bilibili') {
-		const session = await createReaderSourceDraft(url, params.get('title') || '');
+		const session = await createReaderSourceDraft(url, params.get('title') || '', params.get('resume') || undefined);
+        const route = new URL(location.href); route.searchParams.delete('resume'); session.draft.mediaReadUrl = route.href;
 		// Suppress the legacy reader controls before rendering, just as a normal preview does.
 		Reader.onEdit = () => {};
 		await startYouTubeStudy(url, Number(params.get('sourceTab')), session.draft.clip.title, async result => {
@@ -64,7 +67,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 		}, () => {
 			const shell = mountReaderPreviewShell(session.draft, true);
 			return {chat:shell.chat, ready: () => { shell.refresh(); shell.setPending(false); }};
-		});
+		}, session.restored ? session.draft : undefined);
 		return;
 	}
 
@@ -466,7 +469,7 @@ async function setupReaderPageMessageHandler(articleUrl: string, defuddleResult:
 
 async function showClipPreview(id: string) {
     const draft = await loadClipPreview(id);
-    if (!draft) { document.body.textContent = '剪藏预览已过期，请重新打开预览'; return; }
+    if (!draft) { document.body.textContent = t('剪藏预览已过期，请重新打开预览'); return; }
     const rendered = DOMPurify.sanitize(await marked.parse(draft.clip.markdown));
     const container = document.createElement('div');
     container.innerHTML = rendered;
@@ -486,6 +489,14 @@ async function showClipPreview(id: string) {
     document.title = draft.clip.title;
     await loadSettings();
     const {chat} = mountReaderPreviewShell(draft);
+    const article = document.querySelector<HTMLElement>('article')!;
+    if (draft.localMedia || draft.remoteMedia) {
+        const anchor = document.createElement('div'); article.prepend(anchor);
+        const transcript = prepareLocalPreviewTranscript(article);
+        await mountLocalPreviewMedia(draft, article, anchor, async () => {
+            if (transcript) await Reader.attachYouTubeTranscript(document, transcript, draft.clip.title, chat);
+        });
+    }
     if (document.querySelector(`article ${PLAYER_SELECTOR}`)) {
         await mountYouTubeStudy(document, document.querySelector('article')!, draft.clip.title, draft.clip.url, chat);
     }

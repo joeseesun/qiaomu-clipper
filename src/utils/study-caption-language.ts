@@ -1,12 +1,13 @@
 import type { LanguageOption } from './subtitle-language';
 
+import { t } from './ui-text';
 // Switching a caption track changes only the transcript, retaining the playing media.
 export function mountStudyCaptionLanguage(article: HTMLElement, options: LanguageOption[], selected: string,
 	load: (id: string) => Promise<void>): void {
 	if (options.length < 2 || article.querySelector('.study-caption-language')) return;
 	const doc = article.ownerDocument, label = doc.createElement('label'); label.className = 'study-caption-language';
-	const name = doc.createElement('span'); name.textContent = '字幕语言';
-	const select = doc.createElement('select'); select.setAttribute('aria-label', '官方字幕语言');
+	const name = doc.createElement('span'); name.textContent = t('字幕语言');
+	const select = doc.createElement('select'); select.setAttribute('aria-label', t('官方字幕语言'));
 	for (const item of options) { const option = doc.createElement('option'); option.value = item.id; option.textContent = item.label; select.append(option); }
 	select.value = selected;
 	const status = doc.createElement('span'); status.setAttribute('role', 'status');
@@ -14,9 +15,9 @@ export function mountStudyCaptionLanguage(article: HTMLElement, options: Languag
 	const place = () => { const row = article.querySelector('.player-toggle-group'); if (row) row.append(label); else article.querySelector('.transcript')?.before(label); };
 	place();
 	select.addEventListener('change', async () => {
-		const wanted = select.value; select.disabled = true; status.textContent = '正在切换…';
+		const wanted = select.value; select.disabled = true; status.textContent = t('正在切换…');
 		try { await load(wanted); selected = wanted; status.textContent = ''; }
-		catch { select.value = selected; status.textContent = '切换失败，已保留原字幕'; }
+		catch { select.value = selected; status.textContent = t('切换失败，已保留原字幕'); }
 		finally { place(); select.disabled = false; }
 	});
 	if (!doc.getElementById('study-caption-language-style')) {

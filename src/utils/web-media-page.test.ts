@@ -32,6 +32,15 @@ it('chooses the playing visible video over preloads and uses its own feed card a
 	expect(currentWebMediaAddress(document,on,'https://www.douyin.com/?modal_id=333')).toBe('https://www.douyin.com/video/333');
 });
 
+it('does not mistake a playing live-stream thumbnail for the clip when the real player has not started', () => {
+	document.body.innerHTML = '<div class="player"><video id="main"></video></div><div class="liveCardPlayer"><video id="live"></video></div>';
+	const main = document.querySelector<HTMLVideoElement>('#main')!, live = document.querySelector<HTMLVideoElement>('#live')!;
+	vi.spyOn(main,'getBoundingClientRect').mockReturnValue({left:0,top:0,right:1000,bottom:800,width:1000,height:800} as DOMRect);
+	vi.spyOn(live,'getBoundingClientRect').mockReturnValue({left:700,top:300,right:1000,bottom:480,width:300,height:180} as DOMRect);
+	Object.defineProperty(live,'paused',{value:false});
+	expect(activeWebMedia(document)).toBe(main);
+});
+
 it('finds a visible cross-origin embed without accessing its document', () => {
 	document.body.innerHTML='<iframe src="https://player.vimeo.com/video/123"></iframe>';
 	const frame=document.querySelector('iframe')!;

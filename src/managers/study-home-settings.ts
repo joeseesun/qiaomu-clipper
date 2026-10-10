@@ -10,7 +10,7 @@ export async function initializeStudyHome(): Promise<void> {
 	const refresh = await showStudyHome(document, {
 		open: openTab,
 		// A chosen file is handed over through the extension's database; where that is not possible the study page asks for the file itself.
-		openFile: file => { void putHandedFile(file).then(token => openTab(token ? `reader.html?study=file&token=${token}` : 'reader.html?study=file')); },
+		openFile: file => { void putHandedFile(file).then(token => openTab(token ? `reader.html?study=file&token=${token}` : 'reader.html?study=file&token=unavailable')); },
 	}, root);
 	// What was studied since the page was drawn, and the sites switched on or off in the meantime.
 	document.addEventListener('qiaomu-study-shown', () => { void refresh(); });

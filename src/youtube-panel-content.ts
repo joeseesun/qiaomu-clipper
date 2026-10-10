@@ -1,6 +1,9 @@
+import { uiLanguage } from './utils/ui-text';
+import { createContentText } from './utils/content-i18n';
 import type { PanelSegment } from './utils/youtube-panel-actions';
 import { BAR_STYLE, buildTranscriptBar, syncTranscriptBar, type BarState, type TranscriptBar } from './utils/youtube-transcript-bar';
-import { fetchCaptionResult, fetchCaptionTracks, fetchTrackSegments, trackInfos, type YouTubeTrack } from './utils/youtube-captions';
+import { fetchCaptionTracks, fetchTrackSegments, trackInfos, type YouTubeTrack } from './utils/youtube-captions';
+import { fetchBestCaptions, openPlayerCaptions } from './utils/youtube-player-captions';
 import { cacheKeyFor, chooseTrack, optionsOf, saveLanguage, savedLanguage } from './utils/subtitle-language';
 import { createTranscriptCache } from './utils/youtube-transcript-cache';
 import { markAutoOpenedPanel, openTranscriptPanel, readYouTubeTranscriptFromDom, releaseAutoPanel, resetOpenAttempts, transcriptHtml, transcriptPanelOpen } from './utils/youtube-dom-transcript';
@@ -21,7 +24,7 @@ try {
 				sendMessage(message: unknown): Promise<unknown> | undefined;
 				onMessage: { addListener(listener: (request: any, sender: unknown, respond: (response: unknown) => void) => boolean | void): void };
 			};
-			i18n: { getMessage(key: string): string };
+			i18n: { getMessage(key: string): string; getUILanguage?(): string };
 			storage: {
 				local?: { get(keys: string | string[]): Promise<Record<string, any>>; set(items: Record<string, unknown>): Promise<void>; remove(keys: string | string[]): Promise<void> };
 				sync?: { get(key: string): Promise<Record<string, any>> };
@@ -29,8 +32,8 @@ try {
 			};
 		};
 		const api = (typeof browser !== 'undefined' ? browser : chrome) as unknown as Api;
-		const zh = /^zh/i.test(navigator.language);
-		const text = (key: string, zhText: string, enText: string) => api.i18n.getMessage(key) || (zh ? zhText : enText);
+		void (async () => {
+		const text = await createContentText(api);
 		const strings = {
 			heading: text('', '乔木剪藏', 'Qiaomu Clipper'),
 			subtitles: text('youtubeBarSubtitles', '字幕', 'Subtitles'),
@@ -62,7 +65,7 @@ try {
 		const cache = api.storage.local ? createTranscriptCache(api.storage.local) : undefined;
 
 		// --- transcript prefetch -------------------------------------------------------------------------------
-		interface Entry { state: BarState; segments: PanelSegment[]; generated?: boolean; tracks: YouTubeTrack[]; selected?: string; tracksReady?: Promise<void>; done: Promise<PanelSegment[]> }
+		interface Entry { state: BarState; segments: PanelSegment[]; generated?: boolean; tracks: YouTubeTrack[]; selected?: string; fetchTrack?: (track: YouTubeTrack['track']) => Promise<PanelSegment[]>; tracksReady?: Promise<void>; done: Promise<PanelSegment[]> }
 		const store = new Map<string, Entry>();
 		const currentVideo = () => location.pathname === '/watch' ? new URL(location.href).searchParams.get('v') : null;
 		// YouTube answers get_transcript with "precondition failed" when it wants a player token (seen in signed-out
@@ -72,12 +75,12 @@ try {
 			const known = store.get(videoId); if (known) return known;
 			const entry: Entry = { state: 'loading', segments: [], tracks: [], done: Promise.resolve([]) };
 			// The language this viewer picked for this video, else the one spoken in it.
-			const preferred = savedLanguage(`youtube:${videoId}`), cacheKey = cacheKeyFor(videoId, preferred);
+			const preferred = savedLanguage(`youtube:${videoId}`), cacheKey = cacheKeyFor(videoId, preferred ?? 'original');
 			// A transcript read before is shown at once; otherwise ask YouTube, and keep what comes back.
-			const fresh = () => refusals >= 2 ? Promise.resolve([] as PanelSegment[]) : fetchCaptionResult(videoId, document, undefined, preferred).then(result => { refusals = 0; entry.tracks = result.tracks; entry.selected = result.selected; return result.segments; }, () => { refusals++; return [] as PanelSegment[]; });
+			const fresh = () => refusals >= 2 ? Promise.resolve([] as PanelSegment[]) : fetchBestCaptions(videoId, document, preferred).then(result => { refusals = 0; entry.tracks = result.tracks; entry.selected = result.selected; entry.fetchTrack = result.fetchTrack; return result.segments; }, () => { refusals++; return [] as PanelSegment[]; });
 			const request = (cache ? cache.read(cacheKey) : Promise.resolve(undefined)).then(cached => {
 				// From the cache: the language menu still needs the list of tracks, read quietly in the background.
-				if (cached) { entry.tracksReady = fetchCaptionTracks(videoId, document).then(found => { entry.tracks = trackInfos(found); entry.selected = chooseTrack(entry.tracks, preferred)?.id; updateBar(); }, () => {}); return cached; }
+				if (cached) { entry.tracksReady = openPlayerCaptions(videoId, preferred).then(opened => opened ?? fetchCaptionTracks(videoId, document).then(found => { entry.tracks = trackInfos(found); entry.selected = chooseTrack(entry.tracks, preferred)?.id; return undefined; })).then(opened => { if (opened) { entry.tracks = opened.tracks; entry.selected = opened.chosen.id; entry.fetchTrack = opened.fetchTrack; } updateBar(); }, () => {}); return cached; }
 				return fresh().then(segments => { if (segments.length) void cache?.write(cacheKey, segments); return segments; });
 			});
 			entry.done = request.then(async segments => {
@@ -97,7 +100,7 @@ try {
 			if (!videoId || !entry || !track || entry.generated) return;
 			const previous = entry.selected; entry.selected = id; entry.state = 'loading'; updateBar();
 			try {
-				const segments = await fetchTrackSegments(track.track); if (!segments.length) throw new Error('empty');
+				const segments = await (entry.fetchTrack ?? fetchTrackSegments)(track.track); if (!segments.length) throw new Error('empty');
 				entry.segments = segments; entry.done = Promise.resolve(segments); entry.state = 'ready'; saveLanguage(`youtube:${videoId}`, track.language); void cache?.write(cacheKeyFor(videoId, track.language), segments);
 			} catch { entry.selected = previous; entry.state = entry.segments.length ? 'ready' : 'none'; }
 			updateBar();
@@ -120,7 +123,7 @@ try {
 		const idOf = (key: string) => key.replace(/^youtube:/, '');
 		const generation = createBarGeneration({
 			// "Add a cloud service" leads to the speech recognition page of the settings.
-			openSettings: () => { try { void api.runtime.sendMessage({ action: 'openSettings', section: 'asr' }); } catch { /* extension reloaded */ } },
+			openSettings: () => { try { void api.runtime.sendMessage({ action: 'openSettings', section: 'asr-models' }); } catch { /* extension reloaded */ } },
 			videoKey: () => { const id = currentVideo(); return id ? `youtube:${id}` : null; }, bar: () => bar,
 			apply: (key, lines, done) => { const entry = store.get(idOf(key)); if (entry) { entry.segments = lines; entry.generated = true; entry.state = done ? 'ready' : 'generating'; updateBar(); } },
 			revert: key => { const entry = store.get(idOf(key)); if (entry) { entry.segments = []; entry.generated = false; entry.state = 'none'; updateBar(); } },
@@ -152,7 +155,7 @@ try {
 		let bar: TranscriptBar | undefined;
 		const updateBar = () => {
 			const videoId = currentVideo(); const entry = videoId ? store.get(videoId) : undefined;
-			bar?.setState(entry?.state ?? 'loading', entry?.segments); bar?.setLanguages(entry && !entry.generated ? optionsOf(entry.tracks) : [], entry?.selected); generation.sync();
+			bar?.setState(entry?.state ?? 'loading', entry?.segments); bar?.setLanguages(entry && !entry.generated ? optionsOf(entry.tracks, uiLanguage(), text('subtitleAutoGenerated', '自动生成', 'auto-generated')) : [], entry?.selected); generation.sync();
 		};
 		let frame = 0;
 		const refresh = () => {
@@ -218,7 +221,7 @@ try {
 				if (ready) await Promise.race([ready, new Promise<void>(resolve => setTimeout(resolve, 3500))]);
 				if (typeof request.language === 'string') await chooseLanguage(request.language);
 				const segments = await getSegments(true), entry = store.get(currentVideo() || '');
-				respond({ html: segments.length ? transcriptHtml(segments) : '', count: segments.length, languages: entry && !entry.generated ? optionsOf(entry.tracks) : [], selected: entry?.selected });
+				respond({ html: segments.length ? transcriptHtml(segments) : '', count: segments.length, languages: entry && !entry.generated ? optionsOf(entry.tracks, uiLanguage(), text('subtitleAutoGenerated', '自动生成', 'auto-generated')) : [], selected: entry?.selected });
 			})().catch(() => respond({ html: '', count: 0 }));
 			return true;
 		});
@@ -232,6 +235,7 @@ try {
 		api.storage.sync?.get('general_settings').then(data => apply(data?.general_settings)).catch(() => {});
 		api.storage.onChanged.addListener((changes, area) => { if (area === 'sync' && changes.general_settings) apply(changes.general_settings.newValue); });
 		startPrefetch(); schedule();
+		})().catch(() => { /* Extension may have been updated. */ });
 	}
 } catch {
 	// The extension may have been updated while this page was open.

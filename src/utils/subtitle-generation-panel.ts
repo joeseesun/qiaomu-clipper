@@ -17,9 +17,9 @@ export type GenUi =
 	| { kind: 'generated'; via?: string };
 export interface GenerationStrings {
 	offer: string; checking: string; confirm: string; confirmModel: string; start: string; cancel: string; running: string; modelDownloading: string;
-	failed: string; retry: string; languageAuto: string; languageLabel: string; needsLogin: string; loginRetry: string; generated: string; setupOffline: string; setupOutdated: string; setupMissing: string; setupBusy: string; setupCloud: string; confirmCloud: string; confirmLocalService: string; copyCommand: string; copied: string; recheck: string; confirmInstall: string; installStart: string; installing: string; installFailed: string; engineLabel: string; dlgTitle: string; dlgSub: string; rememberHint: string; confirmAsk: string; startCloud: string; addService: string; remember: string; regenerate: string; generatedVia: string;
+	failed: string; retry: string; languageAuto: string; languageLabel: string; needsLogin: string; loginRetry: string; generated: string; setupHelper: string; setupRecognition: string; setupOffline: string; setupOutdated: string; setupMissing: string; setupBusy: string; setupCloud: string; confirmCloud: string; confirmLocalService: string; copyCommand: string; copied: string; recheck: string; confirmInstall: string; installStart: string; installing: string; installFailed: string; engineLabel: string; dlgTitle: string; dlgSub: string; rememberHint: string; confirmAsk: string; startCloud: string; addService: string; remember: string; regenerate: string; generatedVia: string;
 }
-export interface GenerationActions { request: () => void; confirm: (language?: string, remember?: boolean) => void; cancel: () => void; confirmWithLogin?: () => void; choose?: (value: string) => void; addService?: () => void; regenerate?: () => void; dismiss?: () => void }
+export interface GenerationActions { request: () => void; confirm: (language?: string, remember?: boolean) => void; cancel: () => void; confirmWithLogin?: () => void; choose?: (value: string) => void; setup?: (reason: SetupReason) => void; addService?: () => void; regenerate?: () => void; dismiss?: () => void }
 // Language names are written in their own language, so they need no translation.
 export const RECOGNITION_LANGUAGES: Array<[string, string]> = [['zh', '中文'], ['en', 'English'], ['ja', '日本語'], ['ko', '한국어'], ['de', 'Deutsch'], ['fr', 'Français'], ['es', 'Español'], ['ru', 'Русский'], ['pt', 'Português'], ['it', 'Italiano']];
 export interface GenerationPanel { element: HTMLElement; show: (ui: GenUi | null) => void; kind: () => GenUi['kind'] | null }
@@ -61,7 +61,9 @@ export function buildGenerationPanel(doc: Document, strings: GenerationStrings, 
 			case 'setup':
 				text.textContent = setupText(ui.reason); if (ui.hints.length) { code.hidden = false; code.textContent = ui.hints.join('\n'); }
 				if (ui.hints.length) row.append(button(strings.copyCommand, el => { void navigator.clipboard.writeText(ui.hints.join('\n')).then(() => { const old = el.textContent; el.textContent = strings.copied; setTimeout(() => { el.textContent = old; }, 1500); }).catch(() => {}); }));
-				row.append(button(strings.recheck, () => actions.request(), !ui.hints.length)); break;
+				const configurable = ui.reason !== 'busy' && Boolean(actions.setup);
+				if (configurable) row.append(button(ui.reason === 'helper-offline' || ui.reason === 'helper-outdated' ? strings.setupHelper : strings.setupRecognition, () => actions.setup?.(ui.reason), true));
+				row.append(button(strings.recheck, () => actions.request(), !configurable && !ui.hints.length)); break;
 			case 'running': {
 				const progressText = ui.modelDownload ? strings.modelDownloading : [strings.running, ui.via ?? '', ui.totalSec ? `${clock(ui.processedSec ?? 0)} / ${clock(ui.totalSec)}` : ''].filter(Boolean).join(' · ');
 				text.textContent = progressText; meter.hidden = ui.modelDownload; fill.style.width = Math.max(2, Math.min(100, ui.progress)) + '%';
@@ -88,7 +90,7 @@ export const GENERATION_STYLE = DIALOG_STYLE + `
 .qiaomu-yt-gen-actions{display:flex;flex-wrap:wrap;gap:4px}
 .qiaomu-yt-gen-actions:empty{display:none}
 .qiaomu-yt-gen-language{height:28px;max-width:140px;padding:0 4px 0 8px;border:0;border-radius:6px;background:var(--qm-field,var(--background-secondary,rgba(127,127,127,.12)));box-shadow:none;color:var(--qm-fg2,var(--text-muted,#666));font:inherit;font-size:12px;cursor:pointer}
-.qiaomu-yt-gen-language:focus{outline:none}.qiaomu-yt-gen-language:focus-visible{outline:2px solid var(--qm-accent,var(--interactive-accent,#2f6fed));outline-offset:-2px}
+.qiaomu-yt-gen-language:focus{outline:none}.qiaomu-yt-gen-language:focus-visible{outline:1px solid var(--qm-accent,var(--interactive-accent,#2f6fed));outline-offset:-2px}
 .qiaomu-yt-gen-choices{display:flex;flex-direction:column;gap:6px}
 .qiaomu-yt-gen-choice{display:flex;align-items:flex-start;gap:10px;width:100%;padding:9px 12px;border:1px solid var(--qm-line,rgba(127,127,127,.28));border-radius:8px;background:transparent;box-shadow:none;color:var(--qm-fg,var(--text-normal,#222));font:inherit;text-align:start;cursor:pointer}
 .qiaomu-yt-gen-choice i{flex:none;width:14px;height:14px;margin-top:2px;border:1.5px solid var(--qm-fg2,var(--text-muted,#888));border-radius:50%;box-sizing:border-box}
@@ -99,7 +101,7 @@ export const GENERATION_STYLE = DIALOG_STYLE + `
 .qiaomu-yt-gen-choice em{font-size:12px;font-style:normal;line-height:17px;color:var(--qm-fg2,var(--text-muted,#666))}
 .qiaomu-yt-gen-choice[data-kind=cloud] em{color:var(--qm-fg2,var(--text-muted,#666))}
 .qiaomu-yt-gen-choice:hover{background:var(--qm-hover,var(--background-modifier-hover,rgba(127,127,127,.1)))}
-.qiaomu-yt-gen-choice:focus{outline:none}.qiaomu-yt-gen-choice:focus-visible{outline:2px solid var(--qm-accent,var(--interactive-accent,#2f6fed));outline-offset:2px}
+.qiaomu-yt-gen-choice:focus{outline:none}.qiaomu-yt-gen-choice:focus-visible{outline:1px solid var(--qm-accent,var(--interactive-accent,#2f6fed));outline-offset:2px}
 .qiaomu-yt-gen-add{align-self:flex-start;height:28px;padding:0 4px;border:0;background:transparent;box-shadow:none;color:var(--qm-fg2,var(--text-muted,#666));font:inherit;font-size:12px;cursor:pointer}
 .qiaomu-yt-gen-add:hover{color:var(--qm-accent,var(--interactive-accent,#2f6fed))}
 .qiaomu-yt-gen-remember{display:flex;align-items:center;gap:6px;color:var(--qm-fg2,var(--text-muted,#666));font-size:12px;line-height:18px;cursor:pointer}
@@ -109,6 +111,6 @@ html button.qiaomu-yt-gen-button:not(.qg-x){display:inline-flex;align-items:cent
 html button.qiaomu-yt-gen-button:not(.qg-x):hover{background:rgba(127,127,127,.28);box-shadow:none;color:var(--qm-fg,var(--text-normal,#1d1d1f))}
 html button.qiaomu-yt-gen-button.is-primary:not(.qg-x){background:var(--qm-fg,var(--text-normal,#1d1d1f));color:var(--qm-bg,var(--background-primary,#fff))}
 html button.qiaomu-yt-gen-button.is-primary:not(.qg-x):hover{background:var(--qm-fg,var(--text-normal,#1d1d1f));color:var(--qm-bg,var(--background-primary,#fff));opacity:.86}
-html button.qiaomu-yt-gen-button:not(.qg-x):focus{outline:none}html button.qiaomu-yt-gen-button:not(.qg-x):focus-visible{outline:2px solid var(--qm-fg,var(--text-normal,#1d1d1f));outline-offset:2px}
+html button.qiaomu-yt-gen-button:not(.qg-x):focus{outline:none}html button.qiaomu-yt-gen-button:not(.qg-x):focus-visible{outline:1px solid var(--qm-fg,var(--text-normal,#1d1d1f));outline-offset:2px}
 .qiaomu-yt-gen[data-kind=generated] .qiaomu-yt-gen-text{font-size:11px}
 `;

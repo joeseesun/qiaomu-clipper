@@ -4,6 +4,8 @@ import type { GenChoice, GenerationActions, GenUi } from './subtitle-generation-
 import { createGeneration, type Generation, type GenerationDeps, type GenerationEvent } from './subtitle-generation';
 import { asrChoose, thisBrowser, type AsrStatus, type InstallTarget } from './asr-client';
 
+import browser from './browser-polyfill';
+import { t } from './ui-text';
 // Connects "generate subtitles" to a page's transcript bar. The page script says how to read the current video key, how to
 // put lines into its own transcript store, and where to keep a finished result; this keeps the flow and the bar in step and
 // makes sure a job that belongs to another video never paints on this one.
@@ -20,13 +22,17 @@ export interface BarGenerationOptions {
 	// Where "add a cloud service" leads (the settings page); a page that cannot open it leaves this out.
 	openSettings?: () => void;
 	intervalMs?: number;
+	// File uploads always show the shared confirmation, even when another page enabled automatic starts.
+	alwaysConfirm?: boolean;
+	// Track the actual helper task; undefined means a new request has not been acknowledged yet.
+	onJob?: (videoKey: string, jobId?: string) => void;
 }
 const sizeText = (mb: number) => mb >= 1000 ? (mb / 1000).toFixed(1) + ' GB' : mb + ' MB';
 // Which engine or service is doing the work, in words for the progress line and the note on the result.
 export function viaOf(status: AsrStatus): string {
-	if (status.mode === 'cloud') return status.cloudLocal ? status.cloudLabel || '本机服务' : `${status.cloudLabel || '云端服务'} · 云端`;
+	if (status.mode === 'cloud') { const label = [status.cloudLabel || t('云端服务'), status.cloudModel].filter(Boolean).join(' · '); return status.cloudLocal ? label : t('{0} · 云端', [label]); }
 	const engine = (status.local ?? []).find(item => item.id === status.engine) ?? (status.local ?? []).find(item => item.id === status.choices?.engine);
-	return engine ? `${engine.name} · 本机` : '本机识别';
+	return engine ? t('{0} · 本机', [engine.name]) : t('本机识别');
 }
 // What the confirm step shows for a status: the ways to make the subtitles (each with what it costs and where the audio goes), which one is selected, and what would have to be installed first.
 export function confirmFor(status: AsrStatus): Extract<GenUi, { kind: 'confirm' }> & { target?: InstallTarget } {
@@ -34,22 +40,22 @@ export function confirmFor(status: AsrStatus): Extract<GenUi, { kind: 'confirm' 
 	const recommended = locals.find(item => item.recommended)?.id ?? locals[0]?.id;
 	const chosenLocal = status.choices && status.choices.engine !== 'auto' ? status.choices.engine : (status.engine && status.engine !== 'cloud' ? status.engine : recommended);
 	const choices: GenChoice[] = [
-		...locals.map(item => ({ value: 'local:' + item.id, kind: 'local' as const, label: item.name, note: item.installed ? '本机 · 音频不上传 · 免费' : `本机 · 音频不上传 · 需先下载 ${sizeText(item.sizeMb)}` })),
-		...(status.choices?.profiles ?? []).filter(item => item.configured).map(item => ({ value: 'cloud:' + item.id, kind: 'cloud' as const, label: item.label + (item.local ? '（本机服务）' : ''), note: item.local ? '本机服务 · 音频不离开这台电脑' : '云端 · 音频会上传到该服务并按其规则计费' })),
+		...locals.map(item => ({ value: 'local:' + item.id, kind: 'local' as const, label: item.name, note: item.installed ? t('本机 · 音频不上传 · 免费') : t('本机 · 音频不上传 · 需先下载 {0}', [sizeText(item.sizeMb)]) })),
+		...(status.choices?.profiles ?? []).filter(item => item.configured).map(item => ({ value: 'cloud:' + item.id, kind: 'cloud' as const, label: [item.label, item.model].filter(Boolean).join(' · ') + (item.local ? t('（本机服务）') : ''), note: item.local ? t('本机服务 · 音频不离开这台电脑') : t('云端 · 音频会上传到该服务并按其规则计费') })),
 	];
 	const picked = cloud ? 'cloud:' + status.choices?.active : 'local:' + chosenLocal;
 	// What is missing: the engine the viewer picked (a cloud service needs none), or just the download and audio tools.
 	let target: InstallTarget | undefined, install: { name: string; sizeMb: number } | undefined;
 	const engine = locals.find(item => item.id === chosenLocal);
 	if (!cloud && engine && !engine.installed && engine.managed) { target = engine.id as InstallTarget; install = { name: engine.name, sizeMb: engine.sizeMb + (status.installable?.base ? 60 : 0) }; }
-	else if (status.installable?.base && (status.missing.includes('yt-dlp') || status.missing.includes('ffmpeg'))) { target = 'base'; install = { name: '下载与音频工具（yt-dlp、ffmpeg）', sizeMb: 60 }; }
-	return { kind: 'confirm', modelDownload: status.modelDownloadNeeded, ...(cloud ? { cloud: status.cloudLabel || '云端服务', localService: status.cloudLocal === true } : {}), ...(choices.length ? { choices } : {}), ...(choices.some(item => item.value === picked) ? { selected: picked } : {}), ...(install ? { install } : {}), ...(target ? { target } : {}) };
+	else if (status.installable?.base && (status.missing.includes('yt-dlp') || status.missing.includes('ffmpeg'))) { target = 'base'; install = { name: t('下载与音频工具（yt-dlp、ffmpeg）'), sizeMb: 60 }; }
+	return { kind: 'confirm', modelDownload: status.modelDownloadNeeded, ...(cloud ? { cloud: status.cloudLabel || t('云端服务'), localService: status.cloudLocal === true } : {}), ...(choices.length ? { choices } : {}), ...(choices.some(item => item.value === picked) ? { selected: picked } : {}), ...(install ? { install } : {}), ...(target ? { target } : {}) };
 }
 const choiceOf = (value: string): { engine: string } | { profile: string } | undefined => { const at = value.indexOf(':'), id = value.slice(at + 1); return at < 0 || !id ? undefined : value.startsWith('cloud:') ? { profile: id } : { engine: id }; };
 const LANGUAGE_KEY = 'qiaomuAsrLanguage';
 const savedLanguage = (): string => { try { const value = localStorage.getItem(LANGUAGE_KEY); return value && /^[a-z]{2,4}$/.test(value) ? value : 'auto'; } catch { return 'auto'; } };
 const rememberLanguage = (value: string) => { try { localStorage.setItem(LANGUAGE_KEY, value); } catch { /* storage unavailable */ } };
-export interface BarGeneration { actions: GenerationActions; sync: () => void; markGenerated: (videoKey: string) => void; reset: () => void; readonly active: boolean }
+export interface BarGeneration { actions: GenerationActions; sync: () => void; markGenerated: (videoKey: string) => void; resume: (jobId?: string) => void; reset: () => void; readonly active: boolean }
 
 // Pressing "generate subtitles" asks only what is still undecided. Once the viewer has chosen an engine or service and agreed to
 // start straight away (the "remember" box, or the setting), the press starts the job at once; the confirm step comes back only when
@@ -59,7 +65,7 @@ export function createBarGeneration(options: BarGenerationOptions): BarGeneratio
 	const sync = () => { const key = options.videoKey(); options.bar()?.setGeneration((key && uiByKey.get(key)) || null); };
 	const set = (key: string, ui: GenUi | null) => { if (ui) uiByKey.set(key, ui); else uiByKey.delete(key); sync(); };
 	const language = () => lastLanguage === 'auto' ? {} : { language: lastLanguage };
-	const run = (key: string) => { set(key, { kind: 'running', stage: '', progress: 0, modelDownload: false, via }); generation.run(key, { ...language(), ...(force ? { force: true } : {}) }); };
+	const run = (key: string) => { options.onJob?.(key); set(key, { kind: 'running', stage: '', progress: 0, modelDownload: false, via }); generation.run(key, { ...language(), ...(force ? { force: true } : {}) }); };
 	const onEvent = (event: GenerationEvent) => {
 		const key = jobKey; if (!key) return;
 		switch (event.phase) {
@@ -76,13 +82,13 @@ export function createBarGeneration(options: BarGenerationOptions): BarGeneratio
 			case 'install-cancelled': set(key, null); break;
 		}
 	};
-	generation = createGeneration(onEvent, options.deps, options.intervalMs);
+	generation = createGeneration(onEvent, options.deps, options.intervalMs, options.onJob);
 	const request = (ask = false) => {
 		const key = options.videoKey(); if (!key) return; jobKey = key; set(key, { kind: 'checking' });
 		void generation.prepare(key).then(status => {
 			if (jobKey !== key || !status) return;
 			const { target, ...ui } = confirmFor(status); pendingTarget = target; selected = ui.selected ?? ''; via = viaOf(status);
-			if (!ask && status.choices?.auto && status.ready && !target) { run(key); return; }
+			if (status.ready && !target && !ask && !options.alwaysConfirm && status.choices?.auto) { run(key); return; }
 			set(key, ui);
 		});
 	};
@@ -91,6 +97,14 @@ export function createBarGeneration(options: BarGenerationOptions): BarGeneratio
 		get active() { return generation.active; },
 		sync,
 		markGenerated: key => set(key, { kind: 'generated' }),
+		// Poll the original task even if current model settings changed. Never create a task during recovery.
+		resume(jobId) {
+			force = false; via = '';
+			if (!jobId || !/^[0-9a-f]{32}$/.test(jobId)) { request(true); return; }
+			const key = options.videoKey(); if (!key) return; jobKey = key;
+			set(key, { kind: 'running', stage: '', progress: 0, modelDownload: false });
+			generation.run(key, { jobId });
+		},
 		reset() { generation.dispose(); jobKey = ''; },
 		actions: {
 			request: () => { force = false; request(); },
@@ -103,16 +117,22 @@ export function createBarGeneration(options: BarGenerationOptions): BarGeneratio
 			// A different engine or service: save it as the default and show the confirm step again for it.
 			choose(value) {
 				const choice = choiceOf(value); const key = options.videoKey(); if (!key || !choice) return;
-				void (options.choose ?? asrChoose)({ ...choice, videoKey: key }).then(() => { if (jobKey === key) request(true); });
+				set(key, { kind: 'checking' });
+				void (options.choose ?? asrChoose)({ ...choice, videoKey: key }).then(reply => { if (jobKey !== key) return; if (!reply.ok) { set(key, { kind: 'failed', error: reply.error }); return; } request(true); }).catch(() => { if (jobKey === key) set(key, { kind: 'failed', error: t('与本地助手的连接中断，任务可能仍在后台进行，稍后重新点击即可继续查看') }); });
 			},
 			// Make them again another way (different engine or service); the new result replaces the old one.
 			regenerate() { force = true; request(true); },
+			setup(reason) { if (reason !== 'busy') void browser.runtime.sendMessage({ action: 'openSettings', section: reason === 'helper-offline' || reason === 'helper-outdated' ? 'clip' : 'asr-models' }); },
 			addService() { options.openSettings?.(); },
 			// The viewer closed the dialog without choosing: back to the plain offer.
 			dismiss() { const key = options.videoKey(); if (key) set(key, null); },
 			cancel() { generation.cancel(); },
 			// The viewer agreed to lend this browser's login for this one download.
-			confirmWithLogin() { const key = options.videoKey(); if (!key) return; jobKey = key; set(key, { kind: 'running', stage: '', progress: 0, modelDownload: false, via }); generation.run(key, { cookies: thisBrowser(), ...language() }); },
+			async confirmWithLogin() { const key = options.videoKey(); if (!key) return;
+				// Lending the browser's login needs a permission the viewer gives once, in the settings (the local edition already has it).
+				const ready = await Promise.resolve(browser.runtime.sendMessage({ action: 'qiaomuCookiesReady' })).then(answer => (answer as { ready?: boolean } | undefined)?.ready === true, () => false);
+				if (!ready) { set(key, { kind: 'failed', error: t('要先在设置里允许使用浏览器的登录状态：ASR 语音识别页，打开「下载要验证身份时…」。'), code: 'cookies-permission' }); options.openSettings?.(); return; }
+				jobKey = key; set(key, { kind: 'running', stage: '', progress: 0, modelDownload: false, via }); generation.run(key, { cookies: thisBrowser(), ...language() }); },
 		},
 	};
 }

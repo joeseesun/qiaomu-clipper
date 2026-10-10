@@ -1,6 +1,7 @@
 import type { PanelSegment } from './youtube-panel-actions';
 import { chooseTrack, languageBase, type TrackInfo } from './subtitle-language';
 
+import { t } from './ui-text';
 // Subtitles of a Bilibili video, read from the viewer's own page (their login and site context are real there).
 // Bilibili returns subtitle tracks only to a signed-in viewer; without one the list is empty and says so.
 export type GetJson = (url: string, withCookies: boolean) => Promise<any>;
@@ -34,7 +35,7 @@ export function tracksOfPlayer(raw: RawTrack[]): BilibiliTrack[] {
 		.map(({ track }) => {
 			const lan = String(track.lan || 'und'), count = (seen.get(lan) ?? 0) + 1; seen.set(lan, count);
 			const auto = Boolean(track.is_ai_subtitle) || /^ai-/i.test(lan) || /自动|ai/i.test(track.lan_doc || '');
-			return { id: count > 1 ? `${lan}~${count}` : lan, label: (track.lan_doc || lan) + (auto && !/自动|ai/i.test(track.lan_doc || '') ? '（AI）' : ''), language: languageBase(lan), auto, url: subtitleUrl(track.subtitle_url!)! };
+			return { id: count > 1 ? `${lan}~${count}` : lan, label: (track.lan_doc || lan) + (auto && !/自动|ai/i.test(track.lan_doc || '') ? '（AI）' : ''), language: languageBase(lan), languageCode: lan.replace(/^ai-/, ''), auto, url: subtitleUrl(track.subtitle_url!)! };
 		});
 }
 
@@ -42,12 +43,12 @@ export async function listBilibiliTracks(bvid: string, page: number, getJson: Ge
 	const view = await getJson(`https://api.bilibili.com/x/web-interface/view?bvid=${encodeURIComponent(bvid)}`, true);
 	const data = view?.code === 0 ? view.data : undefined;
 	const cid = data?.pages?.[page - 1]?.cid ?? data?.pages?.[0]?.cid ?? data?.cid;
-	if (!data?.aid || !cid) throw new Error('无法读取视频信息');
+	if (!data?.aid || !cid) throw new Error(t('无法读取视频信息'));
 	let player: any;
 	for (const path of ['wbi/v2', 'v2']) {
 		try { const answer = await getJson(`https://api.bilibili.com/x/player/${path}?aid=${data.aid}&cid=${cid}`, true); if (answer?.code === 0 && answer.data) { player = answer.data; break; } } catch { /* try the older endpoint */ }
 	}
-	if (!player) throw new Error('无法读取字幕列表');
+	if (!player) throw new Error(t('无法读取字幕列表'));
 	const raw: RawTrack[] = Array.isArray(player.subtitle?.subtitles) ? player.subtitle.subtitles : [];
 	const tracks = tracksOfPlayer(raw);
 	return { tracks, needLogin: player.need_login_subtitle === true && !raw.length };

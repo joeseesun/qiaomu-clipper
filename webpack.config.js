@@ -24,23 +24,27 @@ module.exports = (env, argv) => {
 	const isFirefox = env.BROWSER === 'firefox';
 	const isSafari = env.BROWSER === 'safari';
 	const isProduction = argv.mode === 'production';
+	// The local edition is the Chrome build people load from GitHub: fixed extension ID, and features the Web Store would not accept
+	// (saving media files). The store edition is built from the same source with __LOCAL_EDITION__ false, so that code is not in it at all.
+	const isLocal = env.EDITION === 'local' && !isFirefox && !isSafari;
 
 	const getOutputDir = () => {
 		if (isProduction) {
-			return isFirefox ? 'dist_firefox' : (isSafari ? 'dist_safari' : 'dist');
+			return isFirefox ? 'dist_firefox' : (isSafari ? 'dist_safari' : (isLocal ? 'dist_local' : 'dist'));
 		} else {
-			return isFirefox ? 'dev_firefox' : (isSafari ? 'dev_safari' : 'dev');
+			return isFirefox ? 'dev_firefox' : (isSafari ? 'dev_safari' : (isLocal ? 'dev_local' : 'dev'));
 		}
 	};
 
 	const outputDir = getOutputDir();
-	const browserName = isFirefox ? 'firefox' : (isSafari ? 'safari' : 'chrome');
+	const browserName = isFirefox ? 'firefox' : (isSafari ? 'safari' : (isLocal ? 'chrome-local' : 'chrome'));
 
 	const mainConfig = {
 		mode: argv.mode,
 		entry: {
 			'content-loader': './src/content-loader.ts',
 			'triple-key': './src/triple-key-content.ts',
+			'youtube-player-bridge': './src/youtube-player-bridge.ts',
 			'youtube-panel': './src/youtube-panel-content.ts',
 			'bilibili-panel': './src/bilibili-panel-content.ts',
 			'bilibili-embed': './src/bilibili-embed-content.ts',
@@ -61,6 +65,8 @@ module.exports = (env, argv) => {
 		},
 		output: {
 			path: path.resolve(__dirname, outputDir),
+			// Start from an empty folder: files left by older builds must not end up in a package.
+			clean: true,
 			filename: '[name].js',
 			module: false,
 		},
@@ -150,7 +156,9 @@ module.exports = (env, argv) => {
 					{ 
 						from: isFirefox ? "src/manifest.firefox.json" : 
 							  (isSafari ? "src/manifest.safari.json" : "src/manifest.chrome.json"), 
-						to: "manifest.json" 
+						to: "manifest.json",
+						// The store assigns its own key; the local edition carries the store item's public key so both get the same extension ID.
+						...(isLocal ? { transform: (content) => { const manifest = JSON.parse(content.toString()); manifest.key = fs.readFileSync(path.resolve(__dirname, 'scripts/chrome-local-key.txt'), 'utf8').trim(); manifest.permissions = Array.from(new Set([...(manifest.permissions || []), 'downloads', 'cookies'])); delete manifest.optional_permissions; return JSON.stringify(manifest, null, '\t'); } } : {})
 					},
 					{ from: "LICENSE", to: "LICENSE.txt" },
 					{ from: "src/popup.html", to: "popup.html" },
@@ -163,6 +171,7 @@ module.exports = (env, argv) => {
 					{ from: "node_modules/webextension-polyfill/dist/browser-polyfill.min.js", to: "browser-polyfill.min.js" },
 					{ from: "src/flatten-shadow-dom.js", to: "flatten-shadow-dom.js" },
 					{ from: "src/fonts", to: "fonts" },
+					{ from: "src/assets/about", to: "assets/about" },
 					{
 						from: 'src/_locales',
 						to: '_locales'
@@ -181,7 +190,8 @@ module.exports = (env, argv) => {
 			},
 			new webpack.DefinePlugin({
 				'process.env.NODE_ENV': JSON.stringify(argv.mode),
-				'DEBUG_MODE': JSON.stringify(!isProduction)
+				'DEBUG_MODE': JSON.stringify(!isProduction),
+				'__LOCAL_EDITION__': JSON.stringify(isLocal)
 			}),
 			...(isProduction ? [
 				new ZipPlugin({

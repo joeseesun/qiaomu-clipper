@@ -2,6 +2,7 @@ import { asrCancel, asrInstall, asrInstallCancel, asrInstallPoll, asrPoll, asrSt
 import { stampOf } from './bilibili-captions';
 import type { PanelSegment } from './youtube-panel-actions';
 
+import { t } from './ui-text';
 // Drives one subtitle-generation job for the bar and for study mode: asks the helper to start, polls it, and turns what
 // comes back into the transcript lines the rest of the page already understands. The job itself runs in the helper and
 // survives leaving the page; coming back to the same video joins it (or reads its cached result).
@@ -17,27 +18,29 @@ export type GenerationEvent =
 	| { phase: 'install-failed'; error: string }
 	| { phase: 'install-cancelled' };
 export interface GenerationDeps { status: (videoKey?: string) => Promise<AsrReply<AsrStatus>>; start: (videoKey: string, language?: string, force?: boolean, cookies?: CookieBrowser) => Promise<AsrReply<AsrJob>>; poll: (jobId: string, since: number) => Promise<AsrReply<AsrJob>>; cancel: (jobId: string) => Promise<AsrReply<AsrJob>>; install?: (target: InstallTarget) => Promise<AsrReply<AsrInstall>>; installPoll?: (jobId: string) => Promise<AsrReply<AsrInstall>>; installCancel?: (jobId: string) => Promise<AsrReply<AsrInstall>> }
-export interface Generation { prepare: (videoKey?: string) => Promise<AsrStatus | undefined>; run: (videoKey: string, options?: { language?: string; cookies?: CookieBrowser; force?: boolean }) => void; install: (target: InstallTarget) => void; cancel: () => void; dispose: () => void; readonly active: boolean }
+export interface Generation { prepare: (videoKey?: string) => Promise<AsrStatus | undefined>; run: (videoKey: string, options?: { language?: string; cookies?: CookieBrowser; force?: boolean; jobId?: string }) => void; install: (target: InstallTarget) => void; cancel: () => void; dispose: () => void; readonly active: boolean }
 
 export const toLines = (segments: AsrSegment[]): PanelSegment[] => segments.map(segment => ({ time: stampOf(segment.start), text: segment.text }));
 const SETUP: SetupReason[] = ['helper-offline', 'helper-outdated', 'missing', 'busy', 'cloud-not-configured'];
 const MAX_POLL_FAILURES = 4;
 // Why an install could not even start, in the viewer's terms.
 export function installProblem(failure: AsrFailure): string {
-	if (failure.error === 'no-space') return `磁盘空间不足：需要约 ${failure.needMb ?? '?'} MB，现有 ${failure.freeMb ?? '?'} MB`;
-	if (failure.error === 'busy' || failure.error === 'busy-job') return '另一个安装或识别任务正在进行，请等它完成后再试';
-	if (failure.error === 'unsupported') return failure.message || '这台电脑不支持这个引擎';
+	if (failure.error === 'no-space') return t('磁盘空间不足：需要约 {0} MB，现有 {1} MB', [failure.needMb ?? '?', failure.freeMb ?? '?']);
+	if (failure.error === 'busy' || failure.error === 'busy-job') return t('另一个安装或识别任务正在进行，请等它完成后再试');
+	if (failure.error === 'unsupported') return failure.message || t('这台电脑不支持这个引擎');
 	return failure.message || failure.error;
 }
 
-export function createGeneration(onEvent: (event: GenerationEvent) => void, given: GenerationDeps = { status: asrStatus, start: asrStart, poll: asrPoll, cancel: asrCancel }, intervalMs = 1000): Generation {
+export function createGeneration(onEvent: (event: GenerationEvent) => void, given: GenerationDeps = { status: asrStatus, start: asrStart, poll: asrPoll, cancel: asrCancel }, intervalMs = 1000, onJob?: (videoKey: string, jobId: string) => void): Generation {
 	const deps = { install: asrInstall, installPoll: asrInstallPoll, installCancel: asrInstallCancel, ...given };
 	let token = 0, jobId = '', installId = '', lines: PanelSegment[] = [], running = false;
 	const setup = (failure: AsrFailure) => onEvent({ phase: 'needs-setup', reason: (SETUP as string[]).includes(failure.error) ? failure.error as SetupReason : 'helper-offline', missing: failure.missing || [], hints: failure.hints || [] });
 	const report = (job: AsrJob) => onEvent({ phase: 'running', stage: job.stage, progress: job.progress, processedSec: job.processedSec ?? undefined, totalSec: job.totalSec ?? undefined, segments: lines, modelDownload: job.state === 'downloadingModel' });
 	const finish = (job: AsrJob): boolean => {
+		// A terminal task can still have more caption pages (the helper caps every response at 2,000 lines).
+		if (job.state === 'completed' && typeof job.segmentCount === 'number' && job.next < job.segmentCount) return false;
 		if (job.state === 'completed') onEvent({ phase: 'done', segments: lines, language: job.language ?? null, cached: Boolean(job.cached) });
-		else if (job.state === 'failed') onEvent({ phase: 'failed', error: job.error || '生成字幕失败', code: job.errorCode ?? undefined, segments: lines });
+		else if (job.state === 'failed') onEvent({ phase: 'failed', error: job.error || t('生成字幕失败'), code: job.errorCode ?? undefined, segments: lines });
 		else if (job.state === 'cancelled') onEvent({ phase: 'cancelled', segments: lines });
 		else return false;
 		return true;
@@ -52,13 +55,16 @@ export function createGeneration(onEvent: (event: GenerationEvent) => void, give
 			if (!status.ready && !status.installable?.base && !status.installable?.engines.length) { onEvent({ phase: 'needs-setup', reason: 'missing', missing: status.missing, hints: status.hints }); return undefined; }
 			return status;
 		},
-		run(videoKey, { language = 'auto', cookies, force = false }: { language?: string; cookies?: CookieBrowser; force?: boolean } = {}) {
+		run(videoKey, { language = 'auto', cookies, force = false, jobId: resumeId }: { language?: string; cookies?: CookieBrowser; force?: boolean; jobId?: string } = {}) {
 			const mine = ++token; lines = []; jobId = ''; running = true;
 			void (async () => {
 				try {
-					const started = await (cookies ? deps.start(videoKey, language, force, cookies) : force ? deps.start(videoKey, language, true) : deps.start(videoKey, language));
+					// Recovery only polls a known task. asrStart(force=false) can create a new paid task after failure or cache expiry.
+					const started = await (resumeId ? deps.poll(resumeId, 0) : cookies ? deps.start(videoKey, language, force, cookies) : force ? deps.start(videoKey, language, true) : deps.start(videoKey, language));
 					if (mine !== token) return;
-					if (!started.ok) { if ((SETUP as string[]).includes(started.error)) setup(started); else onEvent({ phase: 'failed', error: started.error, segments: [] }); return; }
+					if (!started.ok) { if (!resumeId && (SETUP as string[]).includes(started.error)) setup(started); else onEvent({ phase: 'failed', error: started.error, segments: [] }); return; }
+					if (resumeId && (started.videoKey !== videoKey || started.id !== resumeId)) { onEvent({ phase: 'failed', error: 'bad-request', segments: [] }); return; }
+					onJob?.(videoKey, started.id);
 					jobId = started.id; lines = toLines(started.segments); let since = started.next, failures = 0;
 					if (finish(started)) return;
 					report(started);
@@ -67,12 +73,15 @@ export function createGeneration(onEvent: (event: GenerationEvent) => void, give
 						if (mine !== token) return;
 						const polled = await deps.poll(jobId, since);
 						if (mine !== token) return;
-						if (!polled.ok) { if (++failures >= MAX_POLL_FAILURES) { onEvent({ phase: 'failed', error: '与本地助手的连接中断，任务可能仍在后台进行，稍后重新点击即可继续查看', segments: lines }); return; } continue; }
+						if (!polled.ok) { if (++failures >= MAX_POLL_FAILURES) { onEvent({ phase: 'failed', error: t('与本地助手的连接中断，任务可能仍在后台进行，稍后重新点击即可继续查看'), segments: lines }); return; } continue; }
+						if (resumeId && (polled.videoKey !== videoKey || polled.id !== resumeId)) { onEvent({ phase: 'failed', error: 'bad-request', segments: lines }); return; }
+						if (polled.state === 'completed' && typeof polled.segmentCount === 'number' && polled.next < polled.segmentCount && polled.next <= since) { onEvent({ phase: 'failed', error: 'bad-request', segments: lines }); return; }
 						failures = 0; lines = lines.concat(toLines(polled.segments)); since = polled.next;
 						if (finish(polled)) return;
 						report(polled);
 					}
-				} finally { if (mine === token) running = false; }
+				} catch { if (mine === token) onEvent({ phase: 'failed', error: t('与本地助手的连接中断，任务可能仍在后台进行，稍后重新点击即可继续查看'), segments: lines }); }
+				finally { if (mine === token) running = false; }
 			})();
 		},
 		install(target) {
@@ -85,7 +94,7 @@ export function createGeneration(onEvent: (event: GenerationEvent) => void, give
 					installId = started.jobId; let polled: AsrInstall = started, failures = 0;
 					for (;;) {
 						if (polled.state === 'completed') { onEvent({ phase: 'installed' }); return; }
-						if (polled.state === 'failed') { onEvent({ phase: 'install-failed', error: polled.error || '安装失败' }); return; }
+						if (polled.state === 'failed') { onEvent({ phase: 'install-failed', error: polled.error || t('安装失败') }); return; }
 						if (polled.state === 'cancelled') { onEvent({ phase: 'install-cancelled' }); return; }
 						onEvent({ phase: 'installing', stage: polled.stage, progress: polled.progress });
 						for (;;) {
@@ -94,7 +103,7 @@ export function createGeneration(onEvent: (event: GenerationEvent) => void, give
 							const next = await deps.installPoll(installId);
 							if (mine !== token) return;
 							if (next.ok) { polled = next; failures = 0; break; }
-							if (++failures >= MAX_POLL_FAILURES) { onEvent({ phase: 'install-failed', error: '与本地助手的连接中断，安装可能仍在后台进行，稍后重新点击即可继续查看' }); return; }
+							if (++failures >= MAX_POLL_FAILURES) { onEvent({ phase: 'install-failed', error: t('与本地助手的连接中断，安装可能仍在后台进行，稍后重新点击即可继续查看') }); return; }
 						}
 					}
 				} finally { if (mine === token) running = false; }

@@ -22,3 +22,8 @@ pack() {
 pack chrome dist
 pack firefox dist_firefox
 pack safari dist_safari
+
+# The local edition (loaded unpacked from GitHub) is a separate build: the store's public key in its manifest, so its extension ID equals the
+# store's, and features the Web Store would not accept. The store package above has neither. Checked by scripts/check-editions.mjs.
+pack chrome-local dist_local
+node "$ROOT/scripts/check-editions.mjs"

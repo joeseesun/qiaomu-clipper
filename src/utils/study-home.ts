@@ -1,3 +1,4 @@
+import { sharedStudyAddress, isProtectedStudy } from './protected-study';
 import browser from './browser-polyfill';
 import { audioStudyPath, bilibiliVideo, videoStudyPath, xiaoyuzhouEpisode } from './video-source';
 import { youtubeVideoId } from './youtube-url';
@@ -6,6 +7,7 @@ import { CATALOG, type PodcastShow } from './podcast-catalog';
 import { fetchFeed, type Feed } from './podcast-feed';
 import { defaultStudySites, isSiteOn, loadStudySites, siteOf, type StudySites } from './study-sites';
 
+import { t } from './ui-text';
 // The front door of study mode: paste a link (YouTube, Bilibili, Xiaoyuzhou) or choose a file, and it is opened for study; what
 // was studied before is listed to open again. A link that is none of those opens in the ordinary reader.
 export type StudyKind = 'youtube' | 'bilibili' | 'podcast' | 'web' | 'page';
@@ -14,17 +16,19 @@ export interface StudyLink { kind: StudyKind; url: string; path: string; site?: 
 // `path` is where to reopen it when the address alone is not enough (an episode of a feed).
 export interface StudyRecent { url: string; title: string; kind: Exclude<StudyKind, 'page'>; at: number; path?: string }
 const RECENT_KEY = 'qiaomuStudyRecent', RECENT_LIMIT = 20;
-export const KIND_LABEL: Record<StudyKind, string> = { youtube: 'YouTube 视频', bilibili: '哔哩哔哩视频', podcast: '小宇宙播客', web: '音视频', page: '网页（普通阅读）' };
+export const KIND_LABEL: Record<StudyKind, string> = { get youtube() { return t('YouTube 视频'); }, get bilibili() { return t('哔哩哔哩视频'); }, get podcast() { return t('小宇宙播客'); }, get web() { return t('音视频'); }, get page() { return t('网页（普通阅读）'); } };
 export const webPath = (href: string) => `reader.html?study=web&url=${encodeURIComponent(href)}`;
 
 // Where a pasted link should open, or undefined if it is not a link at all. Text without a scheme is taken as an address.
 export function classifyLink(input: string, sites: StudySites = defaultStudySites()): StudyLink | undefined {
-	const trimmed = input.trim(); if (!trimmed || /\s/.test(trimmed)) return undefined;
+	const trimmed = sharedStudyAddress(input); if (!trimmed) return undefined;
 	let url: URL;
 	try { url = new URL(/^[a-z][a-z0-9+.-]*:/i.test(trimmed) ? trimmed : 'https://' + trimmed); } catch { return undefined; }
-	if (!/^https?:$/.test(url.protocol) || !url.hostname.includes('.')) return undefined;
+	if (url.username || url.password || !/^https?:$/.test(url.protocol) || !url.hostname.includes('.')) return undefined;
+	const site = siteOf(url.href);
+	// Older official shares are HTTP links: use HTTPS before reading a shop.
+	if (site?.id === 'xiaoe' && url.protocol === 'http:') url.protocol = 'https:';
 	const href = url.href;
-	const site = siteOf(href);
 	if (youtubeVideoId(href) && isSiteOn(sites, 'youtube')) return { kind: 'youtube', url: href, path: `reader.html?study=youtube&url=${encodeURIComponent(href)}&sourceTab=0&title=` };
 	if (bilibiliVideo(href) && isSiteOn(sites, 'bilibili')) { const path = videoStudyPath(href, 0, ''); if (path) return { kind: 'bilibili', url: href, path }; }
 	if (xiaoyuzhouEpisode(href) && isSiteOn(sites, 'xiaoyuzhou')) { const path = audioStudyPath(href, ''); if (path) return { kind: 'podcast', url: href, path }; }
@@ -51,7 +55,7 @@ async function forget(url: string): Promise<StudyRecent[]> {
 	try { await browser.storage.local.set({ [RECENT_KEY]: rest }); } catch { /* storage unavailable */ }
 	return rest;
 }
-const ago = (at: number): string => { const minutes = Math.round((Date.now() - at) / 60000); return minutes < 1 ? '刚刚' : minutes < 60 ? `${minutes} 分钟前` : minutes < 1440 ? `${Math.round(minutes / 60)} 小时前` : `${Math.round(minutes / 1440)} 天前`; };
+const ago = (at: number): string => { const minutes = Math.round((Date.now() - at) / 60000); return minutes < 1 ? t('刚刚') : minutes < 60 ? t('{0} 分钟前', [minutes]) : minutes < 1440 ? t('{0} 小时前', [Math.round(minutes / 60)]) : t('{0} 天前', [Math.round(minutes / 1440)]); };
 
 const STYLE = `
 .qiaomu-home{max-width:760px;margin:0 auto;padding:72px 24px 96px;color:var(--text-normal,#222);font-family:inherit}
@@ -132,14 +136,14 @@ html .qiaomu-modal button.qiaomu-home-study:not(.qh-x):hover,html .qiaomu-home b
 @media (max-width:560px){.qiaomu-home-hero{padding:20px 16px 18px}.qh-file{flex-wrap:wrap}.qiaomu-home-form{padding-left:12px}}
 `;
 
-const minutesOf = (seconds?: number) => seconds ? (seconds >= 3600 ? `${Math.floor(seconds / 3600)} 小时 ${Math.round((seconds % 3600) / 60)} 分钟` : `${Math.max(1, Math.round(seconds / 60))} 分钟`) : '';
+const minutesOf = (seconds?: number) => seconds ? (seconds >= 3600 ? t('{0} 小时 {1} 分钟', [Math.floor(seconds / 3600), Math.round((seconds % 3600) / 60)]) : t('{0} 分钟', [Math.max(1, Math.round(seconds / 60))])) : '';
 const dayOf = (iso?: string) => iso ? iso.slice(0, 10) : '';
 export const episodePath = (feed: string, guid: string) => `reader.html?study=feed&feed=${encodeURIComponent(feed)}&guid=${encodeURIComponent(guid)}`;
 
 // Shows worth following. A press on one opens a dialog with its newest episodes; one press on an episode starts study mode for it.
 function paintShows(doc: Document, root: HTMLElement, actions: { open: (path: string) => void }): void {
 	const make = <K extends keyof HTMLElementTagNameMap>(tag: K, className = '', text = ''): HTMLElementTagNameMap[K] => { const item = doc.createElement(tag); if (className) item.className = className; if (text) item.textContent = text; return item; };
-	const heading = make('div', 'qh-heading'); heading.append(make('h2', '', '推荐播客'), make('span', '', '点一个节目，挑一集开始学')); root.append(heading);
+	const heading = make('div', 'qh-heading'); heading.append(make('h2', '', t('推荐播客')), make('span', '', t('点一个节目，挑一集开始学'))); root.append(heading);
 	let dialog: HTMLElement | undefined, opener: HTMLElement | undefined, serial = 0;
 	const close = () => { serial++; dialog?.remove(); dialog = undefined; doc.removeEventListener('keydown', onKey, true); opener?.focus(); opener = undefined; };
 	const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') { event.stopPropagation(); close(); } };
@@ -150,9 +154,9 @@ function paintShows(doc: Document, root: HTMLElement, actions: { open: (path: st
 		const wrap = make('div', 'qiaomu-modal-wrap'); wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-modal', 'true'); wrap.setAttribute('aria-label', show.name);
 		const scrim = make('div', 'qiaomu-modal-scrim'), card = make('div', 'qiaomu-modal'); scrim.addEventListener('click', close);
 		const head = make('div', 'qiaomu-modal-head'), text = make('div', 'qiaomu-modal-title'); text.append(make('b', '', show.name), make('span', '', show.by));
-		const closeButton = make('button', 'qiaomu-home-x', '×'); closeButton.type = 'button'; closeButton.title = '关闭'; closeButton.setAttribute('aria-label', '关闭'); closeButton.addEventListener('click', close);
+		const closeButton = make('button', 'qiaomu-home-x', '×'); closeButton.type = 'button'; closeButton.title = t('关闭'); closeButton.setAttribute('aria-label', t('关闭')); closeButton.addEventListener('click', close);
 		head.append(mark(show), text, closeButton);
-		const body = make('div', 'qiaomu-modal-body'); body.setAttribute('aria-live', 'polite'); body.append(make('p', 'qiaomu-shows-note', '正在读取最新节目…'));
+		const body = make('div', 'qiaomu-modal-body'); body.setAttribute('aria-live', 'polite'); body.append(make('p', 'qiaomu-shows-note', t('正在读取最新节目…')));
 		card.append(head, body); wrap.append(scrim, card); doc.body.append(wrap); dialog = wrap; doc.addEventListener('keydown', onKey, true); closeButton.focus();
 		const fill = (feed: Feed) => {
 			if (feed.cover) { const cover = make('img'); cover.src = feed.cover; cover.alt = ''; cover.referrerPolicy = 'no-referrer'; head.replaceChild(cover, head.firstChild!); }
@@ -162,7 +166,7 @@ function paintShows(doc: Document, root: HTMLElement, actions: { open: (path: st
 				const row = make('div', 'qiaomu-home-item'); row.tabIndex = 0; row.setAttribute('role', 'link'); row.dataset.guid = episode.guid;
 				const info = make('div', 'qiaomu-home-text'), meta = [dayOf(episode.date), minutesOf(episode.seconds)].filter(Boolean).join(' · ');
 				info.append(make('span', 'qiaomu-home-title qiaomu-wrap', episode.title), make('span', 'qiaomu-home-meta', meta));
-				const go = make('button', 'qiaomu-home-study', '学习'); go.type = 'button'; go.setAttribute('aria-label', `学习：${episode.title}`);
+				const go = make('button', 'qiaomu-home-study', t('学习')); go.type = 'button'; go.setAttribute('aria-label', t('学习：{0}', [episode.title]));
 				const start = () => actions.open(episodePath(show.feed, episode.guid)); row.addEventListener('click', start); row.addEventListener('keydown', event => { if (event.key === 'Enter') start(); });
 				row.append(info, go); list.append(row);
 			}
@@ -170,11 +174,11 @@ function paintShows(doc: Document, root: HTMLElement, actions: { open: (path: st
 		};
 		fetchFeed(show.feed).then(feed => { if (mine === serial) fill(feed); }, error => {
 			if (mine !== serial) return;
-			const retry = make('button', 'qiaomu-home-study', '重试'); retry.type = 'button'; retry.addEventListener('click', () => open(show, from));
-			body.replaceChildren(make('p', 'qiaomu-shows-note', `读取失败：${error instanceof Error ? error.message : '网络不通'}`), retry);
+			const retry = make('button', 'qiaomu-home-study', t('重试')); retry.type = 'button'; retry.addEventListener('click', () => open(show, from));
+			body.replaceChildren(make('p', 'qiaomu-shows-note', t('读取失败：{0}', [error instanceof Error ? error.message : t('网络不通')])), retry);
 		});
 	};
-	for (const [lang, label] of [['zh', '中文'], ['en', '海外 · AI']] as const) {
+	for (const [lang, label] of [['zh', t('中文')], ['en', t('海外 · AI')]] as const) {
 		const group = make('div', 'qiaomu-shows-group'); group.append(make('div', 'qiaomu-shows-label', label));
 		const grid = make('div', 'qiaomu-shows-grid');
 		for (const show of CATALOG.filter(item => item.lang === lang)) {
@@ -200,51 +204,51 @@ const SITE_CHIPS = ['YouTube', '哔哩哔哩', '小宇宙', 'X', 'Vimeo', 'Sound
 export async function showStudyHome(doc: Document, actions: { open: (path: string) => void; openFile: (file: File) => void }, root?: HTMLElement): Promise<() => Promise<void>> {
 	const embedded = Boolean(root); const host = root ?? doc.body; host.replaceChildren();
 	if (!doc.getElementById('qiaomu-home-style')) { const style = doc.createElement('style'); style.id = 'qiaomu-home-style'; style.textContent = STYLE; doc.head.append(style); }
-	if (!embedded) doc.title = '转写学习';
+	if (!embedded) doc.title = t('转写学习');
 	const make = <K extends keyof HTMLElementTagNameMap>(tag: K, className = '', text = ''): HTMLElementTagNameMap[K] => { const item = doc.createElement(tag); if (className) item.className = className; if (text) item.textContent = text; return item; };
 	const page = make('main', 'qiaomu-home' + (embedded ? ' is-embedded' : ''));
 	let sites = await loadStudySites();
 
 	// ---- the card: paste a link, or choose a file ----
 	const hero = make('section', 'qiaomu-home-hero');
-	const form = make('form', 'qiaomu-home-form'), input = make('input'), go = make('button', 'qiaomu-home-go', '开始'); go.type = 'submit'; go.disabled = true;
+	const form = make('form', 'qiaomu-home-form'), input = make('input'), go = make('button', 'qiaomu-home-go', t('开始')); go.type = 'submit'; go.disabled = true;
 	form.insertAdjacentHTML('afterbegin', ICON_LINK);
-	input.type = 'text'; input.placeholder = '粘贴视频或播客的链接'; input.autocomplete = 'off'; input.spellcheck = false; input.setAttribute('aria-label', '视频或播客链接');
+	input.type = 'text'; input.placeholder = t('粘贴视频或播客的链接'); input.autocomplete = 'off'; input.spellcheck = false; input.setAttribute('aria-label', t('视频或播客链接'));
 	form.append(input, go);
 	const hint = make('div', 'qiaomu-home-hint'); hint.setAttribute('role', 'status'); hint.setAttribute('aria-live', 'polite');
 	// An ordinary page might still hold a video: a second button opens it the other way, when that is allowed.
-	const asMedia = make('button', 'qiaomu-home-secondary', '按音视频学习'); asMedia.type = 'button'; asMedia.hidden = true;
+	const asMedia = make('button', 'qiaomu-home-secondary', t('按音视频学习')); asMedia.type = 'button'; asMedia.hidden = true;
 	const hintText = make('span'); hint.append(hintText, asMedia);
-	const chips = make('div', 'qh-sites'); for (const name of SITE_CHIPS) chips.append(make('span', '', name));
+	const chips = make('div', 'qh-sites'); for (const name of SITE_CHIPS) chips.append(make('span', '', t(name)));
 	const react = () => {
 		const link = classifyLink(input.value, sites); go.disabled = !link; hint.classList.remove('is-error'); asMedia.hidden = !(link?.kind === 'page' && link.maybeMedia);
-		hintText.textContent = !input.value.trim() ? '' : link ? `识别为：${link.site ?? KIND_LABEL[link.kind]}${link.kind === 'page' ? (link.maybeMedia ? '。如果是视频或音频，可以点「按音视频学习」' : '') : '。没有字幕会自动转写'}` : '这不像一个链接';
+		hintText.textContent = !input.value.trim() ? '' : link ? t('识别为：{0}{1}', [link.site ?? KIND_LABEL[link.kind], link.kind === 'page' ? (link.maybeMedia ? t('。如果是视频或音频，可以点「按音视频学习」') : '') : isProtectedStudy(link.url) ? t('。先打开原网页完成验证') : t('。没有字幕会自动转写')]) : t('这不像一个链接');
 	};
 	asMedia.addEventListener('click', () => { const link = classifyLink(input.value, sites); if (link?.kind === 'page') actions.open(webPath(link.url)); });
 	input.addEventListener('input', react);
-	form.addEventListener('submit', event => { event.preventDefault(); const link = classifyLink(input.value, sites); if (!link) { hintText.textContent = '这不像一个链接'; hint.classList.add('is-error'); return; } actions.open(link.path); });
+	form.addEventListener('submit', event => { event.preventDefault(); const link = classifyLink(input.value, sites); if (!link) { hintText.textContent = t('这不像一个链接'); hint.classList.add('is-error'); return; } actions.open(link.path); });
 	const file = make('input'); file.type = 'file'; file.hidden = true; file.accept = 'audio/*,video/*,.mp3,.m4a,.aac,.wav,.flac,.ogg,.opus,.wma,.webm,.mp4,.mkv,.mov,.m4v,.aiff,.amr';
-	const pick = make('button', 'qiaomu-home-pick'); pick.type = 'button'; pick.insertAdjacentHTML('afterbegin', ICON_FILE); pick.append(make('span', '', '选择本地文件'));
-	const take = (picked: File | undefined) => { if (!picked) return; if (!AUDIO_FILE.test(picked.name)) { hintText.textContent = '这个文件类型不支持'; hint.classList.add('is-error'); return; } actions.openFile(picked); };
+	const pick = make('button', 'qiaomu-home-pick'); pick.type = 'button'; pick.insertAdjacentHTML('afterbegin', ICON_FILE); pick.append(make('span', '', t('选择本地文件')));
+	const take = (picked: File | undefined) => { if (!picked) return; if (!AUDIO_FILE.test(picked.name)) { hintText.textContent = t('这个文件类型不支持'); hint.classList.add('is-error'); return; } actions.openFile(picked); };
 	pick.addEventListener('click', () => file.click()); file.addEventListener('change', () => take(file.files?.[0]));
-	const fileRow = make('div', 'qh-file'); fileRow.append(pick, make('span', '', '或把音频、视频文件拖到这张卡片上；文件只交给本机助手处理，不会上传'), file);
+	const fileRow = make('div', 'qh-file'); fileRow.append(pick, make('span', '', t('或把音频、视频文件拖到这张卡片上；文件只交给本机助手处理，不会上传')), file);
 	// The whole card takes a dropped file, and says so while one is over it. Nothing else on the page does.
-	const overlay = make('div', 'qh-drop', '松开以转写这个文件'); overlay.setAttribute('aria-hidden', 'true');
+	const overlay = make('div', 'qh-drop', t('松开以转写这个文件')); overlay.setAttribute('aria-hidden', 'true');
 	for (const type of ['dragenter', 'dragover']) hero.addEventListener(type, event => { event.preventDefault(); hero.classList.add('is-over'); });
 	hero.addEventListener('dragleave', event => { if (!hero.contains((event as DragEvent).relatedTarget as Node | null)) hero.classList.remove('is-over'); });
 	hero.addEventListener('drop', event => { event.preventDefault(); hero.classList.remove('is-over'); take((event as DragEvent).dataTransfer?.files?.[0]); });
-	hero.append(make('div', 'qh-title', '粘贴链接，开始学习'), make('p', 'lead', '没有字幕就自动转写成带时间的字幕，再进入沉浸学习：字幕跟着播放滚动，可以划线、提问、记笔记。'), form, chips, hint, fileRow, overlay);
+	hero.append(make('div', 'qh-title', t('粘贴链接，开始学习')), make('p', 'lead', t('没有字幕就自动转写成带时间的字幕，再进入沉浸学习：字幕跟着播放滚动，可以划线、提问、记笔记。')), form, chips, hint, fileRow, overlay);
 
 	// ---- what was studied before ----
 	const recent = make('section', 'qh-section');
 	const paintRecent = (items: StudyRecent[]) => {
 		recent.replaceChildren(); recent.hidden = !items.length; if (!items.length) return;
-		const list = make('div', 'qiaomu-home-list'), heading = make('div', 'qh-heading'); heading.append(make('h2', '', '最近学习'), make('span', '', `${items.length} 个`)); recent.append(heading, list);
+		const list = make('div', 'qiaomu-home-list'), heading = make('div', 'qh-heading'); heading.append(make('h2', '', t('最近学习')), make('span', '', t('{0} 个', [items.length]))); recent.append(heading, list);
 		for (const entry of items) {
 			const row = make('div', 'qiaomu-home-item'); row.tabIndex = 0; row.setAttribute('role', 'link'); row.dataset.url = entry.url;
 			const mark = make('span', 'qh-kind', KIND_MARK[entry.kind]); mark.style.setProperty('--h', String(KIND_HUE[entry.kind])); mark.setAttribute('aria-hidden', 'true');
 			const text = make('div', 'qiaomu-home-text'); text.append(make('span', 'qiaomu-home-title', entry.title), make('span', 'qiaomu-home-meta', `${KIND_LABEL[entry.kind]} · ${ago(entry.at)}`));
-			const remove = make('button', 'qiaomu-home-x', '×'); remove.type = 'button'; remove.title = '从列表移除'; remove.setAttribute('aria-label', '从列表移除');
+			const remove = make('button', 'qiaomu-home-x', '×'); remove.type = 'button'; remove.title = t('从列表移除'); remove.setAttribute('aria-label', t('从列表移除'));
 			remove.addEventListener('click', event => { event.stopPropagation(); void forget(entry.url).then(paintRecent); });
 			const open = () => { if (entry.path) { actions.open(entry.path); return; } const link = classifyLink(entry.url, sites); if (link) actions.open(link.path); };
 			row.addEventListener('click', open); row.addEventListener('keydown', event => { if (event.key === 'Enter') open(); });
@@ -255,7 +259,7 @@ export async function showStudyHome(doc: Document, actions: { open: (path: strin
 	// ---- suggested podcasts ----
 	const shows = make('section', 'qh-section qiaomu-home-shows');
 	paintShows(doc, shows, actions);
-	page.append(...(embedded ? [] : [make('h1', '', '转写学习')]), hero, recent, shows);
+	page.append(...(embedded ? [] : [make('h1', '', t('转写学习'))]), hero, recent, shows);
 	host.append(page); if (!embedded) input.focus();
 	paintRecent(await loadRecents());
 	return async () => { sites = await loadStudySites(); react(); paintRecent(await loadRecents()); };

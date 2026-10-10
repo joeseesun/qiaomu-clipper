@@ -49,8 +49,9 @@
 
 h2 {
 	margin-top: 0.5rem;
-	padding-inline-start: 1rem;
+	padding-inline-start: 0;
 }
+.settings-section h2, .settings-section h3 { padding-inline-start: 0; margin-inline-start: 0; }
 
 label {
 	font-weight: 400;
@@ -81,8 +82,8 @@ label {
 	display: none;
 	flex-direction: column;
 	gap: 8px;
-	margin: 24px max(6%, 24px) 72px max(6%, 24px);
-	max-width: 600px;
+	margin: 24px max(5%, 24px) 72px max(5%, 24px);
+	max-width: 820px;
 
 	&.active {
 		display: block;
@@ -108,9 +109,11 @@ label {
 	align-items: center;
 }
 
-#local-vault-path { flex: 1; min-width: 0; }
-#local-vault-choose, #local-vault-save { margin-left: 8px; width: auto; flex-shrink: 0; }
-#local-vault-status { margin-top: 8px; overflow-wrap: anywhere; }
+#local-vault-status { overflow-wrap: anywhere; }
+#local-vault-select { max-width: 260px; }
+#clip-section [hidden] { display: none !important; }
+#local-helper-help { gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+#local-helper-help .btn { width: auto; text-decoration: none; }
 .note-location-control {
 	display: flex;
 	align-items: center;
@@ -256,10 +259,12 @@ label {
 
 		li {
 			justify-content: space-between;
+			&[data-section] > span { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.35; }
 		}
 	}
 
 	.nav-item-icon {
+		flex-shrink: 0;
 		width: 16px;
 		height: 16px;
 	}
@@ -413,7 +418,7 @@ label {
 		--settings-items-backgroud: var(--background-primary);
 	}
 	.settings-section {
-		max-width: 600px;
+		max-width: 820px;
 	}
 
 	#settings-container {
@@ -671,3 +676,105 @@ label {
 	margin: 0 0 16px; color: var(--text-muted); font-size: var(--font-ui-small); line-height: 1.6;
 	a { color: var(--text-normal); text-decoration: underline; cursor: pointer; &:focus-visible { outline: 1px solid var(--text-muted); outline-offset: 2px; } }
 }
+
+// ---- Clipping templates page (the list that used to sit at the bottom of the menu) ----------------
+#templates-home-section {
+	#template-list {
+		margin: 4px 0 24px; padding: 0; list-style: none; overflow: hidden;
+		border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); corner-shape: var(--corner-shape);
+		li { display: flex; align-items: center; gap: 8px; padding: 10px 12px; cursor: pointer; border-bottom: 1px solid var(--background-modifier-border); background: transparent;
+			&:last-child { border-bottom: 0; }
+			&:hover { background: var(--background-modifier-hover); }
+			.template-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+			.delete-template-btn { flex: none; margin: 0; padding: 4px; border: 0; background: none; box-shadow: none; color: var(--text-muted); opacity: 0; cursor: pointer; }
+			&:hover .delete-template-btn, .delete-template-btn:focus-visible { opacity: .75; } } }
+	#new-template-btn { width: auto; margin: 0; }
+}
+.template-back { display: inline-flex; align-items: center; margin: 0 0 6px; font-size: 13px; color: var(--text-muted); text-decoration: none; cursor: pointer; &:hover { color: var(--text-normal); } }
+
+// Settings kept out of the way until asked for (a quiet one-line disclosure under a group).
+.setting-details {
+	border-top: 1px solid var(--background-modifier-border);
+	> summary { display: flex; align-items: center; gap: 6px; padding: 12px 0; font-size: 13px; color: var(--text-muted); cursor: pointer; list-style: none;
+		&::-webkit-details-marker { display: none; }
+		&::before { content: ''; width: 6px; height: 6px; border-inline-end: 1.5px solid currentColor; border-block-end: 1.5px solid currentColor; transform: rotate(-45deg); transition: transform .12s; }
+		&:hover { color: var(--text-normal); }
+		&:focus-visible { outline: 1px solid var(--text-muted); outline-offset: 2px; border-radius: 4px; } }
+	&[open] > summary::before { transform: rotate(45deg); }
+	@media (prefers-reduced-motion: reduce) { > summary::before { transition: none; } }
+}
+
+#templates-home-section > .settings-section-header:not(:first-child) { margin-top: 40px; }
+
+.learn-how {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 12px;
+	margin-bottom: 24px;
+	padding: 16px;
+	background: var(--background-primary-alt, var(--background-secondary));
+	border-radius: var(--radius-l, 12px);
+}
+.learn-step { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.learn-art {
+	display: flex; align-items: center; justify-content: center; gap: 6px;
+	height: 92px; margin-bottom: 4px;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 10px;
+}
+.learn-key {
+	display: inline-flex; align-items: center; justify-content: center;
+	width: 34px; height: 34px;
+	font: 600 15px/1 var(--font-interface, system-ui);
+	color: var(--text-normal);
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-bottom-width: 3px;
+	border-radius: 7px;
+}
+.learn-step-title { display: flex; align-items: center; gap: 6px; font-weight: 600; color: var(--text-normal); }
+.learn-num {
+	display: inline-flex; align-items: center; justify-content: center;
+	width: 18px; height: 18px; flex-shrink: 0;
+	font-size: 11px; color: var(--background-primary); background: var(--text-normal);
+	border-radius: 50%;
+}
+.learn-step-text { font-size: 12px; line-height: 1.5; color: var(--text-muted); }
+.learn-card, .learn-diary {
+	display: flex; flex-direction: column; gap: 5px;
+	width: 78%; padding: 8px 10px;
+	font-size: 11px; line-height: 1.3; color: var(--text-normal);
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+.learn-card-quote { color: var(--text-muted); padding-left: 6px; border-left: 2px solid var(--background-modifier-border); }
+.learn-card-meta, .learn-diary-date { color: var(--text-faint, var(--text-muted)); font-size: 10px; }
+.learn-diary-line { height: 5px; width: 90%; background: var(--background-modifier-border); border-radius: 3px; }
+.learn-diary-line.short { width: 55%; }
+.learn-diary-new { font-weight: 600; }
+@media (max-width: 720px) { .learn-how { grid-template-columns: 1fr; } }
+#templates-home-section > .settings-section-header:not(:first-child) h2 { font-size: var(--font-ui-medium, 16px); margin: 0 0 0.75rem; }
+
+.settings-section [hidden] { display: none !important; }
+
+// About and backup
+.about-hero { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px 16px; padding: 18px 24px; background-color: var(--settings-items-backgroud); border-radius: var(--radius-m); }
+.about-version { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.about-label { color: var(--text-muted); font-size: var(--font-ui-small); }
+.about-number { font-size: 22px; font-weight: 600; color: var(--text-normal); }
+.about-status { color: var(--text-muted); font-size: var(--font-ui-small); }
+.about-actions { display: flex; flex-wrap: wrap; gap: 8px; a.btn { width: auto; text-decoration: none; } }
+.release-notes { list-style: none; margin: 0; padding: 0.5rem 0; font-size: var(--font-ui-small); line-height: 1.6; color: var(--text-muted);
+	li { margin: 2px 0; }
+	.release-heading { margin-top: 10px; font-weight: 600; color: var(--text-normal); &:first-child { margin-top: 0; } }
+	.release-item { padding-inline-start: 14px; position: relative; &::before { content: '·'; position: absolute; inset-inline-start: 4px; } } }
+.about-support { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: 24px 0; }
+.about-qr { display: flex; flex-direction: column; align-items: center; gap: 12px; margin: 0; padding: 20px 16px 16px; background-color: var(--settings-items-backgroud); border-radius: var(--radius-m); text-align: center;
+	img { display: block; width: 148px; height: 148px; padding: 8px; box-sizing: content-box; background: #fff; border: 1px solid var(--background-modifier-border); border-radius: 10px; object-fit: contain; mix-blend-mode: normal; }
+	figcaption { display: flex; flex-direction: column; gap: 3px; b { font-size: var(--font-ui-small); color: var(--text-normal); } span { font-size: var(--font-ui-small); color: var(--text-muted); } } }
+.about-footer { margin-top: 24px; color: var(--text-muted); font-size: var(--font-ui-small); line-height: 1.6; p { margin: 0; } }
+.about-links { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-bottom: 6px; a { color: var(--text-muted); text-decoration: underline; text-underline-offset: 3px; &:hover { color: var(--text-normal); } } }
+@media (max-width: 720px) { .about-support { grid-template-columns: 1fr; } }

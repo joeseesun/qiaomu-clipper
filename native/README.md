@@ -22,15 +22,17 @@ python3 native/install.py --check
 
 ### 让 AI agent 代装
 
+笔记卡片提示本地助手没连上时，点「让 AI 帮我安装」会复制一段已带上本机扩展 ID 的话。安装器现在不会因为库的问题整体失败：没找到库或有多个库时照样装好助手（多个库先用最近打开的），并在输出的 `notes` / `vaultChoices` 里说明，之后可用 `--vault` 或扩展设置指定；商店版扩展 ID 始终放行；重新运行会保留已选的库。
+
 把下面这句话发给 Claude Code / Codex 等 agent（它需要在你的电脑上有终端权限）：
 
-> 帮我安装乔木剪藏的本地保存助手：克隆 https://github.com/joeseesun/qiaomu-clipper ，在仓库里运行 `python3 native/install.py`，不要手动编造扩展 ID 或库路径。输出 `ok: false` 时读 `error` 和 `hint` 处理；如果列出了多个库，问我用哪个；成功后运行 `python3 native/install.py --check` 确认，并告诉我去 chrome://extensions 重新加载扩展。
+> 帮我安装乔木剪藏的本地助手：没有代码就 git clone https://github.com/joeseesun/qiaomu-clipper ，已有就 git pull，在仓库里运行 `python3 native/install.py`（Windows 用 `python native\install.py`）。不要自己编造扩展 ID 或库路径；`ok: false` 时按 `error` / `hint` 处理，输出里有多个库（`vaultChoices`）就问我用哪个，再加 `--vault` 重跑；最后运行 `python3 native/install.py --check` 要看到 `ok: true`，并告诉我去 chrome://extensions 重新加载乔木剪藏。
 
 agent 注意：不要猜扩展 ID（商店版与本地加载版不同，猜错就是「未连接」的头号原因）；浏览器没装扩展时先让用户装；安装后不需要重启浏览器，只需重新加载扩展。手动指定仍可用：`--vault /绝对路径 --extension-id 扩展ID`（`--extension-id` 可重复）。
 
 重新构建并在 Chrome 扩展管理页重新加载扩展。弹窗提供目标库与相对笔记位置选择，主按钮改为“剪藏”。一次点击保存本地笔记，并按原有勾选状态提交 RSS；两处结果分开显示。助手已配置但不可用时保留本地待保存内容和重试按钮，不自动跳转 Obsidian。
 
-切换库：扩展设置 → 常规 → 仓库 → “静默保存的笔记库地址”，点击“选择文件夹”，选择自己的 Obsidian 库根目录，然后点击“保存库地址”。也支持手动填写完整路径。macOS 使用系统文件夹选择器，Linux 需要可用的 Tkinter 图形环境，否则手动填写。助手验证目录包含 `.obsidian` 后持久保存地址，扩展同步添加实际文件夹名并将其设为下次选择。重新打开剪藏弹窗；之前因库名不一致失败的笔记可直接重试。只在库名列表添加 `rockfish` 不会更改助手的磁盘目标。每台电脑的地址单独配置，不随扩展同步到其他电脑；取消选择不更改原目标。
+切换库：扩展设置 → 剪藏与保存 → 笔记库，在「笔记保存到」下拉里选一个（列表来自 Obsidian 自己记录的库，选中立即生效，不用点保存）；不在列表里就选「选择其他文件夹…」。macOS 使用系统文件夹选择器，Linux 需要可用的 Tkinter 图形环境，否则手动填写。助手验证目录包含 `.obsidian` 后持久保存地址，扩展同步添加实际文件夹名并将其设为下次选择。重新打开剪藏弹窗；之前因库名不一致失败的笔记可直接重试。只在库名列表添加 `rockfish` 不会更改助手的磁盘目标。每台电脑的地址单独配置，不随扩展同步到其他电脑；取消选择不更改原目标。
 
 助手只接受安装时配置的扩展来源，只能保存所选库内的 Markdown，拒绝路径越界、隐藏配置文件和跨库请求。新建笔记遇到同名文件会使用数字后缀；支持模板的追加、前置、覆盖行为。已有请求重复提交不会重复写笔记。
 
@@ -109,7 +111,7 @@ uv tool install mlx-whisper      # Apple 芯片，首次使用下载约 1.6 GB �
 
 背景语言与语音语言不一致时（如中文背景配英文音频）不带。设置里可以关闭（「用视频信息提高人名和术语的准确度」，默认开）。带了背景后 Whisper 偶尔把开头一段合成一整行，已按句子重新切开。
 
-设置 → 常规 → 「无字幕视频：生成字幕」可以把识别交给云端服务，此时不需要本机识别引擎，只需要 `yt-dlp` 和 `ffmpeg`。可以保存多个云端服务（各有自己的地址、模型和 Key）并随时切换；字幕条里也有选择器，在本机引擎和已保存的服务之间切换，选择会记住。不会在服务之间自动换用：换了服务，音频就发给了另一家，必须由你选。`asr_cloud.py` 把音频按停顿切块（静音阈值随录音音量自适应，块长按服务配置），逐块上传，再按块起点把文字放回视频时间轴：服务返回分段时间（豆包的 utterances、OpenAI 风格的 `verbose_json`）就直接用，否则把文字按句子分配到该块时长内。
+设置 → AI 模型设置 → ASR 语音识别 可以把识别交给云端服务，此时不需要本机识别引擎，只需要 `yt-dlp` 和 `ffmpeg`。可以保存多个云端服务（各有自己的地址、模型和 Key）并随时切换；字幕条里也有选择器，在本机引擎和已保存的服务之间切换，选择会记住。不会在服务之间自动换用：换了服务，音频就发给了另一家，必须由你选。`asr_cloud.py` 把音频按停顿切块（静音阈值随录音音量自适应，块长按服务配置），逐块上传，再按块起点把文字放回视频时间轴：服务返回分段时间（豆包的 utterances、OpenAI 风格的 `verbose_json`）就直接用，否则把文字按句子分配到该块时长内。
 
 | 请求方式 | 服务 | 备注 |
 |---|---|---|
@@ -123,3 +125,17 @@ uv tool install mlx-whisper      # Apple 芯片，首次使用下载约 1.6 GB �
 - 实测（B 站 41 分钟中文课程，含下载转码）：豆包 20.6 秒，智谱 32.9 秒，硅基流动 Qwen3-ASR 43.3 秒。硅基流动的 SenseVoiceSmall 排队时每个请求要十几秒，不推荐。
 - 本机服务（已验证）：`uvx --from "mlx-qwen3-asr[serve]" mlx-qwen3-asr serve --host 127.0.0.1 --api-key local`，在设置里选「本机服务（OpenAI 兼容）」，地址 `http://127.0.0.1:8765/v1`。Apple 芯片上 5 分钟音频约 10 秒，音频不出本机。注意该服务默认监听 `0.0.0.0`，务必加 `--host 127.0.0.1`。
 
+
+## macOS 安装包（.pkg）
+
+不想用终端的用户可以直接双击安装包：它自带 Python，装完自动为当前登录用户登记所有已安装的 Chromium 系浏览器，不需要事先装 Python 或 git。
+
+构建（维护者）：
+
+```sh
+bash scripts/pkg/fetch-python.sh <python-build-standalone 发布标签> <Python 版本>   # 下载并校验两个架构的 Python
+APP_SIGN_ID="Developer ID Application: …" INSTALLER_SIGN_ID="Developer ID Installer: …" NOTARY_PROFILE=<notarytool 配置名> \
+  bash scripts/pkg/build-pkg.sh --python-arm64 build/python/arm64 --python-x86_64 build/python/x86_64
+```
+
+不带签名变量只会得到仅供测试的未签名包。安装日志在 `$TMPDIR/qiaomu-clipper-install.log`；装完仍未连接时运行包内的 `install.py --check` 查看原因。

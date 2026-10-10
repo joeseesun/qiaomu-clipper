@@ -33,7 +33,7 @@
 		"modelsList": "https://api-docs.deepseek.com/quick_start/pricing",
 		"baseUrl": "https://api.deepseek.com/v1/chat/completions",
 		"popularModels": [
-			{ "id": "deepseek-v4-flash", "name": "DeepSeek V4 Flash" },
+			{ "id": "deepseek-flash", "name": "DeepSeek V4.1 Flash" },
 			{ "id": "deepseek-v4-pro", "name": "DeepSeek V4 Pro" }
 		]
 	},

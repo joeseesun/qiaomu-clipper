@@ -1,5 +1,6 @@
 import browser from './browser-polyfill';
 
+import { t } from './ui-text';
 // Subtitle generation for videos without subtitles runs in the local helper (yt-dlp + ffmpeg + Whisper). The browser only
 // asks it to start, polls its progress and reads the lines it has produced; audio never passes through the extension.
 export interface AsrSegment { start: number; end: number; text: string }
@@ -8,8 +9,8 @@ export interface AsrJob { ok: true; id: string; videoKey: string; state: AsrStat
 // A local recognition engine this computer could use: `installed` says whether it is ready now, `managed` whether the helper can install it.
 export interface AsrLocalEngine { id: string; name: string; sizeMb: number; note: string; supported: boolean; installed: boolean; modelReady: boolean; managed: boolean; recommended?: boolean }
 // What the viewer has chosen, without any key: the background fills this in.
-export interface AsrChoices { mode: 'local' | 'cloud'; engine: string; active: string; auto?: boolean; profiles: Array<{ id: string; label: string; local: boolean; configured: boolean }> }
-export interface AsrStatus { ok: true; ready: boolean; missing: string[]; hints: string[]; engine: string | null; modelDownloadNeeded: boolean; mode?: 'local' | 'cloud'; cloudLabel?: string; cloudLocal?: boolean; local?: AsrLocalEngine[]; installable?: { base: boolean; engines: string[] }; choices?: AsrChoices }
+export interface AsrChoices { mode: 'local' | 'cloud'; engine: string; active: string; auto?: boolean; profiles: Array<{ id: string; label: string; model?: string; local: boolean; configured: boolean }> }
+export interface AsrStatus { ok: true; ready: boolean; missing: string[]; hints: string[]; engine: string | null; modelDownloadNeeded: boolean; mode?: 'local' | 'cloud'; cloudLabel?: string; cloudModel?: string; cloudLocal?: boolean; local?: AsrLocalEngine[]; installable?: { base: boolean; engines: string[] }; choices?: AsrChoices }
 export type InstallTarget = 'base' | 'mlx' | 'mlx-qwen3' | 'faster-whisper';
 export type InstallState = 'queued' | 'installing' | 'downloadingModel' | 'completed' | 'failed' | 'cancelled';
 export interface AsrInstall { ok: true; jobId: string; engine: string; state: InstallState; stage: string; progress: number; error?: string | null }
@@ -70,10 +71,10 @@ export const asrCancel = (jobId: string) => ask<AsrJob>({ mode: 'cancel', jobId 
 
 // The settings page tries a service with the form's values (a short tone: any answer means the key and model are accepted).
 export interface AsrTestResult { ok: boolean; ms?: number; sample?: string; error?: string; code?: string }
-const TEST_ERRORS: Record<string, string> = { 'helper-offline': '没连上本地助手', 'helper-outdated': '本地助手版本较旧，请重新运行 python3 native/install.py', 'bad-request': '设置不完整或无效' };
+const TEST_ERRORS: Record<string, string> = { get 'helper-offline'() { return t('没连上本地助手'); }, get 'helper-outdated'() { return t('本地助手版本较旧。请到「剪藏与保存」更新助手，再重新检查。'); }, get 'bad-request'() { return t('设置不完整或无效'); } };
 export const asrTest = async (cloud: Record<string, unknown>, apiKey: string): Promise<AsrTestResult> => {
 	const reply = await ask<AsrTestResult>({ mode: 'test', cloud, apiKey }) as AsrTestResult | AsrFailure;
 	if ('ok' in reply && reply.ok === true) return reply as AsrTestResult;
 	const failure = reply as AsrTestResult & AsrFailure;
-	return { ok: false, error: TEST_ERRORS[failure.error ?? ''] || failure.error || '测试失败', code: failure.code };
+	return { ok: false, error: TEST_ERRORS[failure.error ?? ''] || failure.error || t('测试失败'), code: failure.code || (/^helper-(offline|outdated)$/.test(failure.error || '') ? failure.error : undefined) };
 };

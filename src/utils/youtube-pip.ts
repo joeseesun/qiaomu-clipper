@@ -1,3 +1,4 @@
+import { t } from './ui-text';
 // Chrome's Document Picture-in-Picture can host the whole embed in an always-on-top window.
 // YouTube's cross-origin iframe has no <video> we can hand to the classic PiP API, so we move the
 // iframe itself; the browser reloads a moved iframe, so we resume from the last reported time.
@@ -44,7 +45,7 @@ export async function openDocumentPip(article: HTMLElement, frame: HTMLIFrameEle
 	try { pip = await win.documentPictureInPicture!.requestWindow({ width: 480, height: 270 }); } catch { return; }
 
 	const placeholder = doc.createElement('button'); placeholder.type = 'button'; placeholder.className = 'youtube-pip-placeholder';
-	placeholder.textContent = '视频正在独立窗口播放 · 点击收回'; placeholder.setAttribute('aria-label', '收回独立窗口中的视频');
+	placeholder.textContent = t('视频正在独立窗口播放 · 点击收回'); placeholder.setAttribute('aria-label', t('收回独立窗口中的视频'));
 	const style = pip.document.createElement('style');
 	style.textContent = 'html,body{margin:0;height:100%;background:#000;overflow:hidden}iframe{display:block;width:100%;height:100%;border:0}';
 	pip.document.head.append(style);

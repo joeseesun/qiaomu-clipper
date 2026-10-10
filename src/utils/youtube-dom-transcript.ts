@@ -121,8 +121,9 @@ export function groupSegments(segments: PanelSegment[], maxSeconds = 30, sentenc
 const CJK = /[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]/;
 const joinText = (a: string, b: string) => CJK.test(a.slice(-1)) && CJK.test(b[0] || '') ? a + b : `${a} ${b}`;
 
-// The same markup Defuddle produces, so the study page treats both sources identically.
+// The same markup Defuddle produces, without its " · " separator: the reader shows the time in its own column, and a dot left in front of the text
+// (as it was whenever the reader did not strip it) is noise.
 export function transcriptHtml(segments: PanelSegment[], group = true): string {
-	const lines = (group ? groupSegments(segments) : segments).map(({ time, text, chapter, start, end }) => `${chapter ? `<h3>${escapeHtml(chapter)}</h3>\n` : ''}<p class="transcript-segment"><strong><span class="timestamp" data-timestamp="${start ?? seconds(time)}"${end !== undefined ? ` data-end="${end}"` : ''}>${escapeHtml(time)}</span></strong> · ${escapeHtml(text)}</p>`);
+	const lines = (group ? groupSegments(segments) : segments).map(({ time, text, chapter, start, end }) => `${chapter ? `<h3>${escapeHtml(chapter)}</h3>\n` : ''}<p class="transcript-segment"><strong><span class="timestamp" data-timestamp="${start ?? seconds(time)}"${end !== undefined ? ` data-end="${end}"` : ''}>${escapeHtml(time)}</span></strong> ${escapeHtml(text)}</p>`);
 	return `<div class="youtube transcript">\n<h2>Transcript</h2>\n${lines.join('\n')}\n</div>`;
 }

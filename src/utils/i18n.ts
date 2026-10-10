@@ -2,8 +2,11 @@ import dayjs from 'dayjs';
 import browser from './browser-polyfill';
 import { getLocalStorage, setLocalStorage } from './storage-utils';
 import DOMPurify from 'dompurify';
+import { setUiLanguage, translateStatic, t } from './ui-text';
 
 // Import dayjs locales that match our supported languages
+import { FULL_LOCALES, matchLocale } from './locale';
+import { localeMessage } from './locale-message';
 import 'dayjs/locale/ar';
 import 'dayjs/locale/ca';
 import 'dayjs/locale/cs';
@@ -26,6 +29,7 @@ import 'dayjs/locale/nb';
 import 'dayjs/locale/nl';
 import 'dayjs/locale/pl';
 import 'dayjs/locale/pt';
+import 'dayjs/locale/pt-br';
 import 'dayjs/locale/ro';
 import 'dayjs/locale/ru';
 import 'dayjs/locale/sv';
@@ -105,13 +109,13 @@ export function getAvailableLanguages(): { code: string; name: string }[] {
 		{ code: 'vi', name: 'Tiếng Việt' },
 		{ code: 'zh_CN', name: '简体中文' },
 		{ code: 'zh_TW', name: '繁體中文' }
-	];
+	].map(lang => ({ ...lang, name: lang.code && !FULL_LOCALES.includes(lang.code as typeof FULL_LOCALES[number]) ? lang.name + t('（部分翻译）') : lang.name }));
 }
 
 export async function getCurrentLanguage(): Promise<string> {
 	const savedLanguage = await getLocalStorage('language');
-	if (savedLanguage && savedLanguage !== '') {
-		return savedLanguage;
+	if (typeof savedLanguage === 'string' && savedLanguage) {
+		return matchLocale(savedLanguage, getAvailableLanguages().map(lang => lang.code).filter(Boolean));
 	}
 	return ''; // Return empty string for system default
 }
@@ -127,83 +131,18 @@ export async function setLanguage(language: string): Promise<void> {
 
 // Helper function to match browser language to available languages
 export function matchBrowserLanguage(): string {
-	const browserLang = browser.i18n.getUILanguage().toLowerCase().split('-')[0]; // Get base language code
-	const availableLangs = getAvailableLanguages()
-		.map(lang => lang.code)
-		.filter(code => code !== ''); // Exclude system default option
-
-	// If browser language matches an available language, use it
-	if (availableLangs.includes(browserLang)) {
-		return browserLang;
-	}
-
-	// Otherwise default to English
-	return 'en';
+	return matchLocale(browser.i18n.getUILanguage(), getAvailableLanguages().map(lang => lang.code).filter(Boolean));
 }
 
 export async function initializeI18n() {
 	const { code } = await getEffectiveLanguage();
 	currentLanguage = code;
+	setUiLanguage(code);
 	setDayjsLocale(code);
 }
 
 export function getMessage(messageName: string, substitutions?: string | string[]): string {
-	try {
-		// Load messages for the current language
-		const messages = require(`../_locales/${currentLanguage || 'en'}/messages.json`);
-		const messageObj = messages[messageName];
-
-		if (!messageObj) {
-			// If message not found in current language, try English
-			if (currentLanguage !== 'en') {
-				const enMessages = require('../_locales/en/messages.json');
-				const enMessageObj = enMessages[messageName];
-				if (enMessageObj) {
-					let text = enMessageObj.message;
-					// Handle substitutions and placeholders for English fallback
-					if (substitutions) {
-						const subsArray = Array.isArray(substitutions) ? substitutions : [substitutions];
-						subsArray.forEach((sub, index) => {
-							text = text.replace(`$${index + 1}`, sub);
-						});
-					}
-					if (enMessageObj.placeholders) {
-						Object.entries(enMessageObj.placeholders).forEach(([key, value]) => {
-							const placeholder = `$${key}$`;
-							const content = (value as { content: string }).content;
-							text = text.replace(placeholder, content);
-						});
-					}
-					return text;
-				}
-			}
-			return browser.i18n.getMessage(messageName, substitutions) || messageName;
-		}
-
-		let text = messageObj.message;
-
-		// Handle substitutions first
-		if (substitutions) {
-			const subsArray = Array.isArray(substitutions) ? substitutions : [substitutions];
-			subsArray.forEach((sub, index) => {
-				text = text.replace(`$${index + 1}`, sub);
-			});
-		}
-
-		// Handle placeholders if they exist
-		if (messageObj.placeholders) {
-			Object.entries(messageObj.placeholders).forEach(([key, value]) => {
-				const placeholder = `$${key}$`;
-				const content = (value as { content: string }).content;
-				text = text.replace(placeholder, content);
-			});
-		}
-
-		return text;
-	} catch (error) {
-		console.warn(`Failed to load messages for language ${currentLanguage}`, error);
-		return browser.i18n.getMessage(messageName, substitutions) || messageName;
-	}
+ return localeMessage(currentLanguage || 'en', messageName, substitutions) || browser.i18n.getMessage(messageName, substitutions) || messageName;
 }
 
 export async function translatePage() {
@@ -223,6 +162,9 @@ export async function translatePage() {
 		}
 	});
 
+	// Pages written in Chinese: show them in the person's language.
+	translateStatic(document);
+
 	// Translate elements with data-i18n-title attribute
 	document.querySelectorAll('[data-i18n-title]').forEach(element => {
 		const key = element.getAttribute('data-i18n-title');
@@ -235,7 +177,7 @@ export async function translatePage() {
 // Helper function to get the effective language
 export async function getEffectiveLanguage(): Promise<{ code: string; isRTL: boolean }> {
 	const currentLang = await getCurrentLanguage();
-	const languageCode = currentLang && currentLang !== '' ? currentLang : matchBrowserLanguage();
+	const languageCode = currentLang ? matchLocale(currentLang, getAvailableLanguages().map(lang => lang.code).filter(Boolean)) : matchBrowserLanguage();
 	return {
 		code: languageCode,
 		isRTL: isRTLLanguage(languageCode)

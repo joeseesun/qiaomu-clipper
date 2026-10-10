@@ -21,7 +21,16 @@ def atomic_json(path, data):
     fd, name = tempfile.mkstemp(dir=path.parent)
     try:
         with os.fdopen(fd,'w',encoding='utf8') as f: json.dump(data,f,ensure_ascii=False); f.flush(); os.fsync(f.fileno())
-        os.replace(name,path)
+        # Polling readers and antivirus can briefly deny replacement on Windows.
+        # Keep the same staged file; never hide disk errors or a permanent denial.
+        for attempt in range(40):
+            try:
+                os.replace(name, path)
+                break
+            except PermissionError as error:
+                if sys.platform != 'win32' or getattr(error, 'winerror', None) not in (5, 32, 33) or attempt == 39:
+                    raise
+                time.sleep(0.05)
     finally:
         if os.path.exists(name): os.unlink(name)
 def relative_path(value):
@@ -336,7 +345,19 @@ def save_learning(message, root, base):
         discard_staging(base,ids)
         return result
 
+# Bump when the extension starts to need something an older installed helper cannot do; the extension compares it.
+HELPER_PROTOCOL=2
+def obsidian_vaults():
+    """The vaults Obsidian itself lists (most recently opened first), so a person picks one instead of typing a path."""
+    home=Path.home()
+    for config in (home/'Library/Application Support/obsidian/obsidian.json',home/'.config/obsidian/obsidian.json',Path(os.environ.get('APPDATA',home/'AppData/Roaming'))/'obsidian/obsidian.json'):
+        try: vaults=json.loads(config.read_text(encoding='utf8')).get('vaults',{}).values()
+        except (OSError,ValueError,AttributeError): continue
+        found=[v for v in sorted(vaults,key=lambda v:-v.get('ts',0)) if isinstance(v,dict) and v.get('path') and (Path(v['path'])/'.obsidian').is_dir()]
+        return [{'name':Path(v['path']).name,'path':str(Path(v['path']))} for v in found][:20]
+    return []
 def handle(message, config, base):
+    if message.get('action')=='listVaults': return {'ok':True,'vaults':obsidian_vaults(),'current':config.get('vault')}
     if message.get('action')=='chooseVault':
         value=choose_vault(config.get('vault'))
         if value is None: return {'ok':False,'cancelled':True}
@@ -354,14 +375,17 @@ def handle(message, config, base):
         sys.path.insert(0,str(Path(__file__).resolve().parent))
         import asr
         return asr.handle(message,base)
+    if not config.get('vault'):
+        if message.get('action')=='status': return {'ok':True,'vault':None}
+        raise ValueError('助手已连接，但还没选 Obsidian 笔记库：请在扩展设置 → 剪藏与保存里选择文件夹')
     root=Path(config['vault']).resolve()
     if not root.is_dir() or not (root/'.obsidian').is_dir(): raise ValueError('配置的 Obsidian 笔记库不存在')
     if message.get('action')=='status': return {'ok':True,'vault':root.name,'vaultPath':str(root)}
-    if message.get('action')=='learningDailyTarget': return learning_daily_target(root,message.get('vault') or '')
+    if message.get('action')=='learningDailyTarget': return {**learning_daily_target(root,message.get('vault') or ''),'helper':HELPER_PROTOCOL}
     if message.get('action')=='saveLearning': return save_learning(message,root,base)
     if message.get('action')=='chooseNoteFolder':
         vault=message.get('vault') or ''
-        if vault and vault not in {root.name,str(root)}: raise ValueError(f'请先在常规设置将静默保存的笔记库切换到 {vault}')
+        if vault and vault not in {root.name,str(root)}: raise ValueError(f'请先在「剪藏与保存」里将静默保存的笔记库切换到 {vault}')
         initial=root
         try:
             candidate=root/relative_path(message.get('folder') or '')

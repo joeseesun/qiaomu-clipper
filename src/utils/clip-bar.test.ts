@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from 'vitest';
 
-vi.mock('./browser-polyfill', () => ({ default: { runtime: { getURL: (p: string) => p }, storage: { local: { set: vi.fn(), get: vi.fn() } } } }));
+vi.mock('./browser-polyfill', () => ({ default: { runtime: { getURL: (p: string) => 'chrome-extension://fixture/' + p }, storage: { local: { set: vi.fn(), get: vi.fn() } } } }));
 vi.mock('./i18n', () => ({ getMessage: (key: string) => key }));
-vi.mock('./clip-preview', () => ({ saveClipPreview: vi.fn(), updateClipPreview: vi.fn() }));
+vi.mock('./clip-preview', () => ({ saveClipPreview: vi.fn(), patchClipPreview: vi.fn() }));
 vi.mock('./clipboard-utils', () => ({ copyToClipboard: vi.fn() }));
 
-import { createClipBar, autoHideBar } from './clip-bar';
+import * as clipBar from './clip-bar';
+const { createClipBar, autoHideBar } = clipBar;
 
 const draft: any = { aggregate: true, local: { content: '', name: 'a.md' }, clip: { title: 'a' } };
 
@@ -15,6 +16,13 @@ it('shows an icon on copy, download and clip', () => {
 	for (const id of ['clip-bar-copy', 'clip-bar-download', 'clip-bar-clip']) {
 		expect(bar.querySelector(`#${id} svg`), id).not.toBeNull();
 	}
+});
+
+it('returns media drafts to their video Read page instead of the plain preview', () => {
+	const media = { ...draft, mediaReadUrl: 'reader.html?study=web&url=https%3A%2F%2Fx.com%2Fpost' };
+	expect((clipBar as any).clipPageFor?.('read', 'draft-1', media)).toBe('chrome-extension://fixture/reader.html?study=web&url=https%3A%2F%2Fx.com%2Fpost&resume=draft-1');
+	expect((clipBar as any).clipPageFor?.('edit', 'draft-1', media)).toBe('chrome-extension://fixture/editor.html?id=draft-1');
+	expect((clipBar as any).clipPageFor?.('read', 'draft-1', draft)).toBe('chrome-extension://fixture/reader.html?preview=draft-1');
 });
 
 it('hides on scroll down and returns on scroll up, including element scrollers', () => {
@@ -44,4 +52,10 @@ it('ignores scrolling inside the chat panel', () => {
 	list.scrollTop = 0; list.dispatchEvent(new Event('scroll'));
 	list.scrollTop = 300; list.dispatchEvent(new Event('scroll'));
 	expect(bar.classList.contains('is-hidden')).toBe(false);
+});
+
+it('uses rescue content for copy and download without depending on a failing persistence sync', async()=>{
+ const sync=vi.fn().mockRejectedValue(Error('quota')),getExport=vi.fn().mockResolvedValue({content:'Pending rescue text',name:'Rescued.md'});
+ const bar=createClipBar({mode:'edit',id:'rescue',draft,title:document.createElement('input'),sync,getExport});
+ const clipboard=await import('./clipboard-utils');bar.querySelector<HTMLButtonElement>('#clip-bar-copy')!.click();await vi.waitFor(()=>expect(clipboard.copyToClipboard).toHaveBeenCalledWith('Pending rescue text'));expect(sync).not.toHaveBeenCalled();
 });

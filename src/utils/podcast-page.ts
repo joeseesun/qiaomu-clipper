@@ -1,5 +1,6 @@
 import DOMPurify from 'dompurify';
 
+import { t } from './ui-text';
 // What a Xiaoyuzhou episode page says about the episode: the audio, the show, the date and the show notes. Read from the page's
 // own HTML (the same address the viewer opened), never from a guess about the site's internals beyond a few stable names.
 export interface PodcastEpisode { title: string; show: string; cover?: string; date?: string; minutes?: number; plays?: string; audio: string; notesHtml: string }
@@ -9,9 +10,9 @@ const SITE_SUFFIX = /\s*[|｜-]\s*小宇宙\s*[-－–]?\s*听播客.*$/;
 // The audio file the page names, only if it is on the platform's media host over https.
 export function podcastAudioUrl(doc: Document, html = ''): string {
 	const found = doc.querySelector('meta[property="og:audio"]')?.getAttribute('content') || html.match(/"enclosure":\{"url":"([^"]+)"/)?.[1];
-	if (!found) throw new Error('没有在节目页面里找到音频地址');
+	if (!found) throw new Error(t('没有在节目页面里找到音频地址'));
 	const audio = new URL(found.replace(/&amp;/g, '&'));
-	if (audio.protocol !== 'https:' || !MEDIA_HOST.test(audio.hostname)) throw new Error('音频地址不在小宇宙的媒体域名下');
+	if (audio.protocol !== 'https:' || !MEDIA_HOST.test(audio.hostname)) throw new Error(t('音频地址不在小宇宙的媒体域名下'));
 	return audio.href;
 }
 
@@ -52,9 +53,9 @@ export function plainToHtml(text: string): string {
 }
 export function durationText(seconds?: number): string {
 	if (!seconds || !Number.isFinite(seconds) || seconds < 1) return '';
-	if (seconds < 60) return `${Math.round(seconds)} 秒`;
+	if (seconds < 60) return t('{0} 秒', [Math.round(seconds)]);
 	if (seconds < 600) return `${Math.floor(seconds / 60)}:${String(Math.round(seconds % 60)).padStart(2, '0')}`;
-	return seconds >= 3600 ? `${Math.floor(seconds / 3600)} 小时 ${Math.round((seconds % 3600) / 60)} 分钟` : `${Math.round(seconds / 60)} 分钟`;
+	return seconds >= 3600 ? t('{0} 小时 {1} 分钟', [Math.floor(seconds / 3600), Math.round((seconds % 3600) / 60)]) : t('{0} 分钟', [Math.round(seconds / 60)]);
 }
 
 export function parsePodcastPage(html: string): PodcastEpisode {

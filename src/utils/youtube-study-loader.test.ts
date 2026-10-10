@@ -226,3 +226,9 @@ it('switches official languages without restarting the player or losing content 
  expect(document.querySelector('iframe')).toBe(frame);expect(document.querySelector('.transcript')!.textContent).toBe('官方中文');
  const saved=state.ready.mock.calls[state.ready.mock.calls.length - 1][0].content;expect(saved).toContain('<p>Before</p>');expect(saved).toContain('<p>After</p>');expect(saved).toContain('官方中文');expect(saved).not.toContain('Actual subtitle');
 });
+
+it.each(['https://www.youtube.com/watch?v=dbqweBCynuI','https://www.bilibili.com/video/BV1hM4m1U7rA'])('restores edited study text and player without refetching captions for %s',async source=>{
+ const restored:any={clip:{url:source,title:'Edited title',markdown:'**0:05** · Edited captions\n\nUser notes'},local:{requestId:'same',content:'Edited captions'},studyEditedAt:Date.now()};
+ const ready=vi.fn(),onReady=vi.fn();await startYouTubeStudy(source,42,'Edited title',onReady,()=>({chat:{toggle:()=>false},ready}),restored);
+ expect(document.querySelector('iframe')).not.toBeNull();expect(document.querySelector('article')?.textContent).toContain('Edited captions');expect(document.querySelector('article')?.textContent).toContain('User notes');expect(state.parse).not.toHaveBeenCalled();expect(state.fetch).not.toHaveBeenCalled();expect(onReady).not.toHaveBeenCalled();expect(ready).toHaveBeenCalledOnce();
+});
