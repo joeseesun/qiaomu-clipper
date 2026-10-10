@@ -353,14 +353,18 @@ def rewrite_xiaoe_playlist(text, base, register):
     """Every nested playlist, segment, initialization file and AES key passes the same guarded fetch."""
     from urllib.parse import urljoin
     if not text.lstrip().startswith('#EXTM3U') or '#EXT-X-DEFINE' in text: raise OSError('回放清单无效')
-    output = []
+    output = []; next_playlist = False
     for line in text.splitlines():
         if line.startswith('#'):
+            if line.startswith('#EXT-X-CONTENT-STEERING:'): raise OSError('回放清单包含不支持的外部索引')
+            playlist_uri = line.startswith(('#EXT-X-MEDIA:', '#EXT-X-I-FRAME-STREAM-INF:', '#EXT-X-IMAGE-STREAM-INF:', '#EXT-X-RENDITION-REPORT:'))
             # HLS URI attributes are quoted; reject malformed ones rather than leaving a network escape.
             if re.search(r'(?:^|[,:])(?:[A-Z-]*URI)=(?!")', line): raise OSError('回放清单地址无效')
-            line = re.sub(r'((?:[A-Z-]*URI)=)"([^"\r\n]+)"', lambda m: m.group(1) + '"' + register(urljoin(base, m.group(2))) + '"', line)
+            line = re.sub(r'((?:[A-Z-]*URI)=)"([^"\r\n]+)"', lambda m: m.group(1) + '"' + (register(urljoin(base, m.group(2)), playlist=True) if playlist_uri else register(urljoin(base, m.group(2)))) + '"', line)
+            if line.startswith('#EXT-X-STREAM-INF:'): next_playlist = True
         elif line.strip():
-            line = register(urljoin(base, line.strip()))
+            line = register(urljoin(base, line.strip()), playlist=True) if next_playlist else register(urljoin(base, line.strip()))
+            next_playlist = False
         output.append(line)
     return '\n'.join(output) + '\n'
 
@@ -374,17 +378,19 @@ def xiaoe_hls_relay(page, media):
     resources = {}; token = uuid.uuid4().hex
     class Server(http.server.ThreadingHTTPServer): daemon_threads = True
     server = Server(('127.0.0.1', 0), None)
-    def register(address):
+    def register(address, playlist=False):
         if not xiaoe_resource(page, address) or len(resources) >= 100000: raise OSError('回放清单包含不允许的地址')
-        key = '/' + token + '/' + hashlib.sha256(address.encode()).hexdigest()
-        resources[key] = address
-        return 'http://127.0.0.1:' + str(server.server_port) + key + ('.m3u8' if urlparse(address).path.lower().endswith('.m3u8') else '')
+        playlist = playlist or urlparse(address).path.lower().endswith('.m3u8')
+        key = '/' + token + '/' + hashlib.sha256((str(playlist) + address).encode()).hexdigest()
+        resources[key] = (address, playlist)
+        return 'http://127.0.0.1:' + str(server.server_port) + key + ('.m3u8' if playlist else '')
     class Handler(http.server.BaseHTTPRequestHandler):
         def log_message(self, *_args): pass
         def do_GET(self):
             key = self.path.removesuffix('.m3u8')
-            address = resources.get(key)
-            if not address: self.send_error(404); return
+            resource = resources.get(key)
+            if not resource: self.send_error(404); return
+            address, playlist = resource
             try:
                 headers = {'Referer': page.split('/v4/')[0] + '/', 'User-Agent': BROWSER_AGENT}
                 byte_range = self.headers.get('Range')
@@ -392,17 +398,31 @@ def xiaoe_hls_relay(page, media):
                     if not re.fullmatch(r'bytes=\d+-\d*', byte_range): raise OSError('无效范围')
                     headers['Range'] = byte_range
                 with open_public(address, timeout=30, headers=headers, allowed=lambda value: xiaoe_resource(page, value)) as response:
-                    if urlparse(address).path.lower().endswith('.m3u8'):
+                    first = b''; probe_deadline = time.monotonic() + 30
+                    # read1 may return fewer than seven bytes; do not let chunking hide #EXTM3U.
+                    while len(first) < 65536:
+                        if time.monotonic() > probe_deadline: raise OSError('回放资源读取超时')
+                        block = response.read1(65536 - len(first))
+                        if not block: break
+                        first += block
+                        if len(first.lstrip(b'\xef\xbb\xbf \t\r\n')) >= 7: break
+                    prefix = first.lstrip(b'\xef\xbb\xbf \t\r\n')
+                    mime = response.headers.get('Content-Type', '').split(';')[0].lower()
+                    # URL suffixes are only hints: extensionless variants, redirected resources,
+                    # and manifests presented as segments must never escape URI rewriting.
+                    playlist = playlist or prefix.startswith(b'#EXTM3U') or (bool(first) and not prefix) or mime in ('application/vnd.apple.mpegurl', 'application/x-mpegurl', 'audio/mpegurl', 'audio/x-mpegurl')
+                    if playlist:
                         parts = []; total = 0; deadline = time.monotonic() + 30
                         while True:
                             if time.monotonic() > deadline: raise OSError('回放清单读取超时')
-                            block = response.read1(65536)
+                            block = first; first = b''
+                            if not block: block = response.read1(65536)
                             if not block: break
                             total += len(block)
                             if total > 4_000_000: raise OSError('回放清单过大')
                             parts.append(block)
                         body = b''.join(parts)
-                        body = rewrite_xiaoe_playlist(body.decode('utf8'), response.geturl(), register).encode('utf8')
+                        body = rewrite_xiaoe_playlist(body.decode('utf-8-sig').lstrip(), response.geturl(), register).encode('utf8')
                         self.send_response(200); self.send_header('Content-Type', 'application/vnd.apple.mpegurl'); self.send_header('Content-Length', str(len(body))); self.end_headers(); self.wfile.write(body)
                     else:
                         # Stage a bounded fragment before replying, so a failed/oversized read
@@ -413,7 +433,8 @@ def xiaoe_hls_relay(page, media):
                             total = 0; deadline = time.monotonic() + 120
                             while True:
                                 if time.monotonic() > deadline: raise OSError('回放片段读取超时')
-                                block = response.read1(65536)
+                                block = first; first = b''
+                                if not block: block = response.read1(65536)
                                 if not block: break
                                 total += len(block)
                                 if total > limit: raise OSError('回放片段过大')
