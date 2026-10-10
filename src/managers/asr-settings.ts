@@ -30,7 +30,7 @@ export async function initializeAsrSettings(): Promise<void> {
 	// ---- what exists --------------------------------------------------------------------------------------------------
 	const localInfo = (id: string) => engines?.find(item => item.id === id);
 	// Until the helper answers every engine is listed; afterwards only the ones this computer can run.
-	const localList = () => LOCAL_ENGINES.filter(item => engines === undefined || localInfo(item.id)?.supported !== false);
+	const localList = () => LOCAL_ENGINES.filter(item => engines === undefined ? true : Boolean(localInfo(item.id)?.supported));
 	const options = (): Array<[Recognizer, string]> => [
 		['local:auto', t('本机 · 自动（用已安装的最快的）')],
 		...localList().map(item => [`local:${item.id}`, t('本机 · {0}{1}', [item.name, localInfo(item.id)?.installed ? '' : t('（未安装）')])] as [Recognizer, string]),
@@ -60,7 +60,7 @@ export async function initializeAsrSettings(): Promise<void> {
 		if (autoStart) { autoStart.checked = settings.autoStart; const holder = autoStart.closest('.checkbox-container'); if (holder) updateToggleState(holder as HTMLElement, autoStart); }
 	};
 	// The local engine to suggest: the one that does best on this computer (Qwen3-ASR on Apple silicon, else the one that runs anywhere).
-	const recommendedLocal = () => (localList().find(item => item.id === 'mlx-qwen3') ?? localList().find(item => item.id === 'faster-whisper') ?? LOCAL_ENGINES[0]).id;
+	const recommendedLocal = () => (localList().find(item => item.id === 'mlx-qwen3') ?? localList().find(item => item.id === 'faster-whisper') ?? localList()[0] ?? LOCAL_ENGINES[0]).id;
 	const activate = (item: HTMLElement, action: () => void) => { item.tabIndex = 0; item.setAttribute('role', 'button'); item.addEventListener('click', action); item.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); action(); } }); return item; };
 	const dot = (ready: boolean) => { const item = node('i', 'asr-dot' + (ready ? ' is-ready' : '')); item.setAttribute('role', 'img'); item.setAttribute('aria-label', ready ? t('已就绪') : t('未就绪')); return item; };
 	const cloudFor = (provider: AsrProviderId) => settings.profiles.find(item => item.provider === provider && isConfigured(item));
@@ -208,6 +208,8 @@ export async function initializeAsrSettings(): Promise<void> {
 
 	// ---- wiring -------------------------------------------------------------------------------------------------------
 	paint(); void refreshEngines();
+	document.addEventListener('qiaomu-asr-models-shown', () => { void refreshEngines(); });
+	window.addEventListener('focus', () => { void refreshEngines(); });
 	defaultSelect.addEventListener('change', () => { void save(choosePatch(settings, defaultSelect.value)); });
 	useContext?.addEventListener('change', () => { void save({ useContext: useContext.checked }); });
 	autoStart?.addEventListener('change', () => { void save({ autoStart: autoStart.checked }); });

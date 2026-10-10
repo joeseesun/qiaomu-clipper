@@ -87,9 +87,18 @@ def write_private(path, text):
     with os.fdopen(descriptor, 'w', encoding='utf8') as handle: handle.write(text)
 def find_tool(name):
     found = shutil.which(name, path=os.pathsep.join(tool_dirs() + [os.environ.get('PATH', '')]))
+    if not found and name == 'ffmpeg':
+        try:
+            import imageio_ffmpeg
+            return imageio_ffmpeg.get_ffmpeg_exe()
+        except Exception: pass
     return found or (eng.private_ffmpeg() if name == 'ffmpeg' else None)
 def tool_env():
     env = dict(os.environ); env['PATH'] = os.pathsep.join(tool_dirs() + [env.get('PATH', '')]); env['PYTHONUNBUFFERED'] = '1'; env['PYTHONIOENCODING'] = 'utf-8'
+    if 'NO_PROXY' in env: env['NO_PROXY'] = ','.join(x for x in env['NO_PROXY'].split(',') if '::' not in x)
+    if 'no_proxy' in env: env['no_proxy'] = ','.join(x for x in env['no_proxy'].split(',') if '::' not in x)
+    env.setdefault('HF_ENDPOINT', 'https://hf-mirror.com')
+    env['HF_HUB_DISABLE_SYMLINKS_WARNING'] = '1'
     return env
 def tool_version(path, flag='--version'):
     try: return subprocess.run([path, flag], capture_output=True, text=True, timeout=10).stdout.strip().splitlines()[0][:60]
@@ -125,12 +134,13 @@ def pick_engine(found, wanted=None):
     return found[0] if found else None
 def local_catalogue(found):
     """Every local engine this computer could use, installed or not, so a page can offer to install the missing ones."""
-    listing = [eng.describe(engine_id) for engine_id in eng.ORDER if eng.supported(engine_id)]
+    listing = [eng.describe(engine_id) for engine_id in eng.ORDER]
     for item in listing:
         # An engine found outside the private folder (Homebrew, uv tool) counts as installed too.
         if not item['installed'] and any(e['id'] == item['id'] for e in found): item['installed'] = True; item['managed'] = False
-    # What to suggest installing first: the fastest one this machine can run.
-    if listing: listing[0]['recommended'] = True
+    # What to suggest installing first: the fastest supported one this machine can run.
+    supported_items = [x for x in listing if x.get('supported')]
+    if supported_items: supported_items[0]['recommended'] = True
     cpp = next((e for e in found if e['id'] == 'whispercpp'), None)
     if cpp: listing.append({'id': 'whispercpp', 'name': cpp['name'], 'sizeMb': 0, 'note': '已在本机检测到', 'supported': True, 'installed': True, 'modelReady': True, 'managed': False})
     return listing
@@ -598,12 +608,12 @@ def pid_alive(pid):
         try:
             command = subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', query], capture_output=True, text=True, encoding='utf8', errors='replace', timeout=10, creationflags=0x08000000).stdout
         except (OSError, subprocess.SubprocessError): return False
-        return 'asr.py' in command and ('worker' in command or 'install' in command)
+        return 'asr.py' in command and ('worker' in command or 'install' in command or 'media_download' in command)
     try: os.kill(pid, 0)
     except (OSError, TypeError): return False
     try: command = subprocess.run(['ps', '-o', 'command=', '-p', str(pid)], capture_output=True, text=True, timeout=5).stdout
     except (OSError, subprocess.SubprocessError): return True
-    return 'asr.py' in command and ('worker' in command or ' install ' in command)
+    return 'asr.py' in command and ('worker' in command or ' install ' in command or 'media_download' in command)
 
 def stop_worker(pid):
     if eng.windows():
@@ -796,6 +806,9 @@ def handle(message, base):
     if action == 'asrInstallPoll': return install_poll(base, message)
     if action == 'asrInstallCancel': return install_cancel(base, message)
     if action == 'asrUninstall': return uninstall(base, message)
+    if action == 'asrMediaDownload': return media_download_start(base, message)
+    if action == 'asrMediaDownloadPoll': return media_download_poll(base, message)
+    if action == 'asrMediaDownloadCancel': return media_download_cancel(base, message)
     raise ValueError('不支持的本地操作')
 
 # ---- installing local engines -------------------------------------------------------------------------------------
@@ -1115,7 +1128,153 @@ def run_worker(base_dir):
             try: atomic_json(directory / 'spec.json', {k: v for k, v in spec.items() if k != 'mediaUrl'}, durable=False)
             except OSError: pass
 
+# ---- universal media download -------------------------------------------------------------------------------------
+MEDIA_DOWNLOADING = ('queued', 'downloading', 'merging')
+def media_downloads_dir(base): return asr_root(base) / 'media_downloads'
+
+def media_download_state(base, job_id):
+    if not re.fullmatch(r'[0-9a-f]{32}', str(job_id)): return None, None
+    directory = media_downloads_dir(base) / job_id
+    if not directory.is_dir(): return None, None
+    state = read_state(directory)
+    if state.get('state') in MEDIA_DOWNLOADING and not pid_alive(state.get('pid')):
+        state = read_state(directory)
+        if state.get('state') in MEDIA_DOWNLOADING:
+            state = write_state(directory, state='failed', stage='失败', error=state.get('error') or '下载进程意外退出，请重试')
+    return directory, state
+
+def media_download_view(job_id, state):
+    return {'ok': True, 'jobId': job_id, **{k: state.get(k) for k in ('state', 'stage', 'progress', 'filePath', 'error', 'errorCode')}}
+
+def media_download_start(base, message):
+    url = message.get('url') or message.get('mediaUrl')
+    if not url: return {'ok': False, 'error': 'missing-url'}
+    media_downloads_dir(base).mkdir(parents=True, exist_ok=True)
+    for entry in media_downloads_dir(base).iterdir():
+        if time.time() - entry.stat().st_mtime > 86400: shutil.rmtree(entry, ignore_errors=True)
+    job_id = uuid.uuid4().hex
+    directory = media_downloads_dir(base) / job_id
+    directory.mkdir(mode=0o700)
+    spec = {
+        'url': url,
+        'mediaUrl': message.get('mediaUrl'),
+        'title': message.get('title') or '乔木剪藏下载',
+        'format': message.get('format') or 'video',
+        'cookies': message.get('cookies'),
+        'cookiesTxt': message.get('cookiesTxt'),
+    }
+    atomic_json(directory / 'spec.json', spec)
+    write_state(directory, state='queued', stage='正在准备下载', progress=0)
+    with (directory / 'worker.log').open('ab') as log:
+        worker = subprocess.Popen([sys.executable, str(Path(__file__).resolve()), 'media_download', str(directory)], stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT, start_new_session=True, env=tool_env())
+    state = write_state(directory, pid=worker.pid)
+    return media_download_view(job_id, state)
+
+def media_download_poll(base, message):
+    directory, state = media_download_state(base, message.get('jobId'))
+    return media_download_view(message['jobId'], state) if state else {'ok': False, 'error': 'unknown-job'}
+
+def media_download_cancel(base, message):
+    directory, state = media_download_state(base, message.get('jobId'))
+    if not state: return {'ok': False, 'error': 'unknown-job'}
+    if state.get('state') in MEDIA_DOWNLOADING:
+        stop_worker(state.get('pid'))
+        state = write_state(directory, state='cancelled', stage='已取消', error=None)
+    return media_download_view(message['jobId'], state)
+
+def user_downloads_dir():
+    target = Path.home() / 'Downloads' / '乔木剪藏'
+    target.mkdir(parents=True, exist_ok=True)
+    return target
+
+def sanitize_title(title, fallback='乔木剪藏下载'):
+    clean = re.sub(r'[\\/:*?"<>|\u0000-\u001f]', ' ', str(title or '')).replace('#', ' ').strip()
+    clean = re.sub(r'\s+', ' ', clean).strip('. ')
+    return clean[:60] if clean else fallback
+
+def run_media_download(base_dir):
+    directory = Path(base_dir)
+    spec = read_json(directory / 'spec.json') or {}
+    env = tool_env()
+    save_dir = user_downloads_dir()
+    clean_name = sanitize_title(spec.get('title'))
+    fmt = spec.get('format') or 'video'
+    url = spec.get('url') or spec.get('mediaUrl')
+    media_url = spec.get('mediaUrl')
+    ext = 'mp3' if fmt == 'audio' else 'mp4'
+    target_base = save_dir / f"{clean_name}.{ext}"
+    target_file = target_base
+    counter = 1
+    while target_file.exists():
+        target_file = save_dir / f"{clean_name} ({counter}).{ext}"
+        counter += 1
+
+    cookie_file = None
+    if spec.get('cookiesTxt'):
+        cookie_file = directory / 'cookies.txt'
+        write_private(cookie_file, clean_cookie_text(spec['cookiesTxt']))
+
+    try:
+        ffmpeg = find_tool('ffmpeg')
+        ytdlp = find_tool('yt-dlp')
+        is_m3u8 = bool((media_url and re.search(r'\.m3u8(?:$|\?)', media_url)) or (url and re.search(r'\.m3u8(?:$|\?)', url)))
+        if is_m3u8 and ffmpeg:
+            target_stream = media_url if (media_url and re.search(r'\.m3u8(?:$|\?)', media_url)) else url
+            write_state(directory, state='downloading', stage='正在合并并保存 m3u8 流…', progress=10)
+            cmd = [ffmpeg, '-y', '-loglevel', 'error', '-i', target_stream]
+            if fmt == 'audio':
+                cmd += ['-vn', '-c:a', 'mp3', str(target_file)]
+            else:
+                cmd += ['-c', 'copy', '-bsf:a', 'aac_adtstoasc', str(target_file)]
+            res = subprocess.run(cmd, env=env, timeout=1800)
+            if res.returncode != 0: raise Failed('合并 m3u8 失败')
+        elif ytdlp:
+            write_state(directory, state='downloading', stage='正在解析并下载媒体…', progress=5)
+            cmd = [ytdlp, '--no-part', '--no-colors', '--newline']
+            if ffmpeg: cmd += ['--ffmpeg-location', str(Path(ffmpeg).parent)]
+            if cookie_file and cookie_file.is_file(): cmd += ['--cookies', str(cookie_file)]
+            elif spec.get('cookies') in COOKIE_BROWSERS: cmd += ['--cookies-from-browser', spec['cookies']]
+            
+            out_tmpl = str(save_dir / f"{clean_name}.%(ext)s")
+            if fmt == 'audio':
+                cmd += ['-x', '--audio-format', 'mp3', '-o', out_tmpl]
+            else:
+                cmd += ['-S', 'vcodec:h264,lang,quality', '-f', 'bv*[vcodec^=avc]+ba[ext=m4a]/bv*+ba/b', '--merge-output-format', 'mp4', '-o', out_tmpl]
+            cmd.append(url)
+            
+            dl_re = re.compile(r'\[download\]\s+(\d+(?:\.\d+)?)%')
+            merge_re = re.compile(r'\[Merger\]|Merging formats', re.I)
+            
+            with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding='utf8', errors='replace', env=env, bufsize=1) as proc:
+                for line in proc.stdout:
+                    m = dl_re.search(line)
+                    if m:
+                        pct = round(min(float(m.group(1)), 97.0), 1)
+                        write_state(directory, state='downloading', stage=f'正在下载 {pct}%', progress=pct)
+                    elif merge_re.search(line):
+                        write_state(directory, state='merging', stage='正在合并音视频轨道…', progress=98.0)
+                proc.wait()
+                if proc.returncode != 0:
+                    raise Failed(f'下载工具退出代码 {proc.returncode}')
+        else:
+            raise Failed('缺少下载工具（yt-dlp 或 ffmpeg），请在设置中安装')
+
+        found = None
+        if target_file.exists(): found = target_file
+        else:
+            candidates = sorted(save_dir.glob(f"{clean_name}*.*"), key=lambda p: p.stat().st_mtime, reverse=True)
+            if candidates: found = candidates[0]
+        if not found or not found.exists(): raise Failed('下载完成但未能找到生成的文件')
+        write_state(directory, state='completed', stage='已保存', progress=100, filePath=str(found), error=None)
+    except Failed as e:
+        write_state(directory, state='failed', stage='失败', error=str(e))
+    except Exception as e:
+        write_state(directory, state='failed', stage='失败', error='下载时出错：' + str(e)[:200])
+    finally:
+        if cookie_file: cookie_file.unlink(missing_ok=True)
+
 if __name__ == '__main__':
     if len(sys.argv) == 3 and sys.argv[1] == 'worker': run_worker(sys.argv[2])
     elif len(sys.argv) == 3 and sys.argv[1] == 'install': run_install(sys.argv[2])
+    elif len(sys.argv) == 3 and sys.argv[1] == 'media_download': run_media_download(sys.argv[2])
     else: print(json.dumps(status(), ensure_ascii=False, indent=2))

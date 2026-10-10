@@ -1,5 +1,5 @@
 import { createElement, Check, ChevronDown, Download } from 'lucide';
-import { DownloadChoice, defaultChoice, downloadFileName, downloadProblem, fetchMediaBlob, humanSize } from './media-download';
+import { DownloadChoice, defaultChoice, downloadFileName, downloadProblem, fetchMediaBlob, humanSize, downloadWithNative, revealNativeFile } from './media-download';
 
 import { t } from './ui-text';
 // The "download" control under a player (local edition only). One press saves the default file; the arrow lists what else this item
@@ -13,6 +13,7 @@ export interface DownloadButtonOptions {
 	remembered?: string;
 	onRemember?(id: string): void;
 	fetchBlob?: typeof fetchMediaBlob;
+	cookiesTxt?: string;
 }
 export interface DownloadButton { element: HTMLElement; destroy(): void }
 
@@ -74,13 +75,30 @@ export function mountDownloadButton(host: HTMLElement, options: DownloadButtonOp
 		const cancel = node('button', 'qiaomu-dl-link', t('取消')); cancel.type = 'button'; cancel.addEventListener('click', () => controller?.abort());
 		showState('running', text, bar, cancel);
 		try {
-			const blob = await fetchBlob(choice.url, { signal: controller.signal, onProgress: (done, total) => { if (total) { const percent = Math.min(99, Math.floor(done / total * 100)); text.textContent = t('正在下载 {0}%', [percent]); fill.style.width = `${percent}%`; } else text.textContent = t('正在下载 {0}', [humanSize(done)]); } });
-			text.textContent = t('正在保存…'); fill.style.width = '100%';
-			const saved = await options.save(blob, downloadFileName(options.title, choice.ext));
-			const link = node('button', 'qiaomu-dl-link', t('在访达中显示')); link.type = 'button';
-			link.addEventListener('click', () => saved && saved.reveal?.());
-			const again = node('button', 'qiaomu-dl-link', t('再存一份')); again.type = 'button'; again.addEventListener('click', showIdle);
-			showState('done', icon(Check), node('span', '', t('已保存')), ...(saved && saved.reveal ? [link] : []), again);
+			if (choice.source === 'native') {
+				const result = await downloadWithNative(choice, options.title, {
+					signal: controller.signal,
+					onProgress: (done) => {
+						const percent = Math.min(99, Math.floor(done));
+						text.textContent = t('正在下载 {0}%', [percent]);
+						fill.style.width = `${percent}%`;
+					},
+					cookiesTxt: options.cookiesTxt,
+				});
+				text.textContent = t('已保存'); fill.style.width = '100%';
+				const link = node('button', 'qiaomu-dl-link', t('在文件夹中显示')); link.type = 'button';
+				link.addEventListener('click', () => { void revealNativeFile(result.filePath); });
+				const again = node('button', 'qiaomu-dl-link', t('再存一份')); again.type = 'button'; again.addEventListener('click', showIdle);
+				showState('done', icon(Check), node('span', '', t('已保存')), link, again);
+			} else {
+				const blob = await fetchBlob(choice.url, { signal: controller.signal, onProgress: (done, total) => { if (total) { const percent = Math.min(99, Math.floor(done / total * 100)); text.textContent = t('正在下载 {0}%', [percent]); fill.style.width = `${percent}%`; } else text.textContent = t('正在下载 {0}', [humanSize(done)]); } });
+				text.textContent = t('正在保存…'); fill.style.width = '100%';
+				const saved = await options.save(blob, downloadFileName(options.title, choice.ext));
+				const link = node('button', 'qiaomu-dl-link', t('在文件夹中显示')); link.type = 'button';
+				link.addEventListener('click', () => saved && saved.reveal?.());
+				const again = node('button', 'qiaomu-dl-link', t('再存一份')); again.type = 'button'; again.addEventListener('click', showIdle);
+				showState('done', icon(Check), node('span', '', t('已保存')), ...(saved && saved.reveal ? [link] : []), again);
+			}
 		} catch (error) {
 			const message = downloadProblem(error);
 			if (message === t('已取消')) { showIdle(); return; }

@@ -38,11 +38,15 @@ def site_packages(name):
 def private_bin_dirs():
     return [str(venv_bin(name)) for name in ['base'] + ORDER if venv_bin(name).is_dir()]
 def private_ffmpeg():
-    """ffmpeg inside the base environment's imageio-ffmpeg package."""
+    """ffmpeg inside the base environment's imageio-ffmpeg package or installed imageio_ffmpeg."""
     for packages in site_packages('base'):
         for path in sorted((packages / 'imageio_ffmpeg' / 'binaries').glob('ffmpeg-*')):
             if path.is_file() and (path.suffix.lower() == '.exe' if windows() else os.access(path, os.X_OK)): return str(path)
-    return None
+    try:
+        import imageio_ffmpeg
+        return imageio_ffmpeg.get_ffmpeg_exe()
+    except Exception: pass
+    return shutil.which('ffmpeg')
 def has_module(name, module):
     return any((packages / module).is_dir() for packages in site_packages(name))
 def model_ready(model):
@@ -99,7 +103,7 @@ def ytdlp_binary_url():
     else: return None
     return 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/' + name
 def base_installed():
-    return venv_executable('base', 'yt-dlp').is_file() and private_ffmpeg() is not None
+    return (venv_executable('base', 'yt-dlp').is_file() or shutil.which('yt-dlp') is not None) and private_ffmpeg() is not None
 
 # ---- installing ---------------------------------------------------------------------------------------------------
 def plan(engine_id, python=None):
