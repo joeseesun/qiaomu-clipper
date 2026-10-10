@@ -37,5 +37,5 @@ export function validChatSession(id: unknown): id is string {
 export function opencodeHeaders(baseUrl: string, sessionId?: string): Record<string, string> | undefined {
  if (!opencodeUrl(baseUrl)) return undefined;
  if (sessionId !== undefined && !validChatSession(sessionId)) throw new Error('Invalid chat session ID');
- return { 'x-opencode-session': sessionId ?? crypto.randomUUID(), 'x-opencode-client': 'qiaomu-clipper', 'User-Agent': 'qiaomu-clipper/1.15.8' };
+ return { 'x-opencode-session': sessionId ?? crypto.randomUUID(), 'x-opencode-client': 'qiaomu-clipper', 'User-Agent': 'qiaomu-clipper/1.16.0' };
 }

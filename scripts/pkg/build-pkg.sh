@@ -32,7 +32,10 @@ find "$PAYLOAD" -name __pycache__ -type d -prune -exec rm -rf {} +
 if [ -n "${APP_SIGN_ID:-}" ]; then
 	# Notarization wants every Mach-O file signed with the hardened runtime and a secure timestamp, deepest files first.
 	find "$PAYLOAD" -type f -print0 | while IFS= read -r -d '' f; do
-		if file -b "$f" | grep -q "Mach-O"; then codesign --force --options runtime --timestamp --sign "$APP_SIGN_ID" "$f" 2>&1 | grep -v "replacing existing signature" || true; fi
+		if file -b "$f" | grep -q "Mach-O"; then
+			codesign --force --options runtime --timestamp --sign "$APP_SIGN_ID" "$f"
+			codesign --verify --strict "$f"
+		fi
 	done
 	echo "signed bundled binaries"
 fi
