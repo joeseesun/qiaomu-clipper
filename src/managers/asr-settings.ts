@@ -208,6 +208,8 @@ export async function initializeAsrSettings(): Promise<void> {
 
 	// ---- wiring -------------------------------------------------------------------------------------------------------
 	paint(); void refreshEngines();
+	document.addEventListener('qiaomu-asr-models-shown', () => { void refreshEngines(); });
+	window.addEventListener('focus', () => { void refreshEngines(); });
 	defaultSelect.addEventListener('change', () => { void save(choosePatch(settings, defaultSelect.value)); });
 	useContext?.addEventListener('change', () => { void save({ useContext: useContext.checked }); });
 	autoStart?.addEventListener('change', () => { void save({ autoStart: autoStart.checked }); });

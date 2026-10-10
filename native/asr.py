@@ -1218,7 +1218,7 @@ def run_media_download(base_dir):
             if fmt == 'audio':
                 cmd += ['-x', '--audio-format', 'mp3', '-o', out_tmpl]
             else:
-                cmd += ['-f', 'bv*+ba/b', '--merge-output-format', 'mp4', '-o', out_tmpl]
+                cmd += ['-S', 'vcodec:h264,lang,quality', '-f', 'bv*[vcodec^=avc]+ba[ext=m4a]/bv*+ba/b', '--merge-output-format', 'mp4', '-o', out_tmpl]
             cmd.append(url)
             
             dl_re = re.compile(r'\[download\]\s+(\d+(?:\.\d+)?)%')
