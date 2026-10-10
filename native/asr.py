@@ -587,12 +587,12 @@ def pid_alive(pid):
         try:
             command = subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', query], capture_output=True, text=True, encoding='utf8', errors='replace', timeout=10, creationflags=0x08000000).stdout
         except (OSError, subprocess.SubprocessError): return False
-        return 'asr.py' in command and ('worker' in command or 'install' in command)
+        return 'asr.py' in command and ('worker' in command or 'install' in command or 'media_download' in command)
     try: os.kill(pid, 0)
     except (OSError, TypeError): return False
     try: command = subprocess.run(['ps', '-o', 'command=', '-p', str(pid)], capture_output=True, text=True, timeout=5).stdout
     except (OSError, subprocess.SubprocessError): return True
-    return 'asr.py' in command and ('worker' in command or ' install ' in command)
+    return 'asr.py' in command and ('worker' in command or ' install ' in command or 'media_download' in command)
 
 def stop_worker(pid):
     if eng.windows():
