@@ -138,7 +138,25 @@ export function wireTranscript(
 
 	if (__LOCAL_EDITION__) {
 		try {
-			const pageUrl = window.location.href;
+			// Resolve actual media URL (not the chrome-extension://.../reader.html URL)
+			const getTargetUrl = (): string => {
+				const params = new URLSearchParams(window.location.search);
+				const studyUrl = params.get('url');
+				if (studyUrl) return studyUrl;
+				if (iframe && isBilibiliEmbed(iframe.src)) {
+					const bvid = new URL(iframe.src).searchParams.get('bvid');
+					const page = new URL(iframe.src).searchParams.get('p') || '1';
+					if (bvid) return `https://www.bilibili.com/video/${bvid}/${Number(page) > 1 ? `?p=${page}` : ''}`;
+				}
+				if (iframe && iframe.src) {
+					const ytMatch = iframe.src.match(/youtube\.com\/embed\/([A-Za-z0-9_-]{11})/);
+					if (ytMatch) return `https://www.youtube.com/watch?v=${ytMatch[1]}`;
+				}
+				if (videoEl?.src && !videoEl.src.startsWith('blob:')) return videoEl.src;
+				return window.location.href;
+			};
+
+			const targetUrl = getTargetUrl();
 			const videoTitle = doc.querySelector('h1')?.textContent?.trim() || doc.title || '视频';
 			const dlHost = doc.createElement('div');
 			dlHost.className = 'qiaomu-dl-host';
@@ -147,10 +165,10 @@ export function wireTranscript(
 
 			void (async () => {
 				const cookiesApi = (browser as unknown as { cookies?: { getAll(details: { domain: string }): Promise<any[]> } }).cookies;
-				const cookiesTxt = cookiesApi ? await cookiesTxtFor(pageUrl, details => cookiesApi.getAll(details)) : '';
+				const cookiesTxt = cookiesApi ? await cookiesTxtFor(targetUrl, details => cookiesApi.getAll(details)) : '';
 				const choices: DownloadChoice[] = [
-					{ id: 'video', label: getMessage('studyVideo') || '高清视频', url: pageUrl, kind: 'video', ext: 'mp4', source: 'native' },
-					{ id: 'audio', label: getMessage('studyAudio') || '仅音频', url: pageUrl, kind: 'audio', ext: 'mp3', source: 'native' }
+					{ id: 'video', label: getMessage('studyVideo') || '高清视频', url: targetUrl, kind: 'video', ext: 'mp4', source: 'native' },
+					{ id: 'audio', label: getMessage('studyAudio') || '仅音频', url: targetUrl, kind: 'audio', ext: 'mp3', source: 'native' }
 				];
 				mountDownloadButton(dlHost, {
 					title: videoTitle,
