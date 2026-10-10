@@ -21,7 +21,16 @@ def atomic_json(path, data):
     fd, name = tempfile.mkstemp(dir=path.parent)
     try:
         with os.fdopen(fd,'w',encoding='utf8') as f: json.dump(data,f,ensure_ascii=False); f.flush(); os.fsync(f.fileno())
-        os.replace(name,path)
+        # Polling readers and antivirus can briefly deny replacement on Windows.
+        # Keep the same staged file; never hide disk errors or a permanent denial.
+        for attempt in range(40):
+            try:
+                os.replace(name, path)
+                break
+            except PermissionError as error:
+                if sys.platform != 'win32' or getattr(error, 'winerror', None) not in (5, 32, 33) or attempt == 39:
+                    raise
+                time.sleep(0.05)
     finally:
         if os.path.exists(name): os.unlink(name)
 def relative_path(value):

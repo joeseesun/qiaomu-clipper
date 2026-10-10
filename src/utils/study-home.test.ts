@@ -121,3 +121,34 @@ it('shows a second button to study an unknown page as audio or video, only when 
 	state.store.qiaomuStudySites = { off: [], other: false }; await home(); type('https://example.com/post'); expect(media().hidden).toBe(true); // switched off in the settings
 	state.store.qiaomuStudySites = { off: ['vimeo'], other: true }; await home(); type('https://vimeo.com/123456'); expect(hint()).toContain('网页（普通阅读）');
 });
+
+it('routes Xiaoetong and Channels shares without retaining passwords or promising automatic ASR', async () => {
+ const url = 'https://school.xetslk.com/sl/fixture';
+ expect(classifyLink('直播链接：' + url + '\n直播密码：fixture-secret')).toMatchObject({kind:'web',url,site:'小鹅通'});
+ expect(classifyLink('[视频号](https://weixin.qq.com/sph/fixture)')?.kind).toBe('web');
+ expect(classifyLink(url, {off:['xiaoe'],other:true})?.kind).toBe('page');
+ expect(classifyLink('https://user:password@school.xetslk.com/sl/x')).toBeUndefined();
+ await home(); type(url); expect(hint()).toContain('原网页'); expect(hint()).not.toContain('自动转写');
+ document.querySelector('form')!.dispatchEvent(new Event('submit',{cancelable:true}));expect(open).toHaveBeenCalledWith(expect.stringContaining('study=web'));
+});
+
+
+it('starts Xiaoetong xet.tech shares in media study rather than the ordinary reader', () => {
+ const url='https://school.xet.tech/s/Fixture123';
+ expect(classifyLink(url)).toMatchObject({kind:'web',site:'小鹅通',path:'reader.html?study=web&url='+encodeURIComponent(url)});
+ expect(classifyLink(url,{off:['xiaoe'],other:true})).toMatchObject({kind:'page',maybeMedia:false});
+ expect(classifyLink('https://school.xet.tech.evil.example/s/Fixture123')?.kind).toBe('page');
+});
+
+
+it('uses the shared Xiaoetong catalogue for both short-link path forms and upgrades legacy HTTP links',async()=>{
+ const {XIAOE_SHORT_HOSTS,XIAOE_PAGE_HOSTS}=await import('./xiaoe-address');
+ for(const host of XIAOE_SHORT_HOSTS)for(const path of ['s','sl']){
+  const url=`https://school.${host}/${path}/Fixture123`;
+  expect(classifyLink(url)).toMatchObject({kind:'web',site:'小鹅通',url});
+  expect(classifyLink(url.replace('https:','http:'))).toMatchObject({kind:'web',url});
+  expect(classifyLink(`school.${host}/${path}/Fixture123`)).toMatchObject({kind:'web',url});
+  expect(classifyLink(url,{off:['xiaoe'],other:true})).toMatchObject({kind:'page',maybeMedia:false});
+ }
+ for(const host of XIAOE_PAGE_HOSTS)expect(classifyLink(`https://appfixture123.h5.${host}/v3/course/alive/l_fixture123456`)?.kind).toBe('web');
+});

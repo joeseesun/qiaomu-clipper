@@ -140,5 +140,9 @@
  "正在不使用登录状态重试视频下载": "Reintentando la descarga del vídeo sin la sesión del navegador",
  "正在重试 YouTube 音频下载": "Reintentando la descarga del audio de YouTube",
  "YouTube 拒绝了当前登录状态，匿名下载也需要验证身份；请更新 YouTube 登录状态后重试": "YouTube rechazó la sesión actual y la descarga sin iniciar sesión también requiere verificación. Vuelve a iniciar sesión en YouTube e inténtalo de nuevo.",
- "字幕生成进程意外退出，请重试": "La generación de subtítulos se detuvo inesperadamente. Inténtalo de nuevo."
+ "字幕生成进程意外退出，请重试": "La generación de subtítulos se detuvo inesperadamente. Inténtalo de nuevo.",
+ "回放地址无效，请重新打开学习页": "La dirección de la repetición no es válida. Vuelve a abrir la página de estudio",
+ "回放地址已过期，请重新打开学习页再生成字幕": "La dirección de la repetición caducó. Vuelve a abrir la página de estudio y genera los subtítulos otra vez",
+ "回放下载失败：": "Falló la descarga de la repetición: ",
+ "正在下载小鹅通回放": "Descargando la repetición de Xiaoe"
 }

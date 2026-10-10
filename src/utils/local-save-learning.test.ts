@@ -233,3 +233,35 @@ it('passes the current Douyin media to the helper and refuses foreign CDN URLs',
  for(const bad of ['https://example.com/a','https://douyinvod.com.evil.org/a','http://v11.douyinvod.com/a']) expect(await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'start',videoKey:KEY,web:{url,mediaUrl:bad}}},sender)).toMatchObject({error:'bad-request'});
  expect(native).not.toHaveBeenCalled();
 });
+
+it('preserves an unsupported website probe instead of falsely reporting an outdated helper', async () => {
+ const reply={ok:false,error:'unsupported',message:'No extractor for this page'};
+ native.mockResolvedValue(reply);
+ expect(await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'probe',url:'https://school.xetslk.com/sl/fixture'}},sender)).toEqual(reply);
+ native.mockResolvedValue({ok:false,error:'不支持的本地操作'});
+ expect(await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'probe',url:'https://school.xetslk.com/sl/fixture'}},sender)).toMatchObject({error:'helper-outdated'});
+});
+
+it('accepts verified Channels media only from the extension reader and rejects foreign recipients', async () => {
+ const url='https://weixin.qq.com/sph/Fixture123',mediaUrl='https://finder.video.qq.com/251/20302/stodownload?encfilekey=fixture',KEY='web:'+'a'.repeat(12);
+ native.mockResolvedValue({ok:true});
+ await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'start',videoKey:KEY,web:{url,mediaUrl}}},sender);
+ expect(native.mock.calls[0][1]).toMatchObject({action:'asrStart',web:{url,mediaUrl}});native.mockClear();
+ for(const [source,media] of [[url,'https://evil.org/file'],['https://mp.weixin.qq.com/s/fixture',mediaUrl],[url,'https://finder.video.qq.com.evil.org/251/20302/stodownload']])expect(await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'start',videoKey:KEY,web:{url:source,mediaUrl:media}}},sender)).toMatchObject({error:'bad-request'});
+ expect(await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'start',videoKey:KEY,web:{url,mediaUrl}}},{id:'test-id',url})).toMatchObject({error:'bad-request'});expect(native).not.toHaveBeenCalled();
+});
+
+
+it('never exports Channels login even when automatic browser login is enabled', async () => {
+ asrStore.data.qiaomuAsrSettings={mode:'local',engine:'auto',autoLogin:true,profiles:[],routes:{}};
+ native.mockResolvedValue({ok:true});
+ await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'start',videoKey:'web:'+'a'.repeat(12),cookies:'chrome',web:{url:'https://weixin.qq.com/sph/Fixture123',mediaUrl:'https://finder.video.qq.com/251/20302/stodownload?encfilekey=fixture'}}},sender);
+ const request=native.mock.calls[0][1];expect(request.cookies).toBeUndefined();expect(request.cookiesTxt).toBeUndefined();expect(asrStore.data.qiaomuAsrSettings).toMatchObject({autoLogin:true});
+});
+
+it('passes Xiaoetong replay media without exporting browser login to the helper',async()=>{
+ asrStore.data.qiaomuAsrSettings={mode:'local',engine:'auto',autoLogin:true,profiles:[],routes:{}};native.mockResolvedValue({ok:true});
+ const url='https://appfixture123.h5.xiaoeknow.com/v4/course/alive/l_fixture123456?app_id=appfixture123',mediaUrl='https://video.xet.tech/fixture.m3u8?sign=fixture';
+ await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'start',videoKey:'web:'+'a'.repeat(12),web:{url,mediaUrl}}},sender);
+ expect(native.mock.calls[0][1]).toMatchObject({web:{url,mediaUrl}});expect(native.mock.calls[0][1].cookies).toBeUndefined();expect(native.mock.calls[0][1].cookiesTxt).toBeUndefined();
+});
