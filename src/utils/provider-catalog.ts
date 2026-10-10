@@ -29,6 +29,8 @@ export const CATALOG: CatalogEntry[] = [
 		popularModels: [{ id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash', recommended: true }, { id: 'qwen3.8-flash', name: 'Qwen3.8 Flash' }, { id: 'kimi-k3', name: 'Kimi K3' }] },
 	{ id: 'siliconflow', get name() { return t('硅基流动'); }, group: 'relay', sub: 'api.siliconflow.cn', icon: 'siliconflow', baseUrl: 'https://api.siliconflow.cn/v1/chat/completions', apiKeyUrl: 'https://cloud.siliconflow.cn/account/ak', apiKeyRequired: true, modelsList: 'https://cloud.siliconflow.cn/models' },
 	{ id: 'openrouter', name: 'OpenRouter', group: 'relay', sub: 'openrouter.ai', icon: 'openrouter', baseUrl: 'https://openrouter.ai/api/v1/chat/completions', apiKeyUrl: 'https://openrouter.ai/settings/keys', apiKeyRequired: true, signIn: 'openrouter' },
+	{ id: 'opencode-go', name: 'OpenCode Go', group: 'relay', sub: 'opencode.ai · Go 订阅里的编码模型', icon: 'opencode', baseUrl: 'https://opencode.ai/zen/go/v1/chat/completions', apiKeyUrl: 'https://opencode.ai/auth', apiKeyRequired: true,
+		popularModels: [{ id: 'deepseek-v4.1-flash', name: 'DeepSeek V4.1 Flash', recommended: true }, { id: 'glm-5.3-flash', name: 'GLM-5.3 Flash' }, { id: 'kimi-k3', name: 'Kimi K3' }, { id: 'longcat-2.0', name: 'LongCat-2.0' }, { id: 'mimo-v2.6-flash', name: 'MiMo-V2.6 Flash' }] },
 
 	{ id: 'openai', name: 'OpenAI', group: 'provider', sub: 'api.openai.com', icon: 'openai', baseUrl: 'https://api.openai.com/v1/chat/completions', apiKeyUrl: 'https://platform.openai.com/api-keys', apiKeyRequired: true },
 	{ id: 'anthropic', name: 'Anthropic', group: 'provider', sub: 'api.anthropic.com', icon: 'anthropic', baseUrl: 'https://api.anthropic.com/v1/messages', apiKeyUrl: 'https://console.anthropic.com/settings/keys', apiKeyRequired: true },
@@ -62,7 +64,7 @@ const HOST_ICONS: Array<[RegExp, keyof typeof BRAND_ICONS]> = [
 	[/chatgpt\.com|api\.openai\.com/, 'openai'], [/anthropic\.com/, 'anthropic'], [/googleapis\.com/, 'gemini'], [/deepseek/, 'deepseek'],
 	[/moonshot/, 'moonshot'], [/bigmodel|z\.ai/, 'zhipu'], [/dashscope|aliyun/, 'qwen'], [/volces|volcengine/, 'doubao'], [/minimax/, 'minimax'],
 	[/stepfun/, 'stepfun'], [/x\.ai/, 'xai'], [/mistral/, 'mistral'], [/groq/, 'groq'], [/perplexity/, 'perplexity'], [/siliconflow/, 'siliconflow'],
-	[/openrouter/, 'openrouter'], [/11434|ollama/, 'ollama'], [/huggingface/, 'huggingface'], [/meta\.ai/, 'meta'], [/openai\.azure/, 'azure'], [/nvidia/, 'nvidia']
+	[/openrouter/, 'openrouter'], [/11434|ollama/, 'ollama'], [/huggingface/, 'huggingface'], [/meta\.ai/, 'meta'], [/openai\.azure/, 'azure'], [/nvidia/, 'nvidia'], [/opencode\.ai/, 'opencode']
 ];
 
 // The brand a saved provider belongs to: by preset, else by where it points, else by name.

@@ -45,8 +45,22 @@ export function enabledChatModels(): ModelConfig[] {
 	return generalSettings.models.filter(model => model.enabled && generalSettings.providers.some(p => p.id === model.providerId));
 }
 
+// OpenCode Go and Zen reject requests without a session ID (HTTP 400 "MissingSessionID").
+// One ID per host stays stable for this page, which their routing and prompt caching expect.
+const OPENCODE_CLIENT = 'qiaomu-clipper';
+const opencodeSessions = new Map<string, string>();
+
+export function opencodeHeaders(baseUrl: string): Record<string, string> | undefined {
+	let host: string;
+	try { host = new URL(baseUrl).hostname.toLowerCase(); } catch { return undefined; }
+	if (host !== 'opencode.ai' && !host.endsWith('.opencode.ai')) return undefined;
+	let session = opencodeSessions.get(host);
+	if (!session) { session = crypto.randomUUID(); opencodeSessions.set(host, session); }
+	return { 'x-opencode-session': session, 'x-opencode-client': OPENCODE_CLIENT };
+}
+
 function buildRequest(provider: Provider, model: ModelConfig, system: string, messages: ChatTurn[]): { url: string; init: RequestInit } {
-	const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+	const headers: Record<string, string> = { 'Content-Type': 'application/json', ...(opencodeHeaders(provider.baseUrl) || {}) };
 	const name = provider.name.toLowerCase();
 	let url = provider.baseUrl;
 	let body: unknown;
