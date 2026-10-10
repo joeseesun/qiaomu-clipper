@@ -75,7 +75,7 @@ export function restoreYouTubePlayer(article: HTMLElement, sourceUrl: string): b
 		let frame = article.querySelector<HTMLIFrameElement>('iframe[src*="player.bilibili.com/player.html"]');
 		if (!frame) {
 			frame = doc.createElement('iframe'); frame.src = bilibiliEmbedUrl(bilibili); frame.title = t('Bilibili 视频播放器');
-			frame.allow = 'autoplay; fullscreen; picture-in-picture'; frame.allowFullscreen = true;
+			frame.allow = 'autoplay; fullscreen; picture-in-picture';
 		}
 		article.prepend(frame);
 		const transcript = article.querySelector<HTMLElement>(TRANSCRIPT_SELECTOR);
@@ -91,7 +91,6 @@ export function restoreYouTubePlayer(article: HTMLElement, sourceUrl: string): b
 		iframe.src = `https://www.youtube.com/embed/${videoId}?enablejsapi=1`;
 		iframe.title = t('YouTube 视频播放器');
 		iframe.allow = 'accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture; fullscreen';
-		iframe.allowFullscreen = true;
 	}
 	article.prepend(iframe);
 	let transcript = article.querySelector<HTMLElement>(TRANSCRIPT_SELECTOR);
