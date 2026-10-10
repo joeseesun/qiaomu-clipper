@@ -785,6 +785,9 @@ def handle(message, base):
     if action == 'asrInstallPoll': return install_poll(base, message)
     if action == 'asrInstallCancel': return install_cancel(base, message)
     if action == 'asrUninstall': return uninstall(base, message)
+    if action == 'asrMediaDownload': return media_download_start(base, message)
+    if action == 'asrMediaDownloadPoll': return media_download_poll(base, message)
+    if action == 'asrMediaDownloadCancel': return media_download_cancel(base, message)
     raise ValueError('不支持的本地操作')
 
 # ---- installing local engines -------------------------------------------------------------------------------------
@@ -1104,7 +1107,153 @@ def run_worker(base_dir):
             try: atomic_json(directory / 'spec.json', {k: v for k, v in spec.items() if k != 'mediaUrl'}, durable=False)
             except OSError: pass
 
+# ---- universal media download -------------------------------------------------------------------------------------
+MEDIA_DOWNLOADING = ('queued', 'downloading', 'merging')
+def media_downloads_dir(base): return asr_root(base) / 'media_downloads'
+
+def media_download_state(base, job_id):
+    if not re.fullmatch(r'[0-9a-f]{32}', str(job_id)): return None, None
+    directory = media_downloads_dir(base) / job_id
+    if not directory.is_dir(): return None, None
+    state = read_state(directory)
+    if state.get('state') in MEDIA_DOWNLOADING and not pid_alive(state.get('pid')):
+        state = read_state(directory)
+        if state.get('state') in MEDIA_DOWNLOADING:
+            state = write_state(directory, state='failed', stage='失败', error=state.get('error') or '下载进程意外退出，请重试')
+    return directory, state
+
+def media_download_view(job_id, state):
+    return {'ok': True, 'jobId': job_id, **{k: state.get(k) for k in ('state', 'stage', 'progress', 'filePath', 'error', 'errorCode')}}
+
+def media_download_start(base, message):
+    url = message.get('url') or message.get('mediaUrl')
+    if not url: return {'ok': False, 'error': 'missing-url'}
+    media_downloads_dir(base).mkdir(parents=True, exist_ok=True)
+    for entry in media_downloads_dir(base).iterdir():
+        if time.time() - entry.stat().st_mtime > 86400: shutil.rmtree(entry, ignore_errors=True)
+    job_id = uuid.uuid4().hex
+    directory = media_downloads_dir(base) / job_id
+    directory.mkdir(mode=0o700)
+    spec = {
+        'url': url,
+        'mediaUrl': message.get('mediaUrl'),
+        'title': message.get('title') or '乔木剪藏下载',
+        'format': message.get('format') or 'video',
+        'cookies': message.get('cookies'),
+        'cookiesTxt': message.get('cookiesTxt'),
+    }
+    atomic_json(directory / 'spec.json', spec)
+    write_state(directory, state='queued', stage='正在准备下载', progress=0)
+    with (directory / 'worker.log').open('ab') as log:
+        worker = subprocess.Popen([sys.executable, str(Path(__file__).resolve()), 'media_download', str(directory)], stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT, start_new_session=True, env=tool_env())
+    state = write_state(directory, pid=worker.pid)
+    return media_download_view(job_id, state)
+
+def media_download_poll(base, message):
+    directory, state = media_download_state(base, message.get('jobId'))
+    return media_download_view(message['jobId'], state) if state else {'ok': False, 'error': 'unknown-job'}
+
+def media_download_cancel(base, message):
+    directory, state = media_download_state(base, message.get('jobId'))
+    if not state: return {'ok': False, 'error': 'unknown-job'}
+    if state.get('state') in MEDIA_DOWNLOADING:
+        stop_worker(state.get('pid'))
+        state = write_state(directory, state='cancelled', stage='已取消', error=None)
+    return media_download_view(message['jobId'], state)
+
+def user_downloads_dir():
+    target = Path.home() / 'Downloads' / '乔木剪藏'
+    target.mkdir(parents=True, exist_ok=True)
+    return target
+
+def sanitize_title(title, fallback='乔木剪藏下载'):
+    clean = re.sub(r'[\\/:*?"<>|\u0000-\u001f]', ' ', str(title or '')).replace('#', ' ').strip()
+    clean = re.sub(r'\s+', ' ', clean).strip('. ')
+    return clean[:60] if clean else fallback
+
+def run_media_download(base_dir):
+    directory = Path(base_dir)
+    spec = read_json(directory / 'spec.json') or {}
+    env = tool_env()
+    save_dir = user_downloads_dir()
+    clean_name = sanitize_title(spec.get('title'))
+    fmt = spec.get('format') or 'video'
+    url = spec.get('url') or spec.get('mediaUrl')
+    media_url = spec.get('mediaUrl')
+    ext = 'mp3' if fmt == 'audio' else 'mp4'
+    target_base = save_dir / f"{clean_name}.{ext}"
+    target_file = target_base
+    counter = 1
+    while target_file.exists():
+        target_file = save_dir / f"{clean_name} ({counter}).{ext}"
+        counter += 1
+
+    cookie_file = None
+    if spec.get('cookiesTxt'):
+        cookie_file = directory / 'cookies.txt'
+        write_private(cookie_file, clean_cookie_text(spec['cookiesTxt']))
+
+    try:
+        ffmpeg = find_tool('ffmpeg')
+        ytdlp = find_tool('yt-dlp')
+        is_m3u8 = bool((media_url and re.search(r'\.m3u8(?:$|\?)', media_url)) or (url and re.search(r'\.m3u8(?:$|\?)', url)))
+        if is_m3u8 and ffmpeg:
+            target_stream = media_url if (media_url and re.search(r'\.m3u8(?:$|\?)', media_url)) else url
+            write_state(directory, state='downloading', stage='正在合并并保存 m3u8 流…', progress=10)
+            cmd = [ffmpeg, '-y', '-loglevel', 'error', '-i', target_stream]
+            if fmt == 'audio':
+                cmd += ['-vn', '-c:a', 'mp3', str(target_file)]
+            else:
+                cmd += ['-c', 'copy', '-bsf:a', 'aac_adtstoasc', str(target_file)]
+            res = subprocess.run(cmd, env=env, timeout=1800)
+            if res.returncode != 0: raise Failed('合并 m3u8 失败')
+        elif ytdlp:
+            write_state(directory, state='downloading', stage='正在解析并下载媒体…', progress=5)
+            cmd = [ytdlp, '--no-part', '--no-colors', '--newline']
+            if ffmpeg: cmd += ['--ffmpeg-location', str(Path(ffmpeg).parent)]
+            if cookie_file and cookie_file.is_file(): cmd += ['--cookies', str(cookie_file)]
+            elif spec.get('cookies') in COOKIE_BROWSERS: cmd += ['--cookies-from-browser', spec['cookies']]
+            
+            out_tmpl = str(save_dir / f"{clean_name}.%(ext)s")
+            if fmt == 'audio':
+                cmd += ['-x', '--audio-format', 'mp3', '-o', out_tmpl]
+            else:
+                cmd += ['-f', 'bv*+ba/b', '--merge-output-format', 'mp4', '-o', out_tmpl]
+            cmd.append(url)
+            
+            dl_re = re.compile(r'\[download\]\s+(\d+(?:\.\d+)?)%')
+            merge_re = re.compile(r'\[Merger\]|Merging formats', re.I)
+            
+            with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding='utf8', errors='replace', env=env, bufsize=1) as proc:
+                for line in proc.stdout:
+                    m = dl_re.search(line)
+                    if m:
+                        pct = round(min(float(m.group(1)), 97.0), 1)
+                        write_state(directory, state='downloading', stage=f'正在下载 {pct}%', progress=pct)
+                    elif merge_re.search(line):
+                        write_state(directory, state='merging', stage='正在合并音视频轨道…', progress=98.0)
+                proc.wait()
+                if proc.returncode != 0:
+                    raise Failed(f'下载工具退出代码 {proc.returncode}')
+        else:
+            raise Failed('缺少下载工具（yt-dlp 或 ffmpeg），请在设置中安装')
+
+        found = None
+        if target_file.exists(): found = target_file
+        else:
+            candidates = sorted(save_dir.glob(f"{clean_name}*.*"), key=lambda p: p.stat().st_mtime, reverse=True)
+            if candidates: found = candidates[0]
+        if not found or not found.exists(): raise Failed('下载完成但未能找到生成的文件')
+        write_state(directory, state='completed', stage='已保存', progress=100, filePath=str(found), error=None)
+    except Failed as e:
+        write_state(directory, state='failed', stage='失败', error=str(e))
+    except Exception as e:
+        write_state(directory, state='failed', stage='失败', error='下载时出错：' + str(e)[:200])
+    finally:
+        if cookie_file: cookie_file.unlink(missing_ok=True)
+
 if __name__ == '__main__':
     if len(sys.argv) == 3 and sys.argv[1] == 'worker': run_worker(sys.argv[2])
     elif len(sys.argv) == 3 and sys.argv[1] == 'install': run_install(sys.argv[2])
+    elif len(sys.argv) == 3 and sys.argv[1] == 'media_download': run_media_download(sys.argv[2])
     else: print(json.dumps(status(), ensure_ascii=False, indent=2))

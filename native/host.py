@@ -369,8 +369,18 @@ def handle(message, config, base):
         atomic_json(base/'config.json',updated)
         config.update(updated)
         return {'ok':True,'vault':selected.name,'vaultPath':str(selected)}
-    if message.get('action') in {'attachPick','attachLocal','attachBytes','attachDiscard'}: return attach(message,base)
-    if message.get('action') in {'asrStatus','asrStart','asrPoll','asrCancel','asrCloudTest','asrInstall','asrInstallPoll','asrInstallCancel','asrUninstall','asrUploadStart','asrUploadChunk','asrUploadFinish','asrProbe'}:
+    if message.get('action') == 'revealFile':
+        target = message.get('path')
+        if target and Path(target).exists():
+            try:
+                if sys.platform == 'win32':
+                    subprocess.Popen(['explorer.exe', f'/select,{str(Path(target).resolve())}'])
+                elif sys.platform == 'darwin':
+                    subprocess.Popen(['open', '-R', str(Path(target).resolve())])
+                return {'ok': True}
+            except Exception: pass
+        return {'ok': False, 'error': 'not-found'}
+    if message.get('action') in {'asrStatus','asrStart','asrPoll','asrCancel','asrCloudTest','asrInstall','asrInstallPoll','asrInstallCancel','asrUninstall','asrUploadStart','asrUploadChunk','asrUploadFinish','asrProbe','asrMediaDownload','asrMediaDownloadPoll','asrMediaDownloadCancel'}:
         # Subtitle generation lives in asr.py next to this file; it needs no vault.
         sys.path.insert(0,str(Path(__file__).resolve().parent))
         import asr

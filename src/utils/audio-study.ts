@@ -28,7 +28,8 @@ import { siteOf, xStatus } from './study-sites';
 import { measureMediaDuration, pickTikTokMedia } from './web-page-media';
 // Used only behind __LOCAL_EDITION__: the store build never reaches them, so its bundler drops them (checked by scripts/check-editions.mjs).
 import { mountDownloadButton } from './download-button';
-import { guessChoice } from './media-download';
+import { guessChoice, type DownloadChoice } from './media-download';
+import { cookiesTxtFor } from './browser-cookies';
 import { mountAudioControls } from './audio-controls';
 import { recordStudy } from './study-home';
 import { fetchFeed, rssKey, webKey } from './podcast-feed';
@@ -266,15 +267,23 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 		hero.append(about); holder.before(hero);
 		if (episode.post) { const post = document.createElement('div'); post.className = 'qiaomu-post-text'; post.innerHTML = DOMPurify.sanitize(episode.post); sourceHtml = post.outerHTML; holder.before(post); }
 		const player = episode.audio ? showPlayer(episode.audio, episode.picture ? { poster: episode.cover, audioUrl: episode.audioUrl } : undefined) : undefined;
-		// Local edition: save the file being played. A video whose picture and sound are two files would need merging; that is not offered.
-		if (__LOCAL_EDITION__ && player && episode.audio && /^https:\/\//.test(episode.audio) && !/\.m3u8(?:$|\?)/i.test(episode.audio) && !(episode.picture && episode.audioUrl)) {
-			const url = episode.audio, video = Boolean(episode.picture), name = title;
+		// Local edition: save the media file being played (universal support for direct fetch and native pipeline).
+		if (__LOCAL_EDITION__ && (player || options.kind === 'web' || options.kind === 'podcast')) {
+			const targetMediaUrl = episode.audio || options.webUrl || url;
+			const video = Boolean(episode.picture || (options.kind === 'web' && !options.webUrl?.includes('podcast')));
+			const name = title;
 			void (async () => {
 				const CHOICE_KEY = 'qiaomuDownloadChoice';
-				const kind = guessChoice(url, video);
 				const remembered = ((await browser.storage.local.get(CHOICE_KEY)) as Record<string, string | undefined>)[CHOICE_KEY];
-				// An audio page keeps its controls in the player card; a video page has a row under the player: layout icons on the left,
-				// the switches on the right (that row appears once the transcript is attached, and may be rebuilt), so follow it.
+				const isDirectFetch = episode.audio && /^https:\/\//.test(episode.audio) && !/\.m3u8(?:$|\?)/i.test(episode.audio) && !(episode.picture && episode.audioUrl);
+				
+				const choices: DownloadChoice[] = isDirectFetch ? [
+					{ id: video ? 'video' : 'audio', label: video ? t('视频') : t('音频'), url: episode.audio, kind: video ? 'video' : 'audio', ext: guessChoice(episode.audio, video).ext, source: 'fetch' }
+				] : [
+					{ id: 'video', label: t('视频'), url: options.webUrl || url, mediaUrl: episode.audio || undefined, kind: 'video', ext: 'mp4', source: 'native' },
+					{ id: 'audio', label: t('仅音频'), url: options.webUrl || url, mediaUrl: episode.audio || undefined, kind: 'audio', ext: 'mp3', source: 'native' }
+				];
+
 				const host = document.createElement('div'); host.className = 'qiaomu-dl-host';
 				const place = () => {
 					const card = article.querySelector<HTMLElement>('.player-container'), tools = article.querySelector<HTMLElement>('.qa-tools');
@@ -287,9 +296,15 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 				};
 				place(); if (!host.parentElement) return;
 				new MutationObserver(place).observe(article, { childList: true, subtree: true });
+
+				const cookiesApi = (browser as unknown as { cookies?: { getAll(details: { domain: string }): Promise<any[]> } }).cookies;
+				const cookiesTxt = cookiesApi ? await cookiesTxtFor(options.webUrl || url, details => cookiesApi.getAll(details)) : '';
+
 				mountDownloadButton(host, {
-					title: name, remembered,
-					choices: [{ id: kind.kind, label: video ? t('视频') : t('音频'), url, kind: kind.kind, ext: kind.ext }],
+					title: name,
+					remembered,
+					choices,
+					cookiesTxt,
 					onRemember: id => { void browser.storage.local.set({ [CHOICE_KEY]: id }); },
 					save: async (blob, filename) => {
 						const objectUrl = URL.createObjectURL(blob);
@@ -299,7 +314,7 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 						return { reveal: () => { void browser.downloads.show(id); } };
 					},
 				});
-			})().catch(error => { console.warn('[qiaomu] download control not shown:', error); /* a missing control must never stop the study page */ });
+			})().catch(error => { console.warn('[qiaomu] download control not shown:', error); });
 		}
 		// The show notes next to the transcript: tabs, so neither pushes the other off the screen.
 		if (episode.notesHtml) {

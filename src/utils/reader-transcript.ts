@@ -3,6 +3,10 @@ import { bilibiliEmbedUrl, isBilibiliEmbed, PLAYER_SELECTOR, TRANSCRIPT_SELECTOR
 import { LAYOUT_EVENT } from './layout-event';
 import { sourceTextNodes } from './transcript-format';
 import { mountTranscriptSearch } from './transcript-search';
+import { mountDownloadButton } from './download-button';
+import { type DownloadChoice } from './media-download';
+import { cookiesTxtFor } from './browser-cookies';
+import browser from './browser-polyfill';
 
 // CJK-aware text boundary helpers
 const SENT_END = /[.!?。！？]/;
@@ -131,6 +135,34 @@ export function wireTranscript(
 	toggleBar.appendChild(toggleGroup);
 
 	playerContainer.appendChild(toggleBar);
+
+	if (__LOCAL_EDITION__) {
+		try {
+			const pageUrl = window.location.href;
+			const videoTitle = doc.querySelector('h1')?.textContent?.trim() || doc.title || '视频';
+			const dlHost = doc.createElement('div');
+			dlHost.className = 'qiaomu-dl-host';
+			dlHost.style.cssText = 'margin-inline-start:auto;display:inline-flex;align-items:center;line-height:normal;';
+			toggleBar.appendChild(dlHost);
+
+			void (async () => {
+				const cookiesApi = (browser as unknown as { cookies?: { getAll(details: { domain: string }): Promise<any[]> } }).cookies;
+				const cookiesTxt = cookiesApi ? await cookiesTxtFor(pageUrl, details => cookiesApi.getAll(details)) : '';
+				const choices: DownloadChoice[] = [
+					{ id: 'video', label: getMessage('studyVideo') || '高清视频', url: pageUrl, kind: 'video', ext: 'mp4', source: 'native' },
+					{ id: 'audio', label: getMessage('studyAudio') || '仅音频', url: pageUrl, kind: 'audio', ext: 'mp3', source: 'native' }
+				];
+				mountDownloadButton(dlHost, {
+					title: videoTitle,
+					choices,
+					cookiesTxt,
+					save: async () => {},
+				});
+			})();
+		} catch (e) {
+			console.warn('[qiaomu] failed to mount download button in reader:', e);
+		}
+	}
 
 	if (iframe && !bilibili) {
 		// Enable JS API on the embed
