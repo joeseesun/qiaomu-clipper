@@ -14,7 +14,7 @@
 ### 升级
 macOS 请安装本版本已签名公证的助手安装包，再更新扩展；Windows／Linux 按 native/README.md 更新助手代码。先备份设置、保留现有数据。GitHub 本地版使用 chrome-local.zip；chrome.zip 供商店提交，本次没有提交商店或新增发布渠道。
 
-感谢 @Averyzhang761（#58／#59）、@StaySound4（#43）和 @longpeng1413（#57）的贡献。
+感谢 @Averyzhang761（#58）、@StaySound4（#43）和 @longpeng1413（#57／#59）的贡献。
 
 ## English
 
@@ -32,4 +32,4 @@ Full extension/native tests, TypeScript, all four extension builds and cross-pla
 ### Upgrade
 Install this release's signed, notarized macOS helper and update the extension. Windows/Linux users should update helper source following native/README.md. Back up settings and preserve existing data. Use chrome-local.zip for GitHub installation; chrome.zip is the store package. This release does not submit to extension stores or add a distribution channel.
 
-Thanks to @Averyzhang761 (#58/#59), @StaySound4 (#43) and @longpeng1413 (#57).
+Thanks to @Averyzhang761 (#58), @StaySound4 (#43) and @longpeng1413 (#57/#59).
