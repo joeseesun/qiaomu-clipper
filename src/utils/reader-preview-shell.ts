@@ -12,6 +12,8 @@ import { listenTripleKey, normalizeTripleKeys } from './triple-key';
 import { transcriptText } from './youtube-study';
 import { videoKey } from './video-source';
 import { mountLearningNotes } from './learning-composer';
+import { preserveLocalPreviewMedia } from './local-preview-media';
+import { showClipStatus } from './clip-bar';
 
 import { t } from './ui-text';
 // The same shell for a normal clip preview and a progressively loaded video.
@@ -20,7 +22,7 @@ export function mountReaderPreviewShell(draft: ClipPreview, pending = false) {
 	document.documentElement.classList.add('qiaomu-preview');
 	const title = document.createElement('span'); title.textContent = draft.clip.title;
 	let sync: (action?: ClipSyncAction) => Promise<void> = async () => {};
-	const openEditor = async () => { await sync('edit'); location.href = browser.runtime.getURL(`editor.html?id=${id}`); };
+	const openEditor = async () => { try { await sync('edit'); location.href = browser.runtime.getURL(`editor.html?id=${id}`); } catch (error) { showClipStatus(error instanceof Error ? error.message : t('切换失败，请重试')); } };
 	Reader.onEdit = openEditor;
  const learning = mountLearningNotes({ doc: document, getSource: () => ({title: draft.clip.title, url: draft.clip.url}), getHighlights });
 	const chat = mountClipChat({
@@ -37,7 +39,8 @@ export function mountReaderPreviewShell(draft: ClipPreview, pending = false) {
 	});
 	if (generalSettings.readerAutoChat) chat.toggle(true);
 	const bar = createClipBar({onToggleChat:chat.toggle, mode:'read', id, draft, title, domain:getDomain(draft.clip.url), url:draft.clip.url, sync: action => sync(action)});
-	sync = mountTranscriptExport(bar, draft);
+	const exportTranscript = mountTranscriptExport(bar, draft);
+	sync = async action => { await exportTranscript(action); if (action === 'edit') await preserveLocalPreviewMedia(draft); };
 	document.body.prepend(bar);
 	const readerSettings = document.querySelector('.obsidian-reader-settings');
 	if (readerSettings) bar.querySelector('.clip-bar-extras')?.appendChild(readerSettings);

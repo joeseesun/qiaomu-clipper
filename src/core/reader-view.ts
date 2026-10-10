@@ -8,6 +8,7 @@ import { audioKey } from '../utils/video-source';
 import { PLAYER_SELECTOR } from '../utils/video-source';
 import { mountReaderPreviewShell } from '../utils/reader-preview-shell';
 import { createReaderSourceDraft } from '../utils/reader-source-draft';
+import { mountLocalPreviewMedia, prepareLocalPreviewTranscript } from '../utils/local-preview-media';
 import { marked } from 'marked';
 import { highlightExtension } from '../utils/marked-highlight';
 
@@ -41,7 +42,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 	// Audio: a file chosen on this page, or a podcast episode.
 	if (params.get('study') === 'file') { const token = params.get('token') || ''; const file = await takeHandedFile(token); await startAudioStudy({ kind: 'file', token, title: params.get('title') || '', ...(file ? { file } : {}) }); return; }
-	if (params.get('study') === 'web' && url) { await startAudioStudy({ kind: 'web', webUrl: url, sourceTabId: params.has('sourceTab') ? Number(params.get('sourceTab')) : undefined, title: params.get('title') || '' }); return; }
+	if (params.get('study') === 'web' && url) { await startAudioStudy({ kind: 'web', webUrl: url, resumeId: params.get('resume') || undefined, sourceTabId: params.has('sourceTab') ? Number(params.get('sourceTab')) : undefined, title: params.get('title') || '' }); return; }
 	if (params.get('study') === 'feed' && params.get('feed') && params.get('guid')) { await startAudioStudy({ kind: 'feed', feed: params.get('feed')!, guid: params.get('guid')!, title: params.get('title') || '' }); return; }
 	if (params.get('study') === 'audio' && url) {
 		const key = audioKey(url);
@@ -487,6 +488,14 @@ async function showClipPreview(id: string) {
     document.title = draft.clip.title;
     await loadSettings();
     const {chat} = mountReaderPreviewShell(draft);
+    const article = document.querySelector<HTMLElement>('article')!;
+    if (draft.localMedia || draft.remoteMedia) {
+        const anchor = document.createElement('div'); article.prepend(anchor);
+        const transcript = prepareLocalPreviewTranscript(article);
+        await mountLocalPreviewMedia(draft, article, anchor, async () => {
+            if (transcript) await Reader.attachYouTubeTranscript(document, transcript, draft.clip.title, chat);
+        });
+    }
     if (document.querySelector(`article ${PLAYER_SELECTOR}`)) {
         await mountYouTubeStudy(document, document.querySelector('article')!, draft.clip.title, draft.clip.url, chat);
     }

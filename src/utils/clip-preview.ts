@@ -1,3 +1,4 @@
+import type { RemotePreviewMedia } from './remote-preview-media';
 import browser from './browser-polyfill';
 import { LocalSavePayload, saveLocalClip } from './local-save';
 import { QiaomuClip, QiaomuResult } from './qiaomu-rss';
@@ -6,6 +7,7 @@ import { Property } from '../types/types';
 import { incrementStat, loadSettings, setLocalStorage } from './storage-utils';
 
 import { t } from './ui-text';
+import type { LocalPreviewMedia } from './local-preview-media';
 export interface ClipPreview {
     local: LocalSavePayload;
     clip: QiaomuClip;
@@ -15,13 +17,25 @@ export interface ClipPreview {
     createdAt?: number;
     transcriptExport?: { source: string; previous: string; mode?: 'original' | 'translated' | 'bilingual' };
     readerAppendix?: string;
+    localMedia?: LocalPreviewMedia;
+    remoteMedia?: RemotePreviewMedia;
+    studyEditedAt?: number;
+    studySource?: string;
     localDone?: boolean;
     rssDone?: boolean;
 }
 const prefix = 'qiaomuPreview:';
+const hasStudyEdits = (draft: ClipPreview) => (Number.isFinite(draft?.studyEditedAt) && draft.studyEditedAt! > 0) || Boolean(draft?.remoteMedia && draft.clip?.markdown && !draft.transcriptExport);
+const editTime = (draft: ClipPreview) => draft.studyEditedAt || draft.createdAt || 0;
+// Recognition cache is immutable source text; edited study drafts are separate.
+export async function loadEditedStudyPreview(url: string): Promise<ClipPreview | null> {
+    const saved = await browser.storage.local.get(null);
+    const drafts = Object.entries(saved).filter(([key, value]) => key.startsWith(prefix) && hasStudyEdits(value as ClipPreview)).map(([, value]) => value as ClipPreview);
+    return drafts.filter(draft => draft.clip?.url === url || draft.studySource === url).sort((a, b) => editTime(b) - editTime(a))[0] || null;
+}
 export async function openClipPreview(draft: ClipPreview, page = 'reader.html?preview=') {
     const saved = await browser.storage.local.get(null);
-    const expired = Object.keys(saved).filter(key => key.startsWith(prefix) && Date.now() - (saved[key] as ClipPreview).createdAt! > 86400000);
+    const expired = Object.keys(saved).filter(key => key.startsWith(prefix) && !hasStudyEdits(saved[key] as ClipPreview) && Date.now() - (saved[key] as ClipPreview).createdAt! > 86400000);
     if (expired.length) await browser.storage.local.remove(expired);
     await browser.storage.local.set({ [prefix + draft.local.requestId]: { ...draft, createdAt: Date.now() } });
     await browser.tabs.create({ url: browser.runtime.getURL(`${page}${draft.local.requestId}`) });
@@ -32,7 +46,7 @@ export async function updateClipPreview(draft: ClipPreview) {
 export async function loadClipPreview(id: string): Promise<ClipPreview | null> {
     const saved = await browser.storage.local.get(prefix + id);
     const draft = saved[prefix + id] as ClipPreview | undefined;
-    return draft && draft.createdAt && Date.now() - draft.createdAt < 86400000 ? draft : null;
+    return draft && (hasStudyEdits(draft) || (draft.createdAt && Date.now() - draft.createdAt < 86400000)) ? draft : null;
 }
 
 // Persist each successful destination before retrying: an RSS failure must not create another note.

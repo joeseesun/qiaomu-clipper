@@ -1,5 +1,7 @@
 import { classifyHelperError, helperIsOutdated, helperProblemText } from './helper-install';
+import { channelsShareAddress, isChannelsMedia } from './channels-study';
 import { isDouyinMedia } from './web-page-media';
+import { isXiaoeMedia } from './xiaoe';
 import browser from './browser-polyfill';
 import { Template } from '../types/types';
 import { siteOf } from './study-sites';
@@ -92,7 +94,7 @@ export function handleAsrMessage(request: unknown, sender: { id?: string; url?: 
             const pageAddress = webMediaAddress(sender.url || '');
             const own = Boolean(ref && typeof ref.url === 'string' && webMediaAddress(ref.url) && (pageAddress ? webMediaAddress(ref.url) === pageAddress : ['tiktok', 'douyin'].includes(siteOf(sender.url || '')?.id || '') && siteOf(ref.url)?.id === siteOf(sender.url || '')?.id));
             if (!(sender.url?.startsWith(browser.runtime.getURL('')) || own) || !ref || typeof ref.url !== 'string' || ref.url.length > 1500 || !/^https:\/\//.test(ref.url)) return Promise.resolve({ ok: false, error: 'bad-request' });
-            if (ref.mediaUrl !== undefined && !isDouyinMedia(ref.url, ref.mediaUrl)) return Promise.resolve({ ok: false, error: 'bad-request' });
+            if (ref.mediaUrl !== undefined && !(isDouyinMedia(ref.url, ref.mediaUrl) || isChannelsMedia(ref.url, ref.mediaUrl) || isXiaoeMedia(ref.url, ref.mediaUrl))) return Promise.resolve({ ok: false, error: 'bad-request' });
             body.web = { url: ref.url, ...(ref.mediaUrl ? { mediaUrl: ref.mediaUrl } : {}) };
         }
         Object.assign(body, { videoKey: payload.videoKey, language: payload.language || 'auto', force: payload.force === true, ...(payload.cookies ? { cookies: payload.cookies } : {}) });
@@ -155,7 +157,10 @@ export function handleAsrMessage(request: unknown, sender: { id?: string; url?: 
         } else if (chosen && chosen.engine !== 'auto') body.engine = chosen.engine;
         // The viewer agreed once to lend this browser's login (the first "retry with my browser login"): from then on a download that needs it just has it,
         // until they turn it off in the settings. Only the one site's cookies are handed over, and only to the local helper.
-        const lendLogin = await cookiesGranted();
+        // Signed Channels and Xiaoetong media never need a browser login snapshot.
+        const signedMedia = payload.mode === 'start' && typeof payload.web?.url === 'string' && (!!channelsShareAddress(payload.web.url) || isXiaoeMedia(payload.web.url, payload.web.mediaUrl));
+        if (signedMedia) delete body.cookies;
+        const lendLogin = !signedMedia && await cookiesGranted();
         if (lendLogin && payload.mode === 'start') {
             if (payload.cookies && stored && !stored.autoLogin) void saveAsrSettings({ autoLogin: true });
             else if (!payload.cookies && stored?.autoLogin && /^(youtube|bilibili|web):/.test(payload.videoKey || '')) body.cookies = 'chrome';
@@ -168,8 +173,14 @@ export function handleAsrMessage(request: unknown, sender: { id?: string; url?: 
             if (text) body.cookiesTxt = text;
         }
         const result = await invokeLearningNative(body)
-            // A helper from before this feature answers every unknown request with an "unsupported" error.
-            .then(answer => { const reply = answer as { ok?: boolean; error?: string }; return reply && typeof reply.ok === 'boolean' ? (reply.ok === false && /不支持|unsupported/i.test(reply.error || '') ? { ok: false, error: 'helper-outdated' } : answer) : { ok: false, error: 'helper-outdated' }; })
+            // `unsupported` is also the documented probe result for a website without an extractor.
+            // Preserve that result; it says nothing about the helper's version.
+            .then(answer => {
+                const reply = answer as { ok?: boolean; error?: string };
+                if (!reply || typeof reply.ok !== 'boolean') return { ok: false, error: 'helper-outdated' };
+                if (!reply.ok && payload.mode === 'probe' && reply.error === 'unsupported') return answer;
+                return !reply.ok && /不支持|unsupported/i.test(reply.error || '') ? { ok: false, error: 'helper-outdated' } : answer;
+            })
             .catch(() => ({ ok: false, error: 'helper-offline' }));
         return payload.mode === 'status' && (result as { ok?: boolean }).ok ? { ...(result as object), mode: chosen?.mode ?? 'local', ...(label ? { cloudLabel: label, cloudModel: model, cloudLocal: here } : {}), choices: summary(chosen!) } : result;
     });

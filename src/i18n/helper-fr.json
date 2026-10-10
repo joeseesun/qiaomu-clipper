@@ -140,5 +140,9 @@
  "正在不使用登录状态重试视频下载": "Nouvelle tentative de téléchargement de la vidéo sans la session du navigateur",
  "正在重试 YouTube 音频下载": "Nouvelle tentative de téléchargement audio de YouTube",
  "YouTube 拒绝了当前登录状态，匿名下载也需要验证身份；请更新 YouTube 登录状态后重试": "YouTube a refusé la session actuelle et le téléchargement sans connexion nécessite aussi une vérification. Reconnectez-vous à YouTube et réessayez.",
- "字幕生成进程意外退出，请重试": "La génération des sous-titres s’est arrêtée de manière inattendue. Réessayez."
+ "字幕生成进程意外退出，请重试": "La génération des sous-titres s’est arrêtée de manière inattendue. Réessayez.",
+ "回放地址无效，请重新打开学习页": "L’adresse de la rediffusion n’est pas valide. Rouvrez la page d’étude",
+ "回放地址已过期，请重新打开学习页再生成字幕": "L’adresse de la rediffusion a expiré. Rouvrez la page d’étude puis générez à nouveau les sous-titres",
+ "回放下载失败：": "Échec du téléchargement de la rediffusion : ",
+ "正在下载小鹅通回放": "Téléchargement de la rediffusion Xiaoe"
 }
