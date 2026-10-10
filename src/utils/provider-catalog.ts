@@ -29,7 +29,7 @@ export const CATALOG: CatalogEntry[] = [
 		popularModels: [{ id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash', recommended: true }, { id: 'qwen3.8-flash', name: 'Qwen3.8 Flash' }, { id: 'kimi-k3', name: 'Kimi K3' }] },
 	{ id: 'siliconflow', get name() { return t('硅基流动'); }, group: 'relay', sub: 'api.siliconflow.cn', icon: 'siliconflow', baseUrl: 'https://api.siliconflow.cn/v1/chat/completions', apiKeyUrl: 'https://cloud.siliconflow.cn/account/ak', apiKeyRequired: true, modelsList: 'https://cloud.siliconflow.cn/models' },
 	{ id: 'openrouter', name: 'OpenRouter', group: 'relay', sub: 'openrouter.ai', icon: 'openrouter', baseUrl: 'https://openrouter.ai/api/v1/chat/completions', apiKeyUrl: 'https://openrouter.ai/settings/keys', apiKeyRequired: true, signIn: 'openrouter' },
-	{ id: 'opencode-go', name: 'OpenCode Go', group: 'relay', sub: 'opencode.ai · Go 订阅里的编码模型', icon: 'opencode', baseUrl: 'https://opencode.ai/zen/go/v1/chat/completions', apiKeyUrl: 'https://opencode.ai/auth', apiKeyRequired: true,
+	{ id: 'opencode-go', name: 'OpenCode Go', group: 'relay', get sub() { return 'opencode.ai · ' + t('仅显示当前支持的聊天模型'); }, icon: 'opencode', baseUrl: 'https://opencode.ai/zen/go/v1/chat/completions', apiKeyUrl: 'https://opencode.ai/auth', apiKeyRequired: true,
 		popularModels: [{ id: 'deepseek-v4.1-flash', name: 'DeepSeek V4.1 Flash', recommended: true }, { id: 'glm-5.3-flash', name: 'GLM-5.3 Flash' }, { id: 'kimi-k3', name: 'Kimi K3' }, { id: 'longcat-2.0', name: 'LongCat-2.0' }, { id: 'mimo-v2.6-flash', name: 'MiMo-V2.6 Flash' }] },
 
 	{ id: 'openai', name: 'OpenAI', group: 'provider', sub: 'api.openai.com', icon: 'openai', baseUrl: 'https://api.openai.com/v1/chat/completions', apiKeyUrl: 'https://platform.openai.com/api-keys', apiKeyRequired: true },

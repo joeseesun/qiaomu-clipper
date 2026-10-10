@@ -1,3 +1,4 @@
+import { validChatSession } from './utils/opencode-go';
 import { channelsStudyBridge, parseChannelsShare, readChannelsPlayback } from './utils/channels-study';
 import { protectedPageBridge, snapshotProtectedPage } from './utils/protected-study';
 import { createContentText } from './utils/content-i18n';
@@ -1327,7 +1328,7 @@ browser.runtime.onConnect.addListener(port => {
 	port.onDisconnect.addListener(() => controller.abort());
 	let started = false;
 	port.onMessage.addListener(async raw => {
-		const request = raw as { modelId?: string; system?: string; messages?: any[] };
+		const request = raw as { modelId?: string; system?: string; messages?: any[]; sessionId?: string };
 		if (started) return;
 		started = true;
 		const send = (message: unknown) => { if (!controller.signal.aborted) port.postMessage(message); };
@@ -1335,8 +1336,9 @@ browser.runtime.onConnect.addListener(port => {
 			await loadSettings();
 			const model = enabledChatModels().find(item => item.id === request.modelId);
 			if (!model || typeof request.system !== 'string' || !Array.isArray(request.messages)
+				|| (request.sessionId !== undefined && !validChatSession(request.sessionId))
 				|| request.messages.some((turn: any) => !['user', 'assistant'].includes(turn.role) || typeof turn.content !== 'string')) throw new Error(t('无效的 AI 对话请求'));
-			await streamChat({ model, system: request.system, messages: request.messages, signal: controller.signal, onDelta: delta => send({ delta }) });
+			await streamChat({ model, system: request.system, sessionId: request.sessionId, messages: request.messages, signal: controller.signal, onDelta: delta => send({ delta }) });
 			send({ done: true });
 		} catch (error) { send({ error: error instanceof Error ? error.message : t('AI 请求失败') }); }
 	});

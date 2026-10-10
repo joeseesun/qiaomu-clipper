@@ -457,7 +457,7 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 		let frame = 0;
 		const paint = () => { frame = 0; body.classList.remove('is-thinking'); body.innerHTML = render(answer); messagesEl.scrollTop = messagesEl.scrollHeight; };
 		try {
-			await streamChat({ model, system, messages: conversation.messages.map(apiTurn), signal: controller.signal, onDelta: delta => { answer += delta; if (!frame) frame = requestAnimationFrame(paint); } });
+			await streamChat({ model, system, sessionId: conversation.id, messages: conversation.messages.map(apiTurn), signal: controller.signal, onDelta: delta => { answer += delta; if (!frame) frame = requestAnimationFrame(paint); } });
 		} catch (error) {
 			if ((error as Error).name !== 'AbortError') {
 				failed = true;
