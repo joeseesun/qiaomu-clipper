@@ -128,6 +128,8 @@ export interface Settings {
 }
 
 export interface ModelConfig {
+	reasoningEfforts?: string[];
+	reasoningEffort?: string;
 	id: string;
 	providerId: string;
 	providerModelId: string;

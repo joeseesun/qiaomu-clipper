@@ -15,7 +15,7 @@ beforeEach(() => { events = []; vi.useFakeTimers(); });
 afterEach(() => vi.useRealTimers());
 
 it('turns helper segments into transcript lines with clock stamps', () => {
-	expect(toLines([seg(0, 'a'), seg(95.9, 'b'), seg(3725, 'c')])).toEqual([{ time: '0:00', text: 'a' }, { time: '1:35', text: 'b' }, { time: '1:02:05', text: 'c' }]);
+	expect(toLines([seg(0, 'a'), seg(95.9, 'b'), seg(3725, 'c')])).toEqual([{ time: '0:00', start:0,end:2,text: 'a' }, { time: '1:35',start:95.9,end:97.9,text: 'b' }, { time: '1:02:05',start:3725,end:3727,text: 'c' }]);
 });
 
 it('streams new lines as they are polled and ends with the finished transcript', async () => {

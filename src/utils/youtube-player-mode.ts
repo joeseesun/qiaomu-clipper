@@ -1,3 +1,4 @@
+import { PLAYER_SELECTOR } from './video-source';
 import { createElement, Columns2, PanelLeft, RectangleHorizontal, PictureInPicture2, ExternalLink } from 'lucide';
 import { getLocalStorage, setLocalStorage } from './storage-utils';
 import { documentPipSupported, openDocumentPip, trackPlayback } from './youtube-pip';
@@ -87,7 +88,12 @@ export function mountPlayerMode(article: HTMLElement): void {
 	const playerEl = () => article.querySelector<HTMLElement>('.youtube-sized-player');
 	const layoutOf = () => article.dataset.ytLayout as PlayerLayout | undefined;
 	const mountUi = () => {
-		const host = container(); if (!host) return;
+		// Keep theater / pop-out controls available while subtitles are loading.
+		// Dock and float need the transcript layout's container; do not offer
+		// inactive actions or move/reload a playing iframe to create it early.
+		const player = playerEl() || article.querySelector<HTMLElement>(PLAYER_SELECTOR) || article.querySelector<HTMLElement>('.reader-video-wrapper');
+		const host = container() || article.querySelector('.study-media-toolbar') || player?.parentElement; if (!host) return;
+		buttons.dock.disabled = buttons.float.disabled = !container();
 		if (bar.parentElement !== host) host.append(bar);
 		if (chrome.parentElement !== host) host.append(chrome);
 	};

@@ -182,4 +182,34 @@ class AsrTests(unittest.TestCase):
   self.assertEqual(asr.video_url('xiaoyuzhou:'+'a'*24),'https://www.xiaoyuzhoufm.com/episode/'+'a'*24)
   for bad in ('xiaoyuzhou:abc','xiaoyuzhou:'+'g'*24,'file:xyz'):
    with self.assertRaises(ValueError):asr.video_url(bad)
+
+class SilenceRecognitionTests(unittest.TestCase):
+ def test_silent_pcm_never_reaches_whisper(self):
+  import wave
+  with tempfile.TemporaryDirectory() as tmp:
+   directory=Path(tmp);wav=directory/'audio.wav'
+   with wave.open(str(wav),'wb') as audio:
+    audio.setnchannels(1);audio.setsampwidth(2);audio.setframerate(16000);audio.writeframes(bytes(16000*2*2))
+   found={'id':'mlx','path':'mlx_whisper','model':'test','modelReady':True}
+   with patch.object(asr,'stream',return_value=(0,[])) as run:
+    with self.assertRaises(asr.Failed):asr.recognise(directory,{},wav,2,{},found,{})
+    run.assert_not_called()
+ def test_mlx_enables_upstream_silence_hallucination_guard(self):
+  with tempfile.TemporaryDirectory() as tmp:
+   directory=Path(tmp);found={'id':'mlx','path':'mlx_whisper','model':'test','modelReady':True}
+   with patch.object(asr,'stream',return_value=(0,[])) as run:
+    with self.assertRaises(asr.Failed):asr.recognise(directory,{},directory/'audio.wav',2,{},found,{})
+    command=run.call_args.args[0]
+    self.assertIn('--word-timestamps',command);self.assertIn('--hallucination-silence-threshold',command)
+
+ def test_pcm_gate_preserves_quiet_audio_and_does_not_guess_for_invalid_files(self):
+  import wave, struct
+  with tempfile.TemporaryDirectory() as tmp:
+   wav=Path(tmp)/'quiet.wav'
+   with wave.open(str(wav),'wb') as audio:
+    audio.setnchannels(1);audio.setsampwidth(2);audio.setframerate(16000)
+    audio.writeframes(struct.pack('<h',100)*16000)
+   self.assertFalse(asr.silent_pcm(wav))
+   wav.write_bytes(b'not a wav');self.assertFalse(asr.silent_pcm(wav))
+
 if __name__=='__main__':unittest.main()

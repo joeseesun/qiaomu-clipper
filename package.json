@@ -1,16 +1,16 @@
 {
 	"name": "qiaomu-clipper",
-	"version": "1.15.8",
+	"version": "1.18.5",
 	"description": "Save web clips to Obsidian and Qiaomu RSS.",
 	"bin": {
-		"obsidian-clipper": "./dist/cli.cjs"
+		"obsidian-clipper": "./build/cli/cli.cjs"
 	},
 	"files": [
-		"dist"
+		"build/cli"
 	],
 	"exports": {
-		".": "./dist/cli.cjs",
-		"./api": "./dist/api.mjs"
+		".": "./build/cli/cli.cjs",
+		"./api": "./build/cli/api.mjs"
 	},
 	"scripts": {
 		"defuddle-dev": "node scripts/set-defuddle-dev.js",
@@ -22,18 +22,25 @@
 		"build:firefox": "webpack --env BROWSER=firefox --mode production",
 		"build:safari": "webpack --env BROWSER=safari --mode production",
 		"build": "npm run build:chrome && npm run build:local && npm run build:firefox && npm run build:safari",
-		"package": "bash scripts/package.sh",
+		"package": "node scripts/package.mjs",
 		"build:cli": "node scripts/build-cli.mjs",
 		"build:api": "node scripts/build-api.mjs",
 		"dev": "npm run dev:chrome",
-		"test": "vitest run",
+		"test": "npm run test:workflow && npm run check:injections && vitest run",
+		"test:store-download": "node scripts/test-store-download.mjs",
 		"test:watch": "vitest",
 		"update-locales": "ts-node --project scripts/tsconfig.json scripts/update-locales.ts",
 		"check-strings": "ts-node --project scripts/tsconfig.json scripts/check-unused-strings.ts",
 		"add-locale": "ts-node --project scripts/tsconfig.json scripts/add-locale.ts",
 		"prepublishOnly": "npm run build:cli && npm run build:api",
 		"dev:local": "webpack --watch --env BROWSER=chrome --env EDITION=local --mode development",
-		"build:local": "webpack --env BROWSER=chrome --env EDITION=local --mode production"
+		"build:local": "webpack --env BROWSER=chrome --env EDITION=local --mode production",
+		"test:prepare": "node scripts/prepare-test.mjs",
+		"test:workflow": "node --test scripts/build-workflow.test.cjs scripts/check-injected-functions.test.cjs",
+		"check:injections": "node scripts/check-injected-functions.cjs",
+		"check:i18n": "node scripts/check-i18n.cjs",
+		"build:store": "webpack --env BROWSER=chrome --mode production",
+		"check:dev-base": "node scripts/check-development-base.cjs"
 	},
 	"devDependencies": {
 		"@types/chrome": "^0.0.270",

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classifyHelperError, helperIsOutdated, helperInstallPrompt, helperProblemText } from './helper-install';
+import { helperInstallUrl, classifyHelperError, helperIsOutdated, helperInstallPrompt, helperProblemText } from './helper-install';
 describe('helper install help', () => {
 	it('tells the usual Chrome failures apart', () => {
 		expect(classifyHelperError(new Error('Specified native messaging host not found.'))).toBe('not-installed');
@@ -18,4 +18,10 @@ describe('helper install help', () => {
 		expect(prompt).toContain('--extension-id ' + 'a'.repeat(32));
 		expect(prompt).toContain('github.com/joeseesun/qiaomu-clipper');
 	});
+});
+
+it('routes macOS to the fixed installer and Windows to its installation instructions', () => {
+ expect(helperInstallUrl('mac')).toBe('https://github.com/joeseesun/qiaomu-clipper/releases/latest/download/qiaomu-clipper-helper.pkg');
+ expect(helperInstallUrl('win')).toBe('https://github.com/joeseesun/qiaomu-clipper/blob/main/native/README.md#windows');
+ expect(helperInstallUrl('linux')).toContain('/native/README.md#本地静默剪藏助手');
 });

@@ -3,6 +3,8 @@ import { TRANSCRIPT_SELECTOR } from './video-source';
 import { getLocalStorage, loadSettings } from './storage-utils';
 import { getMessage } from './i18n';
 import browser from './browser-polyfill';
+import { t } from './ui-text';
+import { isChineseCaption } from './caption-clock';
 import { sourceParagraphs, withoutMusicCues, translationParagraphs, renderBilingualBlocks, sourceTextNodes } from './transcript-format';
 
 const TRANSLATION_RULES = `Translate the supplied video transcript into fluent, faithful Simplified Chinese for reading.
@@ -83,6 +85,13 @@ const CONCURRENCY = 3, INACTIVITY_MS = 60000, TRANSPORT_RETRIES = 2;
 const isTransient = (error: unknown) => error instanceof TranslationTimeoutError || !/API key is not set|Provider not found|\b(?:400|401|402|403|404|422)\b/.test(error instanceof Error ? error.message : '');
 const backoff = (attempt: number, signal: AbortSignal) => new Promise<void>(resolve => { const timer = setTimeout(resolve, 1000 * 2 ** attempt); signal.addEventListener('abort', () => { clearTimeout(timer); resolve(); }, { once: true }); });
 
+const translators=new WeakMap<Element,(signal:AbortSignal)=>Promise<void>>();
+export async function ensureTranscriptTranslation(transcript:Element,signal:AbortSignal):Promise<void>{
+ const translate=translators.get(transcript);
+ if(!translate)throw new Error(t('请先打开文稿翻译，再重试剪藏'));
+ await translate(signal);
+}
+
 export function mountTranslation(article: HTMLElement, toolbar: HTMLElement, status: HTMLElement): void {
 	if (article.querySelector('.youtube-translate-toggle')) return;
 	const segments = Array.from(article.querySelectorAll<HTMLElement>(`${TRANSCRIPT_SELECTOR} .transcript-segment`));
@@ -97,15 +106,16 @@ export function mountTranslation(article: HTMLElement, toolbar: HTMLElement, sta
 	const label = doc.createElement('label'); label.className = 'player-toggle youtube-translate-toggle';
 	label.title = getMessage('qiaomuTranslationService');
 	label.addEventListener('mousedown', event => { if (!doc.getSelection()?.isCollapsed) event.preventDefault(); });
-	const caption = doc.createElement('span'); caption.textContent = getMessage('qiaomuTranslateChinese');
+	const caption = doc.createElement('span'); caption.textContent = t('中文译文');
 	const track = doc.createElement('span'); track.className = 'player-toggle-switch';
 	const input = doc.createElement('input'); input.type = 'checkbox'; input.setAttribute('role', 'switch'); input.setAttribute('aria-label', caption.textContent);
 	track.append(input); label.append(caption, track);
 	const retry = doc.createElement('button'); retry.type = 'button'; retry.className = 'youtube-translation-retry'; retry.textContent = getMessage('qiaomuTranslationRetry'); retry.hidden = true;
 	const setup = doc.createElement('button'); setup.type = 'button'; setup.className = 'youtube-translation-setup'; setup.textContent = getMessage('qiaomuTranslationSetupModel'); setup.hidden = true;
 	setup.onclick = () => { try { void browser.runtime.sendMessage({ action: 'openSettings', section: 'interpreter' }); } catch { /* extension reloaded */ } };
-	toolbar.append(label); status.after(retry, setup);
-	let controller: AbortController | undefined; let generation = 0;
+	toolbar.insertBefore(label,toolbar.querySelector('.clip-transcript-export')); status.after(retry, setup);
+	let controller: AbortController | undefined; let generation = 0;let pending:Promise<boolean|undefined>|undefined;
+ const transcript=article.querySelector(TRANSCRIPT_SELECTOR)!;
 	let feedbackTimer: ReturnType<typeof setTimeout> | undefined;
 	const showFeedback = (message: string, completed = false) => {
 		clearTimeout(feedbackTimer); status.removeAttribute('data-feedback-state'); status.textContent = message;
@@ -115,7 +125,7 @@ export function mountTranslation(article: HTMLElement, toolbar: HTMLElement, sta
 		}, 3000);
 	};
 	const cache = new Map<number, string>();
-	article.addEventListener('qiaomu-transcript-replaced', () => { ++generation; controller?.abort(); clearTimeout(feedbackTimer); }, { once: true });
+	article.addEventListener('qiaomu-transcript-replaced', () => { ++generation; controller?.abort(); clearTimeout(feedbackTimer);translators.delete(transcript); }, { once: true });
 	const parts = batches.flat();
 	const sources = segments.map(segment => {
 		let source = segment.querySelector<HTMLElement>('.transcript-segment-text');
@@ -156,15 +166,14 @@ export function mountTranslation(article: HTMLElement, toolbar: HTMLElement, sta
 		const savedSelection = selectionOffsets();
 		segments.forEach((_segment, index) => {
 			const source = sources[index];
-			if (!input.checked) {
-				if (rendered.delete(index)) { source.element.classList.remove('transcript-bilingual'); source.element.replaceChildren(...source.original); }
-				return;
-			}
-			if (rendered.has(index)) return;
-			const segmentParts = parts.filter(part => part.segment === index);
-			if (!segmentParts.length || !segmentParts.every(part => cache.has(part.id))) return;
-			segments[index].dataset.translatedText = segmentParts.map(part => cache.get(part.id)!).join('\n\n');
-			segments[index].dataset.translationReady = 'true';
+   const segmentParts = parts.filter(part => part.segment === index);
+   const ready=!segmentParts.length || segmentParts.every(part => cache.has(part.id));
+   if(ready){segments[index].dataset.translatedText=segmentParts.map(part=>cache.get(part.id)!).join('\n\n');segments[index].dataset.translationReady='true';}
+   if (!input.checked) {
+    if (rendered.delete(index)) { source.element.classList.remove('transcript-bilingual'); source.element.replaceChildren(...source.original); }
+    return;
+   }
+   if(rendered.has(index)||!ready||!segmentParts.length)return;
 			if (segmentParts.every(part => cache.get(part.id)?.replace(/\s/g, '') === part.text.replace(/\s/g, ''))) return;
 			renderBilingualBlocks(source.element, segmentParts.map(part => ({ original: part.text, translation: cache.get(part.id)! })));
 			rendered.add(index);
@@ -172,9 +181,12 @@ export function mountTranslation(article: HTMLElement, toolbar: HTMLElement, sta
 		restoreSelection(savedSelection);
 	};
 	async function translate() {
+		const sessionId = crypto.randomUUID();
 		controller?.abort(); const current = ++generation; const abort = new AbortController(); controller = abort; retry.hidden = true; setup.hidden = true;
 		const progress = () => { showFeedback(`${getMessage('qiaomuTranslationProgress')} ${cache.size}/${parts.length}`); };
-		progress();
+		for(const part of parts)if(isChineseCaption(part.text)||!withoutMusicCues(part.text))cache.set(part.id,withoutMusicCues(part.text));
+  render();if(parts.every(part=>cache.has(part.id))){showFeedback(getMessage('qiaomuTranslationDone'),true);controller=undefined;return true;}
+  progress();
 		try {
 			await loadSettings(); const models = enabledChatModels(); const selected = await getLocalStorage('qiaomuChatModel');
 			if (current !== generation) return;
@@ -188,7 +200,7 @@ export function mountTranslation(article: HTMLElement, toolbar: HTMLElement, sta
 				const arm = () => { clearTimeout(timer); timer = setTimeout(() => { timedOut = true; request.abort(); }, INACTIVITY_MS); };
 				abort.signal.addEventListener('abort', stop, { once: true }); arm();
 				const content = JSON.stringify(items.map(part => ({ id: part.id, text: withoutMusicCues(part.text), contextBefore: withoutMusicCues(parts[part.id - 1]?.text || '').slice(-500), contextAfter: withoutMusicCues(parts[part.id + 1]?.text || '').slice(0, 500) })));
-				try { return await streamChat({ model, signal: request.signal, onDelta: arm, system, messages: [{ role: 'user', content }] }); }
+				try { return await streamChat({ model, sessionId, signal: request.signal, onDelta: arm, system, messages: [{ role: 'user', content }] }); }
 				catch (error) { throw timedOut && !abort.signal.aborted ? new TranslationTimeoutError() : error; }
 				finally { clearTimeout(timer); abort.signal.removeEventListener('abort', stop); }
 			};
@@ -229,17 +241,39 @@ export function mountTranslation(article: HTMLElement, toolbar: HTMLElement, sta
 			if (fatal) throw fatal;
 			if (failed.size) throw new TranslationFormatError();
 			if (current === generation) showFeedback(getMessage('qiaomuTranslationDone'), true);
+   return true;
 		} catch (error) {
 			if (current !== generation) return;
 			showFeedback(error instanceof TranslationTimeoutError ? getMessage('qiaomuTranslationTimeout') : error instanceof TranslationFormatError ? error.message : `${getMessage('qiaomuTranslationError')} ${error instanceof Error ? error.message : ''}`);
 			retry.hidden = false;
+   return false;
 		} finally { if (current === generation) controller = undefined; }
 	}
-	input.onchange = () => {
+ const run=()=>{
+  if(pending)return pending;
+  const task=translate();pending=task;
+  void task.finally(()=>{if(pending===task)pending=undefined;});return task;
+ };
+ translators.set(transcript,async(signal)=>{
+  if(signal.aborted)throw new Error(t('剪藏已取消'));
+  const owned=!pending;
+  const abort=()=>{if(owned&&!input.checked){++generation;controller?.abort();pending=undefined;showFeedback('');}};
+  signal.addEventListener('abort',abort,{once:true});
+  try{
+   const task=run();
+   let rejectAbort:()=>void=()=>{};
+   const cancelled=new Promise<never>((_,reject)=>{rejectAbort=()=>reject(new Error(t('剪藏已取消')));signal.addEventListener('abort',rejectAbort,{once:true});});
+   let result:boolean|undefined;
+   try{result=await Promise.race([task,cancelled]);}finally{signal.removeEventListener('abort',rejectAbort);}
+   if(signal.aborted)throw new Error(t('剪藏已取消'));
+   if(!result||!transcript.isConnected||!segments.every(segment=>segment.dataset.translationReady==='true'))throw new Error(t('文稿翻译未完成，请重试后剪藏'));
+  }finally{signal.removeEventListener('abort',abort);}
+ });
+ input.onchange = () => {
 		label.classList.toggle('is-enabled', input.checked);
 		render();
-		if (input.checked) void translate();
-		else { ++generation; controller?.abort(); controller = undefined; retry.hidden = true; setup.hidden = true; showFeedback(''); }
+		if (input.checked) void run();
+		else { ++generation; controller?.abort(); controller = undefined;pending=undefined; retry.hidden = true; setup.hidden = true; showFeedback(''); }
 	};
-	retry.onclick = () => { if (input.checked) void translate(); };
+	retry.onclick = () => { if (input.checked) void run(); };
 }

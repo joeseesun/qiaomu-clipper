@@ -8,6 +8,7 @@ import asr
 page='https://appfixture123.h5.xiaoeknow.com/v4/course/alive/l_fixture123456?app_id=appfixture123'
 media='https://video.xet.tech/fixture.m3u8?sign=fixture-only'
 folder=Path(sys.argv[1]).resolve()
+extensionless='--extensionless' in sys.argv[2:]
 seen=[]
 class Response(io.BytesIO):
     def __init__(self,url,data):super().__init__(data);self.url=url;self.headers={'Content-Length':str(len(data))};self.status=200
@@ -16,6 +17,10 @@ class Response(io.BytesIO):
 def fetch(url,**options):
     assert options['allowed'](url)
     name=Path(urlparse(url).path).name
+    if extensionless and name=='fixture.m3u8':
+        seen.append('master.m3u8')
+        return Response(url,b'#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=100000\nvariant?id=1\n')
+    if extensionless and name=='variant':name='fixture.m3u8'
     assert name and (folder/name).parent==folder
     seen.append(name)
     return Response(url,(folder/name).read_bytes())
@@ -28,4 +33,4 @@ with tempfile.TemporaryDirectory() as temp,patch.object(asr,'open_public',side_e
     with wave.open(str(wav)) as file:
         assert file.getframerate()==16000 and file.getnchannels()==1
         assert 7.5<=file.getnframes()/file.getframerate()<=8.5
-    print(json.dumps({'passed':True,'seconds':seconds,'resources':seen,'scope':'Real yt-dlp and ffmpeg; synthetic upstream, no account, no speech API'}))
+    print(json.dumps({'passed':True,'seconds':seconds,'resources':seen,'extensionlessVariant':extensionless,'scope':'Real yt-dlp and ffmpeg; synthetic upstream, no account, no speech API'}))

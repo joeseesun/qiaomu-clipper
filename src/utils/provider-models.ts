@@ -1,8 +1,10 @@
+import { magpieKey } from './magpie';
 import { Provider } from '../types/types';
-import { openAICompatibleBasePath } from './chat-llm';
+import { openAICompatibleBasePath, opencodeHeaders } from './chat-llm';
 import { freshOAuth, oauthModelsRequest } from './oauth/accounts';
 import { brandOf } from './provider-catalog';
 import { saveSettings } from './storage-utils';
+import { isOpenCodeGo, supportsOpenCodeGoChat } from './opencode-go';
 import modelNames from './model-names.json';
 
 // A vendor that lists only ids gets a readable name from the bundled snapshot (scripts/update-model-names.mjs). Its own name always wins.
@@ -14,6 +16,7 @@ export function readableName(id: string, name?: string): string {
 }
 
 export interface ProviderModel {
+	reasoningEfforts?: string[];
 	id: string;
 	name: string;
 }
@@ -21,7 +24,8 @@ export interface ProviderModel {
 // Derive discovery from the configured inference URL, including custom gateways.
 export function modelListRequest(provider: Provider): { url: URL; headers: Record<string, string>; kind: string } {
 	const url = new URL(provider.baseUrl);
-	const headers: Record<string, string> = { Accept: 'application/json' };
+	provider = { ...provider, apiKey: magpieKey(provider) };
+	const headers: Record<string, string> = { Accept: 'application/json', ...(opencodeHeaders(provider.baseUrl) || {}) };
 	let kind = 'openai';
 	if (url.hostname === 'generativelanguage.googleapis.com') {
 		kind = 'gemini';
@@ -54,7 +58,7 @@ export function modelListRequest(provider: Provider): { url: URL; headers: Recor
 
 // What to show when the vendor's own list cannot be read (no /models endpoint, no key yet, offline): its common models from the catalogue.
 export function fallbackModels(provider: Pick<Provider, 'presetId' | 'baseUrl' | 'name'>): ProviderModel[] {
-	return (brandOf(provider)?.popularModels || []).map(m => ({ id: m.id, name: readableName(m.id, m.name) }));
+	return (brandOf(provider)?.popularModels || []).filter(m => supportsOpenCodeGoChat(provider.baseUrl, m.id)).map(m => ({ id: m.id, name: readableName(m.id, m.name) }));
 }
 
 export async function fetchProviderModels(input: Provider, signal?: AbortSignal): Promise<ProviderModel[]> {
@@ -82,12 +86,12 @@ export async function fetchProviderModels(input: Provider, signal?: AbortSignal)
 			for (const entry of entries) {
 				if (!entry || typeof entry !== 'object') continue;
 				// Gateways that mix media models into one catalogue list their protocols; keep chat-capable ones.
-				if (Array.isArray(entry.supported_protocols) && !entry.supported_protocols.some((x: unknown) => x === 'openai:chat-completions' || x === 'anthropic:messages')) continue;
+				if (Array.isArray(entry.supported_protocols) && !entry.supported_protocols.some((x: unknown) => x === 'openai:chat-completions' || (!isOpenCodeGo(provider.baseUrl) && x === 'anthropic:messages'))) continue;
 				if (kind === 'gemini' && !entry.supportedGenerationMethods?.includes('generateContent')) continue;
 				const id = kind === 'gemini' ? entry.name?.replace(/^models\//, '') : kind === 'ollama' ? entry.model || entry.name : entry.id;
-				if (typeof id !== 'string' || !id.trim()) continue;
+				if (typeof id !== 'string' || !id.trim() || !supportsOpenCodeGoChat(provider.baseUrl, id)) continue;
 				const name = entry.displayName || entry.display_name || (kind !== 'gemini' ? entry.name : undefined);
-				models.set(id, { id, name: readableName(id, typeof name === 'string' ? name : undefined) });
+				models.set(id, { id, name: readableName(id, typeof name === 'string' ? name : undefined), ...effortMetadata(entry.supported_reasoning_levels ?? entry.reasoning_efforts) });
 			}
 			if (kind === 'gemini' && data.nextPageToken) {
 				url.searchParams.set('pageToken', data.nextPageToken);
@@ -117,7 +121,11 @@ async function fetchAccountModels(provider: Provider, signal?: AbortSignal): Pro
 		const id = entry?.slug || entry?.id;
 		if (typeof id !== 'string' || !id || (entry.visibility && entry.visibility !== 'list')) continue;
 		const name = entry.display_name || entry.name;
-		models.set(id, { id, name: typeof name === 'string' && name.trim() ? name : id });
+		models.set(id, { id, name: typeof name === 'string' && name.trim() ? name : id, ...effortMetadata(entry.supported_reasoning_levels) });
 	}
 	return [...models.values()];
 }
+
+function reasoningEfforts(raw: unknown): string[] { return Array.isArray(raw) ? raw.map(v => typeof v === "string" ? v : v?.effort).filter((v): v is string => typeof v === "string" && /^[a-z0-9_-]{1,32}$/i.test(v)) : []; }
+
+function effortMetadata(raw: unknown): { reasoningEfforts?: string[] } { const levels = reasoningEfforts(raw); return levels.length ? { reasoningEfforts: levels } : {}; }

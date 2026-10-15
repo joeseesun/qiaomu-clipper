@@ -101,3 +101,24 @@ it('validates separate track durations and rejects a changed page or mismatched 
 it('keeps the injected page functions free of async syntax, which the build turns into helpers missing in the page', () => {
 	for (const injected of [snapshotDouyinPlayer, validateDouyinTracks]) expect(String(injected)).not.toMatch(/\basync\b|\bawait\b|__awaiter|_asyncToGenerator/);
 });
+
+// executeScript serializes only the function, without this module's imports.
+it.each(['direct', 'renditions', 'split'])('reads a %s player after Chrome serializes the snapshot function', async kind => {
+ const ts = await import('typescript');
+ const compiled = ts.transpile(`const snapshot = ${snapshotDouyinPlayer.toString()};`, { target: ts.ScriptTarget.ES2015 });
+ const fn = new Function(`${compiled}; return snapshot;`)();
+ const injected = new Function(`return (${fn.toString()});`)();
+ vi.stubGlobal('location', { href: 'https://www.douyin.com/jingxuan?modal_id=123' });
+ document.body.innerHTML = '<h1>Current item</h1><video></video>';
+ const video = document.querySelector('video')!;
+ Object.defineProperty(video, 'currentSrc', { value: kind === 'direct' ? mediaUrl : 'blob:https://www.douyin.com/stream' });
+ Object.defineProperty(video, 'duration', { value: 70.13 });
+ vi.spyOn(video, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0, right: 400, bottom: 300, width: 400, height: 300 } as DOMRect);
+ const files = kind === 'split'
+  ? ['https://v11.douyinvod.com/v/media-video-hvc1/?l=pair', 'https://v11.douyinvod.com/a/media-audio-und-mp4a/?l=pair']
+  : ['https://v11.douyinvod.com/video/tos/x?mime_type=video_mp4&br=189&l=one'];
+ vi.stubGlobal('performance', { getEntriesByType: (type: string) => type === 'navigation' ? [{ name: location.href }] : files.map(name => ({ name })) });
+ try {
+  expect(injected()).toMatchObject({ url, info: { ok: true, title: 'Current item', video: true, seconds: 70.13, mediaUrl: kind === 'direct' ? mediaUrl : files[0] } });
+ } finally { vi.unstubAllGlobals(); vi.restoreAllMocks(); }
+});

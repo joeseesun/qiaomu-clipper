@@ -36,7 +36,7 @@ await esbuild.build({
 	platform: 'node',
 	target: 'node18',
 	format: 'cjs',
-	outfile: path.join(root, 'dist/cli.cjs'),
+	outfile: path.join(root, 'build/cli/cli.cjs'),
 	banner: {
 		js: polyfillBanner,
 	},
@@ -54,4 +54,4 @@ await esbuild.build({
 	logLevel: 'info',
 });
 
-console.log('CLI built successfully → dist/cli.cjs');
+console.log('CLI built successfully → build/cli/cli.cjs');

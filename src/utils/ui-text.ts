@@ -133,7 +133,7 @@ export function translateHelperText(text: string): string {
 	return text;
 }
 
-const HELPER_TEXT_FIELDS = new Set(['error', 'stage', 'message', 'hint', 'note', 'problems', 'notes']);
+const HELPER_TEXT_FIELDS = new Set(['error', 'vaultError', 'stage', 'message', 'hint', 'note', 'problems', 'notes']);
 // A reply from the helper with its messages in the person's language. Codes (like helper-offline) and values are left alone.
 export function localizeHelperReply<T>(reply: T): T {
 	const visit = (value: unknown, field?: string): unknown => {

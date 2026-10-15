@@ -1,3 +1,6 @@
+import { handleChatImageSource } from './utils/chat-image-source';
+import { validChatTurns } from './utils/chat-content';
+import { validChatSession } from './utils/opencode-go';
 import { channelsStudyBridge, parseChannelsShare, readChannelsPlayback } from './utils/channels-study';
 import { protectedPageBridge, snapshotProtectedPage } from './utils/protected-study';
 import { createContentText } from './utils/content-i18n';
@@ -14,19 +17,23 @@ import { describeHelperFailure } from './utils/native-helper-prompt';
 import { callHelper } from './utils/native-helper-call';
 import { incrementStat, loadSettings } from './utils/storage-utils';
 import { enabledChatModels, streamChat } from './utils/chat-llm';
+import { openStudyWithPlayback } from './utils/study-playback-handoff';
 import { audioStudyPath, videoKey, videoStudyPath } from './utils/video-source';
 import { isSiteOn, loadStudySites, siteOf } from './utils/study-sites';
 import { isMediaItemAddress, webMediaAddress } from './utils/web-media-page';
+import { getXhsPageMedia, snapshotXhsPlayer } from './utils/xiaohongshu';
 import { followXiaoeLink, readXiaoeLive, xiaoeParts, fetchXiaoePlaylist } from './utils/xiaoe';
 import { hasStoredHighlights } from './utils/url-utils';
 import { cookiesGranted, handleAsrMessage, handleLearningNativeMessage } from './utils/local-save';
 import { enableYouTubeEmbedRule, disableYouTubeEmbedRule } from './utils/youtube-embed-rules';
 
 import { t } from './utils/ui-text';
+import { helperInstallUrl } from './utils/helper-install';
 import { pruneHandedFiles } from './utils/file-handoff';
 void pruneHandedFiles();
 browser.runtime.onMessage.addListener(handleLearningNativeMessage);
 browser.runtime.onMessage.addListener(handleAsrMessage);
+browser.runtime.onMessage.addListener(handleChatImageSource);
 
 // Accept RSS writes only from our own extension pages, never a website content script.
 const qiaomuInFlight = new Map<string, Promise<unknown>>();
@@ -698,6 +705,9 @@ browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime
 		}
 
 		if (typedRequest.action === "getActiveTab") {
+			// An embedded clipper belongs to its host tab, even when another
+			// browser window is focused while extraction is running.
+			if (sender.tab?.id) { sendResponse({ tabId: sender.tab.id }); return true; }
 			browser.tabs.query({active: true, currentWindow: true}).then(async (tabs) => {
 				let currentTab = tabs[0];
 				// Fallback for when currentWindow has no tabs (e.g., debugging popup in DevTools)
@@ -740,6 +750,12 @@ browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime
 			const query = domain ? `?domain=${encodeURIComponent(domain)}` : '';
 			browser.tabs.create({ url: browser.runtime.getURL(`highlights.html${query}`) });
 			sendResponse({ success: true });
+			return true;
+		}
+
+		if (typedRequest.action === "openHelperInstall") {
+			void browser.runtime.getPlatformInfo().then(platform => browser.tabs.create({ url: helperInstallUrl(platform.os) }))
+				.then(() => sendResponse({ success: true }), error => sendResponse({ success: false, error: String(error) }));
 			return true;
 		}
 
@@ -1251,7 +1267,7 @@ async function openNoteCard(tabId: number, quote?: string): Promise<void> {
 async function webStudyPath(url: string, tabId: number): Promise<string | null> {
 	const site = siteOf(url); if (!site || site.builtin || !isSiteOn(await loadStudySites(), site.id)) return null;
 	let post = webMediaAddress(url);
-	try { const source = await browser.tabs.sendMessage(tabId, { action: 'qiaomuWebMediaSource' }) as { url?: unknown } | undefined; if (typeof source?.url === 'string' && siteOf(source.url)?.id === site.id) post = webMediaAddress(source.url); } catch { /* adapter not loaded */ }
+	try { const source = await browser.tabs.sendMessage(tabId, { action: 'qiaomuWebMediaSource' }) as { url?: unknown } | undefined; if (site.id === 'xiaohongshu' && !source?.url) return null; if (typeof source?.url === 'string' && siteOf(source.url)?.id === site.id) post = webMediaAddress(source.url); } catch { if (site.id === 'xiaohongshu') return null; /* adapter not loaded */ }
 	if (!post) return null;
 	try {
 		const [result] = await browser.scripting.executeScript({ target: { tabId }, func: () => Boolean(document.querySelector('video, audio, iframe[src*="player.vimeo.com"], iframe[src*="player.twitch.tv"], iframe[src*="dailymotion.com"], [data-testid="videoPlayer"], meta[property="og:video"], meta[property="og:video:url"], meta[property="og:audio"]')) });
@@ -1266,7 +1282,7 @@ async function openStudyForTab(tabId: number): Promise<boolean> {
 	const path = videoStudyPath(tab.url || '', tabId, tab.title || '') || audioStudyPath(tab.url || '', tab.title || '') || await webStudyPath(tab.url || '', tabId);
 	if (!path) return false;
 	// Open the player immediately; subtitle extraction belongs to the reader.
-	await browser.tabs.create({ url: browser.runtime.getURL(path), openerTabId: tabId });
+	await openStudyWithPlayback(tabId, path, tab.url || '');
 	return true;
 }
 
@@ -1327,7 +1343,7 @@ browser.runtime.onConnect.addListener(port => {
 	port.onDisconnect.addListener(() => controller.abort());
 	let started = false;
 	port.onMessage.addListener(async raw => {
-		const request = raw as { modelId?: string; system?: string; messages?: any[] };
+		const request = raw as { modelId?: string; system?: string; messages?: any[]; sessionId?: string };
 		if (started) return;
 		started = true;
 		const send = (message: unknown) => { if (!controller.signal.aborted) port.postMessage(message); };
@@ -1335,8 +1351,9 @@ browser.runtime.onConnect.addListener(port => {
 			await loadSettings();
 			const model = enabledChatModels().find(item => item.id === request.modelId);
 			if (!model || typeof request.system !== 'string' || !Array.isArray(request.messages)
-				|| request.messages.some((turn: any) => !['user', 'assistant'].includes(turn.role) || typeof turn.content !== 'string')) throw new Error(t('无效的 AI 对话请求'));
-			await streamChat({ model, system: request.system, messages: request.messages, signal: controller.signal, onDelta: delta => send({ delta }) });
+				|| (request.sessionId !== undefined && !validChatSession(request.sessionId))
+				|| !validChatTurns(request.messages)) throw new Error(t('无效的 AI 对话请求'));
+			await streamChat({ model, system: request.system, sessionId: request.sessionId, messages: request.messages, signal: controller.signal, onDelta: delta => send({ delta }) });
 			send({ done: true });
 		} catch (error) { send({ error: error instanceof Error ? error.message : t('AI 请求失败') }); }
 	});
@@ -1358,10 +1375,8 @@ browser.runtime.onMessage.addListener((raw: unknown, sender) => {
 			if (!tab.url || videoKey(tab.url) !== videoKey(request.sourceUrl!)) return { error: t('原视频页面已切换') };
 			const results = await browser.scripting.executeScript({
 				target: { tabId: request.sourceTabId! },
-				func: async (href: string) => {
-					const response = await fetch(href, { credentials: 'include', headers: { Accept: 'application/json' } });
-					return { ok: response.ok, status: response.status, text: await response.text() };
-				},
+				func: (href: string) => fetch(href, { credentials: 'include', headers: { Accept: 'application/json' } })
+					.then(response => response.text().then(text => ({ ok: response.ok, status: response.status, text }))),
 				args: [target.href],
 			});
 			return results[0]?.result || { error: t('原视频页面没有返回结果') };
@@ -1472,6 +1487,10 @@ browser.runtime.onMessage.addListener((raw: unknown, sender) => {
 	const request = raw as { action?: string; url?: string; sourceTabId?: number };
 	if (request?.action !== 'qiaomuWebStudySource') return;
 	if (sender.id !== browser.runtime.id || !sender.url?.startsWith(browser.runtime.getURL('reader.html')) || typeof request.url !== 'string') return Promise.resolve(null);
+	if (siteOf(request.url)?.id === 'xiaohongshu') return getXhsPageMedia(request.url, request.sourceTabId, browser.tabs, async tabId => {
+		const [result] = await browser.scripting.executeScript({ target: { tabId }, world: 'MAIN', func: snapshotXhsPlayer });
+		return result?.result as ReturnType<typeof snapshotXhsPlayer> | undefined;
+	}).then(info => info || null);
 	return getWebPageMedia(request.url, request.sourceTabId, browser.tabs, async tabId => {
 		const [result] = await browser.scripting.executeScript({ target: { tabId }, func: snapshotDouyinPlayer });
 		const snapshot = result?.result as ReturnType<typeof snapshotDouyinPlayer> | undefined;

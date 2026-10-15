@@ -1,6 +1,7 @@
 import { t } from './ui-text';
+import { canDownloadMedia } from './media-download-policy';
 import { callHelper } from './native-helper-call';
-// Saving the media file of the item being studied (local edition only: nothing here is imported by the store build).
+// Save the media file being studied, subject to the edition and source policy.
 // The file is the one the study player already plays, so it is saved as it is, without converting anything.
 
 export interface DownloadChoice {
@@ -42,18 +43,21 @@ export function humanSize(bytes: number | undefined): string {
 	return mb >= 1 ? `${mb >= 10 ? Math.round(mb) : Math.round(mb * 10) / 10} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
-export class DownloadError extends Error { constructor(public code: 'http' | 'network' | 'not-media' | 'cancelled', message: string) { super(message); } }
+export class DownloadError extends Error { constructor(public code: 'http' | 'network' | 'not-media' | 'cancelled' | 'policy' | 'permission' | 'helper', message: string) { super(message); } }
 
 // Reads the file with progress. `fetcher` is injectable for tests.
-export async function fetchMediaBlob(url: string, options: { signal?: AbortSignal; onProgress?: (done: number, total: number | undefined) => void; fetcher?: typeof fetch } = {}): Promise<Blob> {
+export async function fetchMediaBlob(url: string, options: { sourceUrl?: string; signal?: AbortSignal; onProgress?: (done: number, total: number | undefined) => void; fetcher?: typeof fetch } = {}): Promise<Blob> {
+	if (!canDownloadMedia(options.sourceUrl || '', url)) throw new DownloadError('policy', t('此来源不支持媒体下载'));
 	const fetcher = options.fetcher ?? fetch;
 	let response: Response;
-	try { response = await fetcher(url, { signal: options.signal, credentials: 'include' }); }
+	try { response = await fetcher(url, { signal: options.signal, credentials: 'include', redirect: __LOCAL_EDITION__ ? 'follow' : 'error' }); }
 	catch (error) { if (options.signal?.aborted) throw new DownloadError('cancelled', t('已取消')); throw new DownloadError('network', error instanceof Error ? error.message : t('网络出错')); }
+	// A store download never follows redirects, including redirects to YouTube CDN.
+	if (!__LOCAL_EDITION__ && (response.redirected || (response.url && !canDownloadMedia(options.sourceUrl || '', response.url)))) { await response.body?.cancel(); throw new DownloadError('policy', t('此来源不支持媒体下载')); }
 	if (!response.ok) throw new DownloadError('http', `HTTP ${response.status}`);
 	const type = response.headers.get('content-type') || '';
 	// A refusal usually comes back as a small web page, not as the file.
-	if (/^text\/|json|html/i.test(type)) throw new DownloadError('not-media', t('服务器没有返回媒体文件'));
+	if (/^text\/|json|html|mpegurl|dash\+xml/i.test(type)) throw new DownloadError('not-media', t('服务器没有返回媒体文件'));
 	const total = Number(response.headers.get('content-length')) || undefined;
 	if (!response.body) { const blob = await response.blob(); options.onProgress?.(blob.size, blob.size); return blob; }
 	const reader = response.body.getReader(), parts: Uint8Array[] = []; let done = 0;
@@ -70,6 +74,7 @@ export async function fetchMediaBlob(url: string, options: { signal?: AbortSigna
 // The sentence under a failed download: what happened, then what to do.
 export function downloadProblem(error: unknown): string {
 	if (error instanceof DownloadError) {
+		if (error.code === 'policy' || error.code === 'permission' || error.code === 'helper') return error.message;
 		if (error.code === 'cancelled') return t('已取消');
 		if (error.code === 'http') return error.message === 'HTTP 403' || error.message === 'HTTP 410' ? t('没能下载：链接已失效，请回原页面再试') : t('没能下载：服务器拒绝了请求（{0}）', [error.message]);
 		if (error.code === 'not-media') return t('没能下载：服务器没有返回视频文件');

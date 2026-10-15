@@ -29,3 +29,25 @@ Write from the user's point of view. They care about what they get, not how it i
 
 ## Releases and Git
 - Commit and release only when the user says so. Pass `--repo` to `gh`; look for foreign commits before pushing.
+
+## Build and test delivery
+
+- Read `docs/BUILD-TESTING.md`. The user tests in ONE place: `~/Documents/乔木剪藏测试/extension`, in the Chrome profile named `乔木剪藏测试`. Do not give the user a worktree address to install.
+- Default to `npm run build:store && npm run test:prepare`. Use `--edition local` only for standalone-edition testing; the destination stays the same. Never load it into the daily-use profile without an explicit request.
+- Each worktree builds into its own `build/`; only explicit test preparation updates the fixed installation. Reload the actual installed extension and verify its displayed identity and helper connection before saying it is installed/tested.
+- Before delivery, reconcile every requested feature with all relevant worktrees, including uncommitted changes. Update `test-delivery.json`; `test:prepare` runs its regression tests and rejects loss of an already installed feature. A merged site adapter does not establish that AI image input is included. Never bypass this gate by manually copying an old worktree build.
+- `npm run package` is the only extension ZIP writer. Keep immutable candidates in `releases/`; never overwrite versioned archives or copy newer code into an older version-named directory.
+- Extension version comes from package.json; helper version comes from native/VERSION. Build/install/publication are separate evidence boundaries. Preserve other threads' working files and legacy loaded directories until migration is verified.
+
+## Page injection and translations
+
+Functions passed to `scripting.executeScript({ func })` run without the extension module closure. Keep them self-contained: return raw page data and localize after returning to the extension; pass input through `args`. Do not add imported helpers (including `t`) or async syntax that needs transpiler helpers. Run `npm run check:injections` and exercise serialized functions, not only direct calls.
+
+New UI wording must include translations in all nine full locales. `npm run check:i18n` runs automatically in production builds, packaging and fixed test preparation. The legacy `update-locales` generator covers only `_locales` messages; do not assume it updates UI/helper catalogs or changed text under existing keys. Translation API failures must stop instead of storing fallback text as a completed translation.
+
+## Stable user test entry
+
+- 用户唯一测试入口是 `/Users/joe/Documents/乔木剪藏测试/extension`，Chrome 资料为「乔木剪藏测试」。开发 worktree 与产物目录不是新的安装入口；交付后用户只需重载原扩展。
+- 普通新功能开工先 `git fetch origin`，再执行 `npm run check:dev-base`；检查失败不得在旧基线上开始开发。先读 `/Users/joe/Documents/乔木剪藏测试/CURRENT.json`，核对版本、源码提交、来源工作区和功能清单。当前 cwd 可能是旧分支；不得拿旧 checkout 的构建覆盖较新的测试包。先把本次增量合入包含已安装提交的集成工作区，保留已交付功能。
+- 使用最新的 `docs/BUILD-TESTING.md` 和 `npm run build:store && npm run test:prepare` 更新固定入口，默认保持商店版测试；独立版专属测试才显式选择 local。交付脚本必须拒绝版本降级、缺失已安装提交或已交付功能，不手工复制绕过检查。
+- 目录、版本、构建身份和源码来源核对完成才报告「文件已更新」；实际重载及真实模型播放另行验证。失败时保留原测试包与 `previous/` 回退。

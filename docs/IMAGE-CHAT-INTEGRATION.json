@@ -1,0 +1,20 @@
+{
+  "sourceHead": "ddb4a7a7d1eafd854ad39509cc960c1e92c457b7",
+  "files": {
+    "src/background.ts": "0644a26ae2652aea74c08c2f9b82c5dd7b0bb702ee849fd73bacb23fc069d577",
+    "src/utils/chat-llm.ts": "966e3d78a97203a0c5c585b6f3a3050145256cedae3bed71706c36ad9244b4d7",
+    "src/utils/clip-chat.ts": "b24cf8234b58da72a29e739de6aebe6aed97e7046442f6193caac4eceb0182fb",
+    "src/utils/chat-history.ts": "929b1d6c72b2d1f5c584ffbdfc5178355cf508ba8ba21596fe0a2a23380e7f89",
+    "src/utils/chat-history.test.ts": "5c82094cf38593c2a52025f8f1559bf345297984356c82b2e76989441c004237",
+    "src/styles/clip-chat.scss": "4836d08fdde9258650776520da976fc4ee79eb34b571fdc6123f35b8d705a74a",
+    "src/utils/chat-content.ts": "fb3998efd8bc2978f1417e5d51d073712d576ab79fe2b50cf3e6524004bdb192",
+    "src/utils/chat-content.test.ts": "534c7910b6f7820e6463de91466e7d4db113ecfccc8926dce92a7c7f4601134d",
+    "src/utils/chat-image-source.ts": "f601abf2da20c4923a8d178866d76334d25403c60286cac3ccdb23626038551f",
+    "src/utils/chat-images.ts": "3be5659edf40b894591ed42f51008640e2951ac903dda3f5efefb4f598cd1383",
+    "src/utils/chat-images.test.ts": "2114c55b06e09eefe10c59cdab6865b0332e1f486193be677a44b35399872c7d",
+    "src/utils/clip-chat-images.test.ts": "2406d38b20ab65467139cd10212e9a9421f2736b0c9e0a5005e4c797453a1b7d",
+    "src/utils/oauth/accounts.ts": "2102d49dba33a196e2ab178aa39b7595aed95d213e39404dfee44200d10fb528"
+  },
+  "adaptation": "Preserve newer OAuth reasoning option and extractXhsNote parser on integration base. Unrelated helper changes excluded.",
+  "sourceKind": "Uncommitted source snapshot in the primary working tree"
+}

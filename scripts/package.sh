@@ -1,29 +1,5 @@
 #!/bin/bash
-# Zip the three built extensions into builds/. Never zips anything but the build folders:
-# every path is explicit, and the result is checked before it is trusted.
+# Compatibility entry point; npm run package is the supported interface.
 set -euo pipefail
-
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-VERSION="$(node -p "require('$ROOT/package.json').version")"
-mkdir -p "$ROOT/builds"
-
-pack() {
-	local name="$1" dir="$ROOT/$2" out="$ROOT/builds/qiaomu-clipper-$VERSION-$1.zip"
-	[ -f "$dir/manifest.json" ] || { echo "Missing $dir/manifest.json: run npm run build first" >&2; exit 1; }
-	grep -q "\"version\": \"$VERSION\"" "$dir/manifest.json" || { echo "$2 is not version $VERSION: rebuild first" >&2; exit 1; }
-	rm -f "$out"
-	( cd "$dir" && zip -qr -X "$out" . -x '*.DS_Store' )
-	# a build folder is a few dozen files; far more means the wrong folder was zipped
-	local count; count="$(unzip -Z1 "$out" | wc -l | tr -d ' ')"
-	[ "$count" -lt 400 ] || { echo "$out has $count files: wrong folder zipped" >&2; rm -f "$out"; exit 1; }
-	echo "$out ($count files)"
-}
-
-pack chrome dist
-pack firefox dist_firefox
-pack safari dist_safari
-
-# The local edition (loaded unpacked from GitHub) is a separate build: the store's public key in its manifest, so its extension ID equals the
-# store's, and features the Web Store would not accept. The store package above has neither. Checked by scripts/check-editions.mjs.
-pack chrome-local dist_local
-node "$ROOT/scripts/check-editions.mjs"
+exec node "$ROOT/scripts/package.mjs" "$@"

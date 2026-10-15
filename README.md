@@ -18,7 +18,7 @@ Read, watch, listen, and turn what you learn into Obsidian notes.
 
 </div>
 
-> **安装建议（2026-10-08）：等新版商店上架后安装。** [Chrome 应用商店](https://chromewebstore.google.com/detail/jniolfihillilkoajpnonlbkhfkiicoo)当前公开版本仍为 **1.7.1**；**1.15.8 已提交审核，通过后自动发布**，包含九种界面语言和 Windows 助手修复。本页介绍 GitHub 版 1.15.8 的功能；旧商店版不包含全部功能。想现在体验，将下面这段安装 prompt 复制给 Codex、Claude Code 等有本机终端权限的 Agent，插件和 helper 一起安装。
+> 本页介绍 GitHub 版 **1.17.0**。GitHub 与 [Chrome 应用商店](https://chromewebstore.google.com/detail/jniolfihillilkoajpnonlbkhfkiicoo)分别更新，请以各渠道页面显示的版本为准。希望立即使用本页功能，可安装下面的 GitHub 独立版；已有商店版无需为了日常使用同时安装两份。
 
 ```text
 请帮我安装或升级乔木剪藏：https://github.com/joeseesun/qiaomu-clipper 。先读 README.md 和 native/README.md，按我的系统与浏览器操作。
@@ -64,7 +64,7 @@ npm ci
 npm run build:local
 ```
 
-加载 `dist_local`，更新源码并重新构建后，在扩展管理页重新加载。`npm run build:chrome` 生成的是供商店提交使用的 `dist`，不含本地版音视频下载功能。
+日常测试默认使用商店版：`npm run build:store && npm run test:prepare`。固定加载 `~/Documents/乔木剪藏测试/extension`，以后只重新加载这个目录。测试独立版专属功能时运行 `npm run build:local && npm run test:prepare -- --edition local`，路径不变。请使用专用测试浏览器资料，详见 [开发与测试流程](docs/BUILD-TESTING.md)。
 
 </details>
 
@@ -72,7 +72,7 @@ npm run build:local
 
 **helper 是可选的本地助手。** 不装助手也能阅读、编辑、复制或下载 Markdown；保存到 Obsidian 可使用 URI 方式。静默写入笔记库、追加学习日记和生成字幕需要助手。
 
-macOS 用户下载 [1.15.8 的 `qiaomu-clipper-helper.pkg`](https://github.com/joeseesun/qiaomu-clipper/releases/download/1.15.8/qiaomu-clipper-helper.pkg)，双击安装。安装包**自带 Python，已签名并通过 Apple 公证**，不需要先安装 Python、Git 或 Node.js。扩展设置页也提供「下载安装包」入口。安装后重新加载扩展，并在 **设置 → 剪藏与保存** 的「笔记保存到」下拉列表里选择 Obsidian 库；列表读取 Obsidian 已记录的库，也可选择其他文件夹。
+macOS 用户下载 [最新发布的 `qiaomu-clipper-helper.pkg`](https://github.com/joeseesun/qiaomu-clipper/releases/latest/download/qiaomu-clipper-helper.pkg)，双击安装。安装包**自带 Python，已签名并通过 Apple 公证**，不需要先安装 Python、Git 或 Node.js。扩展设置页也提供「下载安装包」入口。安装后重新加载扩展，并在 **设置 → 剪藏与保存** 的「笔记保存到」下拉列表里选择 Obsidian 库；列表读取 Obsidian 已记录的库，也可选择其他文件夹。
 
 Linux / Windows 或需要源码安装的用户，按[助手文档](native/README.md)操作。Windows 助手已有实现和自动测试，尚待真机验证。
 
@@ -163,9 +163,9 @@ AI 面板支持围绕全文或选中段落提问，流式显示回答，按文�
 
 ### 本地版独有：保存正在学习的音视频
 
-GitHub 的 **`-chrome-local.zip`** 包在支持的学习页提供音视频下载，调用 helper 保存原媒体，显示进度，可取消，完成后可显示文件所在位置。目标目录为「下载」中的「乔木剪藏」。**商店版不包含此功能**；两版都支持 Markdown 和字幕文本导出。
+Chrome 商店版与 GitHub 独立版都可在支持的学习页下载完整音视频文件，显示进度、支持取消，并在浏览器确认保存完成后显示文件位置。首次点击时，商店版会申请可选的下载权限。文件保存在「下载/乔木剪藏」，只保存你有权下载的内容。
 
-抖音、小宇宙、播客的媒体下载，以及普通 Chrome 中的实际目录与文件名，尚未逐项完成真实页面验收。需要这项功能的用户可用本地版，并反馈具体来源与错误。
+商店版不提供 YouTube 视频或音频文件下载，也会拦截来自 YouTube 媒体域名的文件，并拒绝下载重定向。当前不提供 HLS/DASH 分段流合并、音视频分轨合并或 DRM 解密。部分站点读取媒体地址需要助手；已有直接媒体地址由浏览器保存，不经过我们的服务器。两版都保留 Markdown 和字幕文本导出。
 
 ## 三连击快捷键
 
@@ -196,8 +196,8 @@ GitHub 的 **`-chrome-local.zip`** 包在支持的学习页提供音视频下载
 npm test
 npx tsc --noEmit
 python3 -m unittest discover -s native -p 'test_*.py'
-npm run build:chrome          # 商店版：dist/
-npm run build:local           # 本地版：dist_local/
+npm run build:chrome          # 商店版：build/production/chrome-store/
+npm run build:local           # 独立版：build/production/chrome-local/
 node scripts/check-editions.mjs
 ```
 
@@ -223,7 +223,7 @@ node scripts/check-editions.mjs
 
 Qiaomu Clipper brings a clean reader, Markdown editor, media player, timed transcripts and contextual AI chat into one workflow. Study a passage, ask a question, and save your own understanding with its source.
 
-> **Installation recommendation, October 8, 2026:** wait for **1.15.8 or later** to appear on the [Chrome Web Store](https://chromewebstore.google.com/detail/jniolfihillilkoajpnonlbkhfkiicoo). The current published version is **1.7.1**; **1.15.8 is submitted for review and set to publish automatically after approval**, including nine interface languages and Windows helper fixes. This README describes GitHub version 1.15.8. For early access, ask an agent with local terminal access to read the repository and install the [GitHub release](https://github.com/joeseesun/qiaomu-clipper/releases/tag/1.15.8).
+> This README describes GitHub **1.17.0**. GitHub and the [Chrome Web Store](https://chromewebstore.google.com/detail/jniolfihillilkoajpnonlbkhfkiicoo) update independently; check each channel for its available version. Install the GitHub standalone edition below for these features.
 
 ### Quick start
 
@@ -238,7 +238,7 @@ Download the latest stable release's -chrome-local.zip, extract it and guide me 
 
 ### Optional helper
 
-The macOS [1.15.8 helper installer](https://github.com/joeseesun/qiaomu-clipper/releases/download/1.15.8/qiaomu-clipper-helper.pkg) is signed, notarized and includes Python. Double-click to install, reload the extension, then select an Obsidian vault under Clipping and saving. No Python, Git or Node.js setup is required for this installer.
+The macOS [latest helper installer](https://github.com/joeseesun/qiaomu-clipper/releases/latest/download/qiaomu-clipper-helper.pkg) is signed, notarized and includes Python. Double-click to install, reload the extension, then select an Obsidian vault under Clipping and saving. No Python, Git or Node.js setup is required for this installer.
 
 The helper enables silent vault writes, appending learning notes to today's daily note, and subtitle generation. Reading, editing, copying and Markdown export work without it; Obsidian URI saving is also available. Update the helper when upgrading the extension. Local recognition engines and models are downloaded separately on demand. Linux/Windows and source installation instructions are in [native/README.md](native/README.md); Windows device validation is pending.
 
@@ -265,6 +265,6 @@ Chat, drafts and recognition caches are stored locally; some settings, templates
 
 ### Development and license
 
-Source builds need Node.js 22+ and npm. Run `npm ci`, then `npm run build:local` and load `dist_local` for the local edition; `npm run build:chrome` produces the store edition in `dist`. Check with `npm test`, `npx tsc --noEmit`, the native Python tests and `node scripts/check-editions.mjs` after building both editions. Translations live in `src/i18n/`; tests check English and Traditional Chinese coverage.
+Source builds need Node.js 22+ and npm. Run `npm ci`, then `npm run build:store && npm run test:prepare`. Load the fixed `~/Documents/乔木剪藏测试/extension` folder in a dedicated test profile. To switch to the standalone edition, run `npm run build:local && npm run test:prepare -- --edition local`; the installation path stays the same. See [build and testing](docs/BUILD-TESTING.md). Check with `npm test`, `npx tsc --noEmit`, the native Python tests and `node scripts/check-editions.mjs` after building both editions. Translations live in `src/i18n/`; tests check English and Traditional Chinese coverage.
 
 Independent [MIT](LICENSE) project based on [Obsidian Web Clipper](https://github.com/obsidianmd/obsidian-clipper), preserving upstream history. Built with [Defuddle](https://github.com/kepano/defuddle) and Lucide; Zhuque Fangsong uses the SIL Open Font License. Maintained by [joeseesun](https://github.com/joeseesun).

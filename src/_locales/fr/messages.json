@@ -1976,7 +1976,7 @@
 		"message": "Lecture de cette adresse…"
 	},
 	"subtitleGenOffline": {
-		"message": "L'assistant local n'est pas connecté. Installez-le ou vérifiez sa connexion sous Découpage et sauvegarde."
+		"message": "L’assistant local n’est pas connecté. Après l’installation ou la réparation, revenez ici et cliquez sur « Vérifier à nouveau »."
 	},
 	"audioTabAbout": {
 		"message": "Description"
@@ -2042,7 +2042,7 @@
 		"message": "Généré par reconnaissance vocale ; peut contenir des erreurs de reconnaissance"
 	},
 	"subtitleGenOutdated": {
-		"message": "L'assistant local est obsolète. Mettez-le à jour sous Découpage et sauvegarde, puis vérifiez à nouveau."
+		"message": "L’assistant local doit être mis à jour. Après l’installation, revenez ici et cliquez sur « Vérifier à nouveau »."
 	},
 	"subtitleGenMissing": {
 		"message": "Des outils nécessaires pour générer des sous-titres sont manquants. Configurez la reconnaissance vocale, installez les outils requis ou un moteur local, puis vérifiez à nouveau."
@@ -2172,5 +2172,26 @@
 	},
 	"contextAddHighlight": {
 		"message": "Ajouter aux surlignages"
+	},
+	"pdGroupPlan": {
+		"message": "Forfaits de programmation"
+	},
+	"pdMagpieNote": {
+		"message": "Connectez-vous à vos abonnements, comme Claude, dans Magpie et activez les modèles, puis chargez leur liste ici. La clé est facultative en local ; les passerelles distantes exigent HTTPS et une clé."
+	},
+	"pdDetectMagpie": {
+		"message": "Détecter Magpie"
+	},
+	"pdMagpieFailed": {
+		"message": "Magpie n’a pas été détecté. Vérifiez l’URL, la clé de la passerelle et l’état du service."
+	},
+	"pdMagpieSecure": {
+		"message": "Magpie à distance exige HTTPS et une clé de passerelle. Les URL ne doivent contenir ni identifiants ni paramètres de requête."
+	},
+	"pdEffort": {
+		"message": "Profondeur de raisonnement"
+	},
+	"pdEffortDefault": {
+		"message": "Valeur par défaut du modèle"
 	}
 }

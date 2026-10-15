@@ -1961,7 +1961,7 @@
 		"message": "正在讀取這個網址…"
 	},
 	"subtitleGenOffline": {
-		"message": "沒有連上本機助手。請到「剪藏與儲存」安裝助手，或檢查已有助手的連線。"
+		"message": "沒有連上本機助手。安裝或修復後，回到這裡點擊「重新檢查」。"
 	},
 	"audioTabAbout": {
 		"message": "簡介"
@@ -2027,7 +2027,7 @@
 		"message": "字幕由語音識別生成，可能有識別錯誤"
 	},
 	"subtitleGenOutdated": {
-		"message": "本機助手版本較舊。請到「剪藏與儲存」更新助手，再重新檢查。"
+		"message": "本機助手需要更新。安裝完成後，回到這裡點擊「重新檢查」。"
 	},
 	"subtitleGenMissing": {
 		"message": "還缺少產生字幕所需的工具。請設定語音辨識，安裝所需工具或本機引擎後重新檢查。"
@@ -2172,5 +2172,26 @@
 	},
 	"contextAddHighlight": {
 		"message": "加入劃線"
+	},
+	"pdGroupPlan": {
+		"message": "Coding 套餐"
+	},
+	"pdMagpieNote": {
+		"message": "先在 Magpie 中登入 Claude 等訂閱並啟用模型，再到這裡取得模型列表。本機金鑰可留空，遠端閘道需要 HTTPS 和金鑰。"
+	},
+	"pdDetectMagpie": {
+		"message": "偵測 Magpie"
+	},
+	"pdMagpieFailed": {
+		"message": "未偵測到 Magpie，請檢查位址、閘道金鑰和服務狀態。"
+	},
+	"pdMagpieSecure": {
+		"message": "遠端 Magpie 必須使用 HTTPS 並填寫閘道金鑰；位址不能帶帳號或查詢參數。"
+	},
+	"pdEffort": {
+		"message": "思考深度"
+	},
+	"pdEffortDefault": {
+		"message": "使用模型預設值"
 	}
 }

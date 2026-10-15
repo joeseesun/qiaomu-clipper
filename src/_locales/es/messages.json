@@ -1976,7 +1976,7 @@
 		"message": "Leyendo esta dirección…"
 	},
 	"subtitleGenOffline": {
-		"message": "El asistente local no está conectado. Instálalo o verifica su conexión en Recortar y guardar."
+		"message": "El asistente local no está conectado. Tras instalarlo o repararlo, vuelve aquí y pulsa «Comprobar de nuevo»."
 	},
 	"audioTabAbout": {
 		"message": "Descripción"
@@ -2042,7 +2042,7 @@
 		"message": "Generado por reconocimiento de voz; puede contener errores de reconocimiento"
 	},
 	"subtitleGenOutdated": {
-		"message": "El asistente local está desactualizado. Actualízalo en Recortar y guardar, luego verifica de nuevo."
+		"message": "El asistente local necesita una actualización. Tras instalarlo, vuelve aquí y pulsa «Comprobar de nuevo»."
 	},
 	"subtitleGenMissing": {
 		"message": "Faltan herramientas necesarias para generar subtítulos. Configura el reconocimiento de voz, instala las herramientas requeridas o un motor local, luego verifica de nuevo."
@@ -2172,5 +2172,26 @@
 	},
 	"contextAddHighlight": {
 		"message": "Añadir a los resaltados"
+	},
+	"pdGroupPlan": {
+		"message": "Planes de programación"
+	},
+	"pdMagpieNote": {
+		"message": "Inicia sesión en suscripciones como Claude en Magpie y activa los modelos; después, carga aquí la lista de modelos. La clave es opcional en conexiones locales; las pasarelas remotas requieren HTTPS y una clave."
+	},
+	"pdDetectMagpie": {
+		"message": "Detectar Magpie"
+	},
+	"pdMagpieFailed": {
+		"message": "No se ha detectado Magpie. Comprueba la URL, la clave de la pasarela y el estado del servicio."
+	},
+	"pdMagpieSecure": {
+		"message": "Magpie remoto requiere HTTPS y una clave de pasarela. Las URL no deben contener credenciales ni parámetros de consulta."
+	},
+	"pdEffort": {
+		"message": "Profundidad de razonamiento"
+	},
+	"pdEffortDefault": {
+		"message": "Valor predeterminado del modelo"
 	}
 }

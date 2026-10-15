@@ -163,8 +163,35 @@ class CloudTests(unittest.TestCase):
   self.provider.default=lambda path,body:{'audio_info':{'duration':30000},'result':{'text':'你好世界。再见。','utterances':[{'start_time':920,'end_time':4920,'text':'你好世界。','words':[]},{'start_time':5000,'end_time':7200,'text':'再见。'},{'start_time':'x','end_time':1,'text':'坏'}]}}
   made,_,_,_=self.run_cloud(total=30.0,cfg=cfg)
   request=self.provider.requests[0];self.assertTrue(request['path'].endswith('/auc/bigmodel/recognize/flash'));body=json.loads(request['body'])
-  self.assertEqual(body['request'],{'model_name':'bigmodel'});self.assertTrue(body['audio']['data']);self.assertEqual(self.provider.last_headers['X-Api-Key'],'sk-test');self.assertEqual(self.provider.last_headers['X-Api-Resource-Id'],'volc.bigasr.auc_turbo');self.assertNotIn('Authorization',self.provider.last_headers)
+  self.assertEqual(body['request'],{'model_name':'bigmodel','show_utterances':True});self.assertTrue(body['audio']['data']);self.assertEqual(self.provider.last_headers['X-Api-Key'],'sk-test');self.assertEqual(self.provider.last_headers['X-Api-Resource-Id'],'volc.bigasr.auc_turbo');self.assertNotIn('Authorization',self.provider.last_headers)
   self.assertEqual(made,[{'start':0.92,'end':4.92,'text':'你好世界。'},{'start':5.0,'end':7.2,'text':'再见。'}])  # milliseconds become seconds; a piece with a bad time is dropped
+ def test_doubao_words_survive_offsets_cleanup_poll_and_final_json(self):
+  cfg=cloud.clean_config({'protocol':'doubao-flash','baseUrl':self.provider.url,'model':'bigmodel'})
+  self.provider.default=lambda path,body:{'result':{'text':'你好！','utterances':[{'start_time':123,'end_time':2234,'text':'你好！','words':[{'start_time':123,'end_time':500,'text':'你'},{'start_time':800,'end_time':2234,'text':'好'}]}]}}
+  made,_,emitted,_=self.run_cloud(total=80,cfg=cfg,workers=1)
+  self.assertEqual(len(made),2)
+  self.assertEqual(made[1]['words'],[{'start':40.123,'end':40.5,'text':'你'},{'start':40.8,'end':42.234,'text':'好'}])
+  kept=asr.clean_segments(emitted)
+  self.assertEqual(kept,made)
+  with (self.dir/'segments.jsonl').open('w') as f:
+   for cue in kept:f.write(json.dumps(cue,ensure_ascii=False)+'\n')
+  self.assertEqual(asr.view(self.dir,{'state':'completed'},1)['segments'],made[1:])
+  asr.atomic_json(self.dir/'result.json',{'segments':kept})
+  self.assertEqual(json.loads((self.dir/'result.json').read_text())['segments'],made)
+ def test_invalid_word_alignment_falls_back_without_losing_the_sentence(self):
+  for words in ([{'start':float('nan'),'end':1,'text':'你'}],[{'start':0,'end':3,'text':'你'}],[{'start':1,'end':.5,'text':'你'}],[{'start':True,'end':1,'text':'你'}],[{'start':0,'end':.5,'text':'你'},{'start':.2,'end':1,'text':'好'}]):
+   cue={'start':0,'end':2,'text':'你好','words':words}
+   self.assertNotIn('words',cloud.cues_from('你好',[cue],40,42)[0])
+   self.assertNotIn('words',asr.clean_segments([cue])[0])
+ def test_poll_pages_by_bytes_without_losing_word_timings(self):
+  word={'start':0,'end':1,'text':'测'*256}
+  cue={'start':0,'end':1,'text':'测试字幕','words':[word]*500}
+  with (self.dir/'segments.jsonl').open('w') as f:
+   for _ in range(4):f.write(json.dumps(cue,ensure_ascii=False)+'\n')
+  page=asr.view(self.dir,{'state':'completed','segmentCount':4})
+  self.assertLess(len(json.dumps(page,ensure_ascii=False).encode()),1_000_000)
+  self.assertEqual(page['next'],1)
+  self.assertEqual(asr.view(self.dir,{},page['next'])['segments'][0],cue)
  def test_doubao_reports_its_status_header_not_the_http_code(self):
   cfg=cloud.clean_config({'protocol':'doubao-flash','baseUrl':self.provider.url,'model':'bigmodel'})
   def answer(code,message,payload=None):

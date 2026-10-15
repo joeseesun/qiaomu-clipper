@@ -17,7 +17,7 @@ import { reloadPage } from './page-reload';
 import { youtubeStudyPath } from './youtube-url';
 const url = 'https://www.youtube.com/watch?v=dbqweBCynuI';
 const result = { content: '<div class="youtube transcript"><p class="transcript-segment">Actual subtitle</p></div>', title: 'Video' };
-const flush = async () => { for (let i = 0; i < 15; i++) await Promise.resolve(); };
+const flush = async () => { for (let i = 0; i < 40; i++) await Promise.resolve(); };
 beforeEach(() => { vi.clearAllMocks(); state.store = {}; document.body.innerHTML = ''; state.fetch.mockImplementation(async (message: { action: string }) => message.action === 'qiaomuStudyTranscript' ? {} : { html: '<html><body>source</body></html>' }); });
 afterEach(() => vi.useRealTimers());
 
@@ -183,8 +183,8 @@ it('offers to generate subtitles when the platform has none, checks the helper, 
 	Array.from(document.querySelectorAll<HTMLButtonElement>('.qiaomu-yt-gen-button')).find(b => b.textContent === '换模型生成文字稿')!.click(); await vi.advanceTimersByTimeAsync(50);
 	document.querySelector<HTMLElement>('.qiaomu-dlg-btn.is-primary')!.click(); await vi.advanceTimersByTimeAsync(2500);
 	expect(asr.find(m => m.mode === 'start')).toMatchObject({ mode: 'start', videoKey: KEY, force: true }); // asked for again, not read from the helper's cache
-	expect(JSON.stringify(state.store['qiaomuTranscript2:generated:' + KEY])).toContain('换了模型的新句子'); expect(reloadPage).toHaveBeenCalledTimes(1);
-	expect(Reader.attachYouTubeTranscript).toHaveBeenCalledOnce(); // not attached a second time
+	expect(JSON.stringify(state.store['qiaomuTranscript2:generated:' + KEY])).toContain('换了模型的新句子'); expect(reloadPage).not.toHaveBeenCalled();
+	expect(Reader.attachYouTubeTranscript).toHaveBeenCalledTimes(2); // only the transcript is replaced
 });
 
 it('tells the viewer what is missing when the helper cannot generate, and never starts a job', async () => {
@@ -223,7 +223,7 @@ it('switches official languages without restarting the player or losing content 
  await startYouTubeStudy(url,42,'Video',state.ready);await flush();
  const frame=document.querySelector('iframe'), select=document.querySelector<HTMLSelectElement>('[aria-label="官方字幕语言"]')!;
  expect(select).not.toBeNull();select.value='zh-cn';select.dispatchEvent(new Event('change'));await flush();
- expect(document.querySelector('iframe')).toBe(frame);expect(document.querySelector('.transcript')!.textContent).toBe('官方中文');
+ expect(document.querySelector('iframe')).toBe(frame);expect(document.querySelector('.transcript .transcript-segment')!.textContent).toBe('官方中文');
  const saved=state.ready.mock.calls[state.ready.mock.calls.length - 1][0].content;expect(saved).toContain('<p>Before</p>');expect(saved).toContain('<p>After</p>');expect(saved).toContain('官方中文');expect(saved).not.toContain('Actual subtitle');
 });
 
@@ -231,4 +231,33 @@ it.each(['https://www.youtube.com/watch?v=dbqweBCynuI','https://www.bilibili.com
  const restored:any={clip:{url:source,title:'Edited title',markdown:'**0:05** · Edited captions\n\nUser notes'},local:{requestId:'same',content:'Edited captions'},studyEditedAt:Date.now()};
  const ready=vi.fn(),onReady=vi.fn();await startYouTubeStudy(source,42,'Edited title',onReady,()=>({chat:{toggle:()=>false},ready}),restored);
  expect(document.querySelector('iframe')).not.toBeNull();expect(document.querySelector('article')?.textContent).toContain('Edited captions');expect(document.querySelector('article')?.textContent).toContain('User notes');expect(state.parse).not.toHaveBeenCalled();expect(state.fetch).not.toHaveBeenCalled();expect(onReady).not.toHaveBeenCalled();expect(ready).toHaveBeenCalledOnce();
+});
+it.each(['https://www.youtube.com/watch?v=dbqweBCynuI','https://www.bilibili.com/video/BV1xx411c7mD'])('offers model regeneration beside platform captions without starting until confirmed: %s',async(source)=>{
+ vi.useFakeTimers();state.parse.mockResolvedValue(result);
+ const base=state.fetch.getMockImplementation()!;const requests:Record<string,unknown>[]=[];
+ state.fetch.mockImplementation(async(message:{action:string;payload?:Record<string,unknown>})=>{if(message.action!=='qiaomuAsr')return base(message);requests.push(message.payload!);if(message.payload?.mode==='status')return{ok:true,ready:true,missing:[],hints:[],engine:'mlx',modelDownloadNeeded:false};return{ok:false,error:'test failure'};});
+ await startYouTubeStudy(source,42,'Video',state.ready);await vi.advanceTimersByTimeAsync(100);
+ const action=document.querySelector<HTMLButtonElement>('.transcript-heading-tools [aria-label="换模型生成字幕"]')!;expect(action).not.toBeNull();action.click();await vi.advanceTimersByTimeAsync(50);
+ expect(requests.some(r=>r.mode==='start')).toBe(false);expect(document.querySelector('.transcript-segment')?.textContent).toBe('Actual subtitle');
+ document.querySelector<HTMLElement>('.qiaomu-dlg-btn.is-primary')!.click();await vi.advanceTimersByTimeAsync(50);
+ expect(requests.find(r=>r.mode==='start')).toMatchObject({force:true});expect(document.querySelector('.transcript-segment')?.textContent).toBe('Actual subtitle');
+});
+
+it('keeps regeneration feedback attached after the reader rebuilds its heading',async()=>{
+ state.parse.mockResolvedValue(result);
+ vi.mocked(Reader.attachYouTubeTranscript).mockImplementationOnce(async(_doc,transcript)=>{document.querySelector('.youtube-study-feedback')?.remove();document.querySelector('article')!.append(transcript);});
+ await startYouTubeStudy(url,42,'Video',state.ready);await flush();
+ expect(document.querySelector('.transcript-heading-tools .qiaomu-yt-gen')).not.toBeNull();
+});
+
+
+it('keeps fetched captions usable when saving the draft exceeds storage quota', async () => {
+ state.parse.mockResolvedValue(result);
+ const ready=vi.fn().mockRejectedValue(new Error('Resource::kQuotaBytes quota exceeded'));
+ await startYouTubeStudy(url,42,'Video',ready);
+ await vi.waitFor(()=>expect(Reader.attachYouTubeTranscript).toHaveBeenCalled());
+ expect(document.querySelector('.transcript')?.textContent).toContain('Actual subtitle');
+ expect(document.querySelector('.qiaomu-study-save-warning')?.textContent).toContain('尚未保存');
+ expect(document.querySelector<HTMLButtonElement>('[aria-label="重新加载字幕"]')?.hidden).toBe(true);
+ expect(ready).toHaveBeenCalledTimes(1);
 });

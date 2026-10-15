@@ -8,6 +8,9 @@ import { bilibiliEmbedUrl, bilibiliVideo, TRANSCRIPT_SELECTOR, PLAYER_SELECTOR }
 import { mountPlayerSize } from './youtube-player-size';
 import { mountPlayerMode } from './youtube-player-mode';
 import { mountTranslation } from './youtube-translation';
+import { mountStudyDownload } from './study-download';
+import { mountBilibiliQualityLink } from './bilibili-embed';
+import { mountStudyMediaFooter } from './study-media-footer';
 
 import { t } from './ui-text';
 // Read only transcript segments, excluding chapter headings and reader controls.
@@ -26,6 +29,11 @@ export async function mountYouTubeStudy(doc: Document, article: HTMLElement, tit
 	article.dataset.videoPlatform = article.querySelector('video.reader-video-player') ? 'web' : bilibiliVideo(url) || article.querySelector('iframe[src*="player.bilibili.com"]') ? 'bilibili' : 'youtube';
 	// A podcast or a recording has no picture to size or to move around: it keeps its one layout.
 	if (article.dataset.audioStudy !== 'true') { mountPlayerSize(article); mountPlayerMode(article); }
+	const footer = mountStudyMediaFooter(article);
+	if (article.dataset.videoPlatform === 'bilibili') {
+		mountBilibiliQualityLink(article, url);
+		void mountStudyDownload(article, undefined, { title, sourceUrl: url, mediaUrl: '', video: true });
+	}
 	if (article.querySelector('.youtube-study-feedback')) return;
 	doc.documentElement.classList.add('youtube-study');
 	// No duplicate transcript action row: copy/download/AI live in the shared bar.
@@ -34,9 +42,8 @@ export async function mountYouTubeStudy(doc: Document, article: HTMLElement, tit
 	feedback.append(status);
 	const text = transcriptText(article);
 	const transcript = article.querySelector(TRANSCRIPT_SELECTOR);
-	if (transcript) transcriptHeadingTools(transcript).append(feedback); else article.append(feedback);
-	const toggleGroup = article.querySelector<HTMLElement>('.player-toggle-group');
-	const controls = toggleGroup || feedback;
+	if (transcript) transcriptHeadingTools(transcript).append(feedback); else (footer || article).append(feedback);
+	const controls = transcript ? transcriptHeadingTools(transcript) : feedback;
 	let chat: ReturnType<typeof mountClipChat> | undefined = existingChat;
 	if (!text) {
 		status.textContent = article.dataset.videoPlatform === 'bilibili'

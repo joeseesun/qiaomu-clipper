@@ -4,7 +4,8 @@
 #   bash scripts/pkg/fetch-python.sh 20261003 3.12.x   (pick a version listed in that release)
 set -euo pipefail
 TAG="${1:?release tag}"; PYV="${2:?python version}"
-ROOT="$(cd "$(dirname "$0")/../.." && pwd)"; OUT="$ROOT/build/python"; mkdir -p "$OUT"; cd "$OUT"
+[[ "$TAG" =~ ^[0-9]+$ ]] && [[ "$PYV" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Invalid release tag or Python version" >&2; exit 1; }
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"; OUT="$ROOT/build/cache/python/$TAG/$PYV"; mkdir -p "$OUT"; cd "$OUT"
 BASE="https://github.com/astral-sh/python-build-standalone/releases/download/$TAG"
 curl -fsSL -o SHA256SUMS "$BASE/SHA256SUMS"
 for arch in aarch64 x86_64; do

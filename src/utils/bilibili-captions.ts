@@ -56,11 +56,11 @@ export async function listBilibiliTracks(bvid: string, page: number, getJson: Ge
 
 export async function fetchBilibiliTrack(track: BilibiliTrack, getJson: GetJson): Promise<PanelSegment[]> {
 	const file = await getJson(track.url, false);
-	const lines: Array<{ from?: unknown; content?: unknown }> = Array.isArray(file?.body) ? file.body : [];
+	const lines: Array<{ from?: unknown; to?: unknown; content?: unknown }> = Array.isArray(file?.body) ? file.body : [];
 	const segments: PanelSegment[] = [];
 	for (const line of lines.slice(0, MAX_LINES)) {
 		const text = typeof line.content === 'string' ? line.content.replace(/\s+/g, ' ').trim() : '', from = Number(line.from);
-		if (text && Number.isFinite(from) && from >= 0) segments.push({ time: stampOf(from), text });
+		if (text && Number.isFinite(from) && from >= 0) segments.push({ time: stampOf(from), start: from, ...(Number(line.to) > from ? { end: Number(line.to) } : {}), text });
 	}
 	return segments;
 }

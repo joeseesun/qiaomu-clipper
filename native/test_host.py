@@ -50,6 +50,14 @@ class NativeSaveTests(unittest.TestCase):
    self.assertEqual((self.state/'config.json').read_text(),before);self.assertEqual(self.config['vault'],str(self.vault))
  def test_can_reconfigure_when_old_vault_removed(self):
   self.config['vault']=str(self.base/'removed');result=self.save({'action':'configure','vaultPath':str(self.vault)});self.assertTrue(result['ok'])
+ def test_invalid_vault_does_not_disconnect_helper_or_block_reconfiguration(self):
+  self.config['vault']=str(self.base/'removed')
+  state=self.save({'action':'status'})
+  self.assertTrue(state['ok']);self.assertIsNone(state['vault']);self.assertIn('不存在',state['vaultError'])
+  self.assertTrue(self.save({'action':'listVaults'})['ok'])
+  with self.assertRaises(ValueError):self.save(self.payload())
+  self.save({'action':'configure','vaultPath':str(self.vault)})
+  self.assertEqual(self.save({'action':'status'})['vaultPath'],str(self.vault))
  def test_chooser_validates_directory_without_switching_target(self):
   daily=self.base/'other-vault';(daily/'.obsidian').mkdir(parents=True)
   with patch.object(host,'choose_vault',return_value=str(daily)):

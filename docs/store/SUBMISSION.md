@@ -1,10 +1,10 @@
 # 乔木剪藏 Chrome Web Store 提交资料
 
-资料日期：2026-10-06。以下内容按当前源代码与 Google 官方文档准备；资料齐备、后台草稿、提交审核和正式上架是不同状态。账号、联系方式、分发范围及后台认证以实际发布者配置为准。
+资料日期：2026-10-12。以下内容按当前源代码与 Google 官方文档准备；资料齐备、后台草稿、提交审核和正式上架是不同状态。账号、联系方式、分发范围及后台认证以实际发布者配置为准。
 
 ## 文件与链接
 
-- 上传包：`builds/store-upload/qiaomu-clipper-1.14.1-chrome.zip`（构建后检查 ZIP 根目录 manifest.json）
+- 上传包：`releases/1.18.0/<build-id>/qiaomu-clipper-1.18.0-chrome-store.zip`（构建后检查 ZIP 根目录 manifest.json）
 - 项目主页：https://github.com/joeseesun/qiaomu-clipper
 - 支持地址：https://github.com/joeseesun/qiaomu-clipper/issues
 - 隐私政策：https://joeseesun.github.io/qiaomu-clipper/privacy.html
@@ -31,6 +31,7 @@
 • 视频学习：YouTube、B 站及 TED 官方字幕，字幕搜索、点击时间戳跳转、随播放滚动；原文、译文或双语复制、下载与剪藏。
 • 沉浸学习页：视频与字幕同屏、剧场模式、悬浮与画中画，结合 AI 问答和学习日记。
 • 生成字幕：可选本机或用户配置的云端语音服务；支持媒体链接及本地音视频文件，需安装本地助手。网站兼容性取决于平台和登录状态。
+• 媒体保存：在支持的学习页下载当前完整音视频文件，首次点击申请下载权限；不支持 YouTube 媒体文件下载、DRM 解密或分段流合并。仅保存你有权下载的内容。
 • 快捷笔记：连按三次 I 打开笔记卡片，可附选区、来源及文件，保存到 Obsidian 日记。
 • AI 设置：服务商卡片、搜索和多模型选择，新增可选账号登录入口。
 • 可选公开分享：勾选“分享到乔木 RSS”后，剪藏会公开提交链接、标题、正文和封面。
@@ -64,6 +65,7 @@ Features:
 • Video study with YouTube, Bilibili and TED captions: search, click timestamps to seek, follow playback and copy/download/clip original or bilingual transcripts.
 • An immersive player and transcript workspace with theater, floating and picture-in-picture modes, AI chat and learning notes.
 • Generate subtitles with an on-device engine or your chosen cloud speech service using the separately installed helper. Accepts supported media links and local audio/video files; site availability depends on the platform and login state.
+• Save complete media files from supported study pages with an optional download permission requested on click. YouTube media-file downloads, DRM decryption and segmented-stream merging are not supported. Only download content you have permission to save.
 • Triple-press I to take a quick note with optional excerpts, sources and file attachments in an Obsidian daily note.
 • Searchable provider cards, multiple model selection and optional account sign-in entries.
 • Optional public sharing to Qiaomu RSS.
@@ -84,6 +86,7 @@ Help users turn web articles and audio/video transcripts into Obsidian Markdown 
 
 | Permission | Justification |
 |---|---|
+| downloads (optional) | Requested only on a Download click to save a supported study-page media file to the local Downloads folder, monitor that download and reveal its file. Does not inspect unrelated download history. YouTube media-file downloads are blocked. |
 | activeTab | Identify and access the page the user chooses to clip via the toolbar, context menu or shortcut. |
 | scripting | Inject the bundled extraction, highlighting, reading and clipping scripts into the selected page. No remotely hosted code is injected. |
 | storage | Store templates, settings, local chat history, clip drafts, pending retries and the anonymous RSS client ID. Some preferences/templates use Chrome sync storage. |
@@ -230,3 +233,12 @@ When the user enables browser-login support and approves the optional permission
 - 462 字符的英文审核说明已保存：文章剪藏、阅读、编辑及 Markdown 导出无需登录；生成字幕依赖可选助手和模型或云端服务；当前网站登录数据仅传给本机助手并删除临时文件；商店版无媒体导出按钮。现有隐私和分发设置保持原样。
 - 新助手安装包已签名并通过 Apple 公证。本机实际安装 1.15.8，并完成助手连接、Obsidian 库和本机模型自检；真实 YouTube 完整 ASR 尚未验收。
 - 状态和软件包原文及截图仅保留在本机忽略目录 `builds/store-upload/submitted-1.15.8-*`，不提交包含账号的后台截图。原延后提审任务已暂停，避免重复提交。
+
+## 1.18.0 媒体下载审核说明
+
+- 本次新增的是学习页完整媒体文件保存。来自 YouTube 页面或 youtube.com、youtu.be、youtube-nocookie.com、googlevideo.com 等媒体来源的文件在商店版禁用；实际 fetch 也执行检查，并禁止自动跟随下载跳转。
+- 下载直接由浏览器完成；部分原站媒体地址的提取仍需本地助手。不会在安装助手后解锁商店版 YouTube 下载。
+- 不提供 DRM 解密、HLS/DASH 合并、分轨合并、付费墙绕过。现有字幕获取与生成是不同功能；生成字幕可能由助手临时下载音轨，仍在隐私政策中如实披露，不宣称商店版完全不访问音轨。
+- `downloads` 是可选权限，拒绝后不发起媒体下载。原有 cookies 可选权限、站点访问和 Native Messaging 功能保留。
+- 审核演示使用自有或明确允许下载的媒体。下载完成以浏览器文件状态为准；原有图片问答和小红书提取包含在本版。
+- 当前文件只是提交材料，不代表已提交或审核通过；实际提交结果单独记录。

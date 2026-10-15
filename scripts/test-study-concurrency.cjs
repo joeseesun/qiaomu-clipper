@@ -3,7 +3,7 @@ const {chromium}=require(process.env.QIAOMU_PLAYWRIGHT || 'playwright');
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const output=process.env.QIAOMU_TEST_OUTPUT || '/tmp/qiaomu-concurrency';fs.mkdirSync(output,{recursive:true});
 (async()=>{
- const extension=path.resolve('dist_local');
+ const extension=path.resolve('build/production/chrome-local');
  const context=await chromium.launchPersistentContext(fs.mkdtempSync(path.join(output,'profile-')),{executablePath:process.env.QIAOMU_EDGE,headless:true,args:[`--disable-extensions-except=${extension}`,`--load-extension=${extension}`],viewport:{width:1280,height:900}});
  const checks=[],errors=[];
  try {

@@ -1,3 +1,5 @@
+import { syncTranscriptHeadingCover } from './transcript-heading';
+import { mountPlayerCaptions } from './player-captions';
 import { getMessage } from './i18n';
 import { bilibiliEmbedUrl, isBilibiliEmbed, PLAYER_SELECTOR, TRANSCRIPT_SELECTOR } from './video-source';
 import { LAYOUT_EVENT } from './layout-event';
@@ -116,7 +118,7 @@ export function wireTranscript(
 		return wrapper;
 	};
 	// Pin the video while reading (only meaningful when the video sits above the text) and follow the line being
-	// played. The translation switch is added after these, so it stays the last one in the row.
+	// played. Player subtitles stay here; manuscript translation lives beside Transcript.
 	const pinToggle = createToggle('pin', getMessage('studyPinVideo'), pinDefault, on => {
 		playerContainer.classList.toggle('pin-player', on);
 		article.dispatchEvent(new CustomEvent(LAYOUT_EVENT)); // a pinned video in theater mode is sized to leave room for the text
@@ -233,6 +235,23 @@ export function wireTranscript(
 	});
 	transcript.style.setProperty('--timestamp-width', Math.ceil(maxWidth) + 'px');
 
+	disposers.push(mountPlayerCaptions(article, transcript, toggleGroup));
+
+ // Keep the heading below the pinned player or clip bar, including after resizing/layout changes.
+ const headingOffset=()=>{const layout=article.dataset.ytLayout;const pinned=playerContainer.classList.contains('pin-player')&&layout!=='side'&&layout!=='float';const playerTop=parseFloat(getComputedStyle(playerContainer).top)||0;return Math.max(scroll.getStickyOffset(),pinned?playerTop+playerContainer.getBoundingClientRect().height:0);};
+ const syncHeading=()=>{
+  transcript.style.setProperty('--transcript-heading-top',`${headingOffset()}px`);
+  syncTranscriptHeadingCover(transcript);
+ };
+ let headingFrame = 0;
+ const scheduleHeading = () => { if (!headingFrame) headingFrame = requestAnimationFrame(() => { headingFrame = 0; syncHeading(); }); };
+ const focusOffset=()=>Math.max(scroll.getFocusOffset?.()??scroll.getStickyOffset()+20,headingOffset()+(transcript.querySelector('.transcript-heading-row')?.getBoundingClientRect().height||0)+20);
+ syncHeading();listen(window,'resize',scheduleHeading);listen(doc,'scroll',scheduleHeading,true);
+ const headingResize=typeof ResizeObserver!=='undefined'?new ResizeObserver(scheduleHeading):undefined;
+ for(const element of [transcript,playerContainer,doc.querySelector('.clip-bar')])if(element)headingResize?.observe(element);
+ const headingLayout=new MutationObserver(scheduleHeading);headingLayout.observe(article,{attributes:true,attributeFilter:['data-yt-layout']});headingLayout.observe(playerContainer,{attributes:true,attributeFilter:['class']});
+ disposers.push(()=>{headingResize?.disconnect();headingLayout.disconnect();if(headingFrame)cancelAnimationFrame(headingFrame);transcript.style.removeProperty('--transcript-heading-top');transcript.style.removeProperty('--transcript-heading-cover');});
+
 	const segmentTimes = segments.map(seg => {
 		const ts = seg.querySelector('.timestamp');
 		return parseFloat(ts?.getAttribute('data-timestamp') || '0');
@@ -265,7 +284,7 @@ export function wireTranscript(
 		if (activeSegment) {
 			const rect = activeSegment.getBoundingClientRect();
 			const targetY = (window.pageYOffset || doc.documentElement.scrollTop)
-				+ rect.top - (scroll.getFocusOffset?.() ?? scroll.getStickyOffset() + 20);
+				+ rect.top - focusOffset();
 			scroll.scrollTo(targetY);
 		}
 	});
@@ -287,7 +306,7 @@ export function wireTranscript(
 			lastUserScroll = 0;
 			if (!autoScrollEnabled || suppressScroll || search.active() || !activeSegment) return;
 			const rect = activeSegment.getBoundingClientRect();
-			scroll.scrollTo((window.pageYOffset || doc.documentElement.scrollTop) + rect.top - (scroll.getFocusOffset?.() ?? scroll.getStickyOffset() + 20));
+			scroll.scrollTo((window.pageYOffset || doc.documentElement.scrollTop) + rect.top - focusOffset());
 		}, AUTO_SCROLL_COOLDOWN);
 	}, { passive: true });
 
@@ -313,7 +332,7 @@ export function wireTranscript(
 				if (autoScrollEnabled && !suppressScroll && !search.active() && Date.now() - lastUserScroll > AUTO_SCROLL_COOLDOWN) {
 					const rect = segments[newIndex].getBoundingClientRect();
 					const targetY = (window.pageYOffset || doc.documentElement.scrollTop)
-						+ rect.top - (scroll.getFocusOffset?.() ?? scroll.getStickyOffset() + 20);
+						+ rect.top - focusOffset();
 					scroll.scrollTo(targetY);
 				}
 			}

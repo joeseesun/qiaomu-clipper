@@ -1,3 +1,5 @@
+import { mountTranscriptRegenerate } from './transcript-heading';
+import { startStudyMedia, type StudyPlayback } from './study-playback-handoff';
 import { marked } from 'marked';
 import { patchClipPreview } from './clip-preview';
 import { bindRemotePreviewMedia, preserveRemotePreviewMedia, restoreRemotePreviewPlayback } from './remote-preview-media';
@@ -7,6 +9,8 @@ import { readTedMedia } from './ted-media';
 import { probeDouyinPage, probeWebStudy, probeXiaoeLive, type XiaoeAnswer } from './web-study-probe';
 import DOMPurify from 'dompurify';
 import browser from './browser-polyfill';
+import { helperDownloadLink } from './helper-install';
+import { reloadPage } from './page-reload';
 import { Reader } from './reader';
 import { setPageTitle, setPageUrl } from './highlighter';
 import { AUDIO_FILE, asrUpload, asrStatus, asrChoose, registerFeedEpisode, registerWebSource, useWebCookies, type AsrReply, type WebInfo, type CookieBrowser } from './asr-client';
@@ -26,10 +30,7 @@ import type { PanelSegment } from './youtube-panel-actions';
 import { durationText, parsePodcastPage, plainToHtml, type PodcastEpisode } from './podcast-page';
 import { siteOf, xStatus } from './study-sites';
 import { measureMediaDuration, pickTikTokMedia } from './web-page-media';
-// Used only behind __LOCAL_EDITION__: the store build never reaches them, so its bundler drops them (checked by scripts/check-editions.mjs).
-import { mountDownloadButton } from './download-button';
-import { guessChoice, type DownloadChoice } from './media-download';
-import { cookiesTxtFor } from './browser-cookies';
+import { mountStudyDownload } from './study-download';
 import { mountAudioControls } from './audio-controls';
 import { recordStudy } from './study-home';
 import { fetchFeed, rssKey, webKey } from './podcast-feed';
@@ -56,6 +57,7 @@ export interface AudioStudyOptions {
 	webUrl?: string;
 	sourceTabId?: number;
     resumeId?: string;
+	playback?: StudyPlayback;
 }
 const text = (id: string, zh: string, en: string) => { try { return browser.i18n.getMessage(id) || (/^zh/i.test(navigator.language) ? zh : en); } catch { return /^zh/i.test(navigator.language) ? zh : en; } };
 const FILE_PAGE_URL = 'https://qiaomu.local/audio';
@@ -182,7 +184,12 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 		status.textContent = reason === 'helper-outdated' ? words.setupOutdated : helper ? words.setupOffline : words.setupMissing;
 		const setup = document.createElement('button'); setup.type = 'button'; setup.className = 'qiaomu-yt-gen-button'; setup.textContent = helper ? words.setupHelper : words.setupRecognition;
 		setup.addEventListener('click', () => { void browser.runtime.sendMessage({ action: 'openSettings', section: helper ? 'clip' : 'asr-models' }); });
-		status.append(document.createTextNode(' '), setup);
+		const actions = document.createElement('span'); actions.className = 'qiaomu-yt-gen-actions';
+		actions.append((helper && helperDownloadLink(document, 'qiaomu-yt-gen-button is-primary')) || setup);
+		const retry = document.createElement('button'); retry.type = 'button'; retry.className = 'qiaomu-yt-gen-button'; retry.textContent = words.recheck;
+		// This failure is before a media job starts; reload repeats only the source read/file chooser.
+		retry.addEventListener('click', reloadPage); actions.append(retry);
+		status.append(actions);
 	};
     // Render the user's text even while original-site verification is pending.
     if (session.restored) {
@@ -199,6 +206,7 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 		const player = mountMediaStudyPlayer(article, holder, src, Boolean(picture), picture?.poster, picture?.audioUrl);
 		bindRemotePreviewMedia(session.draft, player, src, Boolean(picture), picture?.poster, picture?.audioUrl);
         if (session.restored) restoreRemotePreviewPlayback(session.draft, player);
+		if (options.playback) { startStudyMedia(player, options.playback); options.playback = undefined; }
 		if (!picture) player.parentElement!.append(mountAudioControls(document, player, { play: text('audioPlay', '播放', 'Play'), pause: text('audioPause', '暂停', 'Pause'), back: text('audioBack', '后退 15 秒', 'Back 15 s'), forward: text('audioForward', '前进 30 秒', 'Forward 30 s'), speed: text('audioSpeed', '播放速度', 'Playback speed'), seek: text('audioSeek', '播放进度', 'Position') }));
 		return player;
 	};
@@ -209,6 +217,7 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 		if (replace) { article.dispatchEvent(new CustomEvent('qiaomu-transcript-replaced')); article.querySelector(TRANSCRIPT_SELECTOR)?.remove(); }
 		attached = true; status.textContent = '';
 		await Reader.attachYouTubeTranscript(document, transcript, title, shell.chat);
+		mountRegenerate(transcript);
 		// The reader puts its switches (follow playback, translate) in a bar of their own under the player; here they belong in the one row of controls.
 		const group = article.querySelector<HTMLElement>('.player-container .player-toggle-group'), tools = article.querySelector<HTMLElement>('.player-container .qa-tools');
 		if (article.dataset.audioStudy === 'true' && group && tools) { tools.insertBefore(group, tools.querySelector('.qa-speed')); article.querySelector('.player-container .player-toggles')?.setAttribute('hidden', ''); }
@@ -220,7 +229,7 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 		onJob: (k, id) => { if (options.kind === 'file' && k === key) { recoveryJobId = id; saveFileStudySession(route, key, title, true, id); } },
 		videoKey: () => key || null,
 		bar: () => ({ setGeneration: (ui: GenUi | null) => {
-			panel.show(ui ?? { kind: 'offer' });
+			panel.show(attached && (!ui || ui.kind === 'offer' || ui.kind === 'generated') ? null : ui ?? { kind: 'offer' });
 			if (options.kind === 'file') {
 				if (key && ui?.kind === 'running') saveFileStudySession(route, key, title, true, recoveryJobId);
 				if (key && (!ui || ui.kind === 'failed' || (ui.kind === 'generated' && !ui.via))) saveFileStudySession(route, key, title);
@@ -230,7 +239,7 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 			}
 		} }) as never,
 		apply: (k, lines, done) => { if (done && k === key) void attach(lines, attached).catch(() => { status.textContent = t('识别已成功，字幕显示失败。请刷新恢复缓存或重新选择同一文件。'); }); },
-		revert: () => { panel.show({ kind: 'offer' }); },
+		revert: () => { panel.show(attached ? null : { kind: 'offer' }); },
 		// Publish the completed replacement in place, independently of storage availability. Never refresh a page holding a File.
 		save: (k, lines) => { void cache.write(`generated:${k}`, lines).then(async () => {
 			const saved = await cache.read(`generated:${k}`);
@@ -243,19 +252,20 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 		openSettings: () => { window.open(browser.runtime.getURL('settings.html?section=asr-models'), '_blank'); },
 	});
 	const panel = buildGenerationPanel(document, generationStrings(text), generation.actions);
+	const mountRegenerate = (transcript: Element) => mountTranscriptRegenerate(transcript, panel.element, t('换模型生成字幕'), () => { if (!generation.active) generation.actions.regenerate?.(); });
 	holder.append(panel.element); if (session.restored) panel.element.hidden = true;
 	window.addEventListener('pagehide', () => { generation.reset(); window.removeEventListener('resize', place); }, { once: true });
 	// With a key, use what was made before, else ask to make it now.
 	const begin = async () => {
 		const made = await cache.read(`generated:${key}`);
-		if (made?.length) { await attach(made); panel.show({ kind: 'generated' }); return; }
+		if (made?.length) { await attach(made); panel.show(null); return; }
 		status.textContent = text('audioStudyNone', '这段内容还没有字幕。生成后，字幕会跟着播放滚动。', 'There are no subtitles for this media yet. Once made, the lines follow playback.');
 		generation.actions.request();
 	};
 
 	// An episode with a cover, a show, a date and show notes: from a Xiaoyuzhou page or from an RSS feed.
 	// `post`: a short text that belongs with the media (a post's words), shown under the heading rather than behind a tab.
-	const present = async (episode: { title: string; show: string; cover?: string; date?: string; seconds?: number; audio: string; audioUrl?: string; picture?: boolean; notesHtml: string; notesLabel?: string; post?: string }) => {
+	const present = async (episode: { title: string; show: string; cover?: string; date?: string; seconds?: number; sourceUrl?: string; audio: string; audioUrl?: string; downloadMedia?: string; downloadVideo?: boolean; picture?: boolean; notesHtml: string; notesLabel?: string; post?: string }) => {
 		title = session.restored ? session.draft.clip.title : episode.title || initialTitle; document.title = title; setPageTitle(title);
 		const heading = document.querySelector('main h1'); if (heading) heading.textContent = title;
 		// The show, the date and the length, with the cover: what the listener knows the episode by.
@@ -267,55 +277,7 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 		hero.append(about); holder.before(hero);
 		if (episode.post) { const post = document.createElement('div'); post.className = 'qiaomu-post-text'; post.innerHTML = DOMPurify.sanitize(episode.post); sourceHtml = post.outerHTML; holder.before(post); }
 		const player = episode.audio ? showPlayer(episode.audio, episode.picture ? { poster: episode.cover, audioUrl: episode.audioUrl } : undefined) : undefined;
-		// Local edition: save the media file being played (universal support for direct fetch and native pipeline).
-		if (__LOCAL_EDITION__ && (player || options.kind === 'web' || options.kind === 'podcast')) {
-			const targetMediaUrl = episode.audio || options.webUrl || url;
-			const video = Boolean(episode.picture || (options.kind === 'web' && !options.webUrl?.includes('podcast')));
-			const name = title;
-			void (async () => {
-				const CHOICE_KEY = 'qiaomuDownloadChoice';
-				const remembered = ((await browser.storage.local.get(CHOICE_KEY)) as Record<string, string | undefined>)[CHOICE_KEY];
-				const isDirectFetch = episode.audio && /^https:\/\//.test(episode.audio) && !/\.m3u8(?:$|\?)/i.test(episode.audio) && !(episode.picture && episode.audioUrl);
-				
-				const choices: DownloadChoice[] = isDirectFetch ? [
-					{ id: video ? 'video' : 'audio', label: video ? t('视频') : t('音频'), url: episode.audio, kind: video ? 'video' : 'audio', ext: guessChoice(episode.audio, video).ext, source: 'fetch' }
-				] : [
-					{ id: 'video', label: t('视频'), url: options.webUrl || url, mediaUrl: episode.audio || undefined, kind: 'video', ext: 'mp4', source: 'native' },
-					{ id: 'audio', label: t('仅音频'), url: options.webUrl || url, mediaUrl: episode.audio || undefined, kind: 'audio', ext: 'mp3', source: 'native' }
-				];
-
-				const host = document.createElement('div'); host.className = 'qiaomu-dl-host';
-				const place = () => {
-					const card = article.querySelector<HTMLElement>('.player-container'), tools = article.querySelector<HTMLElement>('.qa-tools');
-					const row = card?.querySelector<HTMLElement>(':scope > .player-toggles');
-					const target = !video && tools ? tools : (row || card); if (!target) return;
-					if (host.parentElement !== target) {
-						host.style.cssText = target === card ? 'grid-column:2;grid-row:3;justify-self:end;padding:8px 0 0;line-height:normal' : target === tools ? 'margin-inline-start:auto' : 'display:inline-flex;margin-inline-start:16px;line-height:normal';
-						target.append(host);
-					}
-				};
-				place(); if (!host.parentElement) return;
-				new MutationObserver(place).observe(article, { childList: true, subtree: true });
-
-				const cookiesApi = (browser as unknown as { cookies?: { getAll(details: { domain: string }): Promise<any[]> } }).cookies;
-				const cookiesTxt = cookiesApi ? await cookiesTxtFor(options.webUrl || url, details => cookiesApi.getAll(details)) : '';
-
-				mountDownloadButton(host, {
-					title: name,
-					remembered,
-					choices,
-					cookiesTxt,
-					onRemember: id => { void browser.storage.local.set({ [CHOICE_KEY]: id }); },
-					save: async (blob, filename) => {
-						const objectUrl = URL.createObjectURL(blob);
-						const id = await browser.downloads.download({ url: objectUrl, filename: t('乔木剪藏/{0}', [filename]), saveAs: false, conflictAction: 'uniquify' });
-						const finished = (delta: { id: number; state?: { current?: string } }) => { if (delta.id === id && delta.state?.current && delta.state.current !== 'in_progress') { browser.downloads.onChanged.removeListener(finished); URL.revokeObjectURL(objectUrl); } };
-						browser.downloads.onChanged.addListener(finished);
-						return { reveal: () => { void browser.downloads.show(id); } };
-					},
-				});
-			})().catch(error => { console.warn('[qiaomu] download control not shown:', error); });
-		}
+		void mountStudyDownload(article, player, { title, sourceUrl: episode.sourceUrl || options.feed || url, mediaUrl: episode.downloadMedia ?? episode.audio, audioUrl: episode.audioUrl, video: episode.downloadVideo ?? Boolean(episode.picture), split: Boolean(episode.picture && episode.audioUrl) }).catch(error => { console.warn('[qiaomu] download control not shown:', error); });
 		// The show notes next to the transcript: tabs, so neither pushes the other off the screen.
 		if (episode.notesHtml) {
 			const tabs = document.createElement('div'); tabs.className = 'qiaomu-audio-tabs'; tabs.setAttribute('role', 'tablist');
@@ -342,11 +304,13 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 		status.textContent = text('webReading', '正在读取这个网址…', 'Reading this address…');
 		const official = isXiaoe ? null : await readTedMedia(address, async url => { const reply = await browser.runtime.sendMessage({ action: 'fetchProxy', url, options: {} }) as { text?: string }; return reply?.text || ''; });
 		const isDouyin = siteOf(address)?.id === 'douyin';
+		const isXhs = siteOf(address)?.id === 'xiaohongshu';
 		// The video host of Douyin may refuse a stranger's page as referrer; sending none works (checked on a live item).
 		if (isDouyin) { const meta = document.createElement('meta'); meta.name = 'referrer'; meta.content = 'no-referrer'; document.head.append(meta); }
 		const source = () => browser.runtime.sendMessage({ action: 'qiaomuWebStudySource', url: address, sourceTabId: options.sourceTabId }).catch(() => null) as Promise<import('./asr-client').WebInfo | null>;
 		const { info, cookies, sourceUrl }: { info: AsrReply<WebInfo>; cookies?: CookieBrowser; sourceUrl?: string } = official ? { info: official, cookies: undefined }
 			: isDouyin ? { ...await probeDouyinPage(address, status, holder, source), cookies: undefined }
+			: isXhs ? { ...await probeDouyinPage(address, status, holder, source, 2, '小红书'), cookies: undefined }
 			: isXiaoe ? await (async () => {
 				const read = () => browser.runtime.sendMessage({ action: 'qiaomuXiaoeLive', url: address }) as Promise<XiaoeAnswer>;
 				const found = await probeXiaoeLive(status, holder, read, url => { browser.tabs.create({ url, active: true }).catch(() => { window.open(url, '_blank', 'noopener'); }); });
@@ -380,18 +344,18 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 		// 小鹅通: the helper downloads the replay playlist itself; this page plays it only where the browser plays HLS.
 		const xiaoeMedia = isXiaoe ? info.mediaUrl || undefined : undefined;
 		if (isXiaoe && info.mediaUrl && !document.createElement('video').canPlayType('application/vnd.apple.mpegurl')) info.mediaUrl = null;
-		key = await webKey(sourceUrl || address); registerWebSource(key, sourceUrl || address, isDouyin || siteOf(address)?.id === 'channels' ? info.audioUrl || info.mediaUrl || undefined : xiaoeMedia);
+		key = await webKey(sourceUrl || address); registerWebSource(key, sourceUrl || address, isDouyin || isXhs || siteOf(address)?.id === 'channels' ? info.audioUrl || info.mediaUrl || undefined : xiaoeMedia);
 		if (cookies) useWebCookies(key, cookies);
         session.draft.studySource = address;
 		void recordStudy({ url: address, title: info.title, path: `reader.html?study=web&url=${encodeURIComponent(address)}`, kind: 'web' });
 		// A post on X says something of its own: its words stay with the media. A long description of another site waits behind a tab.
 		const words = (info.description ?? '').trim(), isPost = Boolean(xStatus(address)), short = isPost || words.length <= 400;
-		await present({ title: info.title, show: info.author || info.site, cover: info.thumbnail ?? undefined, date: info.date ?? undefined, seconds: info.seconds ?? undefined, audio: info.mediaUrl ?? '', audioUrl: info.audioUrl, picture: info.video && Boolean(info.mediaUrl), ...(words && short ? { post: plainToHtml(words) } : {}), ...(words && !short ? { notesHtml: plainToHtml(words), notesLabel: text('audioTabAbout', '简介', 'Description') } : { notesHtml: '' }) });
+		await present({ sourceUrl: sourceUrl || address, title: info.title, show: info.author || info.site, cover: info.thumbnail ?? undefined, date: info.date ?? undefined, seconds: info.seconds ?? undefined, audio: info.mediaUrl ?? '', downloadMedia: xiaoeMedia || info.mediaUrl || '', downloadVideo: info.video, audioUrl: info.audioUrl, picture: info.video && Boolean(info.mediaUrl), ...(words && short ? { post: plainToHtml(words) } : {}), ...(words && !short ? { notesHtml: plainToHtml(words), notesLabel: text('audioTabAbout', '简介', 'Description') } : { notesHtml: '' }) });
 		if (!info.mediaUrl) { const note = document.createElement('p'); note.className = 'qiaomu-shows-note'; note.append(document.createTextNode(siteOf(address)?.id === 'tiktok' ? t('没能取到这条视频的播放地址（它在原页面里正常播放，需要原来的 TikTok 页面保持打开）。字幕照常生成，对照时请在原页面播放：') : isXiaoe ? t('这个浏览器不能直接播放小鹅通的回放，所以这里不提供播放器；字幕照常生成，对照时请在小鹅通里播放：') : t('这个网站没有给出可以直接播放的声音，所以这里不提供播放器；字幕照常生成，对照时请在原页面播放：'))); const link = document.createElement('a'); link.href = address; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = t('打开原页面'); note.append(link); holder.before(note); }
         if (session.restored) {
             const content = article.querySelector<HTMLElement>('.qiaomu-restored-study')!;
             const transcript = prepareLocalPreviewTranscript(content);
-            if (transcript) await Reader.attachYouTubeTranscript(document, transcript, session.draft.clip.title, shell.chat);
+            if (transcript) { attached = true; await Reader.attachYouTubeTranscript(document, transcript, session.draft.clip.title, shell.chat); mountRegenerate(transcript); }
             panel.element.hidden = true; status.textContent = ''; shell.refresh(); shell.setPending(false);
             await patchClipPreview(session.draft, {studySource:session.draft.studySource});
             try { await preserveRemotePreviewMedia(session.draft); }

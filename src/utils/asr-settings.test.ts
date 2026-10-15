@@ -8,6 +8,13 @@ const profile = (patch: Partial<AsrProfile> = {}): AsrProfile => ({ ...newProfil
 it('defaults to the local engine with no cloud service saved', async () => {
 	const settings = await loadAsrSettings(); expect(settings).toEqual(defaultAsrSettings()); expect(settings).toMatchObject({ mode: 'local', engine: 'auto', profiles: [], active: '' }); expect(activeProfile(settings)).toBeUndefined();
 });
+it('defaults browser login reuse on for new and unset settings, while preserving an explicit opt-out', async () => {
+	expect((await loadAsrSettings()).autoLogin).toBe(true);
+	state.store.qiaomuAsrSettings = { engine: 'mlx' };
+	expect((await loadAsrSettings()).autoLogin).toBe(true);
+	await saveAsrSettings({ autoLogin: false });
+	expect((await loadAsrSettings()).autoLogin).toBe(false);
+});
 
 it('keeps several cloud services, one of them active, and repairs anything malformed instead of trusting it', async () => {
 	const a = profile({ id: 'a1', apiKey: ' sk-a ' }), b = withProvider(profile({ id: 'b2', apiKey: 'sk-b' }), 'glm');

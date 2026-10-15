@@ -1,5 +1,6 @@
 import Defuddle from 'defuddle/full';
 import { setElementHTML } from './dom-utils';
+import { extractXhsNote } from './xiaohongshu';
 
 // Parse document content for clipping. In reader mode, extracts from
 // the article's original HTML to avoid reader UI artifacts.
@@ -17,5 +18,5 @@ export function parseForClip(doc: Document) {
 		}
 		return new Defuddle(readerDoc, { url: '' }).parse();
 	}
-	return new Defuddle(doc, { url: doc.URL }).parse();
+	return extractXhsNote(doc) || new Defuddle(doc, { url: doc.URL }).parse();
 }

@@ -1976,7 +1976,7 @@
 		"message": "이 주소를 읽는 중…"
 	},
 	"subtitleGenOffline": {
-		"message": "로컬 도우미가 연결되지 않았습니다. 클리핑 및 저장에서 설치하거나 연결을 확인하세요."
+		"message": "로컬 도우미에 연결되지 않았습니다. 설치하거나 복구한 후 여기로 돌아와 “다시 확인”을 클릭하세요."
 	},
 	"audioTabAbout": {
 		"message": "설명"
@@ -2042,7 +2042,7 @@
 		"message": "음성 인식으로 생성됨; 인식 오류가 있을 수 있습니다"
 	},
 	"subtitleGenOutdated": {
-		"message": "로컬 도우미가 오래되었습니다. 클리핑 및 저장에서 업데이트한 후 다시 확인하세요."
+		"message": "로컬 도우미를 업데이트해야 합니다. 설치 후 여기로 돌아와 “다시 확인”을 클릭하세요."
 	},
 	"subtitleGenMissing": {
 		"message": "자막 생성에 필요한 도구가 없습니다. 음성 인식을 설정하고 필요한 도구나 로컬 엔진을 설치한 후 다시 확인하세요."
@@ -2172,5 +2172,26 @@
 	},
 	"contextAddHighlight": {
 		"message": "하이라이트에 추가"
+	},
+	"pdGroupPlan": {
+		"message": "코딩 요금제"
+	},
+	"pdMagpieNote": {
+		"message": "Magpie에서 Claude 등의 구독 계정으로 로그인하고 모델을 활성화한 다음 여기서 모델 목록을 불러오세요. 로컬 연결의 키는 선택 사항입니다. 원격 게이트웨이는 HTTPS와 키가 필요합니다."
+	},
+	"pdDetectMagpie": {
+		"message": "Magpie 감지"
+	},
+	"pdMagpieFailed": {
+		"message": "Magpie를 찾을 수 없습니다. URL, 게이트웨이 키, 서비스 상태를 확인하세요."
+	},
+	"pdMagpieSecure": {
+		"message": "원격 Magpie는 HTTPS와 게이트웨이 키가 필요합니다. URL에는 인증 정보나 쿼리 매개변수를 포함할 수 없습니다."
+	},
+	"pdEffort": {
+		"message": "추론 깊이"
+	},
+	"pdEffortDefault": {
+		"message": "모델 기본값"
 	}
 }

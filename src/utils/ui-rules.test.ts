@@ -20,7 +20,7 @@ it('scopes our buttons so the app\'s global button rules (and their :hover) cann
 		const css = source(file);
 		expect(css, file).not.toMatch(/\n\.qiaomu-yt-gen-button\{/); // an unscoped rule would lose to buttons.scss
 	}
-	expect(source('./subtitle-generation-panel.ts')).toContain('html button.qiaomu-yt-gen-button:not(.qg-x){display:inline-flex');
+	expect(source('./subtitle-generation-panel.ts')).toMatch(/html button\.qiaomu-yt-gen-button:not\(\.qg-x\)(?:,html a\.qiaomu-yt-gen-button:not\(\.qg-x\))?\{display:inline-flex/);
 	expect(source('./subtitle-generation-dialog.ts')).toMatch(/\.qiaomu-dlg-wrap \.qiaomu-dlg \.qiaomu-dlg-btn\{/);
 });
 
@@ -36,4 +36,13 @@ it('styles the study page\'s buttons where they really are: the dialog is append
 	expect(css).toContain('html .qiaomu-modal button.qiaomu-home-study:not(.qh-x)'); expect(css).toContain('html .qiaomu-modal button.qiaomu-home-x:not(.qh-x)');
 	for (const unscoped of ['\n.qiaomu-home-x{', '\n.qiaomu-home-study{', '\n.qiaomu-home-go{']) expect(css).not.toContain(unscoped); // would lose to the app's global button rules
 	expect(css).toMatch(/\.qiaomu-home svg\{mix-blend-mode:normal!important/);
+});
+
+
+it('lets the shared top bar wrap before its actions can leave the viewport', async () => {
+ const { compileString } = await import('sass');
+ const css = compileString(source('../styles/clip-bar.scss')).css;
+ expect(css).toMatch(/\.clip-bar \{[^}]*height: auto;/);
+ expect(css).toMatch(/\.clip-bar \{[^}]*flex-wrap: wrap;/);
+ expect(css).toMatch(/\.clip-bar \.clip-bar-title \{[^}]*flex: 1 1 240px;/);
 });

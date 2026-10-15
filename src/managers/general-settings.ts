@@ -1,3 +1,4 @@
+import { displayBuildIdentity } from '../utils/build-identity';
 import { handleDragStart, handleDragOver, handleDrop, handleDragEnd } from '../utils/drag-and-drop';
 import { initializeIcons } from '../icons/icons';
 import { getCommands } from '../utils/hotkeys';
@@ -25,6 +26,7 @@ import { showModal, hideModal } from '../utils/modal-utils';
 import { LocalSaveResult } from '../utils/local-save';
 import { releaseNotesView } from './release-notes-view';
 import { describeHelperFailure, nativeHelperRepairPrompt } from '../utils/native-helper-prompt';
+import { isMacHelperPlatform } from '../utils/helper-install';
 import { DEFAULT_TRIPLE_KEYS, TRIPLE_COMMANDS, TripleCommand, normalizeTripleKeys, normalizeSites } from '../utils/triple-key';
 
 import { t } from '../utils/ui-text';
@@ -146,9 +148,15 @@ async function initializeVersionDisplay(): Promise<void> {
 	const status = document.getElementById('version-status');
 	const link = document.getElementById('changelog-link') as HTMLAnchorElement | null;
 	if (versionNumber) versionNumber.textContent = manifest.version;
+	const testing = versionNumber ? await displayBuildIdentity(versionNumber) : false;
 	if (!status) return;
+	if (testing) { status.textContent = t('测试版由开发流程更新。'); return; }
 	// The store edition is updated by the store. The local edition checks the project's releases once per visit and says so only when it read the answer.
-	if (!__LOCAL_EDITION__) { status.textContent = t('商店会自动更新这个插件。'); return; }
+	if (!__LOCAL_EDITION__) {
+		const installed = await browser.management?.getSelf?.().catch(() => null);
+		status.textContent = installed?.installType === 'normal' ? t('商店会自动更新这个插件。') : t('手动加载的版本需要手动更新。');
+		return;
+	}
 	status.textContent = t('正在检查更新…');
 	void releaseNotesView();
 	const result = await checkForUpdate(manifest.version);
@@ -232,13 +240,14 @@ function initializeShowMoreActionsToggle(): void {
 	});
 }
 
-async function initializeLocalVaultSettings(): Promise<void> {
+export async function initializeLocalVaultSettings(): Promise<void> {
 	const row = document.getElementById('local-vault-row');
 	const select = document.getElementById('local-vault-select') as HTMLSelectElement | null;
 	const status = document.getElementById('local-vault-status');
 	const note = document.getElementById('local-helper-note');
 	const help = document.getElementById('local-helper-help');
 	const download = document.getElementById('local-helper-download');
+	const recheck = document.getElementById('local-helper-recheck') as HTMLButtonElement | null;
 	const more = document.getElementById('local-helper-more');
 	const copy = document.getElementById('local-helper-copy') as HTMLButtonElement | null;
 	const uriVaults = document.getElementById('uri-vaults');
@@ -246,7 +255,11 @@ async function initializeLocalVaultSettings(): Promise<void> {
 	const OTHER = '__other__';
 	let failure: string | undefined;
 	let current = '';
-	const isMac = /Mac/i.test(navigator.platform || navigator.userAgent);
+	const isMac = isMacHelperPlatform();
+	// A connected helper can still need an update. Keep installation reachable in every state.
+	if (help) help.hidden = false;
+	if (download) download.hidden = !isMac;
+	if (more) more.hidden = false;
 
 	const showOffline = (message: string, reason?: string) => {
 		failure = reason;
@@ -262,7 +275,8 @@ async function initializeLocalVaultSettings(): Promise<void> {
 		row.hidden = false;
 		if (uriVaults) uriVaults.hidden = true;
 		note.textContent = t('已连接 ✓');
-		if (help) help.hidden = true;
+		if (help) help.hidden = false;
+		if (copy) copy.hidden = true;
 	};
 	copy?.addEventListener('click', async () => {
 		try { await navigator.clipboard.writeText(nativeHelperRepairPrompt(browser.runtime.id, failure)); copy.textContent = t('已复制，去发给 AI 助手'); }
@@ -271,6 +285,11 @@ async function initializeLocalVaultSettings(): Promise<void> {
 
 	const fill = (vaults: { name: string; path: string }[], active: string) => {
 		select.textContent = '';
+		if (!active) {
+			const placeholder = document.createElement('option');
+			placeholder.value = ''; placeholder.disabled = true;
+			placeholder.textContent = t('选择笔记库…'); select.appendChild(placeholder);
+		}
 		const known = vaults.some(v => v.path === active);
 		const options = known || !active ? vaults : [{ name: active.split(/[\\/]/).pop() || active, path: active }, ...vaults];
 		for (const v of options) {
@@ -284,8 +303,7 @@ async function initializeLocalVaultSettings(): Promise<void> {
 		other.value = OTHER;
 		other.textContent = t('选择其他文件夹…');
 		select.appendChild(other);
-		if (active) select.value = active;
-		if (!select.value && options.length) select.value = options[0].path;
+		select.value = active;
 	};
 	const remember = async (result: LocalSaveResult) => {
 		if (!result.vault || !result.vaultPath) return;
@@ -301,6 +319,7 @@ async function initializeLocalVaultSettings(): Promise<void> {
 	let vaultList: { name: string; path: string }[] = [];
 	select.addEventListener('change', async () => {
 		const wanted = select.value;
+		if (!wanted) return;
 		select.disabled = true;
 		try {
 			const result = (wanted === OTHER
@@ -325,17 +344,24 @@ async function initializeLocalVaultSettings(): Promise<void> {
 		finally { select.disabled = false; }
 	});
 
-	try {
+	const refresh = async () => { try {
+		note.textContent = t('正在检查…');
 		const state = await browser.runtime.sendMessage({ action: 'qiaomuLocalStatus' }) as LocalSaveResult;
-		if (!state?.ok) { showOffline(`${describeHelperFailure(state?.reason)}`, state?.reason); return; }
+		if (!state?.ok) { showOffline(state?.error || describeHelperFailure(state?.reason), state?.reason); return; }
 		const listed = await browser.runtime.sendMessage({ action: 'qiaomuLocalListVaults' }) as { ok?: boolean; vaults?: { name: string; path: string }[] };
 		vaultList = listed?.ok && Array.isArray(listed.vaults) ? listed.vaults : [];
 		current = state.vaultPath || '';
 		showOnline();
+		await remember(state);
 		fill(vaultList, current);
-		status.textContent = current ? current : t('选一个库，之后一键保存，不用打开 Obsidian。');
-		if (!current && vaultList.length) status.textContent = t('选一个库，之后一键保存，不用打开 Obsidian。');
-	} catch { showOffline(t('还没有安装本地助手。')); }
+		status.textContent = state.vaultError || current || t('选一个库，之后一键保存，不用打开 Obsidian。');
+		// Saving support does not prove that this helper understands subtitle requests.
+		const speech = await browser.runtime.sendMessage({ action: 'qiaomuAsr', payload: { mode: 'status' } }) as { ok?: boolean; error?: string };
+		if (speech?.error === 'helper-outdated') note.textContent = t('本地助手需要更新。安装完成后，回到这里点击「重新检查」。');
+		else if (speech?.error === 'helper-offline') note.textContent = t('没有连上本地助手。安装或修复后，回到这里点击「重新检查」。');
+	} catch { showOffline(t('本地助手没有响应，请先安装或更新')); } };
+	recheck?.addEventListener('click', async () => { recheck.disabled = true; try { await refresh(); } finally { recheck.disabled = false; } });
+	await refresh();
 }
 
 function initializeVaultInput(): void {

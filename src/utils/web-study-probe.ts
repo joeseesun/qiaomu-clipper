@@ -4,7 +4,7 @@ import { t } from './ui-text';
 // Douyin's loaded player is more reliable than the downloader's cookie extraction.
 // Keep checking it on retry: a video may start loading after the reader opens.
 export async function probeDouyinPage(url: string, status: HTMLElement, holder: HTMLElement,
-	readPage: () => Promise<WebInfo | null | undefined>, patience = 2): Promise<{ info: WebInfo }> {
+	readPage: () => Promise<WebInfo | null | undefined>, patience = 2, site = '抖音'): Promise<{ info: WebInfo }> {
 	const read = async () => { try { return await readPage(); } catch { return; } };
 	// The player may still be starting: look again quietly before asking anything of the user.
 	for (let attempt = 0; attempt <= patience; attempt++) {
@@ -13,7 +13,7 @@ export async function probeDouyinPage(url: string, status: HTMLElement, holder: 
 	}
 	const doc = holder.ownerDocument, row = doc.createElement('div'); row.className = 'qiaomu-web-retry'; row.setAttribute('role', 'group');
 	const title = doc.createElement('b'); title.textContent = t('还没读到这条视频');
-	const note = doc.createElement('p'); note.textContent = t('先回到抖音页面，让这条视频播放几秒，再点「重新读取」。');
+	const note = doc.createElement('p'); note.textContent = t('先回到{0}页面，让这条视频播放几秒，再点「重新读取」。', [t(site)]);
 	const actions = doc.createElement('div'); actions.className = 'qiaomu-web-retry-actions';
 	const button = doc.createElement('button'); button.type = 'button'; button.className = 'qw-primary'; button.textContent = t('重新读取');
 	const link = doc.createElement('a'); link.href = url; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.className = 'qw-secondary'; link.textContent = t('打开原视频');
@@ -24,7 +24,7 @@ export async function probeDouyinPage(url: string, status: HTMLElement, holder: 
 			button.disabled = true; button.textContent = t('正在读取…');
 			const info = await read();
 			if (info?.ok) { row.remove(); resolve({ info }); return; }
-			note.textContent = t('还是没读到。请确认抖音页面里这条视频正在播放，且没有切换到别的视频。');
+			note.textContent = t('还是没读到。请确认{0}页面里这条视频正在播放，且没有切换到别的视频。', [t(site)]);
 			button.disabled = false; button.textContent = t('重新读取');
 		});
 	});

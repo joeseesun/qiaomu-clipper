@@ -49,6 +49,16 @@ function topRightLayer(host: HTMLElement, doc: Document): DOMRect | undefined {
 export function placeWebBar(host: HTMLElement, media: WebMedia | undefined, site: string): void {
 	const doc = host.ownerDocument, win = doc.defaultView!;
 	const video = media?.getBoundingClientRect();
+	if (site === 'xiaohongshu') {
+		const scroller = media?.closest('#noteContainer')?.querySelector('.note-scroller');
+		const content = scroller?.querySelector('.note-content');
+		if (scroller) {
+			host.classList.remove('is-floating', 'is-compact'); host.classList.add('is-inline'); host.style.cssText = 'box-sizing:border-box;padding:0 16px 12px;';
+			if (content) { if (content.nextElementSibling !== host) content.after(host); }
+			else if (scroller.firstElementChild !== host) scroller.prepend(host);
+			return;
+		}
+	}
 	if (site === 'ted') {
 		// TED creates its media element after the outer player. Anchor to that box
 		// even while the video is loading; hidden advertising videos are unrelated.

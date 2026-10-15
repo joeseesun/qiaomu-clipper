@@ -25,6 +25,16 @@ it('rejects competing old-tab text edits without losing either stored text or lo
  a!.clip.markdown='A pending';await expect(previews.updateClipPreview(a!)).rejects.toThrow();
  expect(saved['qiaomuPreview:shared'].clip.markdown).toBe('B edits'); expect(a!.clip.markdown).toBe('A pending');
 });
+it('accepts repeated saves when Chrome storage returns object keys in a different order',async()=>{
+ const reorder=(value:any)=>JSON.parse(JSON.stringify(value,(_key,item)=>item&&typeof item==='object'&&!Array.isArray(item)?Object.fromEntries(Object.keys(item).sort().map(key=>[key,item[key]])):item));
+ vi.mocked(browser.storage.local.get).mockImplementation(async key=>reorder({[String(key)]:saved[String(key)]}));
+ const current=(await previews.loadClipPreview('shared'))!;
+ current.clip={url:current.clip.url,title:'Loaded video title',markdown:'First captions'};
+ await previews.updateClipPreview(current);
+ current.clip.markdown='Regenerated captions';
+ await expect(previews.updateClipPreview(current)).resolves.toBeUndefined();
+ expect(saved['qiaomuPreview:shared'].clip.markdown).toBe('Regenerated captions');
+});
 it('preserves an edited caption-only study beyond preview cleanup and finds it by the original source', async () => {
  const item=draft();item.createdAt=Date.now()-3*86400000;item.studyEditedAt=Date.now();item.clip.markdown='Edited captions without HLS';
  saved['qiaomuPreview:shared']=item;

@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { beforeEach, expect, it, vi } from 'vitest';
-const state = vi.hoisted(() => ({ store: {} as Record<string, unknown>, send: vi.fn() }));
-vi.mock('../utils/browser-polyfill', () => ({ default: { runtime: { sendMessage: (...args: unknown[]) => state.send(...args) }, storage: { local: { get: async (key: string) => ({ [key]: state.store[key] }), set: async (value: Record<string, unknown>) => { Object.assign(state.store, JSON.parse(JSON.stringify(value))); } } } } }));
+import { readFileSync } from 'node:fs';
+const state = vi.hoisted(() => ({ store: {} as Record<string, unknown>, send: vi.fn(), granted: true, request: vi.fn() }));
+vi.mock('../utils/browser-polyfill', () => ({ default: { permissions: { contains: async () => state.granted, request: (...args: unknown[]) => state.request(...args) }, runtime: { sendMessage: (...args: unknown[]) => state.send(...args) }, storage: { local: { get: async (key: string) => ({ [key]: state.store[key] }), set: async (value: Record<string, unknown>) => { Object.assign(state.store, JSON.parse(JSON.stringify(value))); } } } } }));
 import { initializeAsrSettings } from './asr-settings';
 
 const HTML = `<div id="asr-settings"><select id="asr-default"></select><div id="asr-routes"></div><div id="asr-rec"></div><div class="checkbox-container"><input type="checkbox" id="asr-auto-start"></div>
@@ -22,7 +23,7 @@ const act = (host: HTMLElement, label: string) => Array.from(host.querySelectorA
 const field = (id: string) => el<HTMLInputElement>(id);
 const modalButtons = () => Array.from(el('asr-modal-actions').querySelectorAll<HTMLButtonElement>('button'));
 const press = (label: string) => modalButtons().find(b => b.textContent === label)!.click();
-beforeEach(async () => { state.store = {}; state.send.mockReset(); vi.restoreAllMocks(); helper([engine('mlx', { installed: true, modelReady: true }), engine('mlx-qwen3'), engine('faster-whisper')]); await open(); });
+beforeEach(async () => { state.granted=true; state.request.mockReset(); state.store = {}; state.send.mockReset(); vi.restoreAllMocks(); helper([engine('mlx', { installed: true, modelReady: true }), engine('mlx-qwen3'), engine('faster-whisper')]); await open(); });
 
 it('offers two clear starts: one recommended local engine and the two recommended cloud services, with one action each', () => {
 	expect(recLocal().textContent).toContain('推荐'); expect(recLocal().textContent).toContain('Qwen3-ASR 0.6B（MLX）'); expect(recLocal().textContent).toContain('需要先下载，约 1.3 GB'); expect(Array.from(recLocal().querySelectorAll('button')).map(b => b.textContent)).toEqual(['安装']);
@@ -129,7 +130,7 @@ it('makes an installed engine the default from its dialog, opens rows with the k
 
 it('keeps working while the helper is missing or old, and says so', async () => {
 	state.send.mockResolvedValue({ ok: false, error: 'helper-offline' }); await open(); expect(el('asr-status').textContent).toContain('没有连上本地助手'); expect(recLocal().textContent).toContain('Qwen3-ASR');
-	state.send.mockResolvedValue({ ok: false, error: 'helper-outdated' }); await open(); expect(el('asr-status').textContent).toContain('版本较旧');
+	state.send.mockResolvedValue({ ok: false, error: 'helper-outdated' }); await open(); expect(el('asr-status').textContent).toContain('需要更新');
 });
 
 it('saves "start straight away" and shows the saved choices again when the page opens', async () => {
@@ -158,4 +159,29 @@ it('offers an actionable helper repair inside a cloud test failure, without savi
  const setup = el('asr-modal-body').querySelector<HTMLButtonElement>('[data-goto-section="clip"]')!;
  expect(setup).not.toBeNull(); expect(saved()).toBeUndefined();
  setup.click(); expect(el('asr-modal').style.display).toBe('none');
+});
+
+it('shows the default-enabled login preference and requests missing permission only when clicked', async () => {
+ state.granted=false;
+ document.body.innerHTML=HTML;
+ const page=new DOMParser().parseFromString(readFileSync('src/settings.html','utf8'),'text/html');
+ document.body.append(page.getElementById('asr-auto-login-row')!);
+ await initializeAsrSettings(); await settled();
+ expect(field('asr-auto-login').checked).toBe(true);
+ expect(el('asr-login-permission').hidden).toBe(false);
+ expect(state.request).not.toHaveBeenCalled();
+ state.request.mockResolvedValue(true); el('asr-login-permission').click();
+ expect(state.request).toHaveBeenCalledWith({permissions:['cookies']}); await settled();
+ expect(el('asr-login-permission').hidden).toBe(true);
+ field('asr-auto-login').checked=false; change('asr-auto-login'); await settled();
+ expect((state.store.qiaomuAsrSettings as any).autoLogin).toBe(false);
+});
+
+// The helper omits unsupported engines instead of returning supported:false.
+it('recommends only the engines in the helper catalogue on Windows and Intel Macs', async () => {
+ helper([engine('faster-whisper')]); await open();
+ expect(recLocal().textContent).toContain('faster-whisper');
+ expect(Array.from(el<HTMLSelectElement>('asr-default').options).map(o => o.value)).toEqual(['local:auto', 'local:faster-whisper']);
+ document.querySelector<HTMLElement>('#asr-add')!.click();
+ expect(el('asr-modal-body').textContent).not.toContain('MLX');
 });

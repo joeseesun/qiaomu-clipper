@@ -4,7 +4,7 @@ const assert = require('node:assert/strict'), fs = require('node:fs'), path = re
 const output = process.env.QIAOMU_TEST_OUTPUT || path.join(os.tmpdir(), 'qiaomu-media-modes'); fs.mkdirSync(output, {recursive:true});
 const media = fs.readFileSync(process.env.QIAOMU_TEST_VIDEO), KEY = 'file:'+'a'.repeat(32);
 (async () => {
- const extension = path.resolve(process.env.QIAOMU_TEST_DIST || path.join(__dirname, '../dist_local'));
+ const extension = path.resolve(process.env.QIAOMU_TEST_DIST || path.join(__dirname, '../build/production/chrome-local'));
  const context = await chromium.launchPersistentContext(fs.mkdtempSync(path.join(output,'profile-')), { executablePath:process.env.QIAOMU_EDGE || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', headless:true, args:[`--disable-extensions-except=${extension}`,`--load-extension=${extension}`], viewport:{width:1280,height:900} });
  const page = await context.newPage(), errors = [], checks = []; page.on('pageerror', e => errors.push(e.message));
  try {

@@ -3,7 +3,7 @@ const {chromium}=require(process.env.QIAOMU_PLAYWRIGHT || 'playwright');
 const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),assert=require('node:assert/strict');
 const output=process.env.QIAOMU_TEST_OUTPUT || path.join(os.tmpdir(),'qiaomu-linked-modes');fs.mkdirSync(output,{recursive:true});
 (async()=>{
- const extension=path.resolve(process.env.QIAOMU_TEST_DIST || path.join(__dirname,'../dist_local'));
+ const extension=path.resolve(process.env.QIAOMU_TEST_DIST || path.join(__dirname,'../build/production/chrome-local'));
  const context=await chromium.launchPersistentContext(fs.mkdtempSync(path.join(output,'profile-')),{executablePath:process.env.QIAOMU_EDGE || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',headless:true,args:[`--disable-extensions-except=${extension}`,`--load-extension=${extension}`],viewport:{width:1280,height:900}});
  if(process.env.QIAOMU_TEST_NO_HLS)await context.addInitScript(()=>{const original=HTMLMediaElement.prototype.canPlayType;HTMLMediaElement.prototype.canPlayType=function(type){return type==='application/vnd.apple.mpegurl'?'':original.call(this,type);};});
  const checks=[],errors=[];let page=await context.newPage();page.setDefaultTimeout(20000);page.on('pageerror',e=>errors.push(e.message));

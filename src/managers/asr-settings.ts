@@ -1,4 +1,5 @@
 import browser from '../utils/browser-polyfill';
+import { helperDownloadLink } from '../utils/helper-install';
 import { LOCAL_ENGINES, MAX_PROFILES, PROVIDERS, choosePatch, cloudConfig, defaultRecognizer, iconOf, isConfigured, isHttpsOrLocal, isLocalService, loadAsrSettings, newProfile, profileLabel, providerOf, recognizerFor, removeProfile, saveAsrSettings, saveProfile, withProvider, type AsrPlatform, type AsrProfile, type AsrProtocol, type AsrProviderId, type AsrSettings, type Recognizer } from '../utils/asr-settings';
 import { asrInstall, asrInstallCancel, asrInstallPoll, asrStatus, asrTest, asrUninstall, type AsrInstall, type AsrLocalEngine, type InstallTarget } from '../utils/asr-client';
 import { installProblem } from '../utils/subtitle-generation';
@@ -26,11 +27,14 @@ export async function initializeAsrSettings(): Promise<void> {
 	const say = (text: string) => { status.textContent = text; };
 	const node = <K extends keyof HTMLElementTagNameMap>(tag: K, className = '', text = ''): HTMLElementTagNameMap[K] => { const item = document.createElement(tag); if (className) item.className = className; if (text) item.textContent = text; return item; };
 	const icon = (id: string) => { const info = iconOf(id), item = node('span', 'asr-icon', info.text); item.style.setProperty('--h', String(info.hue)); item.setAttribute('aria-hidden', 'true'); return item; };
+	let loginGranted = await (browser.permissions?.contains?.({ permissions: ['cookies'] }) ?? Promise.resolve(false)).catch(() => false);
+	const loginPermission = node('button', 'btn', t('允许使用浏览器登录状态')); loginPermission.type = 'button'; loginPermission.id = 'asr-login-permission';
+	el('asr-auto-login-row')?.querySelector('.asr-auto-text')?.append(loginPermission);
 
 	// ---- what exists --------------------------------------------------------------------------------------------------
 	const localInfo = (id: string) => engines?.find(item => item.id === id);
 	// Until the helper answers every engine is listed; afterwards only the ones this computer can run.
-	const localList = () => LOCAL_ENGINES.filter(item => engines === undefined ? true : Boolean(localInfo(item.id)?.supported));
+	const localList = () => LOCAL_ENGINES.filter(item => engines === undefined || (localInfo(item.id) !== undefined && localInfo(item.id)?.supported !== false));
 	const options = (): Array<[Recognizer, string]> => [
 		['local:auto', t('本机 · 自动（用已安装的最快的）')],
 		...localList().map(item => [`local:${item.id}`, t('本机 · {0}{1}', [item.name, localInfo(item.id)?.installed ? '' : t('（未安装）')])] as [Recognizer, string]),
@@ -57,6 +61,7 @@ export async function initializeAsrSettings(): Promise<void> {
 		if (useContext) { useContext.checked = settings.useContext; const holder = useContext.closest('.checkbox-container'); if (holder) updateToggleState(holder as HTMLElement, useContext); }
 		const autoLogin = el<HTMLInputElement>('asr-auto-login'), loginRow = el('asr-auto-login-row');
 		if (autoLogin && loginRow) { loginRow.hidden = false; autoLogin.checked = settings.autoLogin; const holder = autoLogin.closest('.checkbox-container'); if (holder) updateToggleState(holder as HTMLElement, autoLogin); }
+		loginPermission.hidden = !settings.autoLogin || loginGranted;
 		if (autoStart) { autoStart.checked = settings.autoStart; const holder = autoStart.closest('.checkbox-container'); if (holder) updateToggleState(holder as HTMLElement, autoStart); }
 	};
 	// The local engine to suggest: the one that does best on this computer (Qwen3-ASR on Apple silicon, else the one that runs anywhere).
@@ -103,9 +108,9 @@ export async function initializeAsrSettings(): Promise<void> {
 	const save = (patch: Partial<AsrSettings>) => queue(() => saveAsrSettings(patch));
 	const refreshEngines = async () => {
 		const reply = await asrStatus();
-		if (reply.ok) { engines = reply.local; helperProblem = ''; } else helperProblem = reply.error === 'helper-offline' ? t('没有连上本地助手。请到「剪藏与保存」安装助手，或检查已有助手的连接。') : reply.error === 'helper-outdated' ? t('本地助手版本较旧。请到「剪藏与保存」更新助手，再重新检查。') : '';
+		if (reply.ok) { engines = reply.local; helperProblem = ''; } else helperProblem = reply.error === 'helper-offline' ? t('没有连上本地助手。安装或修复后，回到这里点击「重新检查」。') : reply.error === 'helper-outdated' ? t('本地助手需要更新。安装完成后，回到这里点击「重新检查」。') : '';
 		say(helperProblem);
-		if (helperProblem) { const setup = helperSetupButton('btn'); status.append(document.createTextNode(' '), setup); }
+		if (helperProblem) { const setup = helperSetupButton('btn mod-cta'); status.append(document.createTextNode(' '), setup, button(t('重新检查'), 'btn', () => { void refreshEngines(); })); }
 		paint();
 	};
 
@@ -118,7 +123,7 @@ export async function initializeAsrSettings(): Promise<void> {
 	};
 	modal.querySelector('.modal-bg')?.addEventListener('click', closeModal);
 	const button = (label: string, className: string, onClick: () => void) => { const item = node('button', className, label); item.type = 'button'; item.addEventListener('click', onClick); return item; };
-	const helperSetupButton = (className = 'mod-cta') => { const setup = button(t('安装或更新本地助手'), className, closeModal); setup.dataset.gotoSection = 'clip'; return setup; };
+	const helperSetupButton = (className = 'mod-cta') => { const download = helperDownloadLink(document, className); if (download) return download; const setup = button(t('安装或更新本地助手'), className, closeModal); setup.dataset.gotoSection = 'clip'; return setup; };
 	const head = (iconId: string, name: string, note?: string) => { const wrap = node('div'), row = node('div', 'asr-modal-head'); row.append(icon(iconId), node('strong', '', name)); wrap.append(row); if (note) wrap.append(node('p', 'asr-modal-note', note)); return wrap; };
 	const field = (labelText: string, control: HTMLElement, id: string) => { const wrap = node('div', 'asr-modal-field'), label = node('label', '', labelText); label.htmlFor = id; control.id = id; wrap.append(label, control); return wrap; };
 	const input = (value: string, placeholder = '', type = 'text') => { const item = node('input'); item.type = type; item.value = value; item.placeholder = placeholder; item.autocomplete = 'off'; item.spellcheck = false; return item; };
@@ -213,10 +218,17 @@ export async function initializeAsrSettings(): Promise<void> {
 	defaultSelect.addEventListener('change', () => { void save(choosePatch(settings, defaultSelect.value)); });
 	useContext?.addEventListener('change', () => { void save({ useContext: useContext.checked }); });
 	autoStart?.addEventListener('change', () => { void save({ autoStart: autoStart.checked }); });
-	el<HTMLInputElement>('asr-auto-login')?.addEventListener('change', async event => {
+	const grantLogin = async () => {
+		// Invoke request immediately inside the click; checking permissions first can lose the gesture.
+		const pendingGrant = browser.permissions.request({ permissions: ['cookies'] });
+		loginPermission.disabled = true;
+		try { loginGranted = await pendingGrant.catch(() => false); if (!loginGranted) say(t('没有得到允许，无法使用浏览器的登录状态。')); await save({ autoLogin: loginGranted }); }
+		finally { loginPermission.disabled = false; }
+	};
+	loginPermission.addEventListener('click', () => { void grantLogin(); });
+	el<HTMLInputElement>('asr-auto-login')?.addEventListener('change', event => {
 		const box = event.target as HTMLInputElement;
-		// Turning it on asks the browser once for the permission to read a site's cookies (a click is what allows the question).
-		if (box.checked && !(await browser.permissions.contains({ permissions: ['cookies'] }).catch(() => false)) && !(await browser.permissions.request({ permissions: ['cookies'] }).catch(() => false))) { box.checked = false; say(t('没有得到允许，无法使用浏览器的登录状态。')); paintDefaults(); return; }
+		if (box.checked && !loginGranted) { void grantLogin(); return; }
 		void save({ autoLogin: box.checked });
 	});
 	addButton.addEventListener('click', openPicker);

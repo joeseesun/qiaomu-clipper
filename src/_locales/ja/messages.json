@@ -1976,7 +1976,7 @@
 		"message": "このアドレスを読み込み中…"
 	},
 	"subtitleGenOffline": {
-		"message": "ローカルヘルパーが接続されていません。クリッピングと保存でインストールまたは接続を確認してください。"
+		"message": "ローカルヘルパーに接続できません。インストールまたは修復後、ここに戻って「再確認」をクリックしてください。"
 	},
 	"audioTabAbout": {
 		"message": "説明"
@@ -2042,7 +2042,7 @@
 		"message": "音声認識により生成。認識エラーが含まれる場合があります"
 	},
 	"subtitleGenOutdated": {
-		"message": "ローカルヘルパーが古くなっています。クリッピングと保存で更新してから、もう一度確認してください。"
+		"message": "ローカルヘルパーの更新が必要です。インストール後、ここに戻って「再確認」をクリックしてください。"
 	},
 	"subtitleGenMissing": {
 		"message": "字幕を生成するために必要なツールがありません。音声認識を設定し、必要なツールまたはローカルエンジンをインストールしてから、もう一度確認してください。"
@@ -2172,5 +2172,26 @@
 	},
 	"contextAddHighlight": {
 		"message": "ハイライトに追加"
+	},
+	"pdGroupPlan": {
+		"message": "コーディングプラン"
+	},
+	"pdMagpieNote": {
+		"message": "Magpie で Claude などのサブスクリプションにログインしてモデルを有効にしてから、ここでモデル一覧を取得してください。ローカル接続のキーは省略できます。リモートゲートウェイには HTTPS とキーが必要です。"
+	},
+	"pdDetectMagpie": {
+		"message": "Magpie を検出"
+	},
+	"pdMagpieFailed": {
+		"message": "Magpie が見つかりません。URL、ゲートウェイのキー、サービスの状態を確認してください。"
+	},
+	"pdMagpieSecure": {
+		"message": "リモートの Magpie には HTTPS とゲートウェイのキーが必要です。URL に認証情報やクエリパラメータを含めないでください。"
+	},
+	"pdEffort": {
+		"message": "推論の深さ"
+	},
+	"pdEffortDefault": {
+		"message": "モデルの既定値"
 	}
 }

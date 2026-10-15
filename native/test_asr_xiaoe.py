@@ -123,3 +123,100 @@ class XiaoeRelayTest(unittest.TestCase):
         with patch.object(asr,'open_public',return_value=Response(MEDIA,b'#EXTM3U\nhttps://127.0.0.1/private.ts\n')),asr.xiaoe_hls_relay(PAGE,MEDIA) as relay:
             with self.assertRaises(urllib.error.HTTPError) as failed:urllib.request.urlopen(relay)
             self.assertEqual(failed.exception.code,502)
+
+
+class XiaoeExtensionlessRelayTest(unittest.TestCase):
+    def response(self, url, body, mime='application/octet-stream'):
+        import io
+        class Response(io.BytesIO):
+            def geturl(inner): return url
+        result = Response(body)
+        result.headers = {'Content-Type': mime, 'Content-Length': str(len(body))}
+        result.status = 200
+        return result
+
+    def test_extensionless_master_variant_key_and_segment_are_localized(self):
+        import urllib.request, re
+        from unittest.mock import patch
+        child = 'https://video.xet.tech/variant?id=1'
+        seen = []
+        bodies = {MEDIA: b'#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=100000\nhttps://video.xet.tech/variant?id=1\n',
+                  child: b'#EXTM3U\n#EXT-X-KEY:METHOD=AES-128,URI="/key?id=2"\n#EXTINF:1,\n/segment?id=3\n#EXT-X-ENDLIST\n'}
+        def fetch(url, **options):
+            self.assertTrue(options['allowed'](url)); seen.append(url)
+            return self.response(url, bodies.get(url, b'fixture'))
+        with patch.object(asr, 'open_public', side_effect=fetch), asr.xiaoe_hls_relay(PAGE, MEDIA) as relay:
+            master = urllib.request.urlopen(relay).read().decode()
+            variant = next(line for line in master.splitlines() if line.startswith('http'))
+            self.assertTrue(variant.endswith('.m3u8'))
+            nested = urllib.request.urlopen(variant).read().decode()
+            self.assertNotIn('https:', nested)
+            key = re.search(r'URI="([^"]+)"', nested).group(1)
+            segment = next(line for line in nested.splitlines() if line.startswith('http'))
+            self.assertEqual(urllib.request.urlopen(key).read(), b'fixture')
+            self.assertEqual(urllib.request.urlopen(segment).read(), b'fixture')
+        self.assertEqual(len(seen), 4)
+
+    def test_extensionless_and_mislabelled_playlists_reject_external_key_or_segment(self):
+        import urllib.request, urllib.error
+        from unittest.mock import patch
+        for role in ['', '#EXT-X-STREAM-INF:BANDWIDTH=100000\n', '#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="a",URI="variant?id=1"\n# ignored\n']:
+            for address in ['https://evil.example/segment.ts', 'https://127.0.0.1/segment.ts', 'http://video.xet.tech/key']:
+                for payload in [address, '#EXT-X-KEY:METHOD=AES-128,URI="' + address + '"']:
+                    def fetch(url, **options):
+                        if url == MEDIA:
+                            body = ('#EXTM3U\n' + role + ('' if role.startswith('#EXT-X-MEDIA') else 'variant?id=1\n')).encode()
+                        else: body = ('#EXTM3U\n' + payload + '\n').encode()
+                        return self.response(url, body)
+                    with self.subTest(role=role, address=address, payload=payload), patch.object(asr, 'open_public', side_effect=fetch), asr.xiaoe_hls_relay(PAGE, MEDIA) as relay:
+                        master = urllib.request.urlopen(relay).read().decode()
+                        nested = __import__('re').search(r'URI="([^"]+)"', master).group(1) if role.startswith('#EXT-X-MEDIA') else next(line for line in master.splitlines() if line.startswith('http'))
+                        with self.assertRaises(urllib.error.HTTPError) as failed: urllib.request.urlopen(nested)
+                        self.assertEqual(failed.exception.code, 502)
+
+    def test_content_sniff_catches_playlist_returned_for_segment_or_key(self):
+        import urllib.request, urllib.error, re
+        from unittest.mock import patch
+        for prefix in [b'', b'\xef\xbb\xbf', b' \n']:
+            for line in ['segment', '#EXT-X-KEY:METHOD=AES-128,URI="key"']:
+                def fetch(url, **options):
+                    body = ('#EXTM3U\n' + line + '\n').encode() if url == MEDIA else prefix + b'#EXTM3U\nhttps://evil.example/escape.ts\n'
+                    return self.response(url, body)
+                with self.subTest(prefix=prefix, line=line), patch.object(asr, 'open_public', side_effect=fetch), asr.xiaoe_hls_relay(PAGE, MEDIA) as relay:
+                    master = urllib.request.urlopen(relay).read().decode()
+                    resource = re.search(r'URI="([^"]+)"', master).group(1) if line.startswith('#') else next(row for row in master.splitlines() if row.startswith('http'))
+                    with self.assertRaises(urllib.error.HTTPError) as failed: urllib.request.urlopen(resource)
+                    self.assertEqual(failed.exception.code, 502)
+
+
+    def test_fragmented_manifest_signature_is_still_rewritten(self):
+        import urllib.request, urllib.error
+        from unittest.mock import patch
+        def fetch(url, **options):
+            body = b'#EXTM3U\nsegment\n' if url == MEDIA else b'#EXTM3U\nhttps://evil.example/escape.ts\n'
+            response = self.response(url, body)
+            read = response.read1
+            response.read1 = lambda size: read(min(size, 1))
+            return response
+        with patch.object(asr, 'open_public', side_effect=fetch), asr.xiaoe_hls_relay(PAGE, MEDIA) as relay:
+            manifest = urllib.request.urlopen(relay).read().decode()
+            resource = next(row for row in manifest.splitlines() if row.startswith('http'))
+            with self.assertRaises(urllib.error.HTTPError) as failed: urllib.request.urlopen(resource)
+            self.assertEqual(failed.exception.code, 502)
+
+    def test_playlist_roles_and_mime_require_valid_bounded_manifests(self):
+        import urllib.request, urllib.error
+        from unittest.mock import patch
+        for mime, body in [('application/octet-stream', b'not a playlist'), ('application/vnd.apple.mpegurl', b'not a playlist'), ('application/octet-stream', b'#EXTM3U\n' + b'#' * 4_000_000)]:
+            def fetch(url, **options):
+                if url == MEDIA: return self.response(url, b'#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=100000\nvariant?id=1\n')
+                return self.response(url, body, mime)
+            with self.subTest(mime=mime, size=len(body)), patch.object(asr, 'open_public', side_effect=fetch), asr.xiaoe_hls_relay(PAGE, MEDIA) as relay:
+                manifest = urllib.request.urlopen(relay).read().decode()
+                resource = next(row for row in manifest.splitlines() if row.startswith('http'))
+                with self.assertRaises(urllib.error.HTTPError) as failed: urllib.request.urlopen(resource)
+                self.assertEqual(failed.exception.code, 502)
+
+    def test_content_steering_is_rejected_instead_of_passing_external_index(self):
+        with self.assertRaises(OSError):
+            asr.rewrite_xiaoe_playlist('#EXTM3U\n#EXT-X-CONTENT-STEERING:SERVER-URI="steering.json"\n', MEDIA, lambda address: address)

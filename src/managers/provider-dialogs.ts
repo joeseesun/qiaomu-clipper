@@ -1,3 +1,5 @@
+import { reasoningEffortOption } from '../utils/reasoning-label';
+import { detectMagpie, magpieKey } from '../utils/magpie';
 // The two dialogs behind "添加服务商" and "添加模型": a card gallery with brand icons for picking a
 // provider, a short form for it, and a searchable list for picking models. Cards and rows are divs:
 // the app's global button style stretches buttons to the full width of their container.
@@ -12,7 +14,7 @@ import { CATALOG, CatalogEntry, GROUP_ORDER, ProviderGroup, brandOf, iconTile } 
 type Done = () => void;
 
 const t = getMessage;
-const GROUP_LABEL: Record<ProviderGroup, string> = { account: 'pdGroupAccount', relay: 'pdGroupRelay', provider: 'pdGroupProvider', local: 'pdGroupLocal' };
+const GROUP_LABEL: Record<ProviderGroup, string> = { plan: 'pdGroupPlan', account: 'pdGroupAccount', relay: 'pdGroupRelay', provider: 'pdGroupProvider', local: 'pdGroupLocal' };
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className = '', text = ''): HTMLElementTagNameMap[K] {
 	const node = document.createElement(tag);
@@ -214,7 +216,7 @@ function showProviderForm(dlg: Dialog, entry: CatalogEntry | null, existing: Pro
 			row.append(signInBtn);
 			dlg.body.append(note, row, status, paste);
 		} else if (entry) {
-			note.textContent = entry.group === 'local' ? t('pdLocalNote') : '';
+			note.textContent = entry.id === 'magpie' ? t('pdMagpieNote') : entry.group === 'local' ? t('pdLocalNote') : '';
 			if (note.textContent) dlg.body.append(note);
 		}
 		const keyHint = el('div', 'pd-hint');
@@ -224,7 +226,7 @@ function showProviderForm(dlg: Dialog, entry: CatalogEntry | null, existing: Pro
 			keyHint.append(a);
 		}
 		if (!entry) dlg.body.append(field('pd-url', t('pdFieldUrl'), urlInput, el('div', 'pd-hint', t('pdUrlHintCustom'))));
-		if (!entry || entry.apiKeyRequired !== false || keySignIn) {
+		if (!entry || entry.apiKeyRequired !== false || keySignIn || entry.id === 'magpie') {
 			const keyRow = field('pd-key', keySignIn ? t('pdFieldKeyOr') : t('pdFieldKey'), keyInput, keyHint);
 			const reveal = press(el('span', 'pd-reveal', t('pdShow')), t('pdShow'), () => { keyInput.type = keyInput.type === 'password' ? 'text' : 'password'; reveal.textContent = keyInput.type === 'password' ? t('pdShow') : t('pdHide'); });
 			const wrap = el('div', 'pd-input-wrap');
@@ -242,7 +244,16 @@ function showProviderForm(dlg: Dialog, entry: CatalogEntry | null, existing: Pro
 			dlg.body.append(field('pd-url', t('pdFieldUrl'), urlInput));
 		}
 	}
-	const error = el('div', 'pd-status is-error');
+	if (entry?.id === 'magpie') {
+    const result = el('div', 'pd-status'); result.setAttribute('role', 'status');
+    const detect = button(t('pdDetectMagpie'), 'pd-ghost', () => { detect.disabled = true;
+      void detectMagpie({ presetId: 'magpie', baseUrl: urlInput.value.trim() || entry.baseUrl, apiKey: keyInput.value.trim() })
+        .then(version => { if (dlg.modal.classList.contains('is-visible') || result.isConnected) result.textContent = `Magpie ${version}`; })
+        .catch(() => { if (result.isConnected) result.textContent = t('pdMagpieFailed'); })
+        .finally(() => { detect.disabled = false; });
+    }); dlg.body.append(detect, result);
+  }
+  const error = el('div', 'pd-status is-error');
 	error.setAttribute('role', 'alert');
 	dlg.body.append(error);
 
@@ -255,6 +266,7 @@ function showProviderForm(dlg: Dialog, entry: CatalogEntry | null, existing: Pro
 		error.textContent = '';
 		if (!name) { error.textContent = t('pdNeedName'); return; }
 		if (!baseUrl) { error.textContent = t('pdNeedUrl'); return; }
+    if (entry?.id === 'magpie') { try { magpieKey({ presetId: 'magpie', baseUrl, apiKey }); } catch { error.textContent = t('pdMagpieSecure'); return; } }
 		if (signIn === 'chatgpt' || signIn === 'codex') {
 			if (!oauth || oauth.kind !== signIn) { error.textContent = t('pdNeedLogin'); return; }
 		} else if ((entry ? entry.apiKeyRequired !== false : true) && !apiKey) {
@@ -409,7 +421,7 @@ export function openModelPicker(done: Done, openProviders: () => void, editing?:
 		if (id && !items.some(m => m.id === id)) items.push({ id, name: manualName.value.trim() || id });
 		for (const m of items) {
 			if (exists(m.id)) continue;
-			generalSettings.models.push({ id: newId() + generalSettings.models.length, providerId: provider.id, providerModelId: m.id, name: m.name, enabled: true });
+			generalSettings.models.push({ id: newId() + generalSettings.models.length, providerId: provider.id, providerModelId: m.id, name: m.name, enabled: true, reasoningEfforts: m.reasoningEfforts });
 		}
 		try { await saveSettings(); } catch { generalSettings.models = previous; savingModels = false; refresh(); status.classList.add('is-error'); status.textContent = t('failedToSaveModel'); return; }
 		controller?.abort();
@@ -432,6 +444,10 @@ function showModelEditor(dlg: Dialog, model: ModelConfig, done: Done): void {
 	head.append(iconTile(provider || {}, 'md'), el('strong', '', provider?.name || t('unknownProvider')));
 	const nameInput = input('text', model.name, t('modelName'));
 	const idInput = input('text', model.providerModelId || '', t('providerModelId'));
+  const effort = el('select'); effort.append(new Option(t('pdEffortDefault'), ''));
+  for (const value of model.reasoningEfforts || []) effort.append(reasoningEffortOption(value));
+  effort.value = model.reasoningEffort || '';
+  if (model.reasoningEfforts?.length) { const row = el('label', 'pd-field', t('pdEffort')); row.append(effort); dlg.body.append(row); }
 	const error = el('div', 'pd-status is-error');
 	error.setAttribute('role', 'alert');
 	dlg.body.append(head, field('pd-mname', t('modelName'), nameInput), field('pd-mid', t('providerModelId'), idInput, el('div', 'pd-hint', t('providerModelIdDescription'))), error);
@@ -441,7 +457,7 @@ function showModelEditor(dlg: Dialog, model: ModelConfig, done: Done): void {
 		if (!name || !providerModelId) { error.textContent = t('modelRequiredFields'); return; }
 		const index = generalSettings.models.findIndex(m => m.id === model.id);
 		const previous = [...generalSettings.models];
-		const next = { ...model, name, providerModelId };
+		const next = { ...model, name, providerModelId, reasoningEffort: providerModelId === model.providerModelId ? effort.value || undefined : undefined, reasoningEfforts: providerModelId === model.providerModelId ? model.reasoningEfforts : undefined };
 		if (index >= 0) generalSettings.models[index] = next; else generalSettings.models.push(next);
 		try { await saveSettings(); } catch { generalSettings.models = previous; error.textContent = t('failedToSaveModel'); return; }
 		dlg.close();

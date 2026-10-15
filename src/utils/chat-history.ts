@@ -2,7 +2,7 @@ import browser from './browser-polyfill';
 import type { ChatTurn } from './chat-llm';
 
 // A question may quote a passage the reader selected in the article.
-export interface StoredTurn extends ChatTurn { quote?: string }
+export interface StoredTurn extends Omit<ChatTurn, 'images'> { quote?: string; imageNumbers?: number[] }
 
 export interface Conversation {
 	id: string;
@@ -38,7 +38,7 @@ export async function saveConversation(url: string, articleTitle: string, conver
 	const key = chatKey(url);
 	const saved = (await browser.storage.local.get([key, INDEX_KEY]));
 	const article: ArticleChats = (saved[key] as ArticleChats | undefined) ?? { url, title: articleTitle, updatedAt: 0, conversations: [] };
-	const stored: Conversation = { ...conversation, messages: conversation.messages.slice(-MAX_MESSAGES), updatedAt: Date.now() };
+	const stored: Conversation = { ...conversation, messages: conversation.messages.slice(-MAX_MESSAGES).map(({ role, content, quote, imageNumbers }) => ({ role, content, ...(quote ? { quote } : {}), ...(imageNumbers?.length ? { imageNumbers } : {}) })), updatedAt: Date.now() };
 	article.title = articleTitle;
 	article.updatedAt = stored.updatedAt;
 	article.conversations = [stored, ...article.conversations.filter(c => c.id !== stored.id)].slice(0, MAX_CONVERSATIONS);

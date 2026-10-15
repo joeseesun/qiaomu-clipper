@@ -380,7 +380,8 @@ def handle(message, config, base):
                 return {'ok': True}
             except Exception: pass
         return {'ok': False, 'error': 'not-found'}
-    if message.get('action') in {'asrStatus','asrStart','asrPoll','asrCancel','asrCloudTest','asrInstall','asrInstallPoll','asrInstallCancel','asrUninstall','asrUploadStart','asrUploadChunk','asrUploadFinish','asrProbe','asrMediaDownload','asrMediaDownloadPoll','asrMediaDownloadCancel'}:
+    if message.get('action') in {'attachPick','attachLocal','attachBytes','attachDiscard'}: return attach(message,base)
+    if message.get('action') in {'mediaDownloadStart','mediaDownloadPoll','mediaDownloadCancel','mediaDownloadReveal','asrStatus','asrStart','asrPoll','asrCancel','asrCloudTest','asrInstall','asrInstallPoll','asrInstallCancel','asrUninstall','asrUploadStart','asrUploadChunk','asrUploadFinish','asrProbe','asrMediaDownload','asrMediaDownloadPoll','asrMediaDownloadCancel'}:
         # Subtitle generation lives in asr.py next to this file; it needs no vault.
         sys.path.insert(0,str(Path(__file__).resolve().parent))
         import asr
@@ -389,7 +390,9 @@ def handle(message, config, base):
         if message.get('action')=='status': return {'ok':True,'vault':None}
         raise ValueError('助手已连接，但还没选 Obsidian 笔记库：请在扩展设置 → 剪藏与保存里选择文件夹')
     root=Path(config['vault']).resolve()
-    if not root.is_dir() or not (root/'.obsidian').is_dir(): raise ValueError('配置的 Obsidian 笔记库不存在')
+    if not root.is_dir() or not (root/'.obsidian').is_dir():
+        if message.get('action')=='status': return {'ok':True,'vault':None,'vaultError':'配置的 Obsidian 笔记库不存在'}
+        raise ValueError('配置的 Obsidian 笔记库不存在')
     if message.get('action')=='status': return {'ok':True,'vault':root.name,'vaultPath':str(root)}
     if message.get('action')=='learningDailyTarget': return {**learning_daily_target(root,message.get('vault') or ''),'helper':HELPER_PROTOCOL}
     if message.get('action')=='saveLearning': return save_learning(message,root,base)

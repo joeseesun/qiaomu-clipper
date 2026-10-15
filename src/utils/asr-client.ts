@@ -3,7 +3,7 @@ import browser from './browser-polyfill';
 import { t } from './ui-text';
 // Subtitle generation for videos without subtitles runs in the local helper (yt-dlp + ffmpeg + Whisper). The browser only
 // asks it to start, polls its progress and reads the lines it has produced; audio never passes through the extension.
-export interface AsrSegment { start: number; end: number; text: string }
+export interface AsrSegment { start: number; end: number; text: string; words?: import('./caption-words').CaptionWord[] }
 export type AsrState = 'queued' | 'downloading' | 'converting' | 'downloadingModel' | 'transcribing' | 'completed' | 'failed' | 'cancelled';
 export interface AsrJob { ok: true; id: string; videoKey: string; state: AsrState; stage: string; progress: number; processedSec?: number | null; totalSec?: number | null; engine?: string | null; language?: string | null; error?: string | null; errorCode?: string | null; cached?: boolean | null; segmentCount?: number | null; segments: AsrSegment[]; next: number }
 // A local recognition engine this computer could use: `installed` says whether it is ready now, `managed` whether the helper can install it.
@@ -71,7 +71,7 @@ export const asrCancel = (jobId: string) => ask<AsrJob>({ mode: 'cancel', jobId 
 
 // The settings page tries a service with the form's values (a short tone: any answer means the key and model are accepted).
 export interface AsrTestResult { ok: boolean; ms?: number; sample?: string; error?: string; code?: string }
-const TEST_ERRORS: Record<string, string> = { get 'helper-offline'() { return t('没连上本地助手'); }, get 'helper-outdated'() { return t('本地助手版本较旧。请到「剪藏与保存」更新助手，再重新检查。'); }, get 'bad-request'() { return t('设置不完整或无效'); } };
+const TEST_ERRORS: Record<string, string> = { get 'helper-offline'() { return t('没连上本地助手'); }, get 'helper-outdated'() { return t('本地助手需要更新。安装完成后，回到这里点击「重新检查」。'); }, get 'bad-request'() { return t('设置不完整或无效'); } };
 export const asrTest = async (cloud: Record<string, unknown>, apiKey: string): Promise<AsrTestResult> => {
 	const reply = await ask<AsrTestResult>({ mode: 'test', cloud, apiKey }) as AsrTestResult | AsrFailure;
 	if ('ok' in reply && reply.ok === true) return reply as AsrTestResult;

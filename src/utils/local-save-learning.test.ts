@@ -1,11 +1,13 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 const tabs=vi.hoisted(()=>vi.fn());
 const native=vi.hoisted(()=>vi.fn());
-const asrStore=vi.hoisted(()=>({data:{} as Record<string,unknown>}));
-vi.mock('./browser-polyfill',()=>({default:{tabs:{create:(...args:unknown[])=>tabs(...args)},permissions:{contains:async()=>true},runtime:{id:'test-id',getURL:(path:string)=>`chrome-extension://test-id/${path}`,sendNativeMessage:(...args:unknown[])=>native(...args)},storage:{local:{get:async(key:string)=>({[key]:asrStore.data[key]}),set:async(value:Record<string,unknown>)=>{Object.assign(asrStore.data,value);}}}}}));
+const asrStore=vi.hoisted(()=>({data:{} as Record<string,unknown>,cookiePermission:true}));
+vi.mock('./browser-polyfill',()=>({default:{tabs:{create:(...args:unknown[])=>tabs(...args)},permissions:{contains:async()=>asrStore.cookiePermission},runtime:{id:'test-id',getURL:(path:string)=>`chrome-extension://test-id/${path}`,sendNativeMessage:(...args:unknown[])=>native(...args)},storage:{local:{get:async(key:string)=>({[key]:asrStore.data[key]}),set:async(value:Record<string,unknown>)=>{Object.assign(asrStore.data,value);}}}}}));
 import { handleLearningNativeMessage } from './local-save';
+import browser from './browser-polyfill';
+import { asrStart, registerWebSource } from './asr-client';
 const sender={id:'test-id',url:'chrome-extension://test-id/reader.html'};
-beforeEach(()=>{ native.mockReset(); asrStore.data={}; });
+beforeEach(()=>{ native.mockReset(); asrStore.data={};asrStore.cookiePermission=true; });
 it('rejects other extensions, malformed IDs and unrelated requests without native writes',async()=>{
  expect(await handleLearningNativeMessage({action:'qiaomuLearningDailyTarget'},{id:'other-extension',url:'chrome-extension://other-extension/x.html'})).toMatchObject({status:'failed'});
  expect(await handleLearningNativeMessage({action:'qiaomuLearningSave',payload:{captureId:'../bad'}},sender)).toMatchObject({status:'failed'});
@@ -61,16 +63,23 @@ it('forwards subtitle-generation requests with checked arguments and explains an
  await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'start',videoKey:KEY,language:'zh',force:true}},sender);
  await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'poll',jobId:ID,since:7}},sender);
  await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'cancel',jobId:ID}},sender);
- expect(native.mock.calls.map(([,b])=>b)).toEqual([{action:'asrStatus'},{action:'asrStart',videoKey:KEY,language:'zh',force:true},{action:'asrPoll',jobId:ID,since:7},{action:'asrCancel',jobId:ID}]);
+ expect(native.mock.calls.map(([,b])=>b)).toEqual([{action:'asrStatus'},{action:'asrStart',videoKey:KEY,language:'zh',force:true,cookies:'chrome'},{action:'asrPoll',jobId:ID,since:7},{action:'asrCancel',jobId:ID}]);
  native.mockClear();
  for (const bad of [{mode:'start',videoKey:'https://evil.example/x'},{mode:'start',videoKey:KEY,language:'xx'},{mode:'poll',jobId:'../../x'},{mode:'cancel'},{mode:'rm'},{}]) expect(await handleAsrMessage({action:'qiaomuAsr',payload:bad},sender)).toMatchObject({ok:false,error:'bad-request'});
  expect(native).not.toHaveBeenCalled();
  expect(await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'status'}},{id:'other'})).toMatchObject({ok:false,error:'refused'});
  expect(handleAsrMessage({action:'qiaomuLearningSave'},sender)).toBeUndefined();
  native.mockResolvedValue({ok:false,error:'不支持的本地操作'}); expect(await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'status'}},sender)).toMatchObject({error:'helper-outdated'});
- native.mockResolvedValue(undefined); expect(await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'status'}},sender)).toMatchObject({error:'helper-outdated'});
+ native.mockResolvedValue(undefined); expect(await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'status'}},sender)).toMatchObject({error:'helper-offline'});
  native.mockRejectedValue(new Error('offline')); expect(await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'status'}},sender)).toMatchObject({error:'helper-offline'});
  native.mockResolvedValue({ok:false,error:'missing',missing:['yt-dlp']}); expect(await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'start',videoKey:KEY}},sender)).toMatchObject({error:'missing',missing:['yt-dlp']});
+});
+
+it('does not mistake unsupported input or engine failures for an outdated helper', async () => {
+ for (const error of ['不支持的语言', 'Unsupported audio format', 'This model is unsupported']) {
+  native.mockResolvedValue({ok:false,error});
+  expect(await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'start',videoKey:'youtube:dbqweBCynuI'}},sender)).toMatchObject({ok:false,error});
+ }
 });
 
 it('passes only a known browser name for a borrowed login', async () => {
@@ -264,4 +273,55 @@ it('passes Xiaoetong replay media without exporting browser login to the helper'
  const url='https://appfixture123.h5.xiaoeknow.com/v4/course/alive/l_fixture123456?app_id=appfixture123',mediaUrl='https://video.xet.tech/fixture.m3u8?sign=fixture';
  await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'start',videoKey:'web:'+'a'.repeat(12),web:{url,mediaUrl}}},sender);
  expect(native.mock.calls[0][1]).toMatchObject({web:{url,mediaUrl}});expect(native.mock.calls[0][1].cookies).toBeUndefined();expect(native.mock.calls[0][1].cookiesTxt).toBeUndefined();
+});
+
+it('defaults login reuse on only with browser permission, and preserves an explicit opt-out', async () => {
+ native.mockResolvedValue({ok:true});
+ const request={action:'qiaomuAsr',payload:{mode:'start',videoKey:'youtube:dbqweBCynuI'}};
+ await handleAsrMessage(request,sender); expect(native.mock.calls[native.mock.calls.length - 1]?.[1]).toMatchObject({cookies:'chrome'});
+ asrStore.cookiePermission=false;
+ await handleAsrMessage(request,sender); expect(native.mock.calls[native.mock.calls.length - 1]?.[1]).not.toHaveProperty('cookies');
+ asrStore.cookiePermission=true; asrStore.data.qiaomuAsrSettings={autoLogin:false};
+ await handleAsrMessage(request,sender); expect(native.mock.calls[native.mock.calls.length - 1]?.[1]).not.toHaveProperty('cookies');
+});
+
+it.each(['mp4','m4a'])('delivers Xiaohongshu %s from the reader client through the background to native without cookies',async extension=>{
+ const url='https://www.xiaohongshu.com/explore/6abc2b40000000000a023366?xsec_token=fixture',mediaUrl=`https://sns-video-bd.xhscdn.com/stream/fixture.${extension}?sign=fixture`,key='web:123456abcdef';
+ asrStore.data.qiaomuAsrSettings={mode:'local',engine:'mlx-qwen3',autoLogin:true,profiles:[],routes:{}};
+ native.mockResolvedValue({ok:true,id:'a'.repeat(32),state:'queued',segments:[]});
+ const send=vi.fn(request=>handleAsrMessage(request,sender));
+ const original=browser.runtime.sendMessage;
+ browser.runtime.sendMessage=send as typeof browser.runtime.sendMessage;
+ try {
+  registerWebSource(key,url,mediaUrl);
+  expect(await asrStart(key,'auto',false,'chrome')).toMatchObject({ok:true,state:'queued'});
+  expect(native).toHaveBeenCalledTimes(1);
+  expect(native.mock.calls[0][1]).toMatchObject({action:'asrStart',videoKey:key,engine:'mlx-qwen3',web:{url,mediaUrl}});
+  expect(native.mock.calls[0][1].cookies).toBeUndefined();
+  expect(native.mock.calls[0][1].cookiesTxt).toBeUndefined();
+ } finally { browser.runtime.sendMessage=original; }
+});
+
+it('rejects forged Xiaohongshu source/media/sender before contacting native',async()=>{
+ const url='https://www.xiaohongshu.com/explore/6abc2b40000000000a023366',mediaUrl='https://sns-video-bd.xhscdn.com/stream/fixture.mp4';
+ for(const [source,media,from] of [
+  [url,'https://sns-video-bd.xhscdn.com.evil.org/fixture.mp4',sender],
+  [url,mediaUrl.replace('https:','http:'),sender],
+  [url,mediaUrl.replace('.mp4','.html'),sender],
+  ['https://example.com/explore/6abc2b40000000000a023366',mediaUrl,sender],
+  [url,mediaUrl,{...sender,id:'foreign-extension'}],
+  [url,mediaUrl,{id:sender.id,url:'https://www.xiaohongshu.com/explore/aaaaaaaaaaaaaaaaaaaaaaaa'}],
+ ] as const) expect(await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'start',videoKey:'web:123456abcdef',web:{url:source,mediaUrl:media}}},from)).toMatchObject({ok:false});
+ expect(native).not.toHaveBeenCalled();
+});
+
+it('allows model-independent exports only from this extension and rejects YouTube and forged media',async()=>{
+ asrStore.cookiePermission=false;
+ const payload={mode:'downloadStart',url:'https://www.bilibili.com/video/BV1xx411c7mD/',name:'Test',video:true};
+ native.mockResolvedValue({ok:true,id:'a'.repeat(32),state:'queued'});
+ expect(await handleAsrMessage({action:'qiaomuAsr',payload},sender)).toMatchObject({ok:true});
+ expect(native.mock.calls[0][1]).toEqual({action:'mediaDownloadStart',url:payload.url,name:'Test',video:true});native.mockClear();
+ for(const bad of [{...payload,url:'https://youtube.com/watch?v=12345678901'},{...payload,mediaUrl:'https://evil.org/test.mp4'},{...payload,name:'a'.repeat(301)}]) expect(await handleAsrMessage({action:'qiaomuAsr',payload:bad},sender)).toMatchObject({ok:false});
+ expect(await handleAsrMessage({action:'qiaomuAsr',payload},{id:'test-id',url:payload.url})).toMatchObject({ok:false});
+ expect(native).not.toHaveBeenCalled();
 });

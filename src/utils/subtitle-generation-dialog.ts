@@ -3,17 +3,18 @@ import type { GenerationActions, GenerationStrings, GenUi } from './subtitle-gen
 // The one decision before subtitles are made, as a dialog: which way to recognise, in what language, and whether to start straight
 // away next time. It sits above the page (not inside the transcript bar or the study page), so it looks the same everywhere and
 // never has to fit the space it was opened from. All of its colours are its own: it follows the light or dark setting of the page.
+export type ConfirmDialog = HTMLDivElement & { update: (ui: Confirm) => void; setBusy: (busy: boolean) => void };
 type Confirm = Extract<GenUi, { kind: 'confirm' }>;
 export const LANGUAGES: Array<[string, string]> = [['zh', '中文'], ['en', 'English'], ['ja', '日本語'], ['ko', '한국어'], ['de', 'Deutsch'], ['fr', 'Français'], ['es', 'Español'], ['ru', 'Русский'], ['pt', 'Português'], ['it', 'Italiano']];
 const sizeText = (mb: number) => mb >= 1000 ? (mb / 1000).toFixed(1) + ' GB' : mb + ' MB';
 
-export function buildConfirmDialog(doc: Document, strings: GenerationStrings, actions: GenerationActions, ui: Confirm, state: { language: string; remember?: boolean }, close: () => void): HTMLElement {
+export function buildConfirmDialog(doc: Document, strings: GenerationStrings, actions: GenerationActions, ui: Confirm, state: { language: string; remember?: boolean }, close: () => void): ConfirmDialog {
 	const make = <K extends keyof HTMLElementTagNameMap>(tag: K, className = '', text = ''): HTMLElementTagNameMap[K] => { const item = doc.createElement(tag); if (className) item.className = className; if (text) item.textContent = text; return item; };
-	const wrap = make('div', 'qiaomu-dlg-wrap'); wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-modal', 'true');
+	const wrap = make('div', 'qiaomu-dlg-wrap') as ConfirmDialog; wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-modal', 'true');
 	const scrim = make('div', 'qiaomu-dlg-scrim'), card = make('div', 'qiaomu-dlg'), title = make('h2', 'qiaomu-dlg-title', strings.dlgTitle); title.id = 'qiaomu-dlg-title'; wrap.setAttribute('aria-labelledby', title.id);
-	card.append(title, make('p', 'qiaomu-dlg-sub', ui.install ? strings.confirmInstall.replace('{name}', ui.install.name).replace('{size}', sizeText(ui.install.sizeMb)) : strings.dlgSub));
-	let selected = ui.selected;
-	const choices = ui.choices ?? [], rows: HTMLElement[] = [];
+	const subtitle = make('p', 'qiaomu-dlg-sub'); card.append(title, subtitle);
+	let selected = ui.selected, busy = false, choices = ui.choices ?? [];
+	const rows: HTMLElement[] = [];
 	const cloudPicked = () => choices.find(choice => choice.value === selected)?.kind === 'cloud' || (!choices.length && Boolean(ui.cloud) && !ui.localService);
 	const primary = make('button', 'qiaomu-dlg-btn is-primary'); primary.type = 'button';
 	const labelPrimary = () => { primary.textContent = ui.install ? strings.installStart : cloudPicked() ? strings.startCloud : strings.start; };
@@ -23,7 +24,7 @@ export function buildConfirmDialog(doc: Document, strings: GenerationStrings, ac
 			const row = make('div', 'qiaomu-dlg-choice'); row.tabIndex = 0; row.setAttribute('role', 'radio'); row.dataset.value = choice.value; row.dataset.kind = choice.kind ?? 'local';
 			const body = make('div', 'qiaomu-dlg-choice-text'); body.append(make('b', '', choice.label)); if (choice.note) body.append(make('span', '', choice.note));
 			row.append(make('i', 'qiaomu-dlg-radio'), body);
-			const pick = () => { if (choice.value === selected) return; selected = choice.value; rows.forEach(item => item.setAttribute('aria-checked', String(item.dataset.value === selected))); labelPrimary(); actions.choose?.(choice.value); };
+			const pick = () => { if (busy || choice.value === selected) return; selected = choice.value; rows.forEach(item => item.setAttribute('aria-checked', String(item.dataset.value === selected))); labelPrimary(); actions.choose?.(choice.value); };
 			row.addEventListener('click', pick); row.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); pick(); } });
 			row.setAttribute('aria-checked', String(choice.value === selected)); rows.push(row); group.append(row);
 		}
@@ -43,14 +44,29 @@ export function buildConfirmDialog(doc: Document, strings: GenerationStrings, ac
 		row.append(text, toggle); card.append(row);
 	}
 	const foot = make('div', 'qiaomu-dlg-foot'), cancel = make('button', 'qiaomu-dlg-btn', strings.cancel); cancel.type = 'button'; cancel.addEventListener('click', close);
-	labelPrimary(); primary.addEventListener('click', () => { if (choices.length) actions.confirm(state.language, remember); else actions.confirm(state.language); });
+	labelPrimary(); primary.addEventListener('click', () => { if (busy) return; if (choices.length) actions.confirm(state.language, remember); else actions.confirm(state.language); });
 	foot.append(cancel, primary); card.append(foot);
 	scrim.addEventListener('click', close);
 	wrap.addEventListener('keydown', event => { if (event.key === 'Escape') { event.stopPropagation(); close(); } });
 	// A page's own key handlers (a player's space bar, a site's shortcuts) must not see what is typed here.
 	for (const type of ['keydown', 'keyup', 'keypress']) card.addEventListener(type, event => event.stopPropagation());
 	wrap.append(scrim, card);
-	queueMicrotask(() => primary.focus());
+	wrap.setBusy = value => {
+		busy = value; wrap.setAttribute('aria-busy', String(value)); primary.disabled = value;
+		rows.forEach(row => row.setAttribute('aria-disabled', String(value)));
+	};
+	wrap.update = next => {
+		ui = next; choices = next.choices ?? []; selected = next.selected;
+		subtitle.textContent = ui.install ? strings.confirmInstall.replace('{name}', ui.install.name).replace('{size}', sizeText(ui.install.sizeMb)) : strings.dlgSub;
+		rows.forEach(row => {
+			row.setAttribute('aria-checked', String(row.dataset.value === selected));
+			const choice = choices.find(item => item.value === row.dataset.value);
+			const note = row.querySelector('span'); if (note && choice) note.textContent = choice.note ?? '';
+		});
+		wrap.setBusy(false); labelPrimary();
+	};
+	wrap.update(ui);
+	queueMicrotask(() => { if (wrap.isConnected && !wrap.contains(doc.activeElement)) primary.focus(); });
 	return wrap;
 }
 

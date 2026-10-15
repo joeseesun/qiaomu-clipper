@@ -5,6 +5,7 @@ vi.mock('./browser-polyfill', () => ({ default: {
 	i18n: { getMessage: () => '' }, runtime: { getURL: (path: string) => 'chrome-extension://fixture/' + path, sendMessage: async (message: any) => {
 		state.messages.push(message); const p = message.payload;
 		if (!p) return {};
+		if (p.mode === 'probe') return { ok: false, error: 'helper-outdated' };
 		if (p.mode === 'choose') { if (state.failChoice) return { ok: false, error: 'helper-offline' }; if (p.profile) state.active = p.profile; }
 		if (p.mode === 'status' || p.mode === 'choose') return {
 			ok: true, ready: true, missing: [], hints: [], engine: 'cloud', mode: 'cloud', modelDownloadNeeded: false,
@@ -47,6 +48,16 @@ beforeEach(() => {
 	vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:fixture'); vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
 });
 afterEach(() => { window.dispatchEvent(new Event('pagehide')); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+it('offers a direct Mac installer and a safe recheck when reading a video needs a newer helper', async () => {
+	vi.spyOn(navigator, 'platform', 'get').mockReturnValue('MacIntel');
+	await startAudioStudy({ kind: 'web', webUrl: 'https://vimeo.com/123' });
+	const link = document.querySelector<HTMLAnchorElement>('.qiaomu-audio-status a')!;
+	expect(link.href).toMatch(/latest\/download\/qiaomu-clipper-helper\.pkg$/);
+	expect(link.target).toBe('_blank'); expect(link.rel).toContain('noopener');
+	expect(document.querySelector('.qiaomu-audio-status')?.textContent).toContain('重新检查');
+	await press('.qiaomu-audio-status button'); expect(reloadPage).toHaveBeenCalledOnce();
+	expect(state.messages.some(m => m.payload?.mode === 'start')).toBe(false);
+});
 it('shows provider and actual model before selecting a file, using shared cloud choices without leaking keys', async () => {
 	await startAudioStudy({ kind: 'file' });
 	expect(document.querySelector('.qiaomu-file-recognizer')?.textContent).toContain('硅基流动');
@@ -73,7 +84,7 @@ it('replaces a cached transcript after changing model while retaining the exact 
 	state.store['qiaomuTranscript2:generated:' + KEY] = { segments:[{time:'0:00', text:'旧字幕'}] };
 	await startAudioStudy({ kind:'file', file:new File(['video'], 'lecture.mp4'), token:TOKEN }); await flush();
 	const player = document.querySelector('video')!; player.currentTime = 42; player.playbackRate = 1.5;
-	await press('.qiaomu-yt-gen[data-kind=generated] button');
+	await press('.q-transcript-regenerate');
 	await press('.qiaomu-dlg-choice[data-value="cloud:glm"]');
 	state.job = job('新模型完整字幕'); await press('.qiaomu-dlg-btn.is-primary');
 	expect(document.querySelectorAll('.transcript')).toHaveLength(1);
@@ -110,12 +121,12 @@ it('retains a successful displayed result when browser cache writes fail, and sa
 	await startAudioStudy({kind:'file',file:new File(['video'],'lecture.mp4')}); await flush(); await press('.qiaomu-dlg-btn.is-primary');
 	expect(document.querySelector('.transcript')?.textContent).toContain('完整字幕');
 	expect(document.querySelector('.qiaomu-audio-status')?.textContent).toContain('识别已成功');
-	expect(document.querySelector('.qiaomu-yt-gen')?.getAttribute('data-kind')).toBe('generated'); expect(reloadPage).not.toHaveBeenCalled();
+	expect(document.querySelector<HTMLElement>('.qiaomu-yt-gen')?.hidden).toBe(true); expect(document.querySelectorAll('.q-transcript-regenerate')).toHaveLength(1); expect(reloadPage).not.toHaveBeenCalled();
 });
 it('keeps an old complete result on failed regeneration and never caches partial failed output', async () => {
 	state.store['qiaomuTranscript2:generated:' + KEY] = { segments:[{time:'0:00',text:'旧完整字幕'}] };
 	await startAudioStudy({kind:'file',file:new File(['video'],'lecture.mp4')});
-	await press('.qiaomu-yt-gen[data-kind=generated] button'); state.job = job('部分', {state:'failed',error:'cloud failed'}); await press('.qiaomu-dlg-btn.is-primary');
+	await press('.q-transcript-regenerate'); state.job = job('部分', {state:'failed',error:'cloud failed'}); await press('.qiaomu-dlg-btn.is-primary');
 	expect(document.querySelector('.qiaomu-yt-gen')?.textContent).toContain('cloud failed');
 	expect(document.querySelector('.transcript')?.textContent).toContain('旧完整字幕'); expect(cached()[0].text).toBe('旧完整字幕');
 });
@@ -139,7 +150,7 @@ it('rejoins a confirmed in-flight helper job after refresh without forcing a sec
 it('cancels a remake without losing the previous success or resuming the cancelled job after reload', async () => {
 	state.store['qiaomuTranscript2:generated:' + KEY]={segments:[{time:'0:00',text:'原完整字幕'}]};
 	await startAudioStudy({kind:'file',file:new File(['video'],'lecture.mp4')});
-	await press('.qiaomu-yt-gen[data-kind=generated] button');state.job=job('partial',{state:'transcribing'});await press('.qiaomu-dlg-btn.is-primary');
+	await press('.q-transcript-regenerate');state.job=job('partial',{state:'transcribing'});await press('.qiaomu-dlg-btn.is-primary');
 	expect(JSON.parse(sessionStorage.getItem('qiaomuFileStudySession')!).pending).toBe(true);
 	await press('.qiaomu-yt-gen[data-kind=running] button');
 	expect(JSON.parse(sessionStorage.getItem('qiaomuFileStudySession')!).pending).toBe(false);

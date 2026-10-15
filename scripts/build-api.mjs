@@ -10,7 +10,7 @@ await esbuild.build({
 	bundle: true,
 	platform: 'neutral',
 	format: 'esm',
-	outfile: path.join(root, 'dist/api.mjs'),
+	outfile: path.join(root, 'build/cli/api.mjs'),
 	external: [
 		'defuddle',
 		'defuddle/full',
@@ -25,4 +25,4 @@ await esbuild.build({
 	logLevel: 'info',
 });
 
-console.log('API built successfully → dist/api.mjs');
+console.log('API built successfully → build/cli/api.mjs');

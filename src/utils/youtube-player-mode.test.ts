@@ -64,10 +64,14 @@ it('falls back to stacked layout on narrow pages and tells the size module the m
 it('adopts the controls when the player container appears after subtitles load', async () => {
 	document.body.innerHTML = '<article><iframe src="https://www.youtube.com/embed/dbqweBCynuI"></iframe></article>';
 	const article = document.querySelector('article')!; vi.spyOn(article, 'getBoundingClientRect').mockReturnValue({ width: 1500 } as DOMRect);
-	mountPlayerMode(article); await flush(); expect(article.dataset.ytLayout).toBe('theater'); expect(article.querySelector('.youtube-mode-bar')).toBeNull();
+	mountPlayerMode(article); await flush(); expect(article.dataset.ytLayout).toBe('theater'); expect(article.querySelector('.youtube-mode-bar')).not.toBeNull();
+	const bar = article.querySelector('.youtube-mode-bar')!;
+	expect(article.querySelector<HTMLButtonElement>('.youtube-mode-float')!.disabled).toBe(true);
 	const frame = article.querySelector('iframe')!, container = document.createElement('div'); container.className = 'player-container'; frame.before(container); container.append(frame);
 	await flush(); await new Promise(r => setTimeout(r, 0));
-	expect(container.querySelector('.youtube-mode-bar')).not.toBeNull(); expect(article.dataset.ytLayout).toBe('side');
+	expect(container.querySelector('.youtube-mode-bar')).toBe(bar); expect(article.dataset.ytLayout).toBe('side');
+	expect(article.querySelectorAll('.youtube-mode-bar')).toHaveLength(1);
+	expect(article.querySelector<HTMLButtonElement>('.youtube-mode-float')!.disabled).toBe(false);
 });
 
 it('drags the floating window and snaps to the nearest corner, resizes it and cleans up a canceled drag', async () => {
@@ -92,4 +96,10 @@ it('only offers the pop-out window where Document Picture-in-Picture exists', as
 	const { article } = setup(); expect(article.querySelector('.youtube-mode-pip')).toBeNull();
 	document.body.innerHTML = html; (window as any).documentPictureInPicture = { requestWindow: vi.fn() };
 	const again = setup(); expect(again.article.querySelector('.youtube-mode-pip')).not.toBeNull(); delete (window as any).documentPictureInPicture;
+});
+
+it('does not add video controls to a plain article or an unrelated iframe', async () => {
+ document.body.innerHTML = '<article><iframe src="https://example.org/embed"></iframe><p>Text</p></article>';
+ const article = document.querySelector('article')!; mountPlayerMode(article); await flush();
+ expect(article.querySelector('.youtube-mode-bar')).toBeNull();
 });

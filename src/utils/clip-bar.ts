@@ -173,6 +173,18 @@ export function createClipBar({ mode, id, draft, title, domain, url, sync, getEx
 export function autoHideBar(bar: HTMLElement, { collapseLayout = false }: { collapseLayout?: boolean } = {}): void {
 	const root = document.documentElement;
 	root.classList.toggle('clip-bar-collapse', collapseLayout);
+	// Wrapping changes the real height. Keep the reader, editor and chat below every row.
+	let heightFrame = 0;
+	const syncHeight = () => {
+		if (!bar.isConnected) return;
+		const value = `${Math.max(56, bar.getBoundingClientRect().height)}px`;
+		if (root.style.getPropertyValue('--clip-bar-measured-height') !== value) root.style.setProperty('--clip-bar-measured-height', value);
+	};
+	const scheduleHeight = () => { if (!heightFrame) heightFrame = requestAnimationFrame(() => { heightFrame = 0; syncHeight(); }); };
+	const resize = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(scheduleHeight) : undefined;
+	resize?.observe(bar); syncHeight();
+	window.addEventListener('resize', scheduleHeight);
+	window.addEventListener('pagehide', () => { resize?.disconnect(); window.removeEventListener('resize', scheduleHeight); if (heightFrame) cancelAnimationFrame(heightFrame); }, { once: true });
 	const lastTop = new WeakMap<object, number>();
 	let quietUntil = 0;
 	const setHidden = (hidden: boolean) => {

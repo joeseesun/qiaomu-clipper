@@ -1,3 +1,4 @@
+import { type ChatTurn, responsesContent } from '../chat-content';
 import type { ModelConfig, OAuthCredentials, Provider } from '../../types/types';
 import { jwtClaims, openSignIn, pkcePair, randomString, SignInHandle } from './core';
 
@@ -177,7 +178,7 @@ export async function freshOAuth(provider: Provider, save: (oauth: OAuthCredenti
 	return refreshing;
 }
 
-type Turn = { role: 'user' | 'assistant'; content: string };
+type Turn = ChatTurn;
 
 export function responsesRequest(oauth: OAuthCredentials, model: ModelConfig, system: string, messages: Turn[]): { url: string; init: RequestInit } {
 	const headers: Record<string, string> = { 'Content-Type': 'application/json', Accept: 'text/event-stream', Authorization: `Bearer ${oauth.access}` };
@@ -189,8 +190,8 @@ export function responsesRequest(oauth: OAuthCredentials, model: ModelConfig, sy
 		headers.originator = 'codex_cli_rs';
 		headers.version = CODEX_VERSION;
 	}
-	const input = messages.map(m => ({ type: 'message', role: m.role, content: [{ type: m.role === 'assistant' ? 'output_text' : 'input_text', text: m.content }] }));
-	return { url, init: { method: 'POST', headers, credentials: 'omit', body: JSON.stringify({ model: model.providerModelId, instructions: system, input, store: false, stream: true }) } };
+	const input = messages.map(m => ({ type: 'message', role: m.role, content: responsesContent(m) }));
+	return { url, init: { method: 'POST', headers, credentials: 'omit', body: JSON.stringify({ model: model.providerModelId, instructions: system, input, ...(model.reasoningEffort && model.reasoningEfforts?.includes(model.reasoningEffort) ? { reasoning: { effort: model.reasoningEffort } } : {}), store: false, stream: true }) } };
 }
 
 export function responsesText(line: string): string {

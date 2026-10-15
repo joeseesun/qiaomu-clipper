@@ -1,7 +1,7 @@
 .DS_Store
 
 # NPM
-node_modules/
+node_modules
 
 # Dev
 dev/
@@ -51,3 +51,6 @@ integration/qmreader/unified-submissions.test.cjs
 docs/reader-preview-acceptance.png
 docs/popup-compact-acceptance.png
 build/
+
+# Immutable distribution archives (source is in Git).
+releases/

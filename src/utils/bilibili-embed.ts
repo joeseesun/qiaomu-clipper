@@ -1,4 +1,6 @@
 import { t } from './ui-text';
+import { bilibiliVideo } from './video-source';
+import { createElement, ExternalLink } from 'lucide';
 // Bilibili's own embed (https://player.bilibili.com/player.html). Obsidian notes show it as a player; the RSS site and the
 // RSS plugin do not run page HTML, so there a clip carries a plain link instead.
 const EMBED = /<iframe\b[^>]*?\bsrc=(["'])([^"']*player\.bilibili\.com\/player\.html[^"']*)\1[^<>]*>?\s*(?:<\/iframe>?)?/gi;
@@ -14,6 +16,23 @@ function videoOf(src: string): { bvid: string; page: number } | null {
 }
 
 export const bilibiliWatchUrl = (bvid: string, page = 1) => `https://www.bilibili.com/video/${bvid}/${page > 1 ? `?p=${page}` : ''}`;
+
+export function mountBilibiliQualityLink(article: HTMLElement, sourceUrl: string): void {
+	const video = bilibiliVideo(sourceUrl); if (!video) return;
+	let link = article.querySelector<HTMLAnchorElement>('.bilibili-quality-link');
+	if (!link) {
+		link = article.ownerDocument.createElement('a'); link.className = 'bilibili-quality-link';
+		link.textContent = t('原站高清');
+		link.title = t('B 站外嵌画质受限，前往原网页选择高清');
+		link.append(createElement(ExternalLink));
+		link.target = '_blank'; link.rel = 'noopener noreferrer';
+		link.style.cssText = 'grid-column:1/-1;display:inline-flex;align-items:center;gap:4px;margin:4px 0;font-size:13px;line-height:1.5;overflow-wrap:anywhere';
+		link.addEventListener('click', event => event.stopPropagation()); // Keep this source action out of the reader's follow-links navigation.
+	}
+	link.href = bilibiliWatchUrl(video.bvid, video.page);
+	const host = article.querySelector('.player-container') || article.querySelector('.study-media-actions') || article;
+	if (link.parentElement !== host) host.append(link);
+}
 
 // A well-formed player for an outside page: `isOutside` lets it load there, and nothing starts playing on its own.
 export function bilibiliPlayerHtml(bvid: string, page = 1): string {

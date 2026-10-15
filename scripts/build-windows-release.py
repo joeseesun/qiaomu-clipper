@@ -38,6 +38,8 @@ def build():
         "asr_engines.py",
         "asr_runner.py",
         "asr_context.py",
+        "media_download.py",
+        "VERSION",
         "install.py",
         "README.md"
     ]

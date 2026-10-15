@@ -17,7 +17,7 @@ wav.writeUInt16LE(2, 32); wav.writeUInt16LE(16, 34); wav.write('data', 36); wav.
 for (let n = 0; n < 16000 * 12; n++) wav.writeInt16LE(Math.round(3000 * Math.sin(n * 2 * Math.PI * 440 / 16000)), 44 + n * 2);
 
 (async () => {
- const extension = path.resolve(process.env.QIAOMU_TEST_DIST || path.join(root, 'dist_local'));
+ const extension = path.resolve(process.env.QIAOMU_TEST_DIST || path.join(root, 'build/production/chrome-local'));
  const context = await chromium.launchPersistentContext(fs.mkdtempSync(path.join(output, 'profile-')), {
   executablePath: process.env.QIAOMU_EDGE || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', headless: true,
   args: [`--disable-extensions-except=${extension}`, `--load-extension=${extension}`], viewport: { width: 1280, height: 900 },

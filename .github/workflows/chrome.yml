@@ -21,10 +21,14 @@ jobs:
           python-version: '3.12'
       - run: npm ci
       - run: npm test
+      - run: npm run test:store-download
       - run: npx tsc --noEmit
       - run: python3 -m unittest discover -s native -p 'test_*.py'
-      - run: npm run build:chrome
+      - run: npm run build
+      - run: npm run package
       - uses: actions/upload-artifact@v4
         with:
           name: qiaomu-clipper-chrome
-          path: builds/qiaomu-clipper-*-chrome.zip
+          path: releases/**
+          if-no-files-found: error
+          retention-days: 14

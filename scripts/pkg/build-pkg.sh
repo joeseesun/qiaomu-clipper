@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build the macOS helper installer: builds/qiaomu-clipper-helper-<version>.pkg
+# Build an isolated helper candidate; publication is a separate step.
 #
 #   bash scripts/pkg/build-pkg.sh --python-arm64 DIR --python-x86_64 DIR
 #
@@ -10,15 +10,22 @@
 #   NOTARY_PROFILE   name saved with `xcrun notarytool store-credentials`   notarizes and staples
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-VERSION="$(node -p "require('$ROOT/package.json').version")"
+VERSION="$(cat "$ROOT/native/VERSION")"
+[[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Invalid helper version" >&2; exit 1; }
 PY_ARM="" PY_X64=""
 while [ $# -gt 0 ]; do case "$1" in --python-arm64) PY_ARM="$2"; shift 2;; --python-x86_64) PY_X64="$2"; shift 2;; *) echo "unknown option $1" >&2; exit 1;; esac; done
 for d in "$PY_ARM" "$PY_X64"; do [ -x "$d/bin/python3" ] || { echo "need --python-arm64 and --python-x86_64 folders containing bin/python3" >&2; exit 1; }; done
 
-WORK="$ROOT/build/pkg"; PAYLOAD="$WORK/payload/Library/QiaomuClipper"
-rm -rf "$WORK"; mkdir -p "$PAYLOAD/native" "$PAYLOAD/bin" "$WORK/scripts" "$WORK/resources" "$ROOT/builds"
+mkdir -p "$ROOT/build/tmp"
+WORK="$(mktemp -d "$ROOT/build/tmp/pkg.XXXXXX")"; PAYLOAD="$WORK/payload/Library/QiaomuClipper"
+mkdir -p "$PAYLOAD/native" "$PAYLOAD/bin" "$WORK/scripts" "$WORK/resources"
+node - "$ROOT" "$WORK/source.json" <<'JS'
+const fs = require('node:fs');
+const [root, output] = process.argv.slice(2);
+fs.writeFileSync(output, JSON.stringify(require(root + '/scripts/build-info.cjs').sourceState()));
+JS
 ditto "$PY_ARM" "$PAYLOAD/runtime-arm64"; ditto "$PY_X64" "$PAYLOAD/runtime-x86_64"
-for f in install.py host.py asr.py asr_cloud.py asr_engines.py asr_runner.py asr_context.py; do cp "$ROOT/native/$f" "$PAYLOAD/native/$f"; done
+for f in install.py host.py asr.py asr_cloud.py asr_engines.py asr_runner.py asr_context.py media_download.py VERSION; do cp "$ROOT/native/$f" "$PAYLOAD/native/$f"; done
 cp "$ROOT/scripts/pkg/qiaomu-helper" "$PAYLOAD/bin/qiaomu-helper"; chmod +x "$PAYLOAD/bin/qiaomu-helper"
 cp "$ROOT/scripts/pkg/postinstall" "$WORK/scripts/postinstall"; chmod +x "$WORK/scripts/postinstall"
 # Installer.app ignores <meta charset> and shows UTF-8 as mojibake, so the pages must be pure ASCII (&#x...; entities).
@@ -32,13 +39,27 @@ find "$PAYLOAD" -name __pycache__ -type d -prune -exec rm -rf {} +
 if [ -n "${APP_SIGN_ID:-}" ]; then
 	# Notarization wants every Mach-O file signed with the hardened runtime and a secure timestamp, deepest files first.
 	find "$PAYLOAD" -type f -print0 | while IFS= read -r -d '' f; do
-		if file -b "$f" | grep -q "Mach-O"; then codesign --force --options runtime --timestamp --sign "$APP_SIGN_ID" "$f" 2>&1 | grep -v "replacing existing signature" || true; fi
+		if file -b "$f" | grep -q "Mach-O"; then
+			ENTITLEMENTS=()
+			# Python loads wheels installed later (MLX, NumPy, CTranslate2), whose
+			# signatures cannot share our Team ID. Only executable hosts need this;
+			# keep the hardened runtime and verification on every binary.
+			if file -b "$f" | grep -q "executable"; then
+				ENTITLEMENTS=(--entitlements "$ROOT/scripts/pkg/python-entitlements.plist")
+			fi
+			codesign --force --options runtime --timestamp --sign "$APP_SIGN_ID" ${ENTITLEMENTS[@]+"${ENTITLEMENTS[@]}"} "$f"
+			codesign --verify --strict "$f"
+		fi
 	done
 	echo "signed bundled binaries"
+	# Test our signed Python, not a Homebrew interpreter already on the developer's Mac.
+	ARCH="$(uname -m)"
+	if [ "$(sysctl -in hw.optional.arm64 2>/dev/null)" = "1" ]; then ARCH=arm64; fi
+	python3 "$ROOT/scripts/pkg/check-runtime.py" --python "$PAYLOAD/runtime-$ARCH/bin/python3"
 fi
 
 pkgbuild --root "$WORK/payload" --scripts "$WORK/scripts" --identifier ai.qiaomu.clipper.helper --version "$VERSION" --install-location / "$WORK/helper.pkg"
-OUT="$ROOT/builds/qiaomu-clipper-helper-$VERSION.pkg"
+OUT="$WORK/qiaomu-clipper-helper-$VERSION.pkg"
 SIGN=(); [ -n "${INSTALLER_SIGN_ID:-}" ] && SIGN=(--sign "$INSTALLER_SIGN_ID" --timestamp)
 productbuild --distribution "$WORK/distribution.xml" --resources "$WORK/resources" --package-path "$WORK" ${SIGN[@]+"${SIGN[@]}"} "$OUT"
 if [ -n "${NOTARY_PROFILE:-}" ] && [ -n "${INSTALLER_SIGN_ID:-}" ]; then
@@ -51,6 +72,6 @@ else
 	echo "NOT signed or notarized: for testing only" >&2
 fi
 # A fixed name, so the settings page can link to .../releases/latest/download/qiaomu-clipper-helper.pkg
-cp "$OUT" "$ROOT/builds/qiaomu-clipper-helper.pkg"
+node "$ROOT/scripts/archive-helper.mjs" "$OUT" "$VERSION" "$WORK/source.json"
 echo "$OUT"
-echo "$ROOT/builds/qiaomu-clipper-helper.pkg (upload both with the release)"
+echo "Assembly files retained at $WORK; use the archived package after verification."

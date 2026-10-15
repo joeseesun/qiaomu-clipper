@@ -1094,5 +1094,26 @@
 	},
 	"version": {
 		"message": "Versie"
+	},
+	"pdGroupPlan": {
+		"message": "Coding plans"
+	},
+	"pdMagpieNote": {
+		"message": "Sign in to subscriptions such as Claude in Magpie and enable models, then load the model list here. Local keys are optional; remote gateways require HTTPS and a key."
+	},
+	"pdDetectMagpie": {
+		"message": "Detect Magpie"
+	},
+	"pdMagpieFailed": {
+		"message": "Magpie not detected. Check the URL, gateway key and service."
+	},
+	"pdMagpieSecure": {
+		"message": "Remote Magpie requires HTTPS and a gateway key. URLs must not contain credentials or query parameters."
+	},
+	"pdEffort": {
+		"message": "Reasoning effort"
+	},
+	"pdEffortDefault": {
+		"message": "Model default"
 	}
 }

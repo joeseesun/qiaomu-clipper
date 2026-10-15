@@ -117,7 +117,7 @@ def main():
         # Chrome on Windows can't run a .py directly; it launches this wrapper, which forwards the origin argument.
         host=BASE/'host.bat';host.write_text(f'@echo off\r\n"{sys.executable}" "{script}" %*\r\n',encoding='utf8')
     # Subtitle generation (yt-dlp + ffmpeg + Whisper) lives next to the host; the host imports it from its own folder.
-    for module in ('asr.py','asr_cloud.py','asr_engines.py','asr_runner.py','asr_context.py'): (BASE/module).write_text(Path(__file__).with_name(module).read_text(encoding='utf8'),encoding='utf8');(BASE/module).chmod(0o600)
+    for module in ('asr.py','asr_cloud.py','asr_engines.py','asr_runner.py','asr_context.py','media_download.py','VERSION'): (BASE/module).write_text(Path(__file__).with_name(module).read_text(encoding='utf8'),encoding='utf8');(BASE/module).chmod(0o600)
     origins=[f'chrome-extension://{i}/' for i in ids]
     config=BASE/'config.json';config.write_text(json.dumps({**({'vault':str(vault)} if vault else {}),'origins':origins},ensure_ascii=False,indent=2),encoding='utf8');config.chmod(0o600)
     manifest={'name':NAME,'description':'Save clipped Markdown silently to the configured Obsidian vault','path':str(host),'type':'stdio','allowed_origins':origins}

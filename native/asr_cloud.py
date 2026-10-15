@@ -6,7 +6,7 @@ as its offset, and is split into sentences spread over the piece's duration. Pro
 (OpenAI-style `verbose_json`, Doubao's utterances) keep their own times. Three request styles cover the services tried:
 an OpenAI-style `/audio/transcriptions` upload, an audio-capable `/chat/completions` model, and Doubao's recorded-file "flash" call.
 """
-import base64, json, os, random, re, subprocess, tempfile, time, urllib.error, urllib.parse, urllib.request, uuid
+import base64, json, math, os, random, re, subprocess, tempfile, time, urllib.error, urllib.parse, urllib.request, uuid
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -90,7 +90,7 @@ def build_request(cfg, key, path, language, context=''):
     audio = path.read_bytes(); mime = 'audio/mpeg' if path.suffix == '.mp3' else 'audio/wav'
     if cfg['protocol'] == 'doubao-flash':
         # The recorded-file "flash" call: the whole file in one request, answered at once with utterances and their times.
-        payload = {'user': {'uid': 'qiaomu-clipper'}, 'audio': {'data': base64.b64encode(audio).decode()}, 'request': {'model_name': cfg['model']}}
+        payload = {'user': {'uid': 'qiaomu-clipper'}, 'audio': {'data': base64.b64encode(audio).decode()}, 'request': {'model_name': cfg['model'], 'show_utterances': True}}
         if context: payload['request']['corpus'] = {'context': context}
         return urllib.request.Request(cfg['baseUrl'] + '/auc/bigmodel/recognize/flash', data=json.dumps(payload).encode(), method='POST', headers={'X-Api-Key': key, 'X-Api-Resource-Id': 'volc.bigasr.auc_turbo', 'X-Api-Request-Id': str(uuid.uuid4()), 'X-Api-Sequence': '-1', 'Content-Type': 'application/json'})
     if cfg['protocol'] == 'openai-transcriptions':
@@ -118,12 +118,39 @@ def language_code(value):
     if not isinstance(value, str) or not value.strip(): return None
     low = value.strip().lower().replace('_', '-'); return LANGUAGE_NAMES.get(low) or (low.split('-')[0] if re.fullmatch(r'[a-z]{2,3}(-[a-z0-9]+)?', low) else None)
 DOUBAO_OK, DOUBAO_SILENT = '20000000', '20000003'
+def valid_time(value):
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value) and value >= 0
+
+def clean_words(raw, start, end, scale=1.0, offset=0.0, start_key='start', end_key='end'):
+    """Optional measured timings only. Malformed alignment falls back to ordinary captions."""
+    if not isinstance(raw, list) or not raw or len(raw) > 4096: return None
+    words = []; previous = start; payload_bytes = 0
+    for word in raw:
+        if not isinstance(word, dict) or not all(valid_time(word.get(k)) for k in (start_key, end_key)): return None
+        text = word.get('text')
+        if not isinstance(text, str) or not text.strip() or len(text) > 256: return None
+        a, b = word[start_key] * scale + offset, word[end_key] * scale + offset
+        if a < start - 0.001 or b > end + 0.001 or b <= a or a < previous - 0.001: return None
+        payload_bytes += len(text.encode('utf8')) + 100
+        if payload_bytes > 500_000: return None
+        words.append({'start': round(max(start, a), 3), 'end': round(min(end, b), 3), 'text': text.strip()})
+        previous = b
+    return words
+
 def parse_response(cfg, raw, headers=None):
     data = json.loads(raw)
     if cfg['protocol'] == 'doubao-flash':
         result = data.get('result') if isinstance(data, dict) else None
         if not isinstance(result, dict): return '', None, None
-        segments = [{'start': u['start_time'] / 1000.0, 'end': u['end_time'] / 1000.0, 'text': u.get('text')} for u in (result.get('utterances') or []) if isinstance(u, dict) and isinstance(u.get('start_time'), (int, float)) and isinstance(u.get('end_time'), (int, float))]
+        segments = []
+        for u in result.get('utterances') or []:
+            if not isinstance(u, dict) or not all(valid_time(u.get(k)) for k in ('start_time', 'end_time')): continue
+            a, b = u['start_time'] / 1000.0, u['end_time'] / 1000.0
+            if b <= a: continue
+            cue = {'start': a, 'end': b, 'text': u.get('text')}
+            words = clean_words(u.get('words'), a, b, scale=0.001, start_key='start_time', end_key='end_time')
+            if words: cue['words'] = words
+            segments.append(cue)
         return tidy(result.get('text') or ''), segments or None, None
     if cfg['protocol'] == 'openai-transcriptions':
         text = tidy(data.get('text') or ''); segments = data.get('segments') if isinstance(data.get('segments'), list) else None
@@ -190,7 +217,12 @@ def cues_from(text, segments, start, end):
         for segment in segments:
             try: a, b, t = float(segment['start']), float(segment['end']), tidy(segment.get('text') or '')
             except (KeyError, TypeError, ValueError): continue
-            if t: cues.append({'start': round(start + a, 2), 'end': round(start + max(a, b), 2), 'text': t})
+            if not math.isfinite(a) or not math.isfinite(b) or a < 0 or start + a >= end: continue
+            if t:
+                cue = {'start': round(start + a, 3), 'end': round(min(end, start + max(a, b)), 3), 'text': t}
+                words = clean_words(segment.get('words'), cue['start'], cue['end'], offset=start)
+                if words: cue['words'] = words
+                cues.append(cue)
         if cues: return cues
     parts = sentences(text) if text else []
     if not parts: return []

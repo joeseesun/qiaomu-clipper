@@ -1,3 +1,4 @@
+import { takeStudyPlayback } from '../utils/study-playback-handoff';
 import { loadClipPreview } from '../utils/clip-preview';
 import { mountYouTubeStudy } from '../utils/youtube-study';
 import { startYouTubeStudy } from '../utils/youtube-study-loader';
@@ -36,17 +37,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 	await initializeI18n();
 
 	const params = new URLSearchParams(window.location.search);
+	const playback = params.has('study') ? takeStudyPlayback(window) : undefined;
 	const previewId = params.get('preview');
 	if (previewId) { await showClipPreview(previewId); return; }
 	let url = params.get('url');
 
 	// Audio: a file chosen on this page, or a podcast episode.
 	if (params.get('study') === 'file') { const token = params.get('token') || ''; const file = await takeHandedFile(token); await startAudioStudy({ kind: 'file', token, title: params.get('title') || '', ...(file ? { file } : {}) }); return; }
-	if (params.get('study') === 'web' && url) { await startAudioStudy({ kind: 'web', webUrl: url, resumeId: params.get('resume') || undefined, sourceTabId: params.has('sourceTab') ? Number(params.get('sourceTab')) : undefined, title: params.get('title') || '' }); return; }
+	if (params.get('study') === 'web' && url) { await startAudioStudy({ kind: 'web', playback, webUrl: url, resumeId: params.get('resume') || undefined, sourceTabId: params.has('sourceTab') ? Number(params.get('sourceTab')) : undefined, title: params.get('title') || '' }); return; }
 	if (params.get('study') === 'feed' && params.get('feed') && params.get('guid')) { await startAudioStudy({ kind: 'feed', feed: params.get('feed')!, guid: params.get('guid')!, title: params.get('title') || '' }); return; }
 	if (params.get('study') === 'audio' && url) {
 		const key = audioKey(url);
-		if (key) { await startAudioStudy({ kind: 'podcast', url, key, title: params.get('title') || '' }); return; }
+		if (key) { await startAudioStudy({ kind: 'podcast', playback, url, key, title: params.get('title') || '' }); return; }
 	}
 
 	if (!url) {
@@ -67,7 +69,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 		}, () => {
 			const shell = mountReaderPreviewShell(session.draft, true);
 			return {chat:shell.chat, ready: () => { shell.refresh(); shell.setPending(false); }};
-		}, session.restored ? session.draft : undefined);
+		}, session.restored ? session.draft : undefined, playback);
 		return;
 	}
 

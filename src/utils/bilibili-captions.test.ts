@@ -8,7 +8,7 @@ const route = (player: unknown, file: unknown = { body: [] }) => vi.fn(async (ur
 it('reads the subtitle file of the requested part and turns it into timed lines', async () => {
 	const getJson = route({ code: 0, data: { subtitle: { subtitles: [track({})] } } }, { body: [{ from: 0.4, to: 2, content: ' 你好\n世界 ' }, { from: 3725.9, to: 4, content: 'later' }, { from: 5, content: '   ' }, { from: -1, content: 'bad' }] });
 	const result = await fetchBilibiliCaptions('BV1xx411c7mD', 2, getJson);
-	expect(result.segments).toEqual([{ time: '0:00', text: '你好 世界' }, { time: '1:02:05', text: 'later' }]);
+	expect(result.segments).toEqual([{ time: '0:00', start:0.4,end:2,text: '你好 世界' }, { time: '1:02:05', start:3725.9,text: 'later' }]);
 	expect(getJson.mock.calls.some(([url]) => String(url).includes('cid=200'))).toBe(true);
 	expect(getJson).toHaveBeenCalledWith('https://aisubtitle.hdslb.com/a.json', false); // the public file is fetched without the account's cookies
 });

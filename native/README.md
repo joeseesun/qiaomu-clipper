@@ -20,6 +20,17 @@ python3 native/install.py --check
 
 输出 `problems` 会指出原因：未注册、扩展 ID 不在允许列表（商店版与本地加载版 ID 不同）、库路径失效等。多数情况重新运行安装命令即可修复。
 
+### Windows
+
+Windows 目前使用源码安装助手。先安装 Python 3.9+，下载或克隆本仓库，在仓库目录打开 PowerShell，运行：
+
+```powershell
+python native/install.py
+python native/install.py --check
+```
+
+没有 `python` 命令时可改用 `py -3`。安装会注册检测到的浏览器；检查返回 `ok: true` 后回扩展点击「重新检查」。升级使用同一流程，已选笔记库会保留。需要明确指定扩展时添加 `--extension-id` 参数。
+
 ### 让 AI agent 代装
 
 笔记卡片提示本地助手没连上时，点「让 AI 帮我安装」会复制一段已带上本机扩展 ID 的话。安装器现在不会因为库的问题整体失败：没找到库或有多个库时照样装好助手（多个库先用最近打开的），并在输出的 `notes` / `vaultChoices` 里说明，之后可用 `--vault` 或扩展设置指定；商店版扩展 ID 始终放行；重新运行会保留已选的库。
@@ -135,7 +146,17 @@ uv tool install mlx-whisper      # Apple 芯片，首次使用下载约 1.6 GB �
 ```sh
 bash scripts/pkg/fetch-python.sh <python-build-standalone 发布标签> <Python 版本>   # 下载并校验两个架构的 Python
 APP_SIGN_ID="Developer ID Application: …" INSTALLER_SIGN_ID="Developer ID Installer: …" NOTARY_PROFILE=<notarytool 配置名> \
-  bash scripts/pkg/build-pkg.sh --python-arm64 build/python/arm64 --python-x86_64 build/python/x86_64
+  bash scripts/pkg/build-pkg.sh --python-arm64 build/cache/python/<release-tag>/<python-version>/arm64 --python-x86_64 build/cache/python/<release-tag>/<python-version>/x86_64
 ```
 
 不带签名变量只会得到仅供测试的未签名包。安装日志在 `$TMPDIR/qiaomu-clipper-install.log`；装完仍未连接时运行包内的 `install.py --check` 查看原因。
+
+助手版本独立记录在 `native/VERSION`；扩展更新不自动要求助手版本相等。安装包组装文件写入 `build/tmp/pkg.*`，归档写入 `releases/helper/<version>/<package-hash>/`，其中 `release.json` 记录签名、公证与源码状态。仅签名、公证通过且源码已提交的包可标记为待发布；归档不会自动发布或安装。
+
+## 豆包逐字 / 逐词时间与跟读高亮
+
+豆包极速版请求启用 show_utterances，保留 utterances[].words 的毫秒时间，并转换为媒体绝对秒数。可选 words 数据经分块偏移、清洗、轮询、缓存及文字稿保留到播放器。Chrome 单条助手回复有 1 MiB 上限，轮询同时按字节预算分页。
+
+播放器有可信词级数据时自动高亮原文，暂停和倍速跟随媒体时间，回退重新计算；中文原文无需翻译模型。译文没有词级对齐，仍按整句显示。缺失、异常或与正文不匹配的时间数据回退普通字幕，不按字数伪造时间。
+
+需同时更新扩展和助手。旧文字稿继续可用，不会自动再次上传；要获得词级数据需用户主动选择豆包重新生成。Qwen 当前安装的只是识别模型，本地精确对齐需另接 Qwen3-ForcedAligner，尚未纳入本次改动。

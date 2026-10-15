@@ -1,3 +1,4 @@
+import { setWithQuotaRecovery } from './storage-quota';
 import type { RemotePreviewMedia } from './remote-preview-media';
 import browser from './browser-polyfill';
 import { LocalSavePayload, saveLocalClip } from './local-save';
@@ -15,7 +16,7 @@ export interface ClipPreview {
     native: boolean;
     properties?: Property[];
     createdAt?: number;
-    transcriptExport?: { source: string; previous: string; mode?: 'original' | 'translated' | 'bilingual' };
+    transcriptExport?: { source: string; previous: string; mode?: 'original' | 'translated' | 'bilingual' | 'display' };
     readerAppendix?: string;
     localMedia?: LocalPreviewMedia;
     remoteMedia?: RemotePreviewMedia;
@@ -27,7 +28,9 @@ export interface ClipPreview {
 }
 const prefix = 'qiaomuPreview:';
 const snapshots = new WeakMap<ClipPreview, string>();
-const textSnapshot = (draft: ClipPreview) => JSON.stringify([draft.clip, draft.local, draft.properties, draft.readerAppendix, draft.transcriptExport, draft.studyEditedAt]);
+// Chromium storage may reorder dictionary keys. Compare content, not insertion order.
+const textSnapshot = (draft: ClipPreview) => JSON.stringify([draft.clip, draft.local, draft.properties, draft.readerAppendix, draft.transcriptExport, draft.studyEditedAt], (_key, value) =>
+    value && typeof value === 'object' && !Array.isArray(value) ? Object.fromEntries(Object.keys(value).sort().map(key => [key, value[key]])) : value);
 const remember = (draft: ClipPreview) => { snapshots.set(draft, textSnapshot(draft)); return draft; };
 // Extension pages share an origin: Web Locks serialize the read/check/write across tabs.
 // The in-process queue is also used by non-DOM test/CLI consumers.
@@ -48,7 +51,7 @@ export async function patchClipPreview(draft: ClipPreview, patch: ClipPreviewPat
     await withDraftLock(draft.local.requestId, async () => {
         const key = prefix + draft.local.requestId;
         const latest = (await browser.storage.local.get(key))[key] as ClipPreview | undefined;
-        await browser.storage.local.set({ [key]: { ...(latest || draft), ...patch } });
+        await setWithQuotaRecovery(browser.storage.local, { [key]: { ...(latest || draft), ...patch } });
     });
 }
 export const isStudyPreview = (draft: ClipPreview) => Boolean(draft.studySource || draft.mediaReadUrl || draft.remoteMedia || draft.localMedia);
@@ -68,7 +71,7 @@ export async function openClipPreview(draft: ClipPreview, page = 'reader.html?pr
         const latest = (await browser.storage.local.get(key))[key] as ClipPreview | undefined;
         if (latest && !hasStudyEdits(latest) && Date.now() - latest.createdAt! > 86400000) await browser.storage.local.remove([key]);
     });
-    await browser.storage.local.set({ [prefix + draft.local.requestId]: { ...draft, createdAt: Date.now() } });
+    await setWithQuotaRecovery(browser.storage.local, { [prefix + draft.local.requestId]: { ...draft, createdAt: Date.now() } });
     await browser.tabs.create({ url: browser.runtime.getURL(`${page}${draft.local.requestId}`) });
 }
 export async function updateClipPreview(draft: ClipPreview, expected?: ClipPreview) {
@@ -79,7 +82,7 @@ export async function updateClipPreview(draft: ClipPreview, expected?: ClipPrevi
         if (latest && baseline !== undefined && textSnapshot(latest) !== baseline) {
             throw new Error(t('草稿已在另一个页面修改。请先复制或下载当前文字，再重新打开最新草稿。'));
         }
-        await browser.storage.local.set({ [key]: { ...draft, ...(latest ? {localMedia:latest.localMedia,remoteMedia:latest.remoteMedia,aggregate:latest.aggregate} : {}), ...(latest?.localDone ? {localDone:true} : {}), ...(latest?.rssDone ? {rssDone:true} : {}) } });
+        await setWithQuotaRecovery(browser.storage.local, { [key]: { ...draft, ...(latest ? {localMedia:latest.localMedia,remoteMedia:latest.remoteMedia,aggregate:latest.aggregate} : {}), ...(latest?.localDone ? {localDone:true} : {}), ...(latest?.rssDone ? {rssDone:true} : {}) } });
         remember(draft);
         if (expected) snapshots.set(expected, textSnapshot(draft));
     });

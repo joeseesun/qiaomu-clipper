@@ -33,7 +33,7 @@ html.youtube-study.obsidian-reader-active:has(.youtube-sized-player) body {
 			// Left: where the video sits. Right: the switches (pin, follow, translate), translate last.
 			> .youtube-mode-bar { grid-column: 1; grid-row: 3; }
 			> .player-toggles { grid-column: 2; grid-row: 3; min-width: 0; justify-content: flex-end; }
-			.player-toggle-group { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 4px 16px; }
+			.player-toggle-group { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 4px 8px; }
 			// The stacked fallback pins the video under the bar; solid background, no glow over the text.
 			&.pin-player { top: var(--youtube-bar-height, var(--clip-bar-offset, 0px)); }
 			.reader-video-wrapper, iframe { box-shadow: none; }
@@ -43,6 +43,40 @@ html.youtube-study.obsidian-reader-active:has(.youtube-sized-player) body {
 			&:fullscreen { width: 100vw !important; height: 100vh !important; aspect-ratio: auto; margin: 0; }
 		}
 		article > .youtube-sized-player { min-width: min(100%, 356px); }
+		// The bare player's actions share its left edge before captions create a card.
+		article > .youtube-mode-bar { margin-inline-start: max(0px, calc((100% - var(--yt-w)) / 2)) !important; }
+		article > .study-media-footer {
+			width: var(--yt-w) !important; max-width: 100% !important; min-width: 0; box-sizing: border-box;
+			margin: 0 auto 24px;
+		}
+		.study-media-toolbar {
+			display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px;
+			padding: 0 0 12px; border-bottom: 1px solid var(--background-modifier-border); line-height: 1.5;
+			> .youtube-mode-bar { padding: 0; margin: 0; }
+		}
+		.study-media-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px 16px; min-width: 0; margin-inline-start: auto; }
+		.study-media-actions > .qiaomu-dl-host { order: -1; margin: 0 !important; }
+		.bilibili-quality-link { color: var(--text-muted); text-decoration: none; }
+		.bilibili-quality-link:hover { color: var(--text-normal); text-decoration: underline; }
+		.bilibili-quality-link svg { width: 14px; height: 14px; flex: none; mix-blend-mode: normal !important; }
+		.study-media-footer > .youtube-study-feedback {
+			display: flex; flex-direction: column; align-items: flex-start; gap: 12px; min-width: 0;
+			margin: 0; padding: 16px 0 0; font: 13px/1.65 var(--font-ui); text-align: start;
+			.youtube-study-status { display: block; max-width: 65ch; overflow-wrap: anywhere; }
+			.youtube-study-status:empty { display: none; }
+			.youtube-study-recovery { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px; width: 100%; }
+			.youtube-study-recovery:not(:has(> button:not([hidden]))):not(:has(> .qiaomu-yt-gen:not([hidden]))) { display: none; }
+			.qiaomu-yt-gen { margin: 0; }
+			.qiaomu-yt-gen[data-kind=offer]:not([hidden]) { display: contents; }
+			.qiaomu-yt-gen-row { margin: 0; }
+			button.youtube-study-retry:not(.clickable-icon) {
+				display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto;
+				width: auto; min-height: 32px; height: auto; margin: 0; padding: 7px 14px; border: 0; border-radius: 8px;
+				box-shadow: none; background: var(--background-secondary); color: var(--text-normal); font: 13px/18px var(--font-ui); text-decoration: none;
+				&:hover { background: var(--background-modifier-hover); }
+				&[hidden] { display: none; }
+			}
+		}
 
 		// Theater: the video is a plain block above the text, and stays put while the transcript scrolls if pinned.
 		article[data-yt-layout="theater"] .player-container:not(.pin-player) { position: static; }

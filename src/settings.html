@@ -25,7 +25,7 @@
 					<li data-section="templates-home"><div class="nav-item-icon"><i data-lucide="layout-template"></i></div><span>剪藏模版</span></li>
 					<li data-section="highlighter"><div class="nav-item-icon"><i data-lucide="highlighter"></i></div><span>划线</span></li>
 					<li class="sidebar-heading">阅读与学习</li>
-					<li data-section="asr"><div class="nav-item-icon"><i data-lucide="captions"></i></div><span>字幕识别</span></li>
+					<li data-section="asr"><div class="nav-item-icon"><i data-lucide="captions"></i></div><span>视频与字幕</span></li>
 					<li data-section="learning"><div class="nav-item-icon"><i data-lucide="notebook-pen"></i></div><span>学习笔记</span></li>
 					<li data-section="reader"><div class="nav-item-icon"><i data-lucide="book-open"></i></div><span>阅读样式</span></li>
 					<li data-section="study"><div class="nav-item-icon"><i data-lucide="headphones"></i></div><span>转写学习</span></li>
@@ -244,7 +244,8 @@
 										<div id="local-helper-note" class="setting-item-description" role="status" aria-live="polite">正在检查…</div>
 									</div>
 									<div class="setting-item-control" id="local-helper-help" hidden>
-										<a class="btn mod-cta" id="local-helper-download" href="https://github.com/joeseesun/qiaomu-clipper/releases/latest/download/qiaomu-clipper-helper.pkg" hidden>下载安装包（macOS）</a>
+										<a class="btn mod-cta" id="local-helper-download" href="https://github.com/joeseesun/qiaomu-clipper/releases/latest/download/qiaomu-clipper-helper.pkg" target="_blank" rel="noopener noreferrer" hidden>下载安装包（macOS）</a>
+										<button type="button" id="local-helper-recheck" class="btn">重新检查</button>
 										<button type="button" id="local-helper-copy" class="btn" hidden>让 AI 帮我安装</button>
 										<a class="btn" id="local-helper-more" href="https://github.com/joeseesun/qiaomu-clipper/releases" target="_blank" rel="noopener noreferrer" hidden>所有安装包</a>
 									</div>
@@ -432,7 +433,7 @@
 
 					<div id="asr-section" class="settings-section">
 						<div class="settings-section-header">
-							<h2>字幕识别</h2>
+							<h2>视频与字幕</h2>
 						</div>
 						
 						<div class="setting-group" id="asr-pointer">
@@ -445,6 +446,10 @@
 									<div class="setting-item-control"><button type="button" class="btn" data-goto-section="asr-models">更改</button></div>
 								</div>
 							</div>
+						</div>
+						<div class="setting-group">
+							<div class="setting-item setting-item-heading"><h3>字幕外观</h3></div>
+							<div class="setting-items" id="caption-appearance-settings"></div>
 						</div>
 						<div id="video-settings-form">
 							<div class="setting-group" id="video-bar-settings">
@@ -850,7 +855,7 @@
 											<div class="checkbox-container"><input type="checkbox" id="asr-auto-start" /></div>
 										</div>
 										<div class="asr-auto" id="asr-auto-login-row" hidden>
-											<div class="asr-auto-text"><label for="asr-auto-login">下载要验证身份时，用这个浏览器的登录状态</label><span>YouTube 等网站会要求登录才给音频。打开后，只把当前网站的登录信息交给本机助手，不会上传。第一次打开时，Chrome 会请你确认授权。</span></div>
+											<div class="asr-auto-text"><label for="asr-auto-login">下载要验证身份时，用这个浏览器的登录状态</label><span>YouTube 等网站可能要求登录才能读取音频。默认使用当前网站的登录状态，仅交给本机助手，不会上传；浏览器未授权时需先允许访问。</span></div>
 											<div class="checkbox-container"><input type="checkbox" id="asr-auto-login" /></div>
 										</div>
 										<div class="asr-auto">

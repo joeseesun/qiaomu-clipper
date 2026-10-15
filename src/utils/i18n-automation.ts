@@ -65,59 +65,30 @@ Example response:
 		return new Promise(resolve => setTimeout(resolve, ms));
 	}
 
-	private async makeRequestWithRetry(
-		messages: { role: string, content: string }[],
-		retryCount = 0
-	): Promise<string> {
-		// Ensure we wait at least requestInterval ms between requests
-		const now = Date.now();
-		const timeSinceLastRequest = now - this.lastRequestTime;
-		if (timeSinceLastRequest < this.requestInterval) {
-			await this.sleep(this.requestInterval - timeSinceLastRequest);
-		}
-
-		try {
-			const response = await fetch('https://api.openai.com/v1/chat/completions', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					'Authorization': `Bearer ${this.apiKey}`
-				},
-				body: JSON.stringify({
-					model: "gpt-5.2",
-					messages: messages
-				})
-			});
-
-			this.lastRequestTime = Date.now();
-
-			if (!response.ok) {
-				const errorBody = await response.text();
-				console.error(`  ❌ API Error ${response.status}: ${errorBody}`);
-
-				if (response.status === 429) {
-					const retryAfter = response.headers.get('retry-after');
-					const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : this.requestInterval * Math.pow(2, retryCount);
-					console.log(`  ⏳ Rate limited, waiting ${waitTime/1000}s before retry ${retryCount + 1}/${this.maxRetries}...`);
-					await this.sleep(waitTime);
-					return this.makeRequestWithRetry(messages, retryCount + 1);
+	private async makeRequestWithRetry(messages: { role: string, content: string }[]): Promise<string> {
+		for (let attempt = 0; ; attempt++) {
+			const remaining = this.requestInterval - (Date.now() - this.lastRequestTime);
+			if (remaining > 0) await this.sleep(remaining);
+			let retryable = true;
+			try {
+				this.lastRequestTime = Date.now();
+				const response = await fetch('https://api.openai.com/v1/chat/completions', {
+					method: 'POST', signal: AbortSignal.timeout(30000),
+					headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.apiKey}` },
+					body: JSON.stringify({ model: 'gpt-5.2', messages }),
+				});
+				if (!response.ok) {
+					retryable = response.status === 429 || response.status >= 500;
+					throw new Error(`Translation API failed: HTTP ${response.status}`);
 				}
-				throw new Error(`OpenAI API error: ${response.status} ${response.statusText} - ${errorBody}`);
+				const data = await response.json();
+				const content = data.choices?.[0]?.message?.content;
+				if (typeof content !== 'string' || !content.trim()) { retryable = false; throw new Error('Empty translation response'); }
+				return content;
+			} catch (error) {
+				if (!retryable || attempt >= this.maxRetries) throw error;
+				await this.sleep(this.requestInterval * Math.pow(2, attempt));
 			}
-
-			// Reset the request interval on successful response
-			this.requestInterval = 2000; // Reset to base interval
-			
-			const data = await response.json();
-			return data.choices[0].message.content;
-		} catch (error) {
-			if (retryCount < this.maxRetries) {
-				const waitTime = this.requestInterval * Math.pow(2, retryCount);
-				console.log(`  ⏳ Request failed, waiting ${waitTime/1000}s before retry ${retryCount + 1}/${this.maxRetries}...`);
-				await this.sleep(waitTime);
-				return this.makeRequestWithRetry(messages, retryCount + 1);
-			}
-			throw error;
 		}
 	}
 
@@ -214,12 +185,7 @@ Example response:
 		const sourceMessages: Messages = JSON.parse(await fs.promises.readFile(sourceFile, 'utf-8'));
 		console.log(`✓ Found ${Object.keys(sourceMessages).length} source messages`);
 
-		// Sort source messages
 		const sortedSourceMessages = this.sortMessages(sourceMessages);
-		await fs.promises.writeFile(
-			sourceFile,
-			JSON.stringify(sortedSourceMessages, null, '\t')
-		);
 
 		// Get list of locales to process
 		const locales = await fs.promises.readdir(this.localesDir);
@@ -249,7 +215,7 @@ Example response:
 			}
 
 			// Find missing translations
-			const missingKeys = Object.keys(sortedSourceMessages).filter(key => !localeMessages[key]);
+			const missingKeys = Object.keys(sortedSourceMessages).filter(key => sortedSourceMessages[key].message.trim() && !localeMessages[key]?.message?.trim());
 			if (missingKeys.length > 0) {
 				console.log(`  🔍 Found ${missingKeys.length} missing translations`);
 				
@@ -260,33 +226,16 @@ Example response:
 						message: sortedSourceMessages[key].message
 					}));
 
-					// Try twice before falling back to source messages
-					for (let attempt = 1; attempt <= 2; attempt++) {
-						try {
-							const translations = await this.translateBatch(batch, locale);
-							
-							// Add translations to localeMessages
-							Object.entries(translations).forEach(([key, translation]) => {
-								localeMessages[key] = {
-									message: translation,
-									...(sortedSourceMessages[key].placeholders && { 
-										placeholders: sortedSourceMessages[key].placeholders 
-									})
-								};
-							});
-							break; // Success - exit retry loop
-						} catch (error) {
-							if (attempt === 1) {
-								console.log(`  ⚠️ First attempt failed, retrying batch...`);
-								continue;
-							}
-							console.error(`  ❌ Both translation attempts failed, using source messages as fallback`);
-							// Fall back to source messages after both attempts fail
-							batch.forEach(({ key }) => {
-								localeMessages[key] = sortedSourceMessages[key];
-							});
-						}
+					if (!this.apiKey) throw new Error('OPENAI_API_KEY is required to generate missing translations.');
+					const translations = await this.translateBatch(batch, locale);
+					const holes = (text: string) => (text.match(/\{\{[a-z_][a-z0-9_]*\}\}|\{(?:\d+|[a-z_][a-z0-9_]*)\}|\$\d+|\$[a-z_][a-z0-9_]*\$/gi) || []).sort();
+					for (const { key, message } of batch) {
+						const translation = translations[key];
+						if (typeof translation !== 'string' || !translation.trim()) throw new Error(`Missing translation: ${locale}/${key}`);
+						if (JSON.stringify(holes(translation)) !== JSON.stringify(holes(message))) throw new Error(`Changed placeholder: ${locale}/${key}`);
+						localeMessages[key] = { ...sortedSourceMessages[key], message: translation };
 					}
+
 				}
 			} else {
 				console.log(`  ✓ All messages are already translated`);

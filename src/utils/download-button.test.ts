@@ -14,7 +14,7 @@ const mount = (over: Partial<Parameters<typeof mountDownloadButton>[1]> = {}) =>
 	const host = document.createElement('div'); document.body.append(host);
 	const save = vi.fn(async () => ({ reveal: vi.fn() }));
 	const fetchBlob = vi.fn(async (_url: string, o?: { onProgress?: (d: number, t?: number) => void }) => { o?.onProgress?.(50, 100); return new Blob(['x']); });
-	const button = mountDownloadButton(host, { title: '我们学英语都学错了！ #english', choices, save, fetchBlob: fetchBlob as never, ...over });
+	const button = mountDownloadButton(host, { sourceUrl: 'https://example.com/watch/1', title: '我们学英语都学错了！ #english', choices, save, fetchBlob: fetchBlob as never, ...over });
 	return { host, button, save, fetchBlob, root: button.element };
 };
 
@@ -26,7 +26,7 @@ describe('download button', () => {
 		expect(root.querySelector('.qiaomu-dl-main')!.textContent).toBe('下载');
 		root.querySelector<HTMLButtonElement>('.qiaomu-dl-main')!.click(); await tick(); await tick();
 		expect(fetchBlob.mock.calls[0][0]).toBe('https://v.example/1080.mp4');
-		expect(save).toHaveBeenCalledWith(expect.any(Blob), '我们学英语都学错了！.mp4');
+		expect(save).toHaveBeenCalledWith(expect.any(Blob), '我们学英语都学错了！.mp4', expect.any(AbortSignal));
 		expect(root.dataset.state).toBe('done'); expect(root.textContent).toContain('已保存'); expect(root.textContent).toContain('在访达中显示');
 	});
 
@@ -80,4 +80,19 @@ describe('download button', () => {
 		root.querySelector('.qiaomu-dl-menu')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
 		expect((root.querySelector('.qiaomu-dl-menu') as HTMLElement).hidden).toBe(true); expect(heard).not.toHaveBeenCalled();
 	});
+});
+
+it('requests permission synchronously on click, and never fetches on denial', async () => {
+ const order: string[] = [];
+ const beforeDownload = vi.fn(async () => { order.push('permission'); throw new DownloadError('permission', 'denied'); });
+ const { root, fetchBlob, save } = mount({ beforeDownload });
+ root.querySelector<HTMLButtonElement>('.qiaomu-dl-main')!.click();
+ expect(order).toEqual(['permission']); await tick();
+ expect(fetchBlob).not.toHaveBeenCalled(); expect(save).not.toHaveBeenCalled();
+ expect(root.dataset.state).toBe('error'); expect(root.textContent).toContain('denied');
+});
+it('passes the original page into the actual file request', async () => {
+ const { root, fetchBlob } = mount({ sourceUrl: 'https://x.com/author/status/1' });
+ root.querySelector<HTMLButtonElement>('.qiaomu-dl-main')!.click(); await tick();
+ expect(fetchBlob).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ sourceUrl: 'https://x.com/author/status/1' }));
 });

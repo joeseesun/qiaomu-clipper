@@ -12,6 +12,7 @@ import { saveFile } from './utils/file-utils';
 import { debugLog } from './utils/debug';
 import { updateSidebarWidth, addResizeHandle, cleanupResizeHandlers } from './utils/iframe-resize';
 import { parseForClip } from './utils/clip-utils';
+import { extractXhsNote } from './utils/xiaohongshu';
 import { readYouTubeTranscriptFromDom, transcriptHtml } from './utils/youtube-dom-transcript';
 import { withReliableBilibili } from './utils/bilibili-captions';
 
@@ -253,11 +254,12 @@ declare global {
 				// Use parseAsync to ensure async variables like {{transcript}} are available.
 				// If it hangs (e.g. another extension has corrupted fetch), fall back to sync parse.
 				const defuddle = new Defuddle(document, { url: document.URL, fetch: withReliableBilibili() });
-				const parseTimeout = new Promise<never>((_, reject) =>
-					setTimeout(() => reject(new Error('parseAsync timeout')), 8000)
-				);
-				const defuddled = await Promise.race([defuddle.parseAsync(), parseTimeout])
-					.catch(() => defuddle.parse());
+				const defuddled = extractXhsNote(document) || await (async () => {
+					let timer: ReturnType<typeof setTimeout> | undefined;
+					const timeout = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('parseAsync timeout')), 8000); });
+					try { return await Promise.race([defuddle.parseAsync(), timeout]).catch(() => defuddle.parse()); }
+					finally { clearTimeout(timer); }
+				})();
 				const extractedContent: { [key: string]: string } = {
 					...defuddled.variables,
 				};

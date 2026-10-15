@@ -1,5 +1,6 @@
 import { siteOf, xStatus } from './study-sites';
 import { xiaoeAddress } from './xiaoe';
+import { xhsAddress, xhsVideo } from './xiaohongshu';
 
 // Only a supported media detail address, never a site's home/search/profile feed.
 export function webMediaAddress(address: string): string | null {
@@ -7,6 +8,7 @@ export function webMediaAddress(address: string): string | null {
 	let url: URL; try { url = new URL(address); } catch { return null; }
 	if (url.protocol !== 'https:') return null;
 	if (site.id === 'x') return xStatus(address);
+	if (site.id === 'xiaohongshu') return xhsAddress(address);
 	if (site.id === 'xiaoe') return xiaoeAddress(address);
 	if (site.id === 'douyin') {
 		const id = url.pathname.match(/^\/(?:video|note)\/(\d+)/)?.[1] || url.searchParams.get('modal_id')?.match(/^\d+$/)?.[0] || url.searchParams.get('vid')?.match(/^\d+$/)?.[0];
@@ -47,6 +49,7 @@ export function activeWebMedia(doc: Document): WebMedia | undefined {
 
 export function currentWebMediaAddress(doc: Document, media: WebMedia, address: string): string | null {
 	const site = siteOf(address); if (!site || site.builtin) return null;
+	if (site.id === 'xiaohongshu') return xhsVideo(doc, address) === media ? xhsAddress(address) : null;
 	// The current URL wins for modal_id navigation; a feed card can provide the item address.
 	const own = webMediaAddress(address); if (own) return own;
 	const card = media.closest('article, [data-e2e="recommend-list-item-container"], [data-e2e="feed-active-video"], [data-e2e="video-detail"]');
@@ -69,6 +72,7 @@ const ITEM_ONLY_SITES = ['vimeo', 'tiktok', 'douyin', 'twitch', 'dailymotion', '
 export const isMediaItemAddress = (address: string): boolean => Boolean(webMediaAddress(address) && ITEM_ONLY_SITES.includes(siteOf(address)?.id ?? ''));
 export function declaredWebMediaAddress(doc: Document, address: string): string | null {
 	const detail = webMediaAddress(address), site = siteOf(address); if (!detail || !site) return null;
+	if (site.id === 'xiaohongshu') return xhsVideo(doc, address) ? detail : null;
 	if (isMediaItemAddress(detail) || doc.querySelector('meta[property="og:video"], meta[property="og:video:url"], meta[property="og:audio"]')) return detail;
 	return null;
 }

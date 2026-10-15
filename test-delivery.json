@@ -1,0 +1,376 @@
+{
+  "schema": 1,
+  "features": [
+    {
+      "id": "bilibili-picture-playback",
+      "title": "B 站内嵌画面点击播放暂停与画质限制说明",
+      "origin": "fix/bilibili-embed-playback-quality",
+      "files": [
+        "src/bilibili-embed-content.ts",
+        "src/utils/bilibili-embed.ts",
+        "src/utils/youtube-study.ts"
+      ],
+      "tests": [
+        "src/utils/bilibili-player.test.ts",
+        "src/utils/reader-transcript-bilibili.test.ts"
+      ]
+    },
+    {
+      "id": "x-media-controls",
+      "title": "X 列表工具条、助手安装入口和模型选择修复",
+      "origin": "PR #71",
+      "files": [
+        "src/web-content.ts",
+        "src/utils/helper-install.ts",
+        "src/utils/subtitle-generation-panel.ts"
+      ],
+      "tests": [
+        "src/web-content.test.ts",
+        "src/utils/helper-install.test.ts",
+        "src/utils/subtitle-generation-panel.test.ts",
+        "src/utils/bar-generation.test.ts"
+      ]
+    },
+    {
+      "id": "xiaohongshu-adapter",
+      "title": "小红书图文、视频学习及字幕请求修复",
+      "origin": "PR #72, #73",
+      "files": [
+        "src/utils/xiaohongshu.ts",
+        "src/utils/local-save.ts"
+      ],
+      "tests": [
+        "src/utils/xiaohongshu.test.ts",
+        "src/utils/local-save-learning.test.ts"
+      ]
+    },
+    {
+      "id": "article-image-chat",
+      "title": "AI 读取实际图片、单图提问和长图分段",
+      "origin": "docs/IMAGE-CHAT-INTEGRATION.json",
+      "files": [
+        "src/utils/chat-content.ts",
+        "src/utils/chat-images.ts",
+        "src/utils/chat-image-source.ts",
+        "src/utils/clip-chat.ts",
+        "src/utils/chat-llm.ts"
+      ],
+      "tests": [
+        "src/utils/chat-content.test.ts",
+        "src/utils/chat-images.test.ts",
+        "src/utils/clip-chat-images.test.ts",
+        "src/utils/chat-history.test.ts"
+      ]
+    },
+    {
+      "id": "build-identity",
+      "title": "测试版本与构建来源显示",
+      "origin": "codex/build-test-workflow",
+      "files": [
+        "src/utils/build-identity.ts"
+      ],
+      "tests": [
+        "src/utils/build-identity.test.ts"
+      ]
+    },
+    {
+      "id": "store-media-download",
+      "title": "商店版非 YouTube 媒体下载及可选权限",
+      "origin": "codex/store-media-download",
+      "files": [
+        "src/utils/study-download.ts",
+        "src/utils/media-download-policy.ts",
+        "src/utils/browser-media-save.ts"
+      ],
+      "tests": [
+        "src/utils/study-download.test.ts",
+        "src/utils/media-download-policy.test.ts",
+        "src/utils/browser-media-save.test.ts",
+        "src/utils/download-button.test.ts"
+      ]
+    },
+    {
+      "id": "douyin-study-source",
+      "title": "抖音沉浸学习视频读取与注入隔离回归",
+      "origin": "codex/douyin-study-injection",
+      "files": [
+        "src/utils/web-page-media.ts",
+        "src/utils/web-study-probe.ts"
+      ],
+      "tests": [
+        "src/utils/web-page-media.test.ts",
+        "src/utils/web-study-probe.test.ts"
+      ]
+    },
+    {
+      "id": "recent-feature-translations",
+      "title": "九种界面语言、近期功能译文与参数隔离检查",
+      "origin": "codex/douyin-study-injection",
+      "files": [
+        "src/utils/reasoning-label.ts",
+        "src/utils/ui-text.ts",
+        "src/i18n/catalog.test.ts"
+      ],
+      "tests": [
+        "src/i18n/catalog.test.ts",
+        "src/utils/recent-features-i18n.test.ts",
+        "src/utils/i18n-automation.test.ts"
+      ]
+    },
+    {
+      "id": "player-chinese-captions",
+      "title": "播放器原文/中文/双语字幕、文稿翻译与剪藏内容独立控制",
+      "origin": "本次播放器字幕需求",
+      "files": [
+        "src/utils/player-captions.ts",
+        "src/utils/reader-transcript.ts",
+        "src/utils/youtube-dom-transcript.ts",
+        "src/utils/youtube-captions.ts",
+        "src/utils/bilibili-captions.ts",
+        "src/utils/youtube-transcript-cache.ts",
+        "src/utils/subtitle-generation.ts",
+        "src/bilibili-embed-content.ts",
+        "src/utils/caption-mode-menu.ts",
+        "src/utils/caption-clock.ts",
+        "src/utils/youtube-study.ts",
+        "src/utils/youtube-translation.ts",
+        "src/utils/transcript-export.ts",
+        "src/utils/clip-preview.ts",
+        "src/styles/reader/transcripts.scss"
+      ],
+      "tests": [
+        "src/utils/player-captions.test.ts",
+        "src/utils/youtube-captions.test.ts",
+        "src/utils/bilibili-captions.test.ts",
+        "src/utils/youtube-transcript-cache.test.ts",
+        "src/utils/subtitle-generation.test.ts",
+        "src/utils/caption-clock.test.ts",
+        "src/utils/youtube-study.test.ts",
+        "src/utils/youtube-translation.test.ts",
+        "src/utils/transcript-export.test.ts",
+        "src/utils/caption-mode-menu.test.ts",
+        "src/utils/youtube-controls.test.ts",
+        "src/utils/reader-preview-shell.test.ts"
+      ]
+    },
+    {
+      "id": "doubao-word-captions",
+      "title": "豆包逐字/逐词时间与播放器卡拉 OK 高亮",
+      "origin": "codex/doubao-karaoke",
+      "files": [
+        "src/utils/caption-words.ts",
+        "src/utils/asr-client.ts",
+        "src/utils/subtitle-generation.ts",
+        "src/utils/player-captions.ts",
+        "src/utils/youtube-dom-transcript.ts"
+      ],
+      "tests": [
+        "src/utils/caption-words.test.ts",
+        "src/utils/player-captions.test.ts",
+        "src/utils/subtitle-generation.test.ts",
+        "src/utils/youtube-transcript-cache.test.ts"
+      ]
+    },
+    {
+      "id": "player-caption-interaction",
+      "title": "字幕拖动、样式预览、原生菜单避让、倍速与沉浸全屏",
+      "origin": "本次播放器交互改进",
+      "files": [
+        "src/utils/caption-appearance.ts",
+        "src/utils/caption-style-editor.ts",
+        "src/utils/player-caption-interaction.ts",
+        "src/utils/embedded-player-interaction.ts",
+        "src/youtube-embed-content.ts",
+        "src/managers/caption-settings.ts",
+        "src/utils/caption-geometry.ts"
+      ],
+      "tests": [
+        "src/utils/caption-appearance.test.ts",
+        "src/utils/player-caption-interaction.test.ts",
+        "src/utils/embedded-player-interaction.test.ts",
+        "src/utils/player-captions.test.ts",
+        "src/utils/caption-mode-menu.test.ts",
+        "src/utils/caption-geometry.test.ts"
+      ]
+    },
+    {
+      "id": "subtitle-edit-controls",
+      "title": "文稿换模型单入口、开源字体、稳定悬停拖动、空格与K播放控制、全屏自动隐藏与3倍速",
+      "origin": "本次字幕交互整合",
+      "files": [
+        "src/utils/youtube-study-loader.ts",
+        "src/utils/caption-fonts.ts",
+        "src/utils/caption-style-editor.ts",
+        "src/utils/player-caption-interaction.ts",
+        "src/utils/embedded-player-interaction.ts",
+        "src/utils/bar-generation.ts"
+      ],
+      "tests": [
+        "src/utils/youtube-study-loader.test.ts",
+        "src/utils/caption-fonts.test.ts",
+        "src/utils/caption-appearance.test.ts",
+        "src/utils/player-caption-interaction.test.ts",
+        "src/utils/embedded-player-interaction.test.ts",
+        "src/utils/bar-generation.test.ts"
+      ]
+    },
+    {
+      "id": "study-playback-handoff",
+      "title": "沉浸学习和三次 A 暂停原页、从原进度自动播放",
+      "origin": "本次学习入口播放交接需求",
+      "files": [
+        "src/utils/study-playback-handoff.ts",
+        "src/background.ts",
+        "src/core/reader-view.ts",
+        "src/utils/audio-study.ts",
+        "src/utils/youtube-study-loader.ts",
+        "src/utils/embedded-player-interaction.ts"
+      ],
+      "tests": [
+        "src/utils/study-playback-handoff.test.ts",
+        "src/utils/embedded-player-interaction.test.ts",
+        "src/utils/audio-study.test.ts",
+        "src/utils/youtube-study-loader.test.ts"
+      ]
+    },
+    {
+      "id": "study-tips-shortcuts",
+      "title": "工具栏下方可关闭的小技巧、26条功能介绍、紧凑字幕语言选择与播放快捷键",
+      "origin": "本次学习页收尾",
+      "files": [
+        "src/utils/study-tips.ts",
+        "src/utils/player-caption-interaction.ts",
+        "src/utils/transcript-heading.ts",
+        "src/utils/study-caption-language.ts",
+        "src/styles/reader/youtube-player-layout.scss"
+      ],
+      "tests": [
+        "src/utils/study-tips.test.ts",
+        "src/utils/player-caption-interaction.test.ts",
+        "src/utils/embedded-player-interaction.test.ts",
+        "src/utils/study-caption-language.test.ts"
+      ]
+    },
+    {
+      "id": "storage-quota-recovery",
+      "title": "字幕存储额度修复、缓存容量限制与草稿保护",
+      "origin": "本次存储额度回归修复",
+      "files": [
+        "src/utils/storage-quota.ts",
+        "src/utils/youtube-transcript-cache.ts",
+        "src/utils/youtube-study-loader.ts",
+        "src/manifest.chrome.json"
+      ],
+      "tests": [
+        "src/utils/storage-quota.test.ts",
+        "src/utils/youtube-transcript-cache.test.ts",
+        "src/utils/youtube-study-loader.test.ts",
+        "src/utils/clip-preview.test.ts"
+      ]
+    },
+    {
+      "id": "study-action-visibility",
+      "title": "字幕生成按钮完整显示、吸顶遮挡边界和窄栏长文案换行",
+      "origin": "本次学习页按钮裁切修复",
+      "files": [
+        "src/utils/transcript-heading.ts",
+        "src/utils/reader-transcript.ts",
+        "src/utils/subtitle-generation-panel.ts",
+        "src/styles/clip-bar.scss",
+        "src/utils/transcript-export.ts",
+        "src/utils/clip-bar.ts"
+      ],
+      "tests": [
+        "src/utils/transcript-heading.test.ts",
+        "src/utils/subtitle-generation-panel.test.ts",
+        "src/utils/reader-transcript-timing.test.ts",
+        "src/utils/ui-rules.test.ts",
+        "src/utils/transcript-export.test.ts",
+        "src/utils/clip-bar.test.ts"
+      ]
+    },
+    {
+      "id": "study-helper-recovery",
+      "title": "助手下载安装及重新检查、浏览器登录授权与准确错误分类",
+      "origin": "主工作区未提交修复",
+      "files": [
+        "src/utils/helper-install.ts",
+        "src/managers/general-settings.ts",
+        "src/managers/asr-settings.ts",
+        "src/utils/native-helper-call.ts",
+        "src/utils/local-save.ts"
+      ],
+      "tests": [
+        "src/managers/local-helper-settings.test.ts",
+        "src/managers/asr-settings.test.ts",
+        "src/utils/asr-settings.test.ts",
+        "src/utils/local-save-learning.test.ts"
+      ]
+    },
+    {
+      "id": "native-study-caption-parity",
+      "title": "普通视频共享字幕设置与文稿换模型单入口",
+      "origin": "本次跨播放器整合",
+      "files": [
+        "src/utils/audio-study.ts",
+        "src/utils/transcript-heading.ts",
+        "src/utils/media-study-player.ts"
+      ],
+      "tests": [
+        "src/utils/audio-study.test.ts",
+        "src/utils/reader-transcript-timing.test.ts",
+        "src/utils/media-study-player.test.ts"
+      ]
+    },
+    {
+      "id": "helper-runtime-model-recovery",
+      "title": "模型失败后可换云端、助手连接与笔记库选择恢复",
+      "origin": "本次用户故障反馈修复",
+      "files": [
+        "src/utils/bar-generation.ts",
+        "src/utils/subtitle-generation-panel.ts",
+        "src/utils/subtitle-generation.ts",
+        "src/managers/general-settings.ts"
+      ],
+      "tests": [
+        "src/utils/bar-generation.test.ts",
+        "src/utils/subtitle-generation-panel.test.ts",
+        "src/utils/subtitle-generation.test.ts",
+        "src/managers/local-helper-settings.test.ts"
+      ]
+    },
+    {
+      "id": "svg-chat-chart-images",
+      "title": "SVG 图表转图片后随问题发送模型",
+      "origin": "用户 Star History 图片读取反馈",
+      "files": [
+        "src/utils/chat-svg.ts",
+        "src/utils/chat-images.ts"
+      ],
+      "tests": [
+        "src/utils/chat-svg.test.ts",
+        "src/utils/chat-images.test.ts",
+        "src/utils/clip-chat-images.test.ts",
+        "src/utils/chat-content.test.ts"
+      ]
+    },
+    {
+      "id": "all-site-study-download",
+      "title": "B站、抖音、小宇宙等统一下载入口与分离音视频合并",
+      "origin": "本次用户下载入口反馈",
+      "files": [
+        "src/utils/study-download.ts",
+        "src/utils/study-download-native.ts",
+        "src/utils/youtube-study.ts",
+        "src/utils/audio-study.ts",
+        "src/utils/study-media-footer.ts"
+      ],
+      "tests": [
+        "src/utils/study-download.test.ts",
+        "src/utils/study-download-native.test.ts",
+        "src/utils/local-save-learning.test.ts",
+        "src/utils/study-media-footer.test.ts"
+      ]
+    }
+  ]
+}

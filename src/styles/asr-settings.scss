@@ -52,3 +52,6 @@
 	.modal-button-container { .asr-danger { margin-inline-end: auto; color: var(--text-error, #d33); } }
 	.asr-meter { height: 4px; border-radius: 2px; background: var(--background-secondary); overflow: hidden; i { display: block; height: 100%; background: var(--interactive-accent); transition: width .4s linear; } }
 }
+
+#asr-login-permission { align-self: flex-start; width: auto; margin-top: 6px; }
+#asr-status .btn { display: inline-flex; width: auto; margin-inline-end: 6px; text-decoration: none; }

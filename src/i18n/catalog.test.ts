@@ -32,3 +32,25 @@ describe.each(FULL_LOCALES.filter(locale => locale !== 'zh_CN'))('complete %s ca
   expect(Object.keys(english).filter(key => ui[key] && (JSON.stringify(tags(ui[key])) !== JSON.stringify(tags(english[key])) || JSON.stringify(links(ui[key])) !== JSON.stringify(links(english[key])) || JSON.stringify(paths(ui[key])) !== JSON.stringify(paths(english[key]))))).toEqual([]);
  });
 });
+
+// Long English sentences copied into another catalog are fallback text, not completed translations.
+// Genuine identical technical examples/brand names stay unchanged; reviewed exceptions need a reason.
+describe.each(FULL_LOCALES.filter(locale => locale !== 'en'))('translation review %s', locale => {
+ it('does not mark English sentences or recent provider controls as translated', () => {
+  const messages = JSON.parse(fs.readFileSync(path.resolve(__dirname, `../_locales/${locale}/messages.json`), 'utf8')) as typeof messagesEnglish;
+  const controls = ['pdGroupPlan', 'pdDetectMagpie', 'pdEffort', 'pdEffortDefault'];
+  const untranslated = Object.keys(messagesEnglish).filter(key => {
+   const source = messagesEnglish[key].message;
+   return messages[key]?.message === source && ((source.length >= 20 && source.includes(' ')) || controls.includes(key));
+  });
+  expect(untranslated).toEqual([]);
+  if (locale !== 'zh_CN') {
+   const ui = read(`ui-${locale}.json`), helper = read(`helper-${locale}.json`);
+   // These are unchanged product names, not prose copied as a translation.
+   const brands = new Set(['阿里云百炼', '豆包语音（火山引擎）']);
+   for (const [source, translated] of [[english, ui], [helperEnglish, helper]]) {
+    expect(Object.keys(source).filter(key => !brands.has(key) && source[key].length >= 20 && source[key].includes(' ') && translated[key] === source[key])).toEqual([]);
+   }
+  }
+ });
+});

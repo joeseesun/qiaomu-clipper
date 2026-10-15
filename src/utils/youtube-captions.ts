@@ -71,15 +71,25 @@ const clean = (value: string) => decode(value).replace(/<[^>]+>/g, '').replace(/
 
 // `<text start="1.2" dur="3">…</text>` (classic) and `<p t="1200" d="3000">…</p>` (srv3), or json3 events.
 export function parseCaptions(body: string): PanelSegment[] {
-	const out: PanelSegment[] = [], trimmed = body.trim();
-	if (trimmed.startsWith('{')) {
-		try { for (const event of JSON.parse(trimmed).events || []) { const text = clean((event.segs || []).map((seg: { utf8?: string }) => seg.utf8 || '').join('')); if (text && Number.isFinite(event.tStartMs)) out.push({ time: formatClock(event.tStartMs), text }); } } catch { /* not JSON */ }
-		return out;
-	}
-	for (const match of trimmed.matchAll(/<text\b[^>]*?\bstart="([\d.]+)"[^>]*>([\s\S]*?)<\/text>/g)) { const text = clean(match[2]); if (text) out.push({ time: formatClock(parseFloat(match[1]) * 1000), text }); }
-	if (out.length) return out;
-	for (const match of trimmed.matchAll(/<p\b[^>]*?\bt="(\d+)"[^>]*>([\s\S]*?)<\/p>/g)) { const text = clean(match[2]); if (text) out.push({ time: formatClock(Number(match[1])), text }); }
-	return out;
+ const clean = (value: string) => { const box = document.createElement('div'); box.innerHTML = value; return (box.textContent || '').replace(/\s+/g, ' ').trim(); };
+ const out: PanelSegment[] = [], trimmed = body.trim();
+ const add = (start: number, duration: number, text: string) => {
+  if (text && Number.isFinite(start) && start >= 0) out.push({ time: formatClock(start * 1000), start, ...(Number.isFinite(duration) && duration > 0 ? { end: start + duration } : {}), text });
+ };
+ if (trimmed.startsWith('{')) {
+  try { for (const event of JSON.parse(trimmed).events || []) {
+   if (!Number.isFinite(event.tStartMs)) continue;
+   add(event.tStartMs / 1000, Number(event.dDurationMs) / 1000, clean((event.segs || []).map((seg: {utf8?: string}) => seg.utf8 || '').join('')));
+  } } catch { /* not JSON */ }
+  return out;
+ }
+ for (const match of trimmed.matchAll(/<(text|p)\b([^>]*)>([\s\S]*?)<\/\1>/g)) {
+  const attrs = match[2], classic = match[1] === 'text';
+  const start = attrs.match(classic ? /\bstart="([\d.]+)"/ : /\bt="([\d.]+)"/);
+  const duration = attrs.match(classic ? /\bdur="([\d.]+)"/ : /\bd="([\d.]+)"/);
+  if (start) add(Number(start[1]) / (classic ? 1 : 1000), duration ? Number(duration[1]) / (classic ? 1 : 1000) : NaN, clean(match[3]));
+ }
+ return out;
 }
 
 export async function fetchTrackSegments(track: CaptionTrack, request: Request = (...args) => fetch(...args)): Promise<PanelSegment[]> {

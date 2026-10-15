@@ -13,6 +13,7 @@ import { updateTemplateList, showTemplateEditor, initializeAddPropertyButton, in
 import { initializeGeneralSettings } from '../managers/general-settings';
 import { initializeInterpreterSettings } from '../managers/interpreter-settings';
 import { showSettingsSection, initializeSidebar } from '../managers/settings-section-ui';
+import { initializeCaptionSettings } from '../managers/caption-settings';
 import { initializeReaderSettings } from '../managers/reader-settings';
 import { initializeAutoSave } from '../utils/auto-save';
 import { handleTemplateDrag, initializeDragAndDrop } from '../utils/drag-and-drop';
@@ -52,6 +53,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 			await initializeGeneralSettings();
 			await initializeReaderSettings();
+			await initializeCaptionSettings();
 			
 			// Initialize interpreter settings with error handling
 			try {

@@ -39,3 +39,12 @@ it('drops the oldest articles beyond the limit and removes empty articles on del
 	await deleteConversation(`https://site${MAX_ARTICLES + 1}.com/`, 'x');
 	expect(store[chatKey(`https://site${MAX_ARTICLES + 1}.com/`)]).toBeUndefined();
 });
+
+it('stores image numbers but never image bytes even if a caller passes a request object', async () => {
+ const chat = conversation('images');
+ Object.assign(chat.messages[0], {imageNumbers:[2],images:[{dataUrl:'data:image/png;base64,c2VjcmV0',label:'图 2'}]});
+ await saveConversation('https://a.com/image-note','Images',chat);
+ const stored = await loadConversations('https://a.com/image-note');
+ expect(stored[0].messages[0].imageNumbers).toEqual([2]);
+ expect(JSON.stringify(store)).not.toContain('base64');
+});

@@ -125,5 +125,6 @@ const joinText = (a: string, b: string) => CJK.test(a.slice(-1)) && CJK.test(b[0
 // (as it was whenever the reader did not strip it) is noise.
 export function transcriptHtml(segments: PanelSegment[], group = true): string {
 	const lines = (group ? groupSegments(segments) : segments).map(({ time, text, chapter, start, end }) => `${chapter ? `<h3>${escapeHtml(chapter)}</h3>\n` : ''}<p class="transcript-segment"><strong><span class="timestamp" data-timestamp="${start ?? seconds(time)}"${end !== undefined ? ` data-end="${end}"` : ''}>${escapeHtml(time)}</span></strong> ${escapeHtml(text)}</p>`);
-	return `<div class="youtube transcript">\n<h2>Transcript</h2>\n${lines.join('\n')}\n</div>`;
+	const cues = segments.map(({time, start, end, text, words}) => ({start: start ?? seconds(time), end, text, ...(words?.length ? {words} : {})}));
+	return `<div class="youtube transcript"><span hidden data-player-cues="${escapeHtml(JSON.stringify(cues))}"></span>\n<h2>Transcript</h2>\n${lines.join('\n')}\n</div>`;
 }

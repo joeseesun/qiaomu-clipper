@@ -105,6 +105,15 @@ def ytdlp_binary_url():
 def base_installed():
     return (venv_executable('base', 'yt-dlp').is_file() or shutil.which('yt-dlp') is not None) and private_ffmpeg() is not None
 
+def runtime_probe_code(engine_id):
+    # Import the actual inference API, then exercise a Metal operation without
+    # model weights. Import-only checks can miss deferred Metal library loading.
+    spec = ENGINES[engine_id]
+    code = ('from mlx_qwen3_asr import Session' if engine_id == 'mlx-qwen3' else 'import ' + spec['module'])
+    if spec['apple']:
+        code += '\nimport mlx.core as mx\nassert mx.array([1, 2]).sum().item() == 3'
+    return code
+
 # ---- installing ---------------------------------------------------------------------------------------------------
 def plan(engine_id, python=None):
     """The steps to get one engine (or the base tools) ready: [(stage text, share of the progress, command)] and the model to fetch."""

@@ -3,6 +3,18 @@ import { t } from './ui-text';
 // The local helper is the one piece a person cannot install from the browser. When it is missing, say why in plain words and
 // hand over a message an AI assistant can act on, with this browser's own extension ID so nobody has to find or guess it.
 export const HELPER_REPO = 'https://github.com/joeseesun/qiaomu-clipper';
+export const helperInstallUrl = (platform: string): string => platform === 'mac'
+	? `${HELPER_REPO}/releases/latest/download/qiaomu-clipper-helper.pkg`
+	: `${HELPER_REPO}/blob/main/native/README.md#${platform === 'win' ? 'windows' : '本地静默剪藏助手'}`;
+export const HELPER_PKG_URL = `${HELPER_REPO}/releases/latest/download/qiaomu-clipper-helper.pkg`;
+export const isMacHelperPlatform = (nav: Pick<Navigator, 'platform' | 'userAgent'> = navigator): boolean => /Mac/i.test(nav.platform || nav.userAgent);
+
+export function helperDownloadLink(doc: Document, className: string): HTMLAnchorElement | undefined {
+	if (!isMacHelperPlatform(doc.defaultView?.navigator)) return;
+	const link = doc.createElement('a'); link.href = HELPER_PKG_URL; link.target = '_blank'; link.rel = 'noopener noreferrer';
+	link.className = className; link.textContent = t('下载安装包（macOS）');
+	return link;
+}
 export type HelperProblem = 'not-installed' | 'not-allowed' | 'not-running' | 'outdated' | 'unknown';
 
 // The helper reports its protocol number with the diary target. Helpers from before the number existed stay accepted; only a

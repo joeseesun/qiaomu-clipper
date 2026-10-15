@@ -16,8 +16,8 @@ MAX_DURATION = 4 * 3600
 JOB_KEEP_SECONDS = 3 * 86400
 RESULT_KEEP_SECONDS = 60 * 86400
 MAX_POLL_SEGMENTS = 2000
-# Bump when a change in how audio is recognised makes older cached results wrong (v2: the Chinese prompt no longer biases automatic detection).
-RESULT_VERSION = 2
+# Bump when recognition changes invalidate cached results (v3: silence guard for Whisper).
+RESULT_VERSION = 4
 MLX_MODEL = 'mlx-community/whisper-large-v3-turbo'
 MLX_MODEL_DIR = 'models--mlx-community--whisper-large-v3-turbo'
 # A native host starts with a bare PATH (no Homebrew), so look where these tools are normally installed.
@@ -95,8 +95,11 @@ def find_tool(name):
     return found or (eng.private_ffmpeg() if name == 'ffmpeg' else None)
 def tool_env():
     env = dict(os.environ); env['PATH'] = os.pathsep.join(tool_dirs() + [env.get('PATH', '')]); env['PYTHONUNBUFFERED'] = '1'; env['PYTHONIOENCODING'] = 'utf-8'
-    if 'NO_PROXY' in env: env['NO_PROXY'] = ','.join(x for x in env['NO_PROXY'].split(',') if '::' not in x)
-    if 'no_proxy' in env: env['no_proxy'] = ','.join(x for x in env['no_proxy'].split(',') if '::' not in x)
+    # HTTPX accepts bare IPv6 loopback, but bracketed and /128 spellings are
+    # parsed as an invalid port. Preserve the bypass instead of deleting it.
+    for key in ('NO_PROXY', 'no_proxy'):
+        if key in env:
+            env[key] = ','.join('::1' if item.strip() in ('[::1]', '::1/128', '[::1]/128') else item for item in env[key].split(',') if '::' not in item or item.strip() in ('[::1]', '::1/128', '[::1]/128'))
     env.setdefault('HF_ENDPOINT', 'https://hf-mirror.com')
     env['HF_HUB_DISABLE_SYMLINKS_WARNING'] = '1'
     return env
@@ -339,7 +342,19 @@ def channels_media(page, media):
         return public_https(media) and p.port in (None, 443) and not p.fragment and p.hostname == 'finder.video.qq.com' and bool(re.fullmatch(r'/(?:[0-9]+/){2}stodownload', p.path))
     except ValueError: return False
 
-def page_media(page, media): return douyin_media(page, media) or channels_media(page, media)
+def xhs_media(page, media):
+    from urllib.parse import urlparse
+    if not isinstance(page, str) or not isinstance(media, str) or len(media) > 8000: return False
+    try:
+        p, m = urlparse(page), urlparse(media)
+        return (public_https(page) and p.hostname in ('www.xiaohongshu.com', 'xiaohongshu.com') and p.port in (None, 443)
+                and bool(re.fullmatch(r'/(?:explore|discovery/item)/[a-f0-9]{24}/?', p.path))
+                and public_https(media) and m.port in (None, 443) and not m.fragment
+                and bool(re.fullmatch(r'sns-video-[a-z0-9-]+\.xhscdn\.com', m.hostname or ''))
+                and m.path.endswith(('.mp4', '.m4a')))
+    except ValueError: return False
+
+def page_media(page, media): return douyin_media(page, media) or channels_media(page, media) or xhs_media(page, media)
 
 XIAOE_SHOP = re.compile(r'https://(app[0-9a-z]{6,24})\.(?:h5\.(?:xiaoeknow|xiaoe-tech)\.com|(?:h5\.)?xet\.(?:citv\.cn|pomoho\.com))/v4/course/alive/(l_[0-9a-z_]{8,64})\?app_id=(app[0-9a-z]{6,24})', re.I)
 XIAOE_MEDIA_HOSTS = ('xiaoeknow.com', 'xet.tech', 'xiaoe-tech.com', 'xiaoecloud.com')
@@ -363,14 +378,18 @@ def rewrite_xiaoe_playlist(text, base, register):
     """Every nested playlist, segment, initialization file and AES key passes the same guarded fetch."""
     from urllib.parse import urljoin
     if not text.lstrip().startswith('#EXTM3U') or '#EXT-X-DEFINE' in text: raise OSError('回放清单无效')
-    output = []
+    output = []; next_playlist = False
     for line in text.splitlines():
         if line.startswith('#'):
+            if line.startswith('#EXT-X-CONTENT-STEERING:'): raise OSError('回放清单包含不支持的外部索引')
+            playlist_uri = line.startswith(('#EXT-X-MEDIA:', '#EXT-X-I-FRAME-STREAM-INF:', '#EXT-X-IMAGE-STREAM-INF:', '#EXT-X-RENDITION-REPORT:'))
             # HLS URI attributes are quoted; reject malformed ones rather than leaving a network escape.
             if re.search(r'(?:^|[,:])(?:[A-Z-]*URI)=(?!")', line): raise OSError('回放清单地址无效')
-            line = re.sub(r'((?:[A-Z-]*URI)=)"([^"\r\n]+)"', lambda m: m.group(1) + '"' + register(urljoin(base, m.group(2))) + '"', line)
+            line = re.sub(r'((?:[A-Z-]*URI)=)"([^"\r\n]+)"', lambda m: m.group(1) + '"' + (register(urljoin(base, m.group(2)), playlist=True) if playlist_uri else register(urljoin(base, m.group(2)))) + '"', line)
+            if line.startswith('#EXT-X-STREAM-INF:'): next_playlist = True
         elif line.strip():
-            line = register(urljoin(base, line.strip()))
+            line = register(urljoin(base, line.strip()), playlist=True) if next_playlist else register(urljoin(base, line.strip()))
+            next_playlist = False
         output.append(line)
     return '\n'.join(output) + '\n'
 
@@ -384,17 +403,19 @@ def xiaoe_hls_relay(page, media):
     resources = {}; token = uuid.uuid4().hex
     class Server(http.server.ThreadingHTTPServer): daemon_threads = True
     server = Server(('127.0.0.1', 0), None)
-    def register(address):
+    def register(address, playlist=False):
         if not xiaoe_resource(page, address) or len(resources) >= 100000: raise OSError('回放清单包含不允许的地址')
-        key = '/' + token + '/' + hashlib.sha256(address.encode()).hexdigest()
-        resources[key] = address
-        return 'http://127.0.0.1:' + str(server.server_port) + key + ('.m3u8' if urlparse(address).path.lower().endswith('.m3u8') else '')
+        playlist = playlist or urlparse(address).path.lower().endswith('.m3u8')
+        key = '/' + token + '/' + hashlib.sha256((str(playlist) + address).encode()).hexdigest()
+        resources[key] = (address, playlist)
+        return 'http://127.0.0.1:' + str(server.server_port) + key + ('.m3u8' if playlist else '')
     class Handler(http.server.BaseHTTPRequestHandler):
         def log_message(self, *_args): pass
         def do_GET(self):
             key = self.path.removesuffix('.m3u8')
-            address = resources.get(key)
-            if not address: self.send_error(404); return
+            resource = resources.get(key)
+            if not resource: self.send_error(404); return
+            address, playlist = resource
             try:
                 headers = {'Referer': page.split('/v4/')[0] + '/', 'User-Agent': BROWSER_AGENT}
                 byte_range = self.headers.get('Range')
@@ -402,17 +423,31 @@ def xiaoe_hls_relay(page, media):
                     if not re.fullmatch(r'bytes=\d+-\d*', byte_range): raise OSError('无效范围')
                     headers['Range'] = byte_range
                 with open_public(address, timeout=30, headers=headers, allowed=lambda value: xiaoe_resource(page, value)) as response:
-                    if urlparse(address).path.lower().endswith('.m3u8'):
+                    first = b''; probe_deadline = time.monotonic() + 30
+                    # read1 may return fewer than seven bytes; do not let chunking hide #EXTM3U.
+                    while len(first) < 65536:
+                        if time.monotonic() > probe_deadline: raise OSError('回放资源读取超时')
+                        block = response.read1(65536 - len(first))
+                        if not block: break
+                        first += block
+                        if len(first.lstrip(b'\xef\xbb\xbf \t\r\n')) >= 7: break
+                    prefix = first.lstrip(b'\xef\xbb\xbf \t\r\n')
+                    mime = response.headers.get('Content-Type', '').split(';')[0].lower()
+                    # URL suffixes are only hints: extensionless variants, redirected resources,
+                    # and manifests presented as segments must never escape URI rewriting.
+                    playlist = playlist or prefix.startswith(b'#EXTM3U') or (bool(first) and not prefix) or mime in ('application/vnd.apple.mpegurl', 'application/x-mpegurl', 'audio/mpegurl', 'audio/x-mpegurl')
+                    if playlist:
                         parts = []; total = 0; deadline = time.monotonic() + 30
                         while True:
                             if time.monotonic() > deadline: raise OSError('回放清单读取超时')
-                            block = response.read1(65536)
+                            block = first; first = b''
+                            if not block: block = response.read1(65536)
                             if not block: break
                             total += len(block)
                             if total > 4_000_000: raise OSError('回放清单过大')
                             parts.append(block)
                         body = b''.join(parts)
-                        body = rewrite_xiaoe_playlist(body.decode('utf8'), response.geturl(), register).encode('utf8')
+                        body = rewrite_xiaoe_playlist(body.decode('utf-8-sig').lstrip(), response.geturl(), register).encode('utf8')
                         self.send_response(200); self.send_header('Content-Type', 'application/vnd.apple.mpegurl'); self.send_header('Content-Length', str(len(body))); self.end_headers(); self.wfile.write(body)
                     else:
                         # Stage a bounded fragment before replying, so a failed/oversized read
@@ -423,7 +458,8 @@ def xiaoe_hls_relay(page, media):
                             total = 0; deadline = time.monotonic() + 120
                             while True:
                                 if time.monotonic() > deadline: raise OSError('回放片段读取超时')
-                                block = response.read1(65536)
+                                block = first; first = b''
+                                if not block: block = response.read1(65536)
                                 if not block: break
                                 total += len(block)
                                 if total > limit: raise OSError('回放片段过大')
@@ -573,7 +609,11 @@ def clean_segments(segments):
         low = text.lower()
         if segment['end'] - segment['start'] <= 6 and len(text) <= 40 and any(low.startswith(x) or low == x for x in HALLUCINATIONS): continue
         if len(out) >= 2 and out[-1]['text'] == text and out[-2]['text'] == text: continue
-        out.append({'start': segment['start'], 'end': max(segment['end'], segment['start']), 'text': text})
+        cue = {'start': segment['start'], 'end': max(segment['end'], segment['start']), 'text': text}
+        from asr_cloud import clean_words
+        words = clean_words(segment.get('words'), cue['start'], cue['end'])
+        if words: cue['words'] = words
+        out.append(cue)
     return out
 
 # ---- job control --------------------------------------------------------------------------------------------------
@@ -633,7 +673,7 @@ def prune(base):
                 if now - entry.stat().st_mtime > keep and not (entry.is_dir() and read_state(entry).get('state') in RUNNING): shutil.rmtree(entry, ignore_errors=True) if entry.is_dir() else entry.unlink()
             except OSError: pass
 def view(directory, state, since=0):
-    segments = []; next_index = since
+    segments = []; next_index = since; payload_bytes = 0
     try:
         with (directory / 'segments.jsonl').open(encoding='utf8') as f:
             for index, line in enumerate(f):
@@ -641,7 +681,13 @@ def view(directory, state, since=0):
                 if len(segments) >= MAX_POLL_SEGMENTS: break
                 try: item = json.loads(line)
                 except ValueError: break  # a line still being written
-                segments.append(item); next_index = index + 1
+                # Chrome caps helper replies at 1 MiB. Word timings make a count-only limit unsafe.
+                size = len(json.dumps(item, ensure_ascii=False).encode('utf8')) + 2
+                if size > 700_000 and 'words' in item:
+                    item.pop('words')  # corrupt/oversized optional alignment must not break the native channel
+                    size = len(json.dumps(item, ensure_ascii=False).encode('utf8')) + 2
+                if segments and payload_bytes + size > 700_000: break
+                segments.append(item); next_index = index + 1; payload_bytes += size
     except OSError: pass
     keys = ('id', 'videoKey', 'state', 'stage', 'progress', 'processedSec', 'totalSec', 'engine', 'language', 'error', 'errorCode', 'cached', 'segmentCount')
     return {'ok': True, **{k: state.get(k) for k in keys}, 'segments': segments, 'next': next_index}
@@ -772,6 +818,9 @@ def cloud_test(message):
     except asr_cloud.CloudError as error: return {'ok': False, 'error': str(error), 'code': error.code}
 def handle(message, base):
     action = message.get('action')
+    if action in ('mediaDownloadStart', 'mediaDownloadPoll', 'mediaDownloadCancel', 'mediaDownloadReveal'):
+        import media_download
+        return media_download.handle(base, message)
     if action == 'asrStatus': return status(cloud=bool(message.get('cloud')), engine=message.get('engine') or None)
     if action == 'asrCloudTest': return cloud_test(message)
     if action == 'asrStart': return start(base, message)
@@ -870,6 +919,7 @@ def run_install(base_dir):
                 unquarantine(eng.venv_dir(target))
                 done += weight
             if target == 'base': link_ffmpeg()
+            else: verify_runtime(target, env)
             if model: fetch_model(directory, target, model, low + (high - low) * done / weights, high, env)
         write_state(directory, state='completed', stage='安装完成', progress=100, error=None)
     except Failed as error:
@@ -907,6 +957,15 @@ def fetch_model(directory, engine, model, low, high, env):
 # ---- the worker ---------------------------------------------------------------------------------------------------
 class Failed(Exception):
     def __init__(self, message, code=None): super().__init__(message); self.code = code
+def runtime_failure(details):
+    return Failed('本机识别环境无法加载，请更新本地助手或换模型生成字幕。\n' + details[-6000:], code='runtime-unavailable')
+def verify_runtime(engine, env):
+    """Run with the engine's actual interpreter; file presence cannot prove dlopen works."""
+    try:
+        reply = subprocess.run([str(eng.venv_python(engine)), '-c', eng.runtime_probe_code(engine)],
+                               env=env, capture_output=True, text=True, encoding='utf8', errors='replace', timeout=60)
+    except (OSError, subprocess.SubprocessError) as error: raise runtime_failure(str(error)) from error
+    if reply.returncode: raise runtime_failure((reply.stderr or reply.stdout or '识别环境检查失败').strip())
 def stream(command, env, on_line, tail=20):
     """Run a command, hand every output line to on_line, and return its last lines for an error message."""
     lines = []
@@ -1020,14 +1079,33 @@ def fits_language(text, language):
     """Background in another script than the speech would pull it the wrong way (a Chinese prompt on English audio)."""
     cjk = len(re.findall(r'[\u4e00-\u9fff]', text)) > len(text) * 0.15
     return not text or (language == 'en' and not cjk) or (language in ('zh', 'ja', 'ko') and cjk) or language not in ('en', 'zh', 'ja', 'ko')
+def silent_pcm(wav):
+    """Reject only near-digital silence; do not label quiet speech or music as non-speech.
+    The converted input is mono s16 PCM. Read in bounded blocks; unknown formats keep the normal recogniser error path.
+    """
+    import array, wave
+    try:
+        with wave.open(str(wav), 'rb') as audio:
+            if audio.getsampwidth() != 2 or audio.getnchannels() != 1: return False
+            while True:
+                block = audio.readframes(16000)
+                if not block: return True
+                samples = array.array('h', block)
+                if sys.byteorder != 'little': samples.byteswap()
+                # -70 dBFS peak: well below ordinary speech, including quiet recordings.
+                if any(abs(sample) > 10 for sample in samples): return False
+    except (OSError, EOFError, wave.Error): return False
+
 def recognise(directory, spec, wav, total, env, found, tools):
+    if found['id'] in ('mlx', 'faster-whisper', 'whispercpp') and silent_pcm(wav):
+        raise Failed('没有识别到语音内容')
     language = spec.get('language') or 'auto'
     meta = page_meta(directory, spec); short = asr_context.prompt(meta); long = asr_context.background(meta, asr_context.BUDGET_QWEN)
     short = short if fits_language(short, language) else ''; long = long if fits_language(long, language) else ''
     model_missing = not found['modelReady']
     write_state(directory, state='downloadingModel' if model_missing else 'transcribing', stage='首次使用，正在下载识别模型（约 %.1f GB），请稍候' % (eng.ENGINES.get(found['id'], {}).get('sizeMb', 1600) / 1000) if model_missing else '正在识别语音', progress=18)
     if found['id'] == 'mlx':
-        command = [found['path'], str(wav), '--model', found['model'], '--condition-on-previous-text', 'False', '--output-dir', str(directory), '--output-name', 'whisper', '--output-format', 'json', '--verbose', 'True']
+        command = [found['path'], str(wav), '--model', found['model'], '--condition-on-previous-text', 'False', '--word-timestamps', 'True', '--hallucination-silence-threshold', '2', '--output-dir', str(directory), '--output-name', 'whisper', '--output-format', 'json', '--verbose', 'True']
         if language != 'auto': command += ['--language', language]
         # Only when Chinese was asked for: a Chinese prompt on automatic detection pulls other languages toward Chinese.
         # What the page says about the video goes in the same prompt, at the end, where Whisper weighs it most.
@@ -1050,7 +1128,10 @@ def recognise(directory, spec, wav, total, env, found, tools):
             with (directory / 'segments.jsonl').open('a', encoding='utf8') as f: f.write(json.dumps({'start': kept[-1]['start'], 'end': kept[-1]['end'], 'text': kept[-1]['text']}, ensure_ascii=False) + '\n')
             write_state(directory, state='transcribing', stage='正在识别语音', progress=round(18 + 80 * min(1, item['end'] / max(total, 1)), 1), processedSec=round(item['end'], 1), segmentCount=len(segments))
     code, tail = stream(command, env, on_line)
-    if code != 0: raise Failed('语音识别失败：' + (tail[-1] if tail else '未知错误')[:200])
+    if code != 0:
+        details = '\n'.join(tail)
+        if re.search(r'dlopen|ImportError|DLL load failed|Library not loaded', details, re.I): raise runtime_failure(details)
+        raise Failed('语音识别失败：' + (tail[-1] if tail else '未知错误')[-1000:])
     detected = None
     final = read_json(directory / 'whisper.json') if found['id'] == 'mlx' else None
     if final and isinstance(final.get('segments'), list):
@@ -1080,6 +1161,10 @@ def recognise_cloud(directory, spec, wav, total, env, tools):
     return segments, detected or (language if language != 'auto' else None)
 def run_worker(base_dir):
     directory = Path(base_dir); spec = read_json(directory / 'spec.json') or {}; env = tool_env()
+    if spec.get('purpose') == 'download':
+        import media_download
+        media_download.run_worker(directory, spec)
+        return
     unquarantine(eng.tools_home())  # environments installed before the flag was cleared at install time
     base = directory.parent.parent.parent
     try:
@@ -1087,6 +1172,11 @@ def run_worker(base_dir):
         if not info['ready']: raise Failed('缺少工具：' + '、'.join(info['missing']))
         tools = {'yt-dlp': find_tool('yt-dlp'), 'ffmpeg': find_tool('ffmpeg'), 'ffprobe': find_tool('ffprobe')}
         found = None if spec.get('cloud') else pick_engine(engines(), spec.get('engine'))
+        if found and found['id'] in eng.ENGINES:
+            managed = eng.ENGINES[found['id']]
+            paths = [str(eng.venv_python(found['id']))]
+            if managed.get('binary'): paths.append(str(eng.venv_executable(found['id'], managed['binary'])))
+            if found['path'] in paths: verify_runtime(found['id'], env)
         update_ytdlp(env, on_stage=lambda stage: write_state(directory, state='downloading', stage=stage, progress=0))
         tools['yt-dlp'] = find_tool('yt-dlp')
         audio = download(directory, spec, env, tools)

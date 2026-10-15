@@ -1,3 +1,4 @@
+import { magpieKey } from './magpie';
 import { generalSettings, saveSettings } from './storage-utils';
 import { PromptVariable, Template, ModelConfig, Provider } from '../types/types';
 import { compileTemplate } from './template-compiler';
@@ -20,7 +21,8 @@ export async function sendToLLM(promptContext: string, content: string, promptVa
 	debugLog('Interpreter', 'Sending request to LLM...');
 	
 	// Find the provider for this model
-	const provider = generalSettings.providers.find(p => p.id === model.providerId);
+	const stored = generalSettings.providers.find(p => p.id === model.providerId);
+	const provider = stored ? { ...stored, apiKey: magpieKey(stored) } : undefined;
 	if (!provider) {
 		throw new Error(`Provider not found for model ${model.name}`);
 	}
@@ -94,7 +96,8 @@ export async function sendToLLM(promptContext: string, content: string, promptVa
 					{ role: 'user', content: `${JSON.stringify(promptContent)}` }
 				],
 				max_completion_tokens: 8000,
-				stream: false
+				stream: false,
+        ...(provider.presetId === 'magpie' && model.reasoningEffort && model.reasoningEfforts?.includes(model.reasoningEffort) ? { reasoning_effort: model.reasoningEffort } : {})
 			};
 			headers = {
 				...headers,
@@ -113,7 +116,8 @@ export async function sendToLLM(promptContext: string, content: string, promptVa
 				thinking: {
 					type: 'disabled'
 				},
-				stream: false
+				stream: false,
+        ...(provider.presetId === 'magpie' && model.reasoningEffort && model.reasoningEfforts?.includes(model.reasoningEffort) ? { reasoning_effort: model.reasoningEffort } : {})
 			};
 			headers = {
 				...headers,
@@ -204,7 +208,8 @@ export async function sendToLLM(promptContext: string, content: string, promptVa
 					{ role: 'user', content: `${promptContext}` },
 					{ role: 'user', content: `${JSON.stringify(promptContent)}` }
 				],
-				stream: false
+				stream: false,
+        ...(provider.presetId === 'magpie' && model.reasoningEffort && model.reasoningEfforts?.includes(model.reasoningEffort) ? { reasoning_effort: model.reasoningEffort } : {})
 			};
 			headers = {
 				...headers,

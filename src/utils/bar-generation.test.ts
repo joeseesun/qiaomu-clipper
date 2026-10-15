@@ -18,6 +18,15 @@ const settle = async () => { for (let i = 0; i < 20; i++) await vi.advanceTimers
 beforeEach(() => { vi.useFakeTimers(); current = KEY; shown = []; applied = []; saved = []; reverted = []; });
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 
+it('asks for a model after failure even when automatic generation was remembered', async () => {
+ const { gen, full } = make({ status: vi.fn(async () => ready({ choices: { mode: 'local', engine: 'mlx', active: '', auto: true, profiles: [{ id: 'cloud', label: 'Cloud', local: false, configured: true }] } })), start: vi.fn(async () => job({state:'failed', error:'ImportError: dlopen'})) });
+ gen.actions.request(); await settle();
+ expect(shown[shown.length-1]).toMatchObject({kind:'failed'}); expect(full.start).toHaveBeenCalledTimes(1);
+ gen.actions.request(); await settle();
+ expect(full.start).toHaveBeenCalledTimes(1);
+ expect(shown[shown.length-1]).toMatchObject({kind:'confirm', choices:expect.arrayContaining([expect.objectContaining({value:'cloud:cloud'})])});
+});
+
 it('checks the helper, asks for confirmation (with the model note), then runs and saves the finished transcript', async () => {
 	const { gen, full } = make();
 	gen.actions.request(); expect(shown[shown.length - 1]).toEqual({ kind: 'checking' }); await settle();
@@ -195,7 +204,7 @@ it.each([['helper-offline', 'clip'], ['helper-outdated', 'clip'], ['cloud-not-co
  const send = vi.spyOn(browser.runtime, 'sendMessage').mockResolvedValue(undefined as never);
  const { gen, full } = make();
  gen.actions.setup!(reason);
- expect(send).toHaveBeenCalledWith({ action: 'openSettings', section });
+ expect(send).toHaveBeenCalledWith(reason.startsWith('helper-') ? { action: 'openHelperInstall' } : { action: 'openSettings', section });
  expect(full.start).not.toHaveBeenCalled();
 });
 
@@ -204,4 +213,43 @@ it('lets a file page require confirmation without changing automatic starts on o
  gen.actions.request();await settle();expect(full.start).not.toHaveBeenCalled();expect(shown[shown.length-1]).toMatchObject({kind:'confirm',selected:'cloud:sf'});
  expect(viaOf({ ...base,mode:'cloud',cloudLabel:'硅基流动',cloudModel:'Qwen3-ASR' })).toContain('Qwen3-ASR');
  gen.actions.confirm();await settle();expect(full.start).toHaveBeenCalledOnce();
+});
+
+it('opens installation directly for a missing or outdated helper', async () => {
+ const send=vi.spyOn(browser.runtime,'sendMessage').mockResolvedValue({success:true} as never).mockClear();
+ const {gen}=make();
+ gen.actions.setup!('helper-offline'); gen.actions.setup!('helper-outdated');
+ expect(send).toHaveBeenNthCalledWith(1,{action:'openHelperInstall'});
+ expect(send).toHaveBeenNthCalledWith(2,{action:'openHelperInstall'});
+ send.mockRestore();
+});
+
+it('does not reopen a dismissed model dialog when its selection request finishes late', async () => {
+ let resolve!: (reply:any)=>void;
+ const choose=vi.fn(()=>new Promise<any>(done=>{resolve=done;}));
+ const {full}=make({status:vi.fn(async()=>ready())});
+ const gen=createBarGeneration({videoKey:()=>current,bar:()=>({setGeneration:(ui:GenUi|null)=>shown.push(ui)}) as any,apply:vi.fn(),revert:vi.fn(),save:vi.fn(),deps:full,choose});
+ gen.actions.regenerate!();await settle();gen.actions.choose!('local:mlx-qwen3');
+ gen.actions.dismiss!();resolve({ok:true});await settle();
+ expect(shown[shown.length - 1]).toBeNull();expect(full.status).toHaveBeenCalledTimes(1);expect(full.start).not.toHaveBeenCalled();
+});
+
+
+it('asks for a model after cancelling an automatic start, preserving the selected model and automatic preference', async()=>{
+ const status=vi.fn(async()=>ready({choices:{mode:'local',engine:'mlx',auto:true,active:'',profiles:[]}}));
+ const {gen,full}=make({status,poll:vi.fn(async()=>job())});
+ gen.actions.request();await settle();expect(full.start).toHaveBeenCalledTimes(1);
+ gen.actions.cancel();await settle();gen.actions.request();await settle();
+ expect(shown[shown.length - 1]).toMatchObject({kind:'confirm',selected:'local:mlx'});
+ expect(full.start).toHaveBeenCalledTimes(1);
+ gen.actions.dismiss!();gen.actions.request();await settle();expect(shown[shown.length - 1]?.kind).toBe('confirm');
+ expect(full.start).toHaveBeenCalledTimes(1);
+ gen.actions.confirm();await settle();expect(full.start).toHaveBeenCalledTimes(2);
+});
+
+it('keeps automatic generation enabled for a different video after cancelling this one',async()=>{
+ const {gen,full}=make({status:vi.fn(async()=>ready({choices:{mode:'local',engine:'mlx',auto:true,active:'',profiles:[]}})),poll:vi.fn(async()=>job())});
+ gen.actions.request();await settle();gen.actions.cancel();await settle();
+ current=OTHER;gen.actions.request();await settle();expect(full.start).toHaveBeenCalledTimes(2);
+ expect(full.start).toHaveBeenLastCalledWith(OTHER,'auto');
 });

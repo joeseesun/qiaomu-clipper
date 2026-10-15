@@ -20,7 +20,7 @@ export type GenerationEvent =
 export interface GenerationDeps { status: (videoKey?: string) => Promise<AsrReply<AsrStatus>>; start: (videoKey: string, language?: string, force?: boolean, cookies?: CookieBrowser) => Promise<AsrReply<AsrJob>>; poll: (jobId: string, since: number) => Promise<AsrReply<AsrJob>>; cancel: (jobId: string) => Promise<AsrReply<AsrJob>>; install?: (target: InstallTarget) => Promise<AsrReply<AsrInstall>>; installPoll?: (jobId: string) => Promise<AsrReply<AsrInstall>>; installCancel?: (jobId: string) => Promise<AsrReply<AsrInstall>> }
 export interface Generation { prepare: (videoKey?: string) => Promise<AsrStatus | undefined>; run: (videoKey: string, options?: { language?: string; cookies?: CookieBrowser; force?: boolean; jobId?: string }) => void; install: (target: InstallTarget) => void; cancel: () => void; dispose: () => void; readonly active: boolean }
 
-export const toLines = (segments: AsrSegment[]): PanelSegment[] => segments.map(segment => ({ time: stampOf(segment.start), text: segment.text }));
+export const toLines = (segments: AsrSegment[]): PanelSegment[] => segments.map(segment => ({ time: stampOf(segment.start), start: segment.start, end: segment.end, text: segment.text, ...(segment.words?.length ? { words: segment.words } : {}) }));
 const SETUP: SetupReason[] = ['helper-offline', 'helper-outdated', 'missing', 'busy', 'cloud-not-configured'];
 const MAX_POLL_FAILURES = 4;
 // Why an install could not even start, in the viewer's terms.
@@ -52,7 +52,7 @@ export function createGeneration(onEvent: (event: GenerationEvent) => void, give
 			const status = await deps.status(videoKey);
 			if (!status.ok) { setup(status); return undefined; }
 			// Not ready is the caller's call when something can be installed: it offers that. Otherwise it is a plain setup problem.
-			if (!status.ready && !status.installable?.base && !status.installable?.engines.length) { onEvent({ phase: 'needs-setup', reason: 'missing', missing: status.missing, hints: status.hints }); return undefined; }
+			if (!status.ready && !status.installable?.base && !status.installable?.engines.length && !status.choices?.profiles.some(profile => profile.configured)) { onEvent({ phase: 'needs-setup', reason: 'missing', missing: status.missing, hints: status.hints }); return undefined; }
 			return status;
 		},
 		run(videoKey, { language = 'auto', cookies, force = false, jobId: resumeId }: { language?: string; cookies?: CookieBrowser; force?: boolean; jobId?: string } = {}) {

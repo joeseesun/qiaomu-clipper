@@ -26,3 +26,10 @@ Use a freshly built `dist_local`, an isolated Chrome for Testing/Edge profile an
 - `python scripts/test-native-hls-fixture.py <fixture-hls-directory>`: actual installed yt-dlp and ffmpeg, including AES-128 when the directory contains an encrypted playlist and key. Upstream requests are synthetic fixture reads.
 
 Browser evidence is from a built extension, fixture websites and mocked Native Messaging. It does not establish real account login, paid-course entitlement, actual YouTube/Bilibili playback, or the user's installed helper/extension behavior. No release or store submission is part of this integration.
+
+
+## Extensionless HLS follow-up
+
+The relay identifies playlists by HLS tag role, response MIME type and a chunk-safe `#EXTM3U` probe, as well as URL suffix. Extensionless variants and rendition URIs receive a local `.m3u8` route; manifests returned as segments/keys are also rewritten and bounded to 4 MB. Unsupported content-steering indexes are rejected. Regression tests cover external/private/insecure nested segment/key addresses, malformed and oversized manifests, BOM/whitespace and one-byte upstream reads.
+
+`python scripts/test-native-hls-fixture.py <fixture-hls-directory> --extensionless` additionally exercises a synthetic extensionless nested variant through actual yt-dlp/ffmpeg, including encrypted segments when the supplied fixture uses AES-128.

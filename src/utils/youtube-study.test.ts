@@ -41,12 +41,13 @@ describe('YouTube study transcript', () => {
 		expect(node.querySelector('[aria-label="基于视频文稿提问"]')).toBeNull();
 		expect(vi.mocked(mountClipChat).mock.calls).toHaveLength(count);
 	});
-	it('omits duplicate size/transcript action rows and places translation beside sentence highlighting', async () => {
+	it('omits duplicate size/transcript action rows and places manuscript translation beside Transcript', async () => {
 		const node = article('<div class="player-toggle-group"><label>标出当前句子</label></div>'+subtitles);
 		await mountYouTubeStudy(document, node, 'Video', 'https://www.youtube.com/watch?v=dbqweBCynuI', {toggle: () => true});
 		expect(node.querySelector('.youtube-study-toolbar, .youtube-size-control')).toBeNull();
 		expect(node.querySelector('[aria-label="复制字幕"], [aria-label="下载字幕（TXT）"]')).toBeNull();
-		expect(node.querySelector('.player-toggle-group')!.lastElementChild?.classList.contains('youtube-translate-toggle')).toBe(true);
+		expect(node.querySelector('.transcript-heading-tools .youtube-translate-toggle')).not.toBeNull();
+		expect(node.querySelector('.player-toggle-group .youtube-translate-toggle')).toBeNull();
 		await mountYouTubeStudy(document,node,'Video','https://www.youtube.com/watch?v=dbqweBCynuI');
 		expect(node.querySelectorAll('.youtube-translate-toggle')).toHaveLength(1);
 	});

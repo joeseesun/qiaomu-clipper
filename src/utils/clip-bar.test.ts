@@ -59,3 +59,21 @@ it('uses rescue content for copy and download without depending on a failing per
  const bar=createClipBar({mode:'edit',id:'rescue',draft,title:document.createElement('input'),sync,getExport});
  const clipboard=await import('./clipboard-utils');bar.querySelector<HTMLButtonElement>('#clip-bar-copy')!.click();await vi.waitFor(()=>expect(clipboard.copyToClipboard).toHaveBeenCalledWith('Pending rescue text'));expect(sync).not.toHaveBeenCalled();
 });
+
+
+it('tracks wrapped bar height without losing the hidden-bar offset behavior', () => {
+ document.documentElement.style.removeProperty('--clip-bar-measured-height');
+ const bar = document.createElement('header'); bar.className = 'clip-bar'; document.body.append(bar);
+ let height = 96, resized!: () => void, frame!: FrameRequestCallback;
+ vi.spyOn(bar,'getBoundingClientRect').mockImplementation(()=>({height} as DOMRect));
+ const disconnect = vi.fn();
+ vi.stubGlobal('ResizeObserver',class { constructor(callback:()=>void){resized=callback;} observe(){} disconnect=disconnect; });
+ vi.stubGlobal('requestAnimationFrame',vi.fn((callback:FrameRequestCallback)=>{frame=callback;return 456;}));
+ vi.stubGlobal('cancelAnimationFrame',vi.fn());
+ autoHideBar(bar);
+ expect(document.documentElement.style.getPropertyValue('--clip-bar-measured-height')).toBe('96px');
+ height=144; resized(); frame(0);
+ expect(document.documentElement.style.getPropertyValue('--clip-bar-measured-height')).toBe('144px');
+ window.dispatchEvent(new Event('pagehide')); expect(disconnect).toHaveBeenCalled();
+ bar.remove(); vi.restoreAllMocks(); vi.unstubAllGlobals();
+});

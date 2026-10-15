@@ -35,16 +35,16 @@ it('picks the spoken language, prefers a hand-made track in it, and never a toke
 });
 
 it('parses json3, the classic XML and the srv3 XML, decoding entities and dropping markup', () => {
-	expect(parseCaptions(JSON.stringify({ events: [{ tStartMs: 1200, segs: [{ utf8: 'Hello ' }, { utf8: 'there' }] }, { tStartMs: 3723000, segs: [{ utf8: '\n' }] }, { tStartMs: 5000, segs: [{ utf8: 'Next &amp; last' }] }] }))).toEqual([{ time: '0:01', text: 'Hello there' }, { time: '0:05', text: 'Next & last' }]);
-	expect(parseCaptions('<?xml version="1.0"?><transcript><text start="1.5" dur="2">It&#39;s &quot;fine&quot; &amp; <i>ok</i></text><text start="3725" dur="1">Later</text></transcript>')).toEqual([{ time: '0:01', text: 'It\'s "fine" & ok' }, { time: '1:02:05', text: 'Later' }]);
-	expect(parseCaptions('<timedtext><body><p t="4000" d="2000"><s>Hi</s> <s>all</s></p></body></timedtext>')).toEqual([{ time: '0:04', text: 'Hi all' }]);
+	expect(parseCaptions(JSON.stringify({ events: [{ tStartMs: 1200, segs: [{ utf8: 'Hello ' }, { utf8: 'there' }] }, { tStartMs: 3723000, segs: [{ utf8: '\n' }] }, { tStartMs: 5000, segs: [{ utf8: 'Next &amp; last' }] }] }))).toEqual([{ time: '0:01', start:1.2, text: 'Hello there' }, { time: '0:05', start:5, text: 'Next & last' }]);
+	expect(parseCaptions('<?xml version="1.0"?><transcript><text start="1.5" dur="2">It&#39;s &quot;fine&quot; &amp; <i>ok</i></text><text start="3725" dur="1">Later</text></transcript>')).toEqual([{ time: '0:01', start:1.5, end:3.5, text: 'It\'s "fine" & ok' }, { time: '1:02:05', start:3725, end:3726, text: 'Later' }]);
+	expect(parseCaptions('<timedtext><body><p t="4000" d="2000"><s>Hi</s> <s>all</s></p></body></timedtext>')).toEqual([{ time: '0:04', start:4, end:6, text: 'Hi all' }]);
 	expect(parseCaptions('not captions')).toEqual([]); expect(parseCaptions('{broken')).toEqual([]);
 });
 
 it('downloads the chosen track as json3 first, then plain, and returns nothing for gated or empty tracks', async () => {
 	const urls: string[] = [];
 	const request = vi.fn(async (url: string) => { urls.push(url); if (url.includes('/youtubei/')) return response(player(track('en', 'asr', '&fmt=srv3'))); return url.includes('fmt=json3') ? response({ events: [] }) : response('<transcript><text start="2" dur="1">From XML</text></transcript>'); });
-	expect(await fetchCaptionSegments('abc', document, request as any)).toEqual([{ time: '0:02', text: 'From XML' }]);
+	expect(await fetchCaptionSegments('abc', document, request as any)).toEqual([{ time: '0:02', start:2, end:3, text: 'From XML' }]);
 	expect(urls[1]).toContain('&fmt=json3'); expect(urls[1]).not.toContain('srv3'); expect(urls[2]).not.toContain('fmt=');
 	expect(await fetchCaptionSegments('abc', document, (async (url: string) => response(url.includes('/youtubei/') ? player(track('en', undefined, '&exp=xpe')) : '')) as any)).toEqual([]);
 });
