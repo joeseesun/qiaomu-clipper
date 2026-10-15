@@ -99,12 +99,8 @@ def fetch_full(directory, spec, env, tools):
     # Never use an ASR bestaudio selector for video exports. Ignore user configs and reject
     # YouTube extractors (including embeds/redirects), DRM formats and live streams.
     command = [tools['yt-dlp'], '--ignore-config', '--no-playlist', '--no-warnings', '--newline', '--no-continue', '--abort-on-unavailable-fragments', '--socket-timeout', '30', '--retries', '3', '--fragment-retries', '3',
-               '--match-filter', 'extractor_key !~= (?i)youtube & !is_live & !has_drm', '--ffmpeg-location', tools['ffmpeg']]
-    if spec['video']:
-        command += ['-S', 'vcodec:h264,lang,quality', '-f', 'bv*[vcodec^=avc]+ba[ext=m4a]/bv*+ba/b', '--merge-output-format', 'mp4']
-    else:
-        command += ['-f', 'ba/b', '--merge-output-format', 'mkv']
-    command += ['-o', str(directory / 'audio.%(ext)s')]
+               '--match-filter', 'extractor_key !~= (?i)youtube & !is_live & !has_drm', '--ffmpeg-location', tools['ffmpeg'],
+               '-f', 'bv*+ba/b' if spec['video'] else 'ba/b', '--merge-output-format', 'mkv', '-o', str(directory / 'audio.%(ext)s')]
     if spec.get('cookiesFile'): command += ['--cookies', str(directory / 'cookies.txt')]
     elif spec.get('cookies'): command += ['--cookies-from-browser', spec['cookies']]
     command += ['--', spec['url']]

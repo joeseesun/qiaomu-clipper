@@ -1,6 +1,5 @@
 import { t } from './ui-text';
 import { canDownloadMedia } from './media-download-policy';
-import { callHelper } from './native-helper-call';
 // Save the media file being studied, subject to the edition and source policy.
 // The file is the one the study player already plays, so it is saved as it is, without converting anything.
 
@@ -81,81 +80,5 @@ export function downloadProblem(error: unknown): string {
 		return t('没能下载：网络出错，请重试');
 	}
 	return t('没能下载，请重试');
-}
-
-export async function downloadWithNative(
-	choice: DownloadChoice,
-	title: string,
-	options: {
-		signal?: AbortSignal;
-		onProgress?: (done: number, total: number | undefined) => void;
-		cookiesTxt?: string;
-	} = {}
-): Promise<{ filePath: string }> {
-	const startRes = (await callHelper({
-		action: 'asrMediaDownload',
-		url: choice.url,
-		mediaUrl: choice.mediaUrl,
-		title,
-		format: choice.kind,
-		cookies: 'chrome',
-		cookiesTxt: options.cookiesTxt,
-	})) as { ok?: boolean; jobId?: string; error?: string };
-
-	if (!startRes?.ok || !startRes.jobId) {
-		throw new DownloadError('network', startRes?.error || t('启动本地下载失败，请确保本地助手已连接'));
-	}
-
-	const jobId = startRes.jobId;
-	if (options.signal?.aborted) {
-		void callHelper({ action: 'asrMediaDownloadCancel', jobId });
-		throw new DownloadError('cancelled', t('已取消'));
-	}
-
-	const abortListener = () => {
-		void callHelper({ action: 'asrMediaDownloadCancel', jobId });
-	};
-	options.signal?.addEventListener('abort', abortListener);
-
-	try {
-		while (true) {
-			await new Promise(r => setTimeout(r, 600));
-			if (options.signal?.aborted) {
-				void callHelper({ action: 'asrMediaDownloadCancel', jobId });
-				throw new DownloadError('cancelled', t('已取消'));
-			}
-
-			const pollRes = (await callHelper({
-				action: 'asrMediaDownloadPoll',
-				jobId,
-			})) as { ok?: boolean; state?: string; stage?: string; progress?: number; filePath?: string; error?: string };
-
-			if (!pollRes?.ok) {
-				throw new DownloadError('network', pollRes?.error || t('查询下载进度失败'));
-			}
-
-			if (pollRes.state === 'cancelled') {
-				throw new DownloadError('cancelled', t('已取消'));
-			}
-
-			if (pollRes.state === 'failed') {
-				throw new DownloadError('network', pollRes.error || t('下载失败'));
-			}
-
-			if (typeof pollRes.progress === 'number') {
-				options.onProgress?.(pollRes.progress, 100);
-			}
-
-			if (pollRes.state === 'completed' && pollRes.filePath) {
-				return { filePath: pollRes.filePath };
-			}
-		}
-	} finally {
-		options.signal?.removeEventListener('abort', abortListener);
-	}
-}
-
-export async function revealNativeFile(filePath: string): Promise<void> {
-	await callHelper({ action: 'revealFile', path: filePath });
 }
 

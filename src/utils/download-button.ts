@@ -1,3 +1,4 @@
+import { createElement, Check, ChevronDown, Download } from 'lucide';
 import { DownloadChoice, DownloadError, defaultChoice, downloadFileName, downloadProblem, fetchMediaBlob, humanSize } from './media-download';
 
 import { t } from './ui-text';
@@ -88,7 +89,7 @@ export function mountDownloadButton(host: HTMLElement, options: DownloadButtonOp
 				text.textContent = t('正在保存…'); fill.style.width = '100%';
 				return options.save(blob, downloadFileName(options.title, choice.ext), controller!.signal);
 			})();
-			const link = node('button', 'qiaomu-dl-link', t('在文件夹中显示')); link.type = 'button';
+			const link = node('button', 'qiaomu-dl-link', t('在访达中显示')); link.type = 'button';
 			link.addEventListener('click', () => saved && saved.reveal?.());
 			const again = node('button', 'qiaomu-dl-link', t('再存一份')); again.type = 'button'; again.addEventListener('click', showIdle);
 			showState('done', icon(Check), node('span', '', t('已保存')), ...(saved && saved.reveal ? [link] : []), again);

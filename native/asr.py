@@ -99,9 +99,7 @@ def tool_env():
     # parsed as an invalid port. Preserve the bypass instead of deleting it.
     for key in ('NO_PROXY', 'no_proxy'):
         if key in env:
-            env[key] = ','.join('::1' if item.strip() in ('[::1]', '::1/128', '[::1]/128') else item for item in env[key].split(',') if '::' not in item or item.strip() in ('[::1]', '::1/128', '[::1]/128'))
-    env.setdefault('HF_ENDPOINT', 'https://hf-mirror.com')
-    env['HF_HUB_DISABLE_SYMLINKS_WARNING'] = '1'
+            env[key] = ','.join('::1' if item.strip() in ('[::1]', '::1/128', '[::1]/128') else item for item in env[key].split(','))
     return env
 def tool_version(path, flag='--version'):
     try: return subprocess.run([path, flag], capture_output=True, text=True, timeout=10).stdout.strip().splitlines()[0][:60]
@@ -944,7 +942,10 @@ def fetch_model(directory, engine, model, low, high, env):
     code_text = 'import sys\nfrom huggingface_hub import snapshot_download\nsnapshot_download(sys.argv[1])'
     expected = max(eng.ENGINES[engine]['sizeMb'], 1) * 1048576
     write_state(directory, state='downloadingModel', stage='正在下载识别模型', progress=round(low, 1))
-    process = subprocess.Popen([str(eng.venv_python(engine)), '-c', code_text, model], stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=env, text=True, errors='replace')
+    model_env = dict(env)
+    model_env.setdefault('HF_ENDPOINT', 'https://hf-mirror.com')
+    model_env['HF_HUB_DISABLE_SYMLINKS_WARNING'] = '1'
+    process = subprocess.Popen([str(eng.venv_python(engine)), '-c', code_text, model], stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=model_env, text=True, errors='replace')
     try:
         while process.poll() is None:
             share = min(0.99, eng.model_bytes(model) / expected)

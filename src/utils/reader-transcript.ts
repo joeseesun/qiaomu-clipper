@@ -174,6 +174,7 @@ export function wireTranscript(
 				];
 				mountDownloadButton(dlHost, {
 					title: videoTitle,
+					sourceUrl: targetUrl,
 					choices,
 					cookiesTxt,
 					save: async () => {},
