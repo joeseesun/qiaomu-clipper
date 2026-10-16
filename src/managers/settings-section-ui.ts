@@ -29,6 +29,7 @@ export function showSettingsSection(requested: SettingsSection | 'video', templa
 	updateUrl(section, templateId);
 	// The study page lists what was studied last: look again whenever it is opened.
 	if (section === 'study') document.dispatchEvent(new CustomEvent('qiaomu-study-shown'));
+	if (section === 'asr-models') document.dispatchEvent(new CustomEvent('qiaomu-asr-models-shown'));
 
 	if (section === 'templates-home') {
 		initializePropertyTypesManager();

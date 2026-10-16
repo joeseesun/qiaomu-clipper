@@ -3,7 +3,16 @@ import { canDownloadMedia } from './media-download-policy';
 // Save the media file being studied, subject to the edition and source policy.
 // The file is the one the study player already plays, so it is saved as it is, without converting anything.
 
-export interface DownloadChoice { id: string; label: string; url: string; kind: 'video' | 'audio'; ext: string; bytes?: number }
+export interface DownloadChoice {
+	id: string;
+	label: string;
+	url: string;
+	kind: 'video' | 'audio';
+	ext: string;
+	bytes?: number;
+	source?: 'fetch' | 'native';
+	mediaUrl?: string;
+}
 
 const FORBIDDEN = /[\\/:*?"<>|\u0000-\u001f]/g;
 
@@ -72,3 +81,4 @@ export function downloadProblem(error: unknown): string {
 	}
 	return t('没能下载，请重试');
 }
+

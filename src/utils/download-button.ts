@@ -19,6 +19,7 @@ export interface DownloadButtonOptions {
 	remembered?: string;
 	onRemember?(id: string): void;
 	fetchBlob?: typeof fetchMediaBlob;
+	cookiesTxt?: string;
 }
 export interface DownloadButton { element: HTMLElement; destroy(): void }
 
