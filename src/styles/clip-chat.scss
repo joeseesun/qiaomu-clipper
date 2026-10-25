@@ -1,3 +1,4 @@
+@use 'chat-scroll';
 @use 'model-picker';
 @use 'chat-tools';
 @use 'image-library';
@@ -99,15 +100,7 @@
 	.clip-chat-image-row button:disabled { opacity: .5; cursor: default; }
 	.clip-chat-image-status, .clip-chat-image-scope { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
 	.clip-chat-image-status:not(:empty) { margin-top: 5px; }
-	.clip-chat-message-area { position: relative; display: flex; flex: 1; min-height: 0; }
-	.clip-chat-messages { flex: 1; min-width: 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; overflow-anchor: none; padding: 14px; font-family: var(--clip-chat-font); font-size: var(--clip-chat-size, 14px); }
-	.clip-chat-message-list { display: flex; flex-direction: column; gap: 14px; min-height: 100%; > * { flex-shrink: 0; } }
-	.clip-chat-jump-bottom { position: absolute; z-index: 1; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: 1px solid var(--background-modifier-border, rgb(128 128 128 / 35%)); border-radius: 50%; color: var(--text-normal); background: var(--background-primary); box-shadow: 0 2px 8px rgb(0 0 0 / 16%); cursor: pointer;
-		svg { width: 17px; height: 17px; }
-		&:hover { background: var(--background-secondary); }
-		&:focus-visible { outline: 1px solid var(--text-normal); outline-offset: 2px; }
-		&[hidden] { display: none; }
-	}
+	.clip-chat-messages { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 14px; display: flex; flex-direction: column; gap: 14px; font-family: var(--clip-chat-font); font-size: var(--clip-chat-size, 14px); > * { flex-shrink: 0; } }
 	.clip-chat-message { display: flex; flex-direction: column; gap: 6px; max-width: 100%;
 		&.is-user { align-self: flex-end; max-width: 88%; .clip-chat-body { background: var(--background-secondary, rgb(128 128 128 / 12%)); padding: 8px 12px; border-radius: 12px; white-space: pre-wrap; } }
 		&.is-error .clip-chat-body { color: var(--text-error, #c0392b); white-space: pre-wrap; }

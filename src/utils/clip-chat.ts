@@ -114,9 +114,9 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 	const imageSession = new ChatImageSession();
 	const generatedImages = new ChatImageGenerationView();
 	let currentImages: ArticleImage[] = [], imageKey = '', selectedImages: Set<string> | null = null;
-	const messageArea = el('div', 'clip-chat-message-area');
 	const messagesEl = el('div', 'clip-chat-messages');
 	messagesEl.setAttribute('aria-live', 'polite');
+	const messageArea = el('div', 'clip-chat-message-area');
 	const messageList = el('div', 'clip-chat-message-list');
 	const jumpToBottom = iconButton('clip-chat-jump-bottom', ArrowDown, t('回到底部'));
 	jumpToBottom.hidden = true;
