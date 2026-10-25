@@ -19,7 +19,7 @@ export function requestChatTool<T = any>(call: unknown, signal?: AbortSignal): P
 		port.postMessage(call);
 	});
 }
-export const chatCapabilities = (signal?: AbortSignal) => requestChatTool<ChatCapabilities>({ type: 'capabilities' }, signal);
+export const chatCapabilities = (signal?: AbortSignal, modelId?: string) => requestChatTool<ChatCapabilities>({ type: 'capabilities', ...(modelId ? { modelId } : {}) }, signal);
 export async function downloadChatPhoto(photo: Pick<UnsplashPhoto, 'id' | 'download'>, signal?: AbortSignal): Promise<Blob> {
 	const result = await requestChatTool<{ base64: string; type: string }>({ type: 'download_image', id: photo.id, download: photo.download }, signal);
 	const bytes = Uint8Array.from(atob(result.base64), c => c.charCodeAt(0));

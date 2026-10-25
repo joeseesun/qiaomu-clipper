@@ -4,7 +4,7 @@ import type { ChatTurn } from './chat-llm';
 import type { ChatImageGeneration } from './chat-image-generation';
 
 // A question may quote a passage the reader selected in the article.
-export interface StoredTurn extends Omit<ChatTurn, 'images'> { quote?: string; imageNumbers?: number[]; generatedImages?: ChatImageGeneration[]; tools?: ChatToolResult[] }
+export interface StoredTurn extends Omit<ChatTurn, 'images'> { quote?: string; imageNumbers?: number[]; generatedImages?: ChatImageGeneration[]; tools?: ChatToolResult[]; thought?: string }
 
 export interface Conversation {
 	id: string;
@@ -40,8 +40,9 @@ export async function saveConversation(url: string, articleTitle: string, conver
 	const key = chatKey(url, preserveUrlHash);
 	const saved = (await browser.storage.local.get([key, INDEX_KEY]));
 	const article: ArticleChats = (saved[key] as ArticleChats | undefined) ?? { url, title: articleTitle, updatedAt: 0, conversations: [] };
-	const stored: Conversation = { ...conversation, messages: conversation.messages.slice(-MAX_MESSAGES).map(({ role, content, quote, imageNumbers, generatedImages, tools }) => ({
+	const stored: Conversation = { ...conversation, messages: conversation.messages.slice(-MAX_MESSAGES).map(({ role, content, quote, imageNumbers, generatedImages, tools, thought }) => ({
 		role, content, ...(tools?.length ? { tools: normalizeToolResults(tools) } : {}), ...(quote ? { quote } : {}), ...(imageNumbers?.length ? { imageNumbers } : {}),
+		...(thought ? { thought: thought.slice(0, 100000) } : {}),
 		...(generatedImages?.length ? { generatedImages: generatedImages.slice(0, 4).map(({ prompt, aspect, imageId, modelLabel, jobId, error }) => ({ prompt, aspect, ...(imageId ? { imageId } : {}), ...(modelLabel ? { modelLabel } : {}), ...(jobId ? { jobId } : {}), ...(error ? { error } : {}) })) } : {}),
 	})), updatedAt: Date.now() };
 	article.title = articleTitle;

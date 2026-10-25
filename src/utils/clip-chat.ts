@@ -414,10 +414,17 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 		const body = el('div', 'clip-chat-body');
 		if (turn.role === 'user') body.textContent = turn.content; else body.innerHTML = render(turn.content);
 		wrap.appendChild(body);
+		if (turn.thought) showThought(wrap, turn.thought);
 		if (turn.tools?.length) { const owner = conversation, source = options.getContext(); mountChatTools(wrap, turn.tools, { persist: () => saveConversation(source.url, source.title, owner, options.preserveUrlHash), followup: text => void ask(text) }); }
 		messagesEl.appendChild(wrap);
 		messagesEl.scrollTop = messagesEl.scrollHeight;
 		return wrap;
+	}
+	function showThought(wrap: HTMLElement, text: string) {
+		let details = wrap.querySelector<HTMLDetailsElement>('.qm-chat-thought');
+		if (!details) { details = el('details', 'qm-chat-thought'); details.append(el('summary', '', t('思考过程')), el('pre')); wrap.prepend(details); }
+		const pre = details.querySelector('pre')!; pre.textContent = text;
+		pre.style.cssText = 'white-space:pre-wrap;overflow-wrap:anywhere;max-height:260px;overflow:auto;font:inherit';
 	}
 
 	function addGeneratedImages(wrap: HTMLElement, turn: StoredTurn, autoRun = false) {
@@ -598,6 +605,7 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 		controller = requestController;
 		setBusy(true);
 		let answer = '';
+		let thought = '';
 		let toolResults: ChatToolResult[] = [];
 		const toolArea = el('div', 'qm-tool-results'); answerWrap.append(toolArea);
 		let failed = false;
@@ -619,6 +627,7 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 				if (prepared.failed.length) imageStatus.textContent += ` · ${t('未读取：图 {0}', [prepared.failed.join('、')])}`;
 			} else if (currentImages.length) system += '\n本次用户选择仅正文，未提供图片数据。不要声称看过图片；需要图片才能回答时请明确说明。';
 			await streamChatAgent({ model, reasoningEffort: modelEffort(model), system, sessionId: activeConversation.id, messages, signal: requestController.signal,
+				onThought: delta => { if (disposed || requestController.signal.aborted || controller !== requestController || conversation !== activeConversation) return; thought += delta; showThought(answerWrap, thought); },
 				previousTools: activeConversation.messages.flatMap(m => m.tools || []),
 				onUseImage: async photo => { await keepChatPhoto(photo, requestController.signal); },
 				onTools: results => { if (disposed || requestController.signal.aborted || controller !== requestController || conversation !== activeConversation) return; toolResults = results; toolArea.replaceChildren(); mountChatTools(toolArea, results, { persist: () => saveConversation(url, articleTitle, activeConversation, options.preserveUrlHash), followup: text => void ask(text) }); },
@@ -643,7 +652,7 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 				const parsed = parseChatImageReply(answer);
 				toolResults = normalizeToolResults(toolResults);
 				toolArea.replaceChildren(); mountChatTools(toolArea, toolResults, { persist: () => saveConversation(url, articleTitle, activeConversation, options.preserveUrlHash), followup: text => void ask(text) });
-				const reply: StoredTurn = { role: 'assistant', content: failed ? body.textContent || parsed.text : parsed.text, ...(toolResults.length ? { tools: toolResults } : {}), ...(parsed.images.length ? { generatedImages: parsed.images } : {}) };
+				const reply: StoredTurn = { role: 'assistant', content: failed ? body.textContent || parsed.text : parsed.text, ...(thought ? { thought } : {}), ...(toolResults.length ? { tools: toolResults } : {}), ...(parsed.images.length ? { generatedImages: parsed.images } : {}) };
 				conversation.messages.push(reply);
 				body.classList.remove('is-thinking');
 				body.innerHTML = render(reply.content);

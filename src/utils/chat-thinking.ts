@@ -1,4 +1,5 @@
 import type { ModelConfig, Provider } from '../types/types';
+import { tokenPlanProfile } from './token-plan';
 
 // How strongly a model thinks before it answers. Vendors disagree on the switch, so each wire format gets its own field.
 // The rules follow Qiaomu Agent's thinking.ts, expressed for plain fetch bodies.
@@ -16,7 +17,9 @@ export const normalizeModelId = (model: string) => model.trim().toLowerCase().re
 export const knownToThink = (model: string) => FAMILIES.some(pattern => pattern.test(normalizeModelId(model)));
 
 // The levels worth offering: what the model's settings list, else the usual three for models known to think, else none.
-export function effortOptions(model: Pick<ModelConfig, 'providerModelId' | 'reasoningEfforts'>): string[] {
+export function effortOptions(model: Pick<ModelConfig, 'providerModelId' | 'reasoningEfforts'>, provider?: Pick<Provider, 'baseUrl'>): string[] {
+	const native = tokenPlanProfile(provider, model.providerModelId);
+	if (native) return native.efforts;
 	if (model.reasoningEfforts?.length) return model.reasoningEfforts;
 	return knownToThink(model.providerModelId) ? [...EFFORTS] : [];
 }

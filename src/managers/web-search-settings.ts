@@ -38,7 +38,7 @@ export async function openWebSearchSettings(onSaved?: () => void): Promise<void>
 			if (alive) { close(); onSaved?.(); }
 		}).catch(error => { if (alive) status.textContent = searchFailure(error); }).finally(() => { if (alive) save.disabled = service.disabled = remove.disabled = key.disabled = false; });
 	};
-	dialog.append(h('h2', { text: t('联网搜索') }), h('label', {}, t('搜索服务'), service), note, h('label', {}, 'API Key', key), link,
+	dialog.append(h('h2', { text: t('联网搜索') }), h('p', { text: t('支持原生工具的 Token Plan 模型直接使用已配置的模型密钥，无需在这里填写搜索密钥。聊天中的联网开关同时控制原生搜索、抓取和搜图。') }), h('label', {}, t('搜索服务'), service), note, h('label', {}, 'API Key', key), link,
 		h('label', { class: 'qm-search-enabled' }, enabled, t('需要时自动搜索')), status, h('footer', {}, remove, cancel, save));
 	document.body.append(dialog); dialog.showModal(); key.focus();
 }
@@ -46,6 +46,7 @@ export async function initializeWebSearchSettings(): Promise<void> {
 	const root = document.getElementById('web-search-home'); if (!root) return;
 	const config = await loadWebSearch();
 	root.replaceChildren();
+	root.append(h('p', { text: t('支持原生工具的 Token Plan 模型直接使用已配置的模型密钥，无需在这里填写搜索密钥。聊天中的联网开关同时控制原生搜索、抓取和搜图。') }));
 	const connected = Object.entries(config.keys).filter(([, key]) => key).map(([id]) => `${id === 'deepseek' ? 'DeepSeek Search' : 'Brave Search'}${id === config.provider ? ` (${t('默认')})` : ''}`).join(' · ');
 	root.append(h('p', { text: connected || t('连接搜索服务，让助手查找最新资料并提供来源。') }),
 		h('button', { type: 'button', text: t('配置搜索服务'), onclick: () => void openWebSearchSettings(() => void initializeWebSearchSettings()) }));

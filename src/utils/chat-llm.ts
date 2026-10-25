@@ -4,6 +4,10 @@ import { freshOAuth, responsesRequest, responsesText } from './oauth/accounts';
 import browser from './browser-polyfill';
 import type { ModelConfig, Provider } from '../types/types';
 import { thinkingFields, thoughtFromLine, validEffort } from './chat-thinking';
+import { tokenPlanEndpoint, tokenPlanProfile, tokenPlanTools } from './token-plan';
+import { readTokenPlanStream } from './token-plan-stream';
+import { normalizeNativeResult, type ChatToolResult } from './chat-tools-types';
+import { loadWebSearch } from './web-search';
 
 import { t } from './ui-text';
 import { opencodeHeaders, supportsOpenCodeGoChat } from './opencode-go';
@@ -22,6 +26,8 @@ interface StreamOptions {
 	onDelta: (text: string) => void;
 	// The model's reasoning text, for services that stream it.
 	onThought?: (text: string) => void;
+	nativeTools?: boolean;
+	onNativeTools?: (tools: ChatToolResult[]) => void;
 }
 
 type Kind = 'anthropic' | 'gemini' | 'ollama' | 'openai' | 'responses';
@@ -130,35 +136,47 @@ function streamViaBackground(options: StreamOptions): Promise<string> {
 		};
 		const abort = () => finish(new DOMException('Aborted', 'AbortError'));
 		port.onMessage.addListener(raw => {
-			const message = raw as { delta?: string; thought?: string; error?: string; done?: boolean };
+			const message = raw as { delta?: string; thought?: string; nativeTools?: unknown[]; error?: string; done?: boolean };
 			if (typeof message.delta === 'string') { answer += message.delta; options.onDelta(message.delta); }
 			if (typeof message.thought === 'string') options.onThought?.(message.thought);
+			if (Array.isArray(message.nativeTools)) options.onNativeTools?.(message.nativeTools.flatMap(item => { const result = normalizeNativeResult(item); return result ? [result] : []; }));
 			if (message.error) finish(new Error(message.error));
 			else if (message.done) finish();
 		});
 		port.onDisconnect.addListener(() => finish(new Error(t('AI 连接已中断，请重试'))));
 		if (options.signal?.aborted) { abort(); return; }
 		options.signal?.addEventListener('abort', abort, { once: true });
-		port.postMessage({ modelId: options.model.id, system: options.system, messages: options.messages, ...(options.sessionId !== undefined ? { sessionId: options.sessionId } : {}), ...(options.reasoningEffort ? { reasoningEffort: options.reasoningEffort } : {}) });
+		port.postMessage({ modelId: options.model.id, system: options.system, messages: options.messages, ...(options.sessionId !== undefined ? { sessionId: options.sessionId } : {}), ...(options.reasoningEffort ? { reasoningEffort: options.reasoningEffort } : {}), ...(options.nativeTools ? { nativeTools: true } : {}) });
 	});
 }
 
-export async function streamChat({ model: chosen, system, messages, signal, onDelta, onThought, sessionId, reasoningEffort }: StreamOptions): Promise<string> {
+export async function streamChat({ model: chosen, system, messages, signal, onDelta, onThought, sessionId, reasoningEffort, nativeTools, onNativeTools }: StreamOptions): Promise<string> {
 	const effort = validEffort(reasoningEffort);
 	// For account (OAuth) models the level travels on the model itself.
 	const model: ModelConfig = effort ? { ...chosen, reasoningEffort: effort, reasoningEfforts: Array.from(new Set([...(chosen.reasoningEfforts ?? []), effort])) } : chosen;
 	if (!validChatTurns(messages)) throw new Error(t('图片数量或大小超出限制，请减少所选图片后重试。'));
 	if (typeof location !== 'undefined' && /^https?:$/.test(location.protocol)) {
-		return streamViaBackground({ model: chosen, system, messages, signal, onDelta, onThought, sessionId, reasoningEffort: effort });
+		return streamViaBackground({ model: chosen, system, messages, signal, onDelta, onThought, sessionId, reasoningEffort: effort, nativeTools, onNativeTools });
 	}
 	const provider = generalSettings.providers.find(p => p.id === model.providerId);
 	if (!provider) throw new Error(`Provider not found for model ${model.name}`);
 	if (!provider.oauth && provider.apiKeyRequired && !provider.apiKey) throw new Error(`API key is not set for provider ${provider.name}`);
 
 	if (!provider.oauth && !supportsOpenCodeGoChat(provider.baseUrl, model.providerModelId)) throw new Error(t('此 OpenCode Go 模型或端点尚不支持，请从聊天模型列表中选择。'));
-	const { url, init } = provider.oauth
+	const native = nativeTools && !provider.oauth ? tokenPlanProfile(provider, model.providerModelId) : undefined;
+	let { url, init } = provider.oauth
 		? responsesRequest(await freshOAuth(provider, () => saveSettings()), model, system, messages)
 		: buildRequest(provider, model, system, messages, sessionId, effort);
+	if (native) {
+		if (!native.vision && messages.some(m => m.images?.length)) throw new Error(t('当前模型不支持看图，请选择支持图片的模型。'));
+		const web = await loadWebSearch();
+		url = tokenPlanEndpoint(provider)!;
+		init = { method: 'POST', credentials: 'omit', redirect: 'error', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${provider.apiKey}` }, body: JSON.stringify({
+			model: model.providerModelId, instructions: system, input: messages.map(m => ({ role: m.role, content: responsesContent(m) })),
+			stream: true, store: false, tools: tokenPlanTools(native, web.enabled, messages.some(m => m.images?.length)),
+			...(effort ? { reasoning: { effort } } : {}),
+		}) };
+	}
 	const response = await fetch(url, { ...init, signal });
 	if (!response.ok) {
 		const text = (await response.text()).slice(0, 300);
@@ -167,6 +185,7 @@ export async function streamChat({ model: chosen, system, messages, signal, onDe
 		throw new Error(`${provider.name} ${response.status}: ${text}`);
 	}
 	if (!response.body) throw new Error('The provider returned an empty response.');
+	if (native) return readTokenPlanStream(response, { onDelta, onThought, onTools: onNativeTools }, signal);
 
 	const kind = kindOf(provider);
 	const reader = response.body.getReader();

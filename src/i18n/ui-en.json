@@ -1426,5 +1426,18 @@
  "视频简介": "Video description",
  "字幕下载格式": "Subtitle download format",
  "点字幕条上的下载图标时保存的格式。选定一种后一键下载，想换格式时在图标上点右键。": "The format saved when you click the download icon on the subtitle bar. Pick one to download in a single click; right-click the icon to choose another format.",
- "每次选择（默认）": "Ask each time (default)"
+ "每次选择（默认）": "Ask each time (default)",
+ "当前模型不支持看图，请选择支持图片的模型。": "This model cannot read images. Choose a vision model.",
+ "运行 Python": "Run Python",
+ "文字搜图": "Image search",
+ "以图搜图": "Reverse image search",
+ "正在执行…": "Running…",
+ "工具执行已中断": "Tool run interrupted",
+ "工具执行失败": "Tool run failed",
+ "请重试刚才未完成的工具操作。": "Please retry the unfinished tool operation.",
+ "执行代码": "Executed code",
+ "执行结果": "Execution result",
+ "网页内容": "Page content",
+ "思考过程": "Reasoning",
+ "支持原生工具的 Token Plan 模型直接使用已配置的模型密钥，无需在这里填写搜索密钥。聊天中的联网开关同时控制原生搜索、抓取和搜图。": "Token Plan models with built-in tools use the configured model key. No search key is needed here. The chat web toggle controls native search, page extraction and image search."
 }

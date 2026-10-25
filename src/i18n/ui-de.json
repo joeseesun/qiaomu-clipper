@@ -1426,5 +1426,18 @@
  "视频简介": "Videobeschreibung",
  "字幕下载格式": "Format für den Untertitel-Download",
  "点字幕条上的下载图标时保存的格式。选定一种后一键下载，想换格式时在图标上点右键。": "Das Format, das beim Klick auf das Download-Symbol der Untertitelleiste gespeichert wird. Mit einer festen Wahl lädt ein Klick sofort herunter; per Rechtsklick auf das Symbol wählst du ein anderes Format.",
- "每次选择（默认）": "Jedes Mal fragen (Standard)"
+ "每次选择（默认）": "Jedes Mal fragen (Standard)",
+ "当前模型不支持看图，请选择支持图片的模型。": "Dieses Modell unterstützt keine Bilder. Wählen Sie ein Bildmodell.",
+ "运行 Python": "Python ausführen",
+ "文字搜图": "Bildsuche per Text",
+ "以图搜图": "Suche per Bild",
+ "正在执行…": "Wird ausgeführt…",
+ "工具执行已中断": "Werkzeugausführung unterbrochen",
+ "工具执行失败": "Werkzeugausführung fehlgeschlagen",
+ "请重试刚才未完成的工具操作。": "Bitte den unvollständigen Werkzeugvorgang wiederholen.",
+ "执行代码": "Ausgeführter Code",
+ "执行结果": "Ausführungsergebnis",
+ "网页内容": "Seiteninhalt",
+ "思考过程": "Denkprozess",
+ "支持原生工具的 Token Plan 模型直接使用已配置的模型密钥，无需在这里填写搜索密钥。聊天中的联网开关同时控制原生搜索、抓取和搜图。": "Token-Plan-Modelle mit integrierten Werkzeugen nutzen den eingerichteten Modellschlüssel. Ein Suchschlüssel ist hier nicht nötig. Der Webschalter im Chat steuert Suche, Seitenabruf und Bildsuche."
 }
