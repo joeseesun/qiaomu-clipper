@@ -18,6 +18,7 @@ const flush = async () => { for (let i = 0; i < 40; i++) await Promise.resolve()
 let request: Parameters<typeof streamChatAgent>[0];
 let finish: () => void, fail: (error: Error) => void;
 let resize: () => void;
+let resizeObservers: Array<() => void>;
 let disconnect: ReturnType<typeof vi.fn>;
 let frames: Map<number, FrameRequestCallback>;
 const paint = () => { const pending = [...frames.values()]; frames.clear(); pending.forEach(callback => callback(0)); };
@@ -29,9 +30,12 @@ beforeEach(() => {
 	vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => { frames.set(++frameId, callback); return frameId; });
 	vi.stubGlobal('cancelAnimationFrame', (id: number) => frames.delete(id));
 	disconnect = vi.fn();
+	resizeObservers = [];
+	resize = () => resizeObservers.forEach(callback => callback());
 	vi.stubGlobal('ResizeObserver', class {
-		constructor(callback: () => void) { resize = callback; }
+		constructor(callback: () => void) { resizeObservers.push(callback); }
 		observe = vi.fn();
+		unobserve = vi.fn();
 		disconnect = disconnect;
 	});
 	state.stream.mockImplementation((options: typeof request) => {
@@ -126,6 +130,6 @@ it('updates the button for asynchronously growing content and viewport resizing,
 	expect(ui.viewport.scrollTop).toBe(0);
 	ui.resizeViewport(5000); expect(ui.button.hidden).toBe(true);
 	expect(ui.writes).not.toHaveBeenCalled();
-	ui.chat.destroy(); expect(disconnect).toHaveBeenCalledTimes(1);
+	ui.chat.destroy(); expect(disconnect).toHaveBeenCalledTimes(resizeObservers.length);
 	expect(document.querySelector('.clip-chat-jump-bottom')).toBeNull();
 });
