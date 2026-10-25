@@ -80,11 +80,15 @@ export async function saveConversation(url: string, articleTitle: string, conver
 		const index = ((saved[INDEX_KEY] as { key: string; updatedAt: number }[] | undefined) ?? []).filter(item => item.key !== key);
 		index.unshift({ key, updatedAt: article.updatedAt });
 		const dropped = index.splice(MAX_ARTICLES);
-		const droppedArticles = dropped.length ? await browser.storage.local.get(dropped.map(item => item.key)) : {};
 		await browser.storage.local.set({ [key]: article, [INDEX_KEY]: index });
-		if (dropped.length) await browser.storage.local.remove(dropped.map(item => item.key));
+		if (dropped.length) {
+			const keys = dropped.map(item => item.key);
+			const droppedArticles = await browser.storage.local.get(keys);
+			await browser.storage.local.remove(keys);
+			await deleteChatAttachments(Object.values(droppedArticles).flatMap(item => attachmentIds(item as ArticleChats)));
+		}
 		const retained = new Set(attachmentIds(article));
-		await deleteChatAttachments([...previousAttachments.filter(id => !retained.has(id)), ...Object.values(droppedArticles).flatMap(item => attachmentIds(item as ArticleChats))]);
+		await deleteChatAttachments(previousAttachments.filter(id => !retained.has(id)));
 	});
 }
 
