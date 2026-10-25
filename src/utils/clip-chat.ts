@@ -5,6 +5,7 @@ import { openImageLibrary } from './image-jobs';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import { createElement, ImagePlus, WandSparkles, X, Plus, Copy, Send, Square, FilePlus2, History, Quote, Trash2, Highlighter, Settings2, Pencil, NotebookPen } from 'lucide';
+import { ArrowDown } from 'lucide';
 import browser from './browser-polyfill';
 import { getMessage } from './i18n';
 import { getLocalStorage, setLocalStorage, generalSettings } from './storage-utils';
@@ -113,8 +114,28 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 	const imageSession = new ChatImageSession();
 	const generatedImages = new ChatImageGenerationView();
 	let currentImages: ArticleImage[] = [], imageKey = '', selectedImages: Set<string> | null = null;
+	const messageArea = el('div', 'clip-chat-message-area');
 	const messagesEl = el('div', 'clip-chat-messages');
 	messagesEl.setAttribute('aria-live', 'polite');
+	const messageList = el('div', 'clip-chat-message-list');
+	const jumpToBottom = iconButton('clip-chat-jump-bottom', ArrowDown, t('回到底部'));
+	jumpToBottom.hidden = true;
+	messagesEl.appendChild(messageList);
+	messageArea.append(messagesEl, jumpToBottom);
+	const updateScrollButton = () => {
+		jumpToBottom.hidden = messagesEl.clientHeight === 0 || messagesEl.scrollHeight - messagesEl.clientHeight - messagesEl.scrollTop <= 2;
+	};
+	const scrollToBottom = () => {
+		messagesEl.scrollTop = messagesEl.scrollHeight;
+		updateScrollButton();
+	};
+	jumpToBottom.addEventListener('click', scrollToBottom, { signal: lifetime.signal });
+	messagesEl.addEventListener('scroll', updateScrollButton, { passive: true, signal: lifetime.signal });
+	// Observe the content as well as the viewport: streamed text, tools and loaded
+	// images can grow without resizing the viewport. Never scroll in response.
+	const scrollObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(updateScrollButton);
+	scrollObserver?.observe(messageList);
+	scrollObserver?.observe(messagesEl);
 	const suggestions = el('div', 'clip-chat-suggestions');
 
 	const quoteBar = el('div', 'clip-chat-quote');
@@ -151,7 +172,7 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 	const resizer = el('div', 'clip-chat-resize');
 	resizer.setAttribute('role', 'separator');
 	resizer.setAttribute('aria-orientation', 'vertical');
-	panel.append(resizer, header, picker.popover, historyList, messagesEl, suggestions, composer);
+	panel.append(resizer, header, picker.popover, historyList, messageArea, suggestions, composer);
 	document.body.appendChild(panel);
 
 	let preferences = normalizeChatPreferences(null);
@@ -415,8 +436,7 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 		if (turn.role === 'user') body.textContent = turn.content; else body.innerHTML = render(turn.content);
 		wrap.appendChild(body);
 		if (turn.tools?.length) { const owner = conversation, source = options.getContext(); mountChatTools(wrap, turn.tools, { persist: () => saveConversation(source.url, source.title, owner, options.preserveUrlHash), followup: text => void ask(text) }); }
-		messagesEl.appendChild(wrap);
-		messagesEl.scrollTop = messagesEl.scrollHeight;
+		messageList.appendChild(wrap);
 		return wrap;
 	}
 
@@ -525,7 +545,7 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 	// Rebuild the message list from the current conversation (also used when restoring history).
 	function renderConversation() {
 		generatedImages.clear();
-		messagesEl.replaceChildren();
+		messageList.replaceChildren();
 		suggestions.replaceChildren();
 		const models = enabledChatModels();
 		if (!models.length) {
@@ -535,7 +555,7 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 			open.type = 'button';
 			open.addEventListener('click', () => { void browser.tabs.create({ url: browser.runtime.getURL('settings.html?section=interpreter') }); });
 			empty.appendChild(open);
-			messagesEl.appendChild(empty);
+			messageList.appendChild(empty);
 			input.disabled = true; send.disabled = true;
 			return;
 		}
@@ -545,7 +565,9 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 			if (turn.role === 'assistant') { addActions(wrap, turn.content); addGeneratedImages(wrap, turn); }
 		}
 		if (!conversation.messages.length) renderSuggestions();
-		messagesEl.scrollTop = messagesEl.scrollHeight;
+		// Opening a saved conversation starts at its latest messages. Sending and
+		// streaming within it leave the reader's position alone.
+		scrollToBottom();
 	}
 
 	async function populateModels() {
@@ -601,7 +623,7 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 		let toolResults: ChatToolResult[] = [];
 		const toolArea = el('div', 'qm-tool-results'); answerWrap.append(toolArea);
 		let failed = false;
-		const paint = () => { pendingPaint = 0; if (disposed) return; body.classList.remove('is-thinking'); body.innerHTML = render(parseChatImageReply(answer).text); messagesEl.scrollTop = messagesEl.scrollHeight; };
+		const paint = () => { pendingPaint = 0; if (disposed) return; body.classList.remove('is-thinking'); body.innerHTML = render(parseChatImageReply(answer).text); };
 		try {
 			const imageStore = await loadImageModels();
 			if (requestController.signal.aborted) throw new DOMException('Aborted', 'AbortError');
@@ -653,8 +675,7 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 			persist();
 			controller = null;
 			setBusy(false);
-			messagesEl.scrollTop = messagesEl.scrollHeight;
-			input.focus();
+			if (document.activeElement === send) input.focus({ preventScroll: true });
 		}
 	}
 
@@ -758,6 +779,7 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 		imageSession.clear();
 		picker.close();
 		lifetime.abort();
+		scrollObserver?.disconnect();
 		browser.storage.onChanged.removeListener(onPreferencesChanged);
 		removeSelectionPill();
 		panel.remove();
