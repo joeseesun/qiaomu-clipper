@@ -2,6 +2,7 @@
 @use 'chat-tools';
 @use 'image-library';
 @use 'chat-generated-images';
+@use 'chat-turn-navigation';
 // AI chat panel next to the article (reading and editing pages).
 :root { --clip-chat-width: 400px; }
 .clip-chat {
