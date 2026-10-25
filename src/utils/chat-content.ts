@@ -1,4 +1,5 @@
-// Images are request-scoped. Never persist these bytes in conversation history.
+// Images are request-scoped. History keeps only attachment IDs; image bytes live
+// in the extension's separate attachment store and are hydrated for requests.
 export interface ChatImage { dataUrl: string; label: string }
 export interface ChatTurn { role: 'user' | 'assistant'; content: string; images?: ChatImage[] }
 export const MAX_CHAT_IMAGE_PARTS = 32;

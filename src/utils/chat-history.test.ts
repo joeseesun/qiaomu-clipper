@@ -1,4 +1,6 @@
-import { beforeEach, expect, it, vi } from 'vitest';
+import { beforeEach, afterEach, expect, it, vi } from 'vitest';
+import { IDBFactory } from 'fake-indexeddb';
+import { saveChatAttachments, readChatAttachmentPreview, type ChatAttachment } from './chat-attachments';
 
 const store: Record<string, unknown> = {};
 vi.mock('./browser-polyfill', () => ({
@@ -9,10 +11,11 @@ vi.mock('./browser-polyfill', () => ({
 	} } },
 }));
 
-import { chatKey, loadConversations, saveConversation, deleteConversation, MAX_ARTICLES, MAX_CONVERSATIONS } from './chat-history';
+import { chatKey, loadConversations, saveConversation, deleteConversation, MAX_ARTICLES, MAX_CONVERSATIONS, MAX_MESSAGES } from './chat-history';
 
 const conversation = (id: string, text = 'hi') => ({ id, title: text, updatedAt: 0, messages: [{ role: 'user' as const, content: text, quote: 'passage' }] });
-beforeEach(() => { for (const key of Object.keys(store)) delete store[key]; });
+beforeEach(() => { for (const key of Object.keys(store)) delete store[key]; vi.stubGlobal('indexedDB', new IDBFactory()); });
+afterEach(() => vi.unstubAllGlobals());
 
 it('restores conversations per article, newest first, ignoring the URL fragment', async () => {
 	await saveConversation('https://a.com/post#top', 'A', conversation('1'));
@@ -58,4 +61,30 @@ it('isolates original-page sidebar history across hash routes, including deletio
  await deleteConversation('https://example.com/#/a', 'a', true);
  expect(await loadConversations('https://example.com/#/a', true)).toEqual([]);
  expect((await loadConversations('https://example.com/#/b', true)).map(c => c.id)).toEqual(['b']);
+});
+
+const attachment = (): ChatAttachment => ({ id: `chat-image-${crypto.randomUUID()}`, name: 'screen.png', images: [{ label: 'Image', dataUrl: 'data:image/png;base64,YQ==' }], thumbnail: 'data:image/png;base64,YQ==' });
+const withAttachment = (id: string, image: ChatAttachment) => ({ ...conversation(id), messages: [{ role: 'user' as const, content: 'Read this', attachments: [image] }] });
+
+it('stores only attachment references and deletes image data only after its last retained reference is deleted', async () => {
+	const image = attachment(); await saveChatAttachments([image]);
+	await saveConversation('https://a.com/', 'A', withAttachment('one', image));
+	await saveConversation('https://a.com/', 'A', withAttachment('two', image));
+	expect(JSON.stringify(store)).not.toContain('base64');
+	expect((await loadConversations('https://a.com/'))[0].messages[0].attachments).toEqual([{ id: image.id, name: image.name }]);
+	await deleteConversation('https://a.com/', 'one'); expect(await readChatAttachmentPreview(image.id)).toBe(image.thumbnail);
+	await deleteConversation('https://a.com/', 'two'); expect(await readChatAttachmentPreview(image.id)).toBeUndefined();
+});
+
+it('cleans attachments removed by message, conversation and article retention limits', async () => {
+	const a = attachment(), b = attachment(), c = attachment(); await saveChatAttachments([a, b, c]);
+	const chat = withAttachment('messages', a); await saveConversation('https://messages.test/', 'M', chat);
+	await saveConversation('https://messages.test/', 'M', { ...chat, messages: [...chat.messages, ...Array.from({ length: MAX_MESSAGES }, () => ({ role: 'user' as const, content: 'next' }))] });
+	expect(await readChatAttachmentPreview(a.id)).toBeUndefined();
+	await saveConversation('https://conversations.test/', 'C', withAttachment('first', b));
+	for (let i = 0; i < MAX_CONVERSATIONS; i++) await saveConversation('https://conversations.test/', 'C', conversation(String(i)));
+	expect(await readChatAttachmentPreview(b.id)).toBeUndefined();
+	await saveConversation('https://old-article.test/', 'Old', withAttachment('first', c));
+	for (let i = 0; i < MAX_ARTICLES; i++) await saveConversation(`https://new${i}.test/`, 'New', conversation('one'));
+	expect(await readChatAttachmentPreview(c.id)).toBeUndefined();
 });
