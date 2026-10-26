@@ -57,7 +57,7 @@ function checkProject(root) {
  if (config.error) throw new Error(ts.flattenDiagnosticMessageText(config.error.messageText, '\n'));
  const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, root);
  const program = ts.createProgram(parsed.fileNames, parsed.options);
- const result = checkInjectedFunctions(program, f => f.fileName.startsWith(path.join(root, 'src') + path.sep) && !f.fileName.endsWith('.test.ts'));
+ const result = checkInjectedFunctions(program, f => path.resolve(f.fileName).startsWith(path.join(root, 'src') + path.sep) && !f.fileName.endsWith('.test.ts'));
  if (!result.checked) throw new Error('No injected functions checked.');
  for (const f of result.findings) console.error(`${path.relative(root, f.file)}:${f.line}: ${f.message}`);
  if (result.findings.length) throw new Error(`${result.findings.length} unsafe injected-function references.`);
