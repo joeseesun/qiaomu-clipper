@@ -2,6 +2,13 @@
   "schema": 1,
   "features": [
     {
+      "id": "douyin-private-message-layout",
+      "title": "抖音学习条避让私信面板，关闭私信后自动恢复",
+      "origin": "fix/douyin-direct-message-toolbar",
+      "files": ["src/utils/web-bar-placement.ts"],
+      "tests": ["src/utils/web-bar-placement.test.ts", "src/web-content.test.ts"]
+    },
+    {
       "id": "bilibili-picture-playback",
       "title": "B 站内嵌画面点击播放暂停与画质限制说明",
       "origin": "fix/bilibili-embed-playback-quality",

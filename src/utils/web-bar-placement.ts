@@ -49,6 +49,15 @@ function topRightLayer(host: HTMLElement, doc: Document): DOMRect | undefined {
 export function placeWebBar(host: HTMLElement, media: WebMedia | undefined, site: string): void {
 	const doc = host.ownerDocument, win = doc.defaultView!;
 	const video = media?.getBoundingClientRect();
+	if (site === 'douyin' && Array.from(doc.querySelectorAll<HTMLElement>('#imSaasContainerId, #im-entry-vmok-popup-portal')).some(panel => {
+		const r = panel.getBoundingClientRect();
+		return r.width > 0 && r.height > 0 && r.left < win.innerWidth && r.right > 0 && r.top < win.innerHeight && r.bottom > 0 && win.getComputedStyle(panel).visibility !== 'hidden';
+	})) {
+		// A study strip must not become a flex child of private messages or cover its controls.
+		if (host.parentElement !== doc.body) doc.body.append(host);
+		host.style.cssText = 'display:none!important';
+		return;
+	}
 	if (site === 'xiaohongshu') {
 		const scroller = media?.closest('#noteContainer')?.querySelector('.note-scroller');
 		const content = scroller?.querySelector('.note-content');
@@ -70,20 +79,6 @@ export function placeWebBar(host: HTMLElement, media: WebMedia | undefined, site
 			return;
 		}
 	}
-	if (site === 'douyin' && video && typeof doc.elementFromPoint === 'function') {
-		// The column beside the player: the strip goes first in it, where it is seen without scrolling.
-		let node = doc.elementFromPoint(video.right + 60, video.top + 60);
-		if (node && host.contains(node)) return;
-		while (node && node !== doc.body) {
-			const parent = node.parentElement, r = parent?.getBoundingClientRect();
-			if (parent && r && r.left >= video.right - 4 && r.width >= 250 && r.width <= 440 && r.height >= 300 && parent.children.length >= 2) {
-				host.classList.add('is-inline'); host.style.cssText = '';
-				if (parent.firstElementChild !== host) parent.insertBefore(host, parent.firstElementChild);
-				return;
-			}
-			node = parent;
-		}
-	}
 	if (site === 'douyin' && video) {
 		const heading = Array.from(doc.querySelectorAll<HTMLElement>('h2,h3,div,p,span')).find(e => {
 			if (e.children.length || e.textContent?.trim() !== '推荐视频') return false;
@@ -94,6 +89,7 @@ export function placeWebBar(host: HTMLElement, media: WebMedia | undefined, site
 		while (module && module !== doc.body) {
 			const r = module.getBoundingClientRect();
 			if (r.left >= video.right && r.width >= 250 && r.width <= 440 && r.height > 60) {
+				host.classList.remove('is-floating', 'is-compact');
 				host.classList.add('is-inline'); host.style.cssText = '';
 				if (host.nextElementSibling !== module) module.before(host);
 				return;
@@ -102,7 +98,7 @@ export function placeWebBar(host: HTMLElement, media: WebMedia | undefined, site
 		}
 	}
 	host.classList.remove('is-inline', 'is-floating', 'is-compact');
-	if (!host.isConnected) doc.body.append(host);
+	if (host.parentElement !== doc.body) doc.body.append(host);
 	if (site === 'douyin' && video && video.width >= win.innerWidth - 8) {
 		// The 精选 / feed pop-up draws the player across the whole window, in a fixed layer (z-index ~500) that covers anything
 		// placed at the usual z-index. There is no column beside it: float the strip on the search row, left of the like / comment rail (about 64px wide),
