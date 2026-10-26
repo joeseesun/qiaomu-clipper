@@ -1,0 +1,77 @@
+{
+  "browser": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+  "scope": "daily Chrome; isolated verification databases; mocked chrome.storage; production deletion and history-view modules",
+  "automatedChecks": [
+    {
+      "name": "单条删除清除正文和摘要",
+      "passed": true
+    },
+    {
+      "name": "独占图片及缩略图已删除，共用图片保留",
+      "passed": true
+    },
+    {
+      "name": "独立图库、任务和文件夹均保留，仅孤立图片删除",
+      "passed": true
+    },
+    {
+      "name": "清空失败保留待清理任务，没有伪报完成",
+      "passed": true
+    },
+    {
+      "name": "重试保留失败后新建的对话及其图片",
+      "passed": true
+    },
+    {
+      "name": "清空全部历史及闲置附件，图库仍保留",
+      "passed": true
+    }
+  ],
+  "afterManualFailure": {
+    "conversations": [],
+    "pending": 1,
+    "uploads": [
+      "chat-image-00000000-0000-0000-0000-000000000002"
+    ],
+    "previews": [
+      "chat-image-00000000-0000-0000-0000-000000000002"
+    ],
+    "galleryImages": [
+      "job",
+      "library"
+    ],
+    "galleryEntries": [
+      "library"
+    ],
+    "jobs": [
+      "generation"
+    ],
+    "folders": [
+      "existing"
+    ]
+  },
+  "afterReopenAndManualRetry": {
+    "conversations": [],
+    "pending": 0,
+    "uploads": [],
+    "previews": [],
+    "galleryImages": [
+      "job",
+      "library"
+    ],
+    "galleryEntries": [
+      "library"
+    ],
+    "jobs": [
+      "generation"
+    ],
+    "folders": [
+      "existing"
+    ]
+  },
+  "actualInstalledUI": {
+    "clearConfirmationVisible": true,
+    "cancelVerified": true,
+    "realUserHistoryDeletionConfirmed": false
+  }
+}

@@ -4,7 +4,8 @@ import { IDBFactory } from 'fake-indexeddb';
 const state = vi.hoisted(() => ({ store: {} as Record<string, unknown>, get: vi.fn() }));
 vi.mock('./browser-polyfill', () => ({ default: { storage: { local: {
  get: (...args: unknown[]) => state.get(...args),
- remove: async (keys: string[]) => keys.forEach(k => delete state.store[k]),
+ remove: async (keys: string | string[]) => (Array.isArray(keys) ? keys : [keys]).forEach(k => delete state.store[k]),
+ set: async (values: Record<string, unknown>) => Object.assign(state.store, values),
 } } } }));
 import { chatKey, loadConversations, saveConversation, deleteConversation, listChatHistory, readConversation, type Conversation } from './chat-history';
 const chat = (id: string, title = 'Question'): Conversation => ({ id, title, updatedAt: 0, messages: [{ role: 'user', content: title, quote: 'selected passage' }, { role: 'assistant', content: 'Answer' }] });
@@ -32,7 +33,8 @@ it('migrates legacy pages once, retaining links and messages and removing duplic
  expect(state.store).toEqual({ qiaomuChatModel: 'model-not-history' });
  await deleteConversation('https://old.test/#/route', 'old', true);
  state.store[key] = { url: 'https://old.test/#/route', conversations: [old] };
- expect((await listChatHistory()).items).toEqual([]); expect(state.get).toHaveBeenCalledTimes(1);
+ const reads = state.get.mock.calls.length;
+ expect((await listChatHistory()).items).toEqual([]); expect(state.get).toHaveBeenCalledTimes(reads);
 });
 it('pages tied timestamps without duplicates and searches titles, pages and URLs', async () => {
  vi.spyOn(Date, 'now').mockReturnValue(1234);

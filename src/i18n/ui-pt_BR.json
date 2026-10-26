@@ -1443,5 +1443,13 @@
  "请关闭其他 AI 对话窗口后重试。": "Feche as outras janelas de conversa com IA e tente novamente.",
  "还没有对话记录": "Ainda não há conversas",
  "这段对话已删除，请刷新历史记录。": "Esta conversa foi excluída. Atualize o histórico.",
- "这段对话已在其他窗口更新或删除，请从历史记录重新打开。": "Esta conversa foi atualizada ou excluída em outra janela. Abra-a novamente pelo histórico."
+ "这段对话已在其他窗口更新或删除，请从历史记录重新打开。": "Esta conversa foi atualizada ou excluída em outra janela. Abra-a novamente pelo histórico.",
+ "清空历史": "Limpar histórico",
+ "重试清理": "Tentar limpeza novamente",
+ "有待完成的数据清理": "Há dados pendentes de limpeza",
+ "部分数据尚未清理完成。关闭窗口后仍可在这里重试。": "Não foi possível limpar alguns dados. Você pode fechar esta janela e tentar novamente aqui mais tarde.",
+ "确认删除": "Confirmar exclusão",
+ "删除这段对话及不再使用的关联图片？图库素材和其他对话会保留。": "Excluir esta conversa e suas imagens que não são mais usadas? Os itens da biblioteca e as outras conversas serão mantidos.",
+ "清空所有网页的全部对话历史及不再使用的关联图片？此操作无法撤销，图库素材和设置会保留。": "Limpar o histórico de conversas de todas as páginas e suas imagens que não são mais usadas? Esta ação não pode ser desfeita. A biblioteca e as configurações serão mantidas.",
+ "对话已移除，但部分数据尚未清理完成。请点击“重试清理”。": "A conversa foi excluída, mas não foi possível limpar alguns dados. Selecione “Tentar limpeza novamente”."
 }

@@ -11,6 +11,8 @@ import { getLocalStorage, setLocalStorage, generalSettings } from './storage-uti
 import { enabledChatModels, ChatTurn } from './chat-llm';
 import { Conversation, StoredTurn, loadConversations, saveConversation, deleteConversation, type ChatHistoryItem } from './chat-history';
 import { mountChatHistoryView } from './chat-history-view';
+import { clearChatHistory } from './chat-history';
+import { watchHistoryChanges } from './chat-history-events';
 import { chatSource, chatSourceLink, chatPageKey } from './chat-source';
 import { openChatSource } from './chat-history-resume';
 import { FONT_PRESETS } from './font-utils';
@@ -745,8 +747,15 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 			const current = isCurrentHistory(item);
 			if (current) cancelRequest();
 			await deleteConversation(item.source.url, item.id, item.source.preserveUrlHash);
-			if (current && !disposed) { conversation = newConversation(); historyReadOnly = false; renderConversation(); refreshContext(); }
-		}
+		},
+		onClear: async () => { cancelRequest(); await clearChatHistory(); }
+	});
+	const unwatchHistory = watchHistoryChanges(change => {
+		if (disposed || (change.type !== 'cleared' && !(change.type === 'deleted' && conversation.id === change.id && conversation.source && chatPageKey(conversation.source.url, conversation.source.preserveUrlHash) === change.pageKey))) return;
+		// The delete has committed. Do not checkpoint or save the stale in-memory copy.
+		checkpoint = undefined; cancelRequest();
+		conversation = newConversation(); historyReadOnly = false; visibleMessageCount = 40;
+		quote = ''; refreshQuote(); renderConversation(); refreshContext();
 	});
 	resumeLink.onclick = event => {
 		event.preventDefault();
@@ -825,7 +834,7 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 		picker.close();
 		lifetime.abort();
 		previewObserver?.disconnect(); lazyPreviews.clear();
-		historyView.destroy();
+		historyView.destroy(); unwatchHistory();
 		browser.storage.onChanged.removeListener(onPreferencesChanged);
 		removeSelectionPill();
 		panel.remove();

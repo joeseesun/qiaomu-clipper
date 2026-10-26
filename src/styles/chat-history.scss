@@ -6,6 +6,9 @@
 		&[hidden] { display: none; }
 		> .clip-chat-link { margin-top: 8px; &[hidden] { display: none; } }
 	}
+	.clip-chat-history-heading > strong { margin-inline-end: auto; }
+	.clip-chat-history-cleanup { padding: 10px; margin-bottom: 8px; border: 1px solid var(--text-muted); border-radius: 6px; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; &[hidden] { display: none; } > span { display: block; margin-bottom: 6px; } }
+	.clip-chat-icon.has-cleanup { outline: 1px solid var(--text-muted); outline-offset: 1px; }
 	.clip-chat-history-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; font-size: 14px; }
 	.clip-chat-history-search {
 		width: 100%; min-width: 0; height: 34px; margin: 0 0 8px; padding: 6px 10px;

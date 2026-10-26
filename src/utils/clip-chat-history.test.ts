@@ -121,3 +121,16 @@ it('does not leave failed first questions in history and allows retry', async ()
  expect(state.stream.mock.calls[1][0].sessionId).not.toBe(failedId);
  await vi.waitFor(async () => expect((await readConversation(B, state.stream.mock.calls[1][0].sessionId))?.messages).toHaveLength(2));
 });
+it('cancels a streaming conversation deleted elsewhere without checkpointing or resurrecting it', async () => {
+ const { deleteConversation, listChatHistory } = await import('./chat-history');
+ let release!: () => void;
+ state.stream.mockImplementation(async (req: any) => { req.onText('Partial deleted answer'); await new Promise<void>(resolve => { release = resolve; }); req.onText('Late deleted answer'); });
+ await mount(B); document.querySelector<HTMLTextAreaElement>('.clip-chat-composer textarea')!.value = 'Delete during stream'; document.querySelector<HTMLFormElement>('.clip-chat-composer')!.requestSubmit();
+ await vi.waitFor(() => expect(state.stream).toHaveBeenCalledOnce()); const req = state.stream.mock.calls[0][0];
+ await deleteConversation(B, req.sessionId); expect(req.signal.aborted).toBe(true); release(); await flush();
+ expect(document.querySelector('.clip-chat-messages')!.textContent).not.toContain('deleted answer'); expect((await listChatHistory()).items).toEqual([]);
+});
+it('clear-all resets a visible read-only conversation after the committed deletion', async () => {
+ const { clearChatHistory } = await import('./chat-history'); await saveConversation(A, 'Original', saved()); await mount(); await openFirst(); await clearChatHistory();
+ expect(document.querySelector('.clip-chat-messages')!.textContent).not.toContain('Original answer'); expect(document.querySelector<HTMLFormElement>('.clip-chat-composer')!.hidden).toBe(false);
+});

@@ -1443,5 +1443,13 @@
  "请关闭其他 AI 对话窗口后重试。": "Close other AI chat windows and try again.",
  "还没有对话记录": "No conversations yet",
  "这段对话已删除，请刷新历史记录。": "This conversation was deleted. Refresh the history.",
- "这段对话已在其他窗口更新或删除，请从历史记录重新打开。": "This conversation was updated or deleted in another window. Reopen it from history."
+ "这段对话已在其他窗口更新或删除，请从历史记录重新打开。": "This conversation was updated or deleted in another window. Reopen it from history.",
+ "清空历史": "Clear history",
+ "重试清理": "Retry cleanup",
+ "有待完成的数据清理": "Data cleanup is pending",
+ "部分数据尚未清理完成。关闭窗口后仍可在这里重试。": "Some data could not be cleaned up. You can close this window and retry here later.",
+ "确认删除": "Confirm deletion",
+ "删除这段对话及不再使用的关联图片？图库素材和其他对话会保留。": "Delete this conversation and its unused images? Library assets and other conversations will be kept.",
+ "清空所有网页的全部对话历史及不再使用的关联图片？此操作无法撤销，图库素材和设置会保留。": "Clear all conversation history from every page and its unused images? This cannot be undone. Library assets and settings will be kept.",
+ "对话已移除，但部分数据尚未清理完成。请点击“重试清理”。": "The conversation was removed, but some data could not be cleaned up. Select “Retry cleanup”."
 }

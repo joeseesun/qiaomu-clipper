@@ -1443,5 +1443,13 @@
  "请关闭其他 AI 对话窗口后重试。": "Fermez les autres fenêtres de discussion IA, puis réessayez.",
  "还没有对话记录": "Aucune conversation pour le moment",
  "这段对话已删除，请刷新历史记录。": "Cette conversation a été supprimée. Actualisez l’historique.",
- "这段对话已在其他窗口更新或删除，请从历史记录重新打开。": "Cette conversation a été modifiée ou supprimée dans une autre fenêtre. Rouvrez-la depuis l’historique."
+ "这段对话已在其他窗口更新或删除，请从历史记录重新打开。": "Cette conversation a été modifiée ou supprimée dans une autre fenêtre. Rouvrez-la depuis l’historique.",
+ "清空历史": "Vider l’historique",
+ "重试清理": "Réessayer le nettoyage",
+ "有待完成的数据清理": "Des données restent à nettoyer",
+ "部分数据尚未清理完成。关闭窗口后仍可在这里重试。": "Certaines données n’ont pas pu être nettoyées. Vous pouvez fermer cette fenêtre et réessayer ici plus tard.",
+ "确认删除": "Confirmer la suppression",
+ "删除这段对话及不再使用的关联图片？图库素材和其他对话会保留。": "Supprimer cette conversation et ses images inutilisées ? Les éléments de la bibliothèque et les autres conversations seront conservés.",
+ "清空所有网页的全部对话历史及不再使用的关联图片？此操作无法撤销，图库素材和设置会保留。": "Vider l’historique des conversations de toutes les pages et leurs images inutilisées ? Cette action est irréversible. La bibliothèque et les paramètres seront conservés.",
+ "对话已移除，但部分数据尚未清理完成。请点击“重试清理”。": "La conversation a été supprimée, mais certaines données restent à nettoyer. Sélectionnez « Réessayer le nettoyage »."
 }
