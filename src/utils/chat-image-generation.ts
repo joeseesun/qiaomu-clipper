@@ -65,7 +65,18 @@ export class ChatImageGenerationView {
 	private disposers = new Set<() => void>();
 	clear(): void { for (const dispose of this.disposers) dispose(); this.disposers.clear(); }
 
-	mount(parent: HTMLElement, image: ChatImageGeneration, persist: () => Promise<void>, insert?: (blob: Blob) => Promise<void>): void {
+	mount(parent: HTMLElement, image: ChatImageGeneration, persist: () => Promise<void>, insert?: (blob: Blob) => Promise<void>, readOnly = false): void {
+		if (readOnly) {
+			const card = element('section', 'clip-chat-generated');
+			card.append(element('p', 'clip-chat-generated-prompt', image.prompt)); parent.append(card);
+			let alive = true, url = '';
+			this.disposers.add(() => { alive = false; if (url) URL.revokeObjectURL(url); });
+			if (image.imageId) void getChatImage(image.imageId).then(blob => {
+				if (!alive || !blob) return;
+				const preview = element('img'); preview.alt = image.prompt; url = URL.createObjectURL(blob); preview.src = url; card.append(preview);
+			}).catch(() => {});
+			return;
+		}
 		let alive = true, pending = false, busy = false, previewUrl = '', shownId = ''; 
 		const card = element('section', 'clip-chat-generated');
 		const prompt = element('p', 'clip-chat-generated-prompt', image.prompt);

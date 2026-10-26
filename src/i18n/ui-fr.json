@@ -1426,5 +1426,22 @@
  "视频简介": "Description de la vidéo",
  "字幕下载格式": "Format de téléchargement des sous-titres",
  "点字幕条上的下载图标时保存的格式。选定一种后一键下载，想换格式时在图标上点右键。": "Le format enregistré quand vous cliquez sur l’icône de téléchargement de la barre de sous-titres. Choisissez-en un pour télécharger d’un clic ; faites un clic droit sur l’icône pour en choisir un autre.",
- "每次选择（默认）": "Demander à chaque fois (par défaut)"
+ "每次选择（默认）": "Demander à chaque fois (par défaut)",
+ "全部对话": "Toutes les conversations",
+ "关闭历史记录": "Fermer l’historique",
+ "删除对话": "Supprimer la conversation",
+ "删除这段对话？": "Supprimer cette conversation ?",
+ "加载更早的消息": "Charger les messages précédents",
+ "历史记录加载失败。": "Impossible de charger l’historique.",
+ "历史记录未能保存，请重试。": "Impossible d’enregistrer l’historique. Réessayez.",
+ "原页面链接不可用": "Lien de la page d’origine indisponible",
+ "回到原页面咱们接着聊": "Revenir à la page d’origine pour poursuivre la discussion",
+ "搜索对话、网页或链接": "Rechercher une conversation, une page ou un lien",
+ "未命名对话": "Conversation sans titre",
+ "正在加载历史记录…": "Chargement de l’historique…",
+ "没有匹配的对话": "Aucune conversation correspondante",
+ "请关闭其他 AI 对话窗口后重试。": "Fermez les autres fenêtres de discussion IA, puis réessayez.",
+ "还没有对话记录": "Aucune conversation pour le moment",
+ "这段对话已删除，请刷新历史记录。": "Cette conversation a été supprimée. Actualisez l’historique.",
+ "这段对话已在其他窗口更新或删除，请从历史记录重新打开。": "Cette conversation a été modifiée ou supprimée dans une autre fenêtre. Rouvrez-la depuis l’historique."
 }

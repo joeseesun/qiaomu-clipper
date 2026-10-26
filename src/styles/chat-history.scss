@@ -1,0 +1,31 @@
+.clip-chat {
+	.clip-chat-history {
+		position: absolute; inset-inline: 0; top: 49px; z-index: 3;
+		max-height: min(72%, 580px); overflow-y: auto; overscroll-behavior: contain;
+		padding: 12px; background: var(--background-primary); box-shadow: 0 8px 20px rgb(0 0 0 / 12%);
+		&[hidden] { display: none; }
+		> .clip-chat-link { margin-top: 8px; &[hidden] { display: none; } }
+	}
+	.clip-chat-history-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; font-size: 14px; }
+	.clip-chat-history-search {
+		width: 100%; min-width: 0; height: 34px; margin: 0 0 8px; padding: 6px 10px;
+		border: 1px solid var(--background-modifier-border, #888); border-radius: 6px;
+		background: var(--background-primary); color: var(--text-normal); font: inherit; font-size: 13px; box-shadow: none;
+		&::placeholder { color: var(--text-muted); }
+		&:focus-visible { outline: 1px solid var(--text-muted); outline-offset: 2px; }
+	}
+	.clip-chat-history-item { display: flex; align-items: center; gap: 4px; border-radius: 6px; &:hover, &.is-current { background: var(--background-secondary, rgb(128 128 128 / 12%)); } }
+	.clip-chat-history-open { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; width: auto; height: auto; padding: 10px 6px; border: none; background: transparent; box-shadow: none; text-align: start; cursor: pointer; color: var(--text-normal); }
+	.clip-chat-history-title, .clip-chat-history-source { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	.clip-chat-history-title { font-size: 13px; font-weight: 500; }
+	.clip-chat-history-source { font-size: 12px; color: var(--text-muted); }
+	.clip-chat-history-time { font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+	.clip-chat-history-status { display: block; padding-block: 6px; color: var(--text-muted); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; &:empty { display: none; } }
+	.clip-chat-history-confirm { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 10px 6px; font-size: 13px; > span { flex: 1 0 100%; } }
+	.clip-chat-history-resume { flex: none; padding: 18px 14px; border-top: 1px solid var(--background-modifier-border, #888); text-align: center; line-height: 1.5;
+		&[hidden] { display: none; }
+		a { color: var(--text-normal); font-size: 14px; text-decoration: underline; text-underline-offset: 4px; cursor: pointer; &:hover { color: var(--text-muted); } &[aria-disabled=true] { opacity: .6; cursor: progress; } &:not([href]) { cursor: default; text-decoration: none; } }
+	}
+	.clip-chat-composer[hidden] { display: none; }
+	.clip-chat-earlier { align-self: center; }
+}
