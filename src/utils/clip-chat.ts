@@ -15,6 +15,7 @@ import { FONT_PRESETS } from './font-utils';
 import { showClipStatus } from './clip-bar';
 import { CHAT_PREFERENCES_KEY, DEFAULT_CHAT_PREFERENCES, MAX_QUICK_PROMPTS, QuickPrompt, normalizeChatPreferences, chatFontFamily, chatSystemPrompt, defaultQuickPrompts, visibleQuickPrompts } from './chat-preferences';
 import { createModelPicker, modelEffort } from './model-picker';
+import { mountChatTurnNavigation } from './chat-turn-navigation';
 import { learningSelection } from './learning-composer';
 
 import { t } from './ui-text';
@@ -178,6 +179,11 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 	resizer.setAttribute('aria-orientation', 'vertical');
 	panel.append(resizer, header, picker.popover, historyList, messageArea, suggestions, composer);
 	document.body.appendChild(panel);
+	const navigation = mountChatTurnNavigation({ viewport: messagesEl, onBookmark: async turn => {
+		if (!conversation.messages.includes(turn)) throw new Error('This turn is no longer in the conversation');
+		const { title: articleTitle, url } = options.getContext();
+		await saveConversation(url, articleTitle, conversation, options.preserveUrlHash);
+	} });
 
 	let preferences = normalizeChatPreferences(null);
 	const applyAppearance = () => {
@@ -217,6 +223,7 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 		if (disposed) return;
 		if (!settingsForm.hidden) { closePreferences(); return; }
 		historyList.hidden = true;
+		navigation.dismiss();
 		settingsForm.replaceChildren();
 		const section = (titleKey: string, noteKey = '') => {
 			const node = el('section', 'clip-chat-section');
@@ -432,6 +439,7 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 
 	function addMessage(turn: StoredTurn): HTMLElement {
 		const wrap = el('div', `clip-chat-message is-${turn.role}`);
+		navigation.add(turn, wrap);
 		if (turn.imageNumbers?.length) wrap.append(el('div', 'clip-chat-image-scope', t('本轮附图：{0}', [turn.imageNumbers.join('、')])));
 		if (turn.quote) {
 			const quoted = el('blockquote', 'clip-chat-quoted', turn.quote.length > 240 ? `${turn.quote.slice(0, 240)}…` : turn.quote);
@@ -563,6 +571,7 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 
 	// Rebuild the message list from the current conversation (also used when restoring history).
 	function renderConversation() {
+		navigation.reset();
 		generatedImages.clear();
 		messageList.replaceChildren();
 		suggestions.replaceChildren();
@@ -730,6 +739,7 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 	}
 
 	async function showHistory() {
+		navigation.dismiss();
 		historyList.style.top = `${header.offsetHeight}px`;
 		if (!historyList.hidden) { historyList.hidden = true; return; }
 		const { url } = options.getContext();
@@ -776,6 +786,7 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 	function toggle(open = panel.hidden): boolean {
 		if (disposed) return false;
 		if (!open) picker.close();
+		if (!open) navigation.dismiss();
 		if (!open && !settingsForm.hidden) closePreferences();
 		panel.hidden = !open;
 		root.classList.toggle('clip-chat-open', open);
@@ -814,6 +825,7 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 	function destroy() {
 		if (disposed) return;
 		disposed = true; picker.destroy();
+		navigation.destroy();
 		persist();
 		cancelRequest();
 		attachments.destroy();
