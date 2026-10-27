@@ -10,7 +10,12 @@ import browser from './browser-polyfill';
 import { getMessage } from './i18n';
 import { getLocalStorage, setLocalStorage, generalSettings } from './storage-utils';
 import { enabledChatModels, ChatTurn } from './chat-llm';
-import { Conversation, StoredTurn, loadConversations, saveConversation, deleteConversation } from './chat-history';
+import { Conversation, StoredTurn, loadConversations, saveConversation, deleteConversation, type ChatHistoryItem } from './chat-history';
+import { mountChatHistoryView } from './chat-history-view';
+import { clearChatHistory } from './chat-history';
+import { watchHistoryChanges } from './chat-history-events';
+import { chatSource, chatSourceLink, chatPageKey } from './chat-source';
+import { openChatSource } from './chat-history-resume';
 import { FONT_PRESETS } from './font-utils';
 import { showClipStatus } from './clip-bar';
 import { CHAT_PREFERENCES_KEY, DEFAULT_CHAT_PREFERENCES, MAX_QUICK_PROMPTS, QuickPrompt, normalizeChatPreferences, chatFontFamily, chatSystemPrompt, defaultQuickPrompts, visibleQuickPrompts } from './chat-preferences';
@@ -26,6 +31,7 @@ import { attachmentRefs, readChatAttachments, readChatAttachmentPreview, saveCha
 import { mountChatAttachmentComposer, previewChatAttachment } from './chat-attachment-composer';
 import { validChatTurns } from './chat-content';
 export interface ClipChatOptions {
+	initialConversation?: Conversation;
 	// Current article text; read fresh on every question so edits are included.
 	getContext: () => { title: string; markdown: string; url: string; available?: boolean };
 	// Append an answer to the note being clipped.
@@ -77,6 +83,8 @@ function selectedArticleText(): string {
 // Side panel using the models configured under LLM providers and models.
 export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boolean) => boolean; quote: (text: string) => void; destroy: () => void } {
 	let disposed = false, preparing = false, requestGeneration = 0, pendingPaint = 0;
+	let historyReadOnly = false;
+	let checkpoint: (() => void) | undefined;
 	const lifetime = new AbortController();
 	const root = document.documentElement;
 	const panel = el('aside', 'clip-chat');
@@ -177,9 +185,14 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 	const resizer = el('div', 'clip-chat-resize');
 	resizer.setAttribute('role', 'separator');
 	resizer.setAttribute('aria-orientation', 'vertical');
-	panel.append(resizer, header, picker.popover, historyList, messageArea, suggestions, composer);
+	const resumeFooter = el('div', 'clip-chat-history-resume');
+	resumeFooter.hidden = true;
+	const resumeLink = el('a', '', t('回到原页面咱们接着聊'));
+	const resumeStatus = el('span', 'clip-chat-history-status'); resumeStatus.setAttribute('role', 'status');
+	resumeFooter.append(resumeLink, resumeStatus);
+	panel.append(resizer, header, picker.popover, historyList, messageArea, suggestions, composer, resumeFooter);
 	document.body.appendChild(panel);
-	const navigation = mountChatTurnNavigation({ viewport: messagesEl, onBookmark: async turn => {
+	const navigation = mountChatTurnNavigation({ area: messageArea, list: messageList, viewport: messagesEl, onBookmark: async turn => {
 		if (!conversation.messages.includes(turn)) throw new Error('This turn is no longer in the conversation');
 		const { title: articleTitle, url } = options.getContext();
 		await saveConversation(url, articleTitle, conversation, options.preserveUrlHash);
@@ -222,7 +235,7 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 		await preferencesReady;
 		if (disposed) return;
 		if (!settingsForm.hidden) { closePreferences(); return; }
-		historyList.hidden = true;
+		historyView.hide();
 		navigation.dismiss();
 		settingsForm.replaceChildren();
 		const section = (titleKey: string, noteKey = '') => {
@@ -398,7 +411,8 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 	window.addEventListener('resize', () => { if (!panel.hidden) applyWidth(panel.offsetWidth); }, { signal: lifetime.signal });
 
 	const newConversation = (): Conversation => ({ id: crypto.randomUUID(), title: '', updatedAt: 0, messages: [] });
-	let conversation = newConversation();
+	let conversation = options.initialConversation ?? newConversation();
+	let visibleMessageCount = 40;
 	let quote = '';
 	let controller: AbortController | null = null;
 
@@ -430,13 +444,41 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 			}
 			if (last) { fragment.append(document.createTextNode(node.data.slice(last))); node.replaceWith(fragment); }
 		}
+		if (historyReadOnly) for (const image of Array.from(template.content.querySelectorAll('img, video, audio, source, track, iframe'))) {
+			const link = el('a', '', image.getAttribute('alt') || t('查看图片'));
+			const url = chatSourceLink(image.getAttribute('src') || image.getAttribute('poster') || '');
+			if (url) { link.href = url; link.target = '_blank'; link.rel = 'noopener noreferrer'; }
+			image.replaceWith(link);
+		}
 		return template.innerHTML;
 	};
+	function saveOwnedConversation(owner: Conversation) {
+		const source = owner.source ?? chatSource(options.getContext(), options.preserveUrlHash);
+		return saveConversation(source.url, source.title, owner, source.preserveUrlHash);
+	}
 	const persist = () => {
-		const { title: articleTitle, url } = options.getContext();
-		void Promise.resolve(conversation.messages.length ? saveConversation(url, articleTitle, conversation, options.preserveUrlHash) : deleteConversation(url, conversation.id, options.preserveUrlHash)).catch(() => {});
+		if (historyReadOnly) return;
+		const failed = (error: unknown) => { if (!disposed) composerStatus.textContent = `${t('历史记录未能保存，请重试。')} ${String((error as Error).message)}`; };
+		if (!conversation.messages.length) {
+			// A failed first request must not leave its pre-saved question in history.
+			if (conversation.revision !== undefined && conversation.source) {
+				const owner = conversation; conversation = newConversation();
+				void deleteConversation(owner.source!.url, owner.id, owner.source!.preserveUrlHash).catch(failed);
+			}
+			return;
+		}
+		void saveOwnedConversation(conversation).catch(failed);
 	};
-
+	const lazyPreviews = new Map<Element, () => void>();
+	const previewObserver = typeof IntersectionObserver === 'undefined' ? null : new IntersectionObserver(entries => {
+		for (const entry of entries) if (entry.isIntersecting) { previewObserver!.unobserve(entry.target); lazyPreviews.get(entry.target)?.(); lazyPreviews.delete(entry.target); }
+	}, { root: messagesEl, rootMargin: '160px' });
+	function loadWhenVisible(node: Element, run: () => void) {
+		if (!previewObserver) run(); else {
+			const previous = lazyPreviews.get(node);
+			lazyPreviews.set(node, () => { previous?.(); run(); }); previewObserver.observe(node);
+		}
+	}
 	function addMessage(turn: StoredTurn): HTMLElement {
 		const wrap = el('div', `clip-chat-message is-${turn.role}`);
 		navigation.add(turn, wrap);
@@ -451,10 +493,10 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 				const preview = el('button', 'clip-chat-attachment-thumb'); preview.type = 'button'; preview.title = ref.name;
 				preview.setAttribute('aria-label', `${t('查看图片')} ${ref.name}`);
 				const image = el('img'); image.alt = ref.name; preview.append(image); previews.append(preview);
-				void readChatAttachmentPreview(ref.id).then(thumbnail => {
+				loadWhenVisible(preview, () => { void readChatAttachmentPreview(ref.id).then(thumbnail => {
 					if (disposed || !preview.isConnected) return;
 					if (thumbnail) image.src = thumbnail; else preview.textContent = t('图片文件已丢失');
-				}).catch(() => { if (!disposed) preview.textContent = t('图片文件已丢失'); });
+				}).catch(() => { if (!disposed) preview.textContent = t('图片文件已丢失'); }); });
 				preview.onclick = () => { void readChatAttachments([ref]).then(images => { if (!disposed) previewChatAttachment(ref.name, images); }).catch(error => { if (!disposed) composerStatus.textContent = String((error as Error).message); }); };
 			}
 			wrap.append(previews);
@@ -462,17 +504,16 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 		const body = el('div', 'clip-chat-body');
 		if (turn.role === 'user') body.textContent = turn.content; else body.innerHTML = render(turn.content);
 		wrap.appendChild(body);
-		if (turn.tools?.length) { const owner = conversation, source = options.getContext(); mountChatTools(wrap, turn.tools, { persist: () => saveConversation(source.url, source.title, owner, options.preserveUrlHash), followup: text => void ask(text) }); }
+		if (turn.tools?.length) { const owner = conversation; mountChatTools(wrap, turn.tools, { readOnly: historyReadOnly, persist: () => saveOwnedConversation(owner), followup: text => void ask(text) }); }
 		messageList.appendChild(wrap);
 		return wrap;
 	}
 
 	function addGeneratedImages(wrap: HTMLElement, turn: StoredTurn, autoRun = false) {
 		const owner = conversation;
-		const source = options.getContext();
-		const save = () => saveConversation(source.url, source.title, owner, options.preserveUrlHash);
+		const save = () => saveOwnedConversation(owner);
 		for (const image of turn.generatedImages ?? []) {
-			generatedImages.mount(wrap, image, save);
+			loadWhenVisible(wrap, () => { if (wrap.isConnected) generatedImages.mount(wrap, image, save, undefined, historyReadOnly); });
 			if (autoRun) void startChatImage(image, save);
 		}
 	}
@@ -487,8 +528,8 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 		insert.append(el('span', '', getMessage('qiaomuChatInsert')));
 		insert.addEventListener('click', async () => { await options.onInsert?.(answer); showClipStatus(getMessage('qiaomuChatInserted')); });
 		actions.append(copy);
-		if (options.onInsert) actions.append(insert);
-		if (options.onLearningAi) {
+		if (options.onInsert && !historyReadOnly) actions.append(insert);
+		if (options.onLearningAi && !historyReadOnly) {
 			const diary = iconButton('clip-chat-action', NotebookPen, t('加入今日日记的 AI 补充'));
 			diary.append(el('span', '', t('加入日记')));
 			diary.addEventListener('click', () => options.onLearningAi!(answer));
@@ -540,6 +581,7 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 	}
 
 	function refreshContext() {
+		if (historyReadOnly) { currentImages = []; imageKey = ''; imageSession.clear(); return; }
 		const { title, markdown, url, available } = options.getContext();
 		contextText.textContent = available === false ? t('普通对话') : `${t('当前文章')} · ${title}`;
 		contextText.title = available === false ? t('无法读取此页正文，可直接聊天或粘贴内容。') : `${title}\n${getMessage('qiaomuChatContext', String(markdown.length))}`;
@@ -559,7 +601,7 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 
 	function renderSuggestions() {
 		suggestions.replaceChildren();
-		if (input.disabled || options.getContext().available === false) return;
+		if (historyReadOnly || input.disabled || options.getContext().available === false) return;
 		for (const item of visibleQuickPrompts(preferences, !!quote, getMessage)) {
 			const chip = el('button', 'clip-chat-chip', item.title);
 			chip.type = 'button';
@@ -572,11 +614,17 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 	// Rebuild the message list from the current conversation (also used when restoring history).
 	function renderConversation() {
 		navigation.reset();
+		composer.hidden = historyReadOnly; resumeFooter.hidden = !historyReadOnly;
+		const originalUrl = chatSourceLink(conversation.source?.url || '');
+		if (originalUrl) resumeLink.href = originalUrl; else resumeLink.removeAttribute('href');
+		resumeLink.title = conversation.source?.url || '';
+		resumeStatus.textContent = originalUrl ? '' : historyReadOnly ? t('原页面链接不可用') : '';
 		generatedImages.clear();
+		previewObserver?.disconnect(); lazyPreviews.clear();
 		messageList.replaceChildren();
 		suggestions.replaceChildren();
 		const models = enabledChatModels();
-		if (!models.length) {
+		if (!models.length && !historyReadOnly) {
 			const empty = el('div', 'clip-chat-empty');
 			empty.append(el('p', '', getMessage('qiaomuChatNoModel')));
 			const open = el('button', 'clip-chat-link clip-chat-model-setup', getMessage('qiaomuChatOpenSettings'));
@@ -588,9 +636,16 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 			attachments.refresh();
 			return;
 		}
-		input.disabled = false; send.disabled = false;
+		input.disabled = historyReadOnly; send.disabled = historyReadOnly;
 		attachments.refresh();
-		for (const turn of conversation.messages) {
+		let first = Math.max(0, conversation.messages.length - visibleMessageCount);
+		while (first > 0 && conversation.messages[first]?.role !== 'user') first--;
+		if (first > 0) {
+			const earlier = el('button', 'clip-chat-link clip-chat-earlier', t('加载更早的消息')); earlier.type = 'button';
+			earlier.onclick = () => { const oldHeight = messagesEl.scrollHeight, oldTop = messagesEl.scrollTop; visibleMessageCount += 40; renderConversation(); messagesEl.scrollTop = oldTop + messagesEl.scrollHeight - oldHeight; };
+			messageList.append(earlier);
+		}
+		for (const turn of conversation.messages.slice(first)) {
 			const wrap = addMessage(turn);
 			if (turn.role === 'assistant') { addActions(wrap, turn.content); addGeneratedImages(wrap, turn); }
 		}
@@ -613,7 +668,7 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 
 	async function ask(question: string) {
 		await preferencesReady;
-		if ((!question.trim() && !attachments.hasImages()) || controller || preparing || disposed) return;
+		if (historyReadOnly || (!question.trim() && !attachments.hasImages()) || controller || preparing || disposed) return;
 		const model = enabledChatModels().find(m => m.id === picker.value);
 		if (!model) return;
 		const generation = ++requestGeneration;
@@ -634,7 +689,8 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 		const selected = currentImages.filter(image => selectedImages === null || selectedImages.has(image.url));
 		const sentAttachments = attachments.take();
 		const activeConversation = conversation;
-		historyList.hidden = true;
+		activeConversation.source = chatSource(options.getContext(), options.preserveUrlHash);
+		historyView.hide();
 		suggestions.replaceChildren();
 		input.value = '';
 		const turn: StoredTurn = { role: 'user', content: text, ...(quote ? { quote } : {}), ...(selected.length ? { imageNumbers: selected.map(image => image.index) } : {}), ...(sentAttachments.length ? { attachments: attachmentRefs(sentAttachments) } : {}) };
@@ -657,19 +713,25 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 		setBusy(true);
 		let answer = '';
 		let toolResults: ChatToolResult[] = [];
+		checkpoint = () => {
+			if (answer || toolResults.length) activeConversation.messages.push({ role: 'assistant', content: parseChatImageReply(answer).text, ...(toolResults.length ? { tools: normalizeToolResults(toolResults) } : {}) });
+			void saveOwnedConversation(activeConversation).catch(console.warn);
+		};
 		const toolArea = el('div', 'qm-tool-results'); answerWrap.append(toolArea);
 		let failed = false;
 		const paint = () => { pendingPaint = 0; if (disposed) return; body.classList.remove('is-thinking'); body.innerHTML = render(parseChatImageReply(answer).text); };
 		try {
-			if (sentAttachments.length) {
-				await saveConversation(url, articleTitle, activeConversation, options.preserveUrlHash);
-			}
+			await saveOwnedConversation(activeConversation);
 			const imageStore = await loadImageModels();
 			if (requestController.signal.aborted) throw new DOMException('Aborted', 'AbortError');
 			system += chatImageInstructions(readyModels(imageStore).length > 0);
-			const messages = activeConversation.messages.map(apiTurn);
+			let start = Math.max(0, activeConversation.messages.length - 40);
+			while (start > 0 && activeConversation.messages[start]?.role !== 'user') start--;
+			const requestTurns = activeConversation.messages.slice(start);
+			const messages = requestTurns.map(apiTurn);
+			if (start) system += '\nOnly the most recent conversation turns are supplied. Do not claim access to earlier omitted turns.';
 			for (let i = 0; i < messages.length; i++) {
-				const refs = attachmentRefs(activeConversation.messages[i].attachments);
+				const refs = attachmentRefs(requestTurns[i].attachments);
 				if (refs.length) messages[i].images = await readChatAttachments(refs);
 				if (requestController.signal.aborted) throw new DOMException('Aborted', 'AbortError');
 				if (!validChatTurns(messages)) throw new Error(t('本轮图片内容超过上限，请减少附件或新建对话后重试。'));
@@ -688,7 +750,7 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 			} else if (currentImages.length) system += '\n本次用户选择仅正文，未提供图片数据。不要声称看过图片；需要图片才能回答时请明确说明。';
 			if (!validChatTurns(messages)) throw new Error(t('本轮图片内容超过上限，请减少附件或新建对话后重试。'));
 			await streamChatAgent({ model, reasoningEffort: modelEffort(model), system, sessionId: activeConversation.id, messages, signal: requestController.signal,
-				previousTools: activeConversation.messages.flatMap(m => m.tools || []),
+				previousTools: requestTurns.flatMap(m => m.tools || []),
 				onUseImage: async photo => { await keepChatPhoto(photo, requestController.signal); },
 				onTools: results => { if (disposed || requestController.signal.aborted || controller !== requestController || conversation !== activeConversation) return; toolResults = results; toolArea.replaceChildren(); mountChatTools(toolArea, results, { persist: () => saveConversation(url, articleTitle, activeConversation, options.preserveUrlHash), followup: text => void ask(text) }); },
 				onText: value => { if (disposed || requestController.signal.aborted || controller !== requestController || conversation !== activeConversation) return; answer = value; if (!pendingPaint) pendingPaint = requestAnimationFrame(paint); }
@@ -702,7 +764,6 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 			}
 		} finally {
 			if (disposed || controller !== requestController || conversation !== activeConversation) {
-				if (toolResults.length) { activeConversation.messages.push({ role: 'assistant', content: parseChatImageReply(answer).text, tools: normalizeToolResults(toolResults) }); await saveConversation(url, articleTitle, activeConversation, options.preserveUrlHash); }
 				return;
 			}
 			cancelAnimationFrame(pendingPaint); pendingPaint = 0;
@@ -721,6 +782,7 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 			} else { answerWrap.remove(); questionWrap.remove(); conversation.messages.pop(); input.value ||= question; attachments.restore(sentAttachments); }
 			if (!conversation.messages.includes(turn)) void deleteChatAttachments(sentAttachments.map(item => item.id)).catch(() => {});
 			persist();
+			checkpoint = undefined;
 			controller = null;
 			setBusy(false);
 			if (document.activeElement === send) input.focus({ preventScroll: true });
@@ -728,6 +790,7 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 	}
 
 	function cancelRequest() {
+		checkpoint?.(); checkpoint = undefined;
 		attachments.clear();
 		generatedImages.clear();
 		requestGeneration++;
@@ -738,34 +801,41 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 		setBusy(false);
 	}
 
-	async function showHistory() {
-		navigation.dismiss();
-		historyList.style.top = `${header.offsetHeight}px`;
-		if (!historyList.hidden) { historyList.hidden = true; return; }
-		const { url } = options.getContext();
-		const list = (await loadConversations(url, options.preserveUrlHash)).filter(c => c.messages.length);
-		if (disposed) return;
-		historyList.replaceChildren();
-		if (!list.length) historyList.appendChild(el('div', 'clip-chat-history-empty', getMessage('qiaomuChatNoHistory')));
-		for (const item of list) {
-			const row = el('div', `clip-chat-history-item${item.id === conversation.id ? ' is-current' : ''}`);
-			const open = el('button', 'clip-chat-history-open');
-			open.type = 'button';
-			open.append(el('span', 'clip-chat-history-title', item.title || '…'), el('span', 'clip-chat-history-time', new Date(item.updatedAt).toLocaleString(undefined, { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })));
-			open.addEventListener('click', () => { cancelRequest(); conversation = item; historyList.hidden = true; renderConversation(); });
-			const remove = iconButton('clip-chat-icon', Trash2, getMessage('delete'));
-			remove.addEventListener('click', async () => {
-				if (item.id === conversation.id) cancelRequest();
-				await deleteConversation(url, item.id, options.preserveUrlHash);
-				if (disposed) return;
-				row.remove();
-				if (item.id === conversation.id) { cancelRequest(); conversation = newConversation(); renderConversation(); }
-			});
-			row.append(open, remove);
-			historyList.appendChild(row);
+	const isCurrentHistory = (item: ChatHistoryItem) => item.id === conversation.id && !!conversation.source
+		&& item.pageKey === chatPageKey(conversation.source.url, conversation.source.preserveUrlHash);
+	const historyView = mountChatHistoryView(historyList, historyButton, {
+		isCurrent: isCurrentHistory,
+		beforeOpen: cancelRequest,
+		onOpen: item => {
+			cancelRequest(); conversation = item; historyReadOnly = true; visibleMessageCount = 40;
+			quote = ''; refreshQuote(); refreshContext(); renderConversation();
+		},
+		onDelete: async item => {
+			const current = isCurrentHistory(item);
+			if (current) cancelRequest();
+			await deleteConversation(item.source.url, item.id, item.source.preserveUrlHash);
+		},
+		onClear: async () => { cancelRequest(); await clearChatHistory(); }
+	});
+	const unwatchHistory = watchHistoryChanges(change => {
+		if (disposed || (change.type !== 'cleared' && !(change.type === 'deleted' && conversation.id === change.id && conversation.source && chatPageKey(conversation.source.url, conversation.source.preserveUrlHash) === change.pageKey))) return;
+		// The delete has committed. Do not checkpoint or save the stale in-memory copy.
+		checkpoint = undefined; cancelRequest();
+		conversation = newConversation(); historyReadOnly = false; visibleMessageCount = 40;
+		quote = ''; refreshQuote(); renderConversation(); refreshContext();
+	});
+	resumeLink.onclick = event => {
+		event.preventDefault();
+		const source = conversation.source;
+		if (!source || !chatSourceLink(source.url)) return;
+		if (chatPageKey(source.url, source.preserveUrlHash) === chatPageKey(options.getContext().url, source.preserveUrlHash)) {
+			historyReadOnly = false; refreshContext(); renderConversation(); input.focus({ preventScroll: true }); return;
 		}
-		historyList.hidden = false;
-	}
+		if (resumeLink.getAttribute('aria-disabled') === 'true') return;
+		resumeLink.setAttribute('aria-disabled', 'true');
+		void openChatSource(source, conversation.id).catch(error => { if (!disposed) resumeStatus.textContent = String((error as Error).message); })
+			.finally(() => resumeLink.removeAttribute('aria-disabled'));
+	};
 
 	composer.addEventListener('submit', event => {
 		event.preventDefault();
@@ -775,8 +845,8 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 		if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); composer.requestSubmit(); }
 		if (event.key === 'Escape') { if (options.onClose) options.onClose(); else toggle(); }
 	});
-	historyButton.addEventListener('click', () => { if (!settingsForm.hidden) closePreferences(); void showHistory(); });
-	newChat.addEventListener('click', () => { if (!settingsForm.hidden) closePreferences(); cancelRequest(); conversation = newConversation(); historyList.hidden = true; renderConversation(); refreshContext(); input.focus(); });
+	historyButton.addEventListener('click', () => { navigation.dismiss(); if (!settingsForm.hidden) closePreferences(); historyList.style.top = `${header.offsetHeight}px`; historyView.toggle(); });
+	newChat.addEventListener('click', () => { if (!settingsForm.hidden) closePreferences(); cancelRequest(); conversation = newConversation(); historyReadOnly = false; visibleMessageCount = 40; historyView.hide(); quote = ''; refreshQuote(); renderConversation(); refreshContext(); input.focus(); });
 	close.addEventListener('click', () => { if (options.onClose) options.onClose(); else toggle(); });
 	quoteClear.addEventListener('click', () => { quote = ''; refreshQuote(); });
 
@@ -796,9 +866,10 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 			refreshContext();
 			if (!initialized) {
 				initialized = true;
+				const initialGeneration = requestGeneration;
 				// Pick up where the last conversation about this article left off.
-				void Promise.all([populateModels(), loadConversations(options.getContext().url, options.preserveUrlHash).catch(() => [])]).then(([, saved]) => {
-					if (disposed) return;
+				void Promise.all([populateModels(), options.initialConversation ? Promise.resolve([options.initialConversation]) : loadConversations(options.getContext().url, options.preserveUrlHash, true).catch(() => [])]).then(([, saved]) => {
+					if (disposed || requestGeneration !== initialGeneration || historyReadOnly) return;
 					const last = saved.find(c => c.messages.length);
 					if (last && !conversation.messages.length) conversation = last;
 					renderConversation();
@@ -813,11 +884,11 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 
 	// Ask about a passage: quote it above the composer and offer passage-specific prompts.
 	function askAbout(text: string) {
-		if (disposed) return;
+		if (disposed || historyReadOnly) return;
 		// Without a model the panel only guides to the settings; a quote would just sit there.
 		quote = enabledChatModels().length ? text.slice(0, MAX_QUOTE_CHARS) : '';
 		if (panel.hidden) toggle(true);
-		historyList.hidden = true;
+		historyView.hide();
 		refreshQuote();
 		input.focus();
 	}
@@ -833,6 +904,8 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 		picker.close();
 		lifetime.abort();
 		scrollObserver?.disconnect();
+		previewObserver?.disconnect(); lazyPreviews.clear();
+		historyView.destroy(); unwatchHistory();
 		browser.storage.onChanged.removeListener(onPreferencesChanged);
 		removeSelectionPill();
 		panel.remove();

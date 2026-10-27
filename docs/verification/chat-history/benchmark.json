@@ -1,0 +1,40 @@
+{
+  "synthetic": true,
+  "storedChats": 2000,
+  "selectedChatMessages": 600,
+  "queries": [
+    {
+      "ms": 1.3000000715255737,
+      "rows": 40,
+      "bodyLoaded": false
+    },
+    {
+      "ms": 1,
+      "rows": 40,
+      "bodyLoaded": false
+    },
+    {
+      "ms": 0.8999999761581421,
+      "rows": 40,
+      "bodyLoaded": false
+    },
+    {
+      "ms": 1,
+      "rows": 40,
+      "bodyLoaded": false
+    },
+    {
+      "ms": 0.7999999523162842,
+      "rows": 40,
+      "bodyLoaded": false
+    }
+  ],
+  "listRenderMs": 15,
+  "conversationRenderMs": 12.199999928474426,
+  "renderedMessages": 40,
+  "readonly": true,
+  "remoteImages": 0,
+  "heapBytes": 21996319,
+  "environment": "macOS; Chromium-based Codex in-app browser; synthetic localhost fixture",
+  "measurementNotes": "Five warm summary reads. UI timings include requestAnimationFrame polling, not a first-paint trace. heapBytes is the whole fixture JS heap, not incremental feature memory or browser RSS."
+}

@@ -4,6 +4,8 @@ import { initializeI18n, translatePage } from '../utils/i18n';
 import { t } from '../utils/ui-text';
 import { mountClipChat } from '../utils/clip-chat';
 import { snapshotAiPage, parseAiPage, sameAiPage, type AiSnapshot } from '../utils/ai-page-context';
+import { consumeChatResume } from '../utils/chat-history-resume';
+import { readConversation } from '../utils/chat-history';
 
 async function start() {
 	let disposed = false, refreshGeneration = 0;
@@ -57,7 +59,11 @@ async function start() {
 	}
 	try { await refresh(); } catch { dispose(); return; }
 	if (disposed) return;
+	const resume = await consumeChatResume(tabId, expected).catch(() => undefined);
+	const initialConversation = resume ? await readConversation(resume.pageKey, resume.id) : undefined;
+	if (disposed) return;
 	chat = mountClipChat({
+		initialConversation,
 		getContext: () => context,
 		prepareContext: async () => { await refresh(); },
 		getSelection: refresh,

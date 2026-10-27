@@ -4,6 +4,7 @@
 @use 'image-library';
 @use 'chat-generated-images';
 @use 'chat-turn-navigation';
+@use 'chat-history';
 // AI chat panel next to the article (reading and editing pages).
 :root { --clip-chat-width: 400px; }
 .clip-chat {
@@ -68,14 +69,6 @@
 	.clip-chat-title { flex: 1; min-width: 16px; display: flex; align-items: center; gap: 8px; font-weight: 600; svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--text-muted); } span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } }
 	.clip-chat-icon { display: flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 28px; height: 28px; padding: 0; border: none; border-radius: 6px; background: transparent; box-shadow: none; color: var(--text-muted); cursor: pointer;
 		svg { width: 16px; height: 16px; } &:hover { background: var(--background-modifier-hover, rgb(128 128 128 / 14%)); color: var(--text-normal); } }
-	.clip-chat-history { position: absolute; top: 49px; inset-inline: 0; z-index: 3; max-height: 50%; overflow-y: auto; padding: 6px; background: var(--background-primary); border-bottom: 1px solid var(--divider-color, var(--background-modifier-border, rgb(128 128 128 / 35%))); box-shadow: 0 8px 20px rgb(0 0 0 / 12%);
-		&[hidden] { display: none; }
-		.clip-chat-history-empty { padding: 12px; text-align: center; color: var(--text-muted); font-size: 13px; }
-		.clip-chat-history-item { display: flex; align-items: center; gap: 4px; border-radius: 8px; &:hover, &.is-current { background: var(--background-secondary, rgb(128 128 128 / 12%)); } }
-		.clip-chat-history-open { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: auto; height: auto; padding: 8px 10px; border: none; background: transparent; box-shadow: none; text-align: start; cursor: pointer; color: var(--text-normal); }
-		.clip-chat-history-title { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
-		.clip-chat-history-time { font-size: 11px; color: var(--text-faint, var(--text-muted)); }
-	}
 	.clip-chat-quote { display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 8px; border-radius: 6px; background: var(--background-secondary, rgb(128 128 128 / 12%)); color: var(--text-muted); font-size: 12.5px; line-height: 1.5;
 		&[hidden] { display: none; }
 		> svg { width: 14px; height: 14px; margin-top: 2px; flex-shrink: 0; }

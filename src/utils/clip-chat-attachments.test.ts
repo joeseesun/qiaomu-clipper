@@ -150,3 +150,17 @@ it('sends selected webpage images together with uploaded attachments and preserv
  expect(state.saved[0].messages[0].attachments).toHaveLength(1);
  expect(JSON.stringify(state.saved)).not.toContain('base64');
 });
+
+it('hydrates only the recent request window while retaining older attachment history', async () => {
+ state.saved = [{ id: 'long', title: 'Long chat', updatedAt: 1, messages: [
+  { role: 'user', content: 'Old upload', attachments: [{ id: 'chat-image-00000000-0000-4000-8000-000000000001', name: 'missing-old.png' }] },
+  ...Array.from({ length: 60 }, (_, i) => ({ role: i % 2 ? 'assistant' : 'user', content: `turn ${i}` }))
+ ] }];
+ await mount(); send('Recent question');
+ await vi.waitFor(() => expect(state.stream).toHaveBeenCalledOnce());
+ const messages = state.stream.mock.calls[0][0].messages;
+ expect(messages.length).toBeLessThanOrEqual(41);
+ expect(messages.some((m: any) => m.content === 'Old upload')).toBe(false);
+ await vi.waitFor(() => expect(state.saved[0].messages).toHaveLength(63));
+ expect(state.saved[0].messages[0].attachments[0].name).toBe('missing-old.png');
+});
