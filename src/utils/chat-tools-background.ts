@@ -2,13 +2,18 @@ import browser from './browser-polyfill';
 import { loadWebSearch, saveWebSearch, selectedSearchProvider, searchWeb, fetchSearchPage } from './web-search';
 import { loadUnsplashSource, searchUnsplash, unsplashDownloadUrl } from './image-library-sources';
 import { normalizeChatTool, type ChatCapabilities } from './chat-tools-types';
+import { generalSettings, loadSettings } from './storage-utils';
+import { tokenPlanProfile } from './token-plan';
 
 export async function executeChatTool(raw: any, signal: AbortSignal): Promise<unknown> {
 	signal.throwIfAborted();
 	if (raw?.type === 'capabilities') {
 		const [web, images] = await Promise.all([loadWebSearch(), loadUnsplashSource()]);
 		const provider = selectedSearchProvider(web);
-		return { web: !!provider, webEnabled: web.enabled, webProvider: provider || '', images: !!(images.key || images.proxy), fetch: !!provider } satisfies ChatCapabilities;
+		if (typeof raw.modelId === 'string') await loadSettings();
+		const model = generalSettings.models.find(m => m.enabled && m.id === raw.modelId);
+		const native = model ? tokenPlanProfile(generalSettings.providers.find(p => p.id === model.providerId), model.providerModelId, typeof raw.reasoningEffort === 'string' ? raw.reasoningEffort : undefined) : undefined;
+		return { web: !!native || !!provider, webEnabled: web.enabled, webProvider: native ? 'Token Plan' : provider || '', images: !!(images.key || images.proxy), fetch: !!native || !!provider, ...(native ? { native: native.tools } : {}) } satisfies ChatCapabilities;
 	}
 	if (raw?.type === 'set_search_enabled' && typeof raw.enabled === 'boolean') {
 		const config = await loadWebSearch(); config.enabled = raw.enabled; await saveWebSearch(config); return { enabled: config.enabled };

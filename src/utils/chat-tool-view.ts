@@ -17,11 +17,13 @@ export async function keepChatPhoto(photo: UnsplashPhoto, signal?: AbortSignal):
 	return blob;
 }
 export interface ToolViewOptions {
+	readOnly?: boolean;
 	persist: () => Promise<void>; followup: (text: string) => void;
 	insert?: (photo: UnsplashPhoto, blob: Blob) => Promise<void>;
 }
 export function mountChatTools(parent: HTMLElement, results: ChatToolResult[], options: ToolViewOptions): void {
 	for (const result of results) {
+		if (result.call.type === 'provider_tool') { mountNativeTool(parent, result, options); continue; }
 		if (result.error === 'english-image-query-required' && results.some(r => r.call.type === 'search_images' && r.state === 'done')) continue;
 		const card = h('section', { class: 'qm-tool-result', 'aria-busy': String(result.state === 'running') });
 		const imageSearch = result.call.type === 'search_images';
@@ -46,12 +48,12 @@ export function mountChatTools(parent: HTMLElement, results: ChatToolResult[], o
 				if (result.error === 'unsplash-unconfigured') void import('./image-library').then(m => m.openUnsplashSettings(() => void retry()));
 				else if (result.error === 'search-unconfigured') void import('../managers/web-search-settings').then(m => m.openWebSearchSettings(() => void retry()));
 				else void retry();
-			}; card.append(button);
+			}; if (!options.readOnly) card.append(button);
 		}
 		if (imageSearch && result.state === 'done') {
 			const grid = h('div', { class: 'qm-photo-grid' });
 			(result.photos || []).forEach((photo, index) => {
-				const thumb = h('button', { type: 'button', class: 'qm-photo-preview', 'aria-label': t('预览图片 {0}', [index + 1]) }, h('img', { src: photo.thumb, alt: photo.description, loading: 'lazy', referrerpolicy: 'no-referrer' }), h('span', { text: String(index + 1) }));
+				const thumb = h('button', { type: 'button', class: 'qm-photo-preview', 'aria-label': t('预览图片 {0}', [index + 1]) }, options.readOnly ? h('span', { text: photo.description || t('查看图片') }) : h('img', { src: photo.thumb, alt: photo.description, loading: 'lazy', referrerpolicy: 'no-referrer' }), h('span', { text: String(index + 1) }));
 				thumb.onclick = () => {
 					const dialog = h('dialog', { class: 'qm-photo-dialog', 'aria-label': photo.description });
 					const close = () => { dialog.close(); dialog.remove(); };
@@ -66,7 +68,7 @@ export function mountChatTools(parent: HTMLElement, results: ChatToolResult[], o
 						void keepChatPhoto(photo).then(async blob => { if (insert) await options.insert?.(photo, blob); button.textContent = t('已完成'); }).catch(error => { status.textContent = searchFailure(error); }).finally(() => { button.disabled = false; });
 					}; return button;
 				};
-				actions.append(act(false)); if (options.insert) actions.append(act(true));
+				if (!options.readOnly) { actions.append(act(false)); if (options.insert) actions.append(act(true)); }
 				grid.append(h('div', { class: 'qm-photo' }, thumb, h('div', { class: 'qm-photo-credit' },
 					h('a', { href: photo.authorLink || photo.link, target: '_blank', rel: 'noopener noreferrer', text: photo.author }), ' · ',
 					h('a', { href: photo.link, target: '_blank', rel: 'noopener noreferrer', text: 'Unsplash' })), actions));
@@ -77,7 +79,7 @@ export function mountChatTools(parent: HTMLElement, results: ChatToolResult[], o
 			const gallery = h('button', { type: 'button', text: t('在图库查看更多'), onclick: () => {
 				if (result.call.type === 'search_images') void browser.tabs.create({ url: browser.runtime.getURL(`image-library.html?tab=unsplash&q=${encodeURIComponent(result.call.query)}`) });
 			} });
-			card.append(h('div', { class: 'qm-tool-actions' }, more, gallery));
+			if (!options.readOnly) card.append(h('div', { class: 'qm-tool-actions' }, more, gallery));
 		}
 		if (result.sources?.length) {
 			const details = h('details', { class: 'qm-tool-sources' }, h('summary', { text: t('来源 {0}', [result.sources.length]) }));
@@ -87,6 +89,33 @@ export function mountChatTools(parent: HTMLElement, results: ChatToolResult[], o
 		if (result.call.type === 'use_image' && result.state === 'done') status.textContent = t('已完成');
 		parent.append(card);
 	}
+}
+
+function mountNativeTool(parent: HTMLElement, result: ChatToolResult, options: ToolViewOptions): void {
+	if (result.call.type !== 'provider_tool') return;
+	const names = { web_search: t('联网搜索'), web_extractor: t('读取网页'), code_interpreter: t('运行 Python'), web_search_image: t('文字搜图'), image_search: t('以图搜图') };
+	const name = names[result.call.tool];
+	const card = h('section', { class: 'qm-tool-result', 'aria-busy': String(result.state === 'running') });
+	card.append(h('div', { class: 'qm-tool-title', text: `${name} · Token Plan` }));
+	if (result.call.label) card.append(h('p', { class: 'qm-tool-status', text: result.call.label }));
+	card.append(h('p', { class: 'qm-tool-status', role: 'status', text: result.state === 'running' ? t('正在执行…') : result.state === 'done' ? t('已完成') : result.error === 'interrupted' ? t('工具执行已中断') : result.error || t('工具执行失败') }));
+	if (result.state === 'error' && !options.readOnly) card.append(h('button', { type: 'button', text: t('重试'), onclick: () => options.followup(t('请重试刚才未完成的工具操作。')) }));
+	if (result.sources?.length) {
+		const sources = h('details', { class: 'qm-tool-sources' }, h('summary', { text: t('来源 {0}', [result.sources.length]) }));
+		for (const source of result.sources) sources.append(h('a', { href: source.url, target: '_blank', rel: 'noopener noreferrer', text: source.title || source.url }));
+		card.append(sources);
+	}
+	if (result.images?.length) {
+		const grid = h('div', { class: 'qm-photo-grid' });
+		for (const [index, picture] of result.images.entries()) grid.append(h('a', { class: 'qm-photo-preview', href: picture.url, target: '_blank', rel: 'noopener noreferrer', title: picture.title },
+			h('img', { src: picture.url, alt: picture.title, loading: 'lazy', referrerpolicy: 'no-referrer' }), h('span', { text: String(index + 1) })));
+		card.append(grid);
+	}
+	for (const [label, value] of [[t('执行代码'), result.code], [t('执行结果'), result.logs], [t('网页内容'), result.content]]) if (value) {
+		const pre = h('pre', { text: value }); pre.style.cssText = 'white-space:pre-wrap;overflow-wrap:anywhere;max-height:320px;overflow:auto';
+		card.append(h('details', {}, h('summary', { text: label }), pre));
+	}
+	parent.append(card);
 }
 export function createSearchToggle(): HTMLButtonElement {
 	const button = h('button', { type: 'button', class: 'qm-search-toggle', 'aria-label': t('联网搜索'), 'aria-pressed': 'true' });

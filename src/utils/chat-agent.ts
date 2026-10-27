@@ -5,6 +5,7 @@ import { searchFailure } from './web-search';
 import { t } from './ui-text';
 import type { UnsplashPhoto } from './image-library-sources';
 import { parseReply } from '../write/ai/protocol';
+import { tokenPlanInstructions } from './token-plan';
 
 type StreamOptions = Parameters<typeof streamChat>[0];
 export interface AgentOptions extends Omit<StreamOptions, 'onDelta'> {
@@ -49,8 +50,15 @@ export function preferImageSearch(question: string, previous: ChatToolResult[] =
 }
 export async function streamChatAgent(options: AgentOptions): Promise<string> {
 	const { onText, onTools, previousTools = [], onUseImage, canInsert = false, capabilities, ...base } = options;
-	const c = capabilities ?? await chatCapabilities(base.signal).catch(() => ({ web: false, webEnabled: true, webProvider: '', images: false, fetch: false }));
+	const c: ChatCapabilities = capabilities ?? await chatCapabilities(base.signal, base.model.id, base.reasoningEffort).catch(() => ({ web: false, webEnabled: true, webProvider: '', images: false, fetch: false }));
 	base.signal?.throwIfAborted();
+	if (c.native?.length) {
+		let answer = '';
+		const tools = c.native.filter(tool => tool !== 'image_search' || base.messages.some(m => m.images?.length));
+		await streamChat({ ...base, system: base.system + tokenPlanInstructions(tools, c.webEnabled), nativeTools: true,
+			onNativeTools: onTools, onDelta: delta => { answer += delta; onText(answer); } });
+		return answer;
+	}
 	const system = `${base.system}\n${chatToolInstructions(c, canInsert)}`;
 	const messages: ChatTurn[] = [...base.messages];
 	const question = [...messages].reverse().find(m => m.role === 'user')?.content || '';

@@ -50,3 +50,20 @@ it('reads the model\'s reasoning text out of a stream', () => {
 	expect(thoughtFromLine('responses', 'data: {"type":"response.reasoning_summary_text.delta","delta":"摘要"}')).toBe('摘要');
 	expect(thoughtFromLine('openai', '')).toBe('');
 });
+
+it('disables DeepSeek translation thinking by model identity even behind a renamed proxy', () => {
+ const p = provider({ name: 'My proxy' });
+ expect(body(p, model('deepseek-flash'), 'none').thinking).toEqual({ type: 'disabled' });
+ expect(body(p, model('deepseek-flash'), 'high').thinking).toEqual({ type: 'enabled' });
+ expect(body(p, model('gpt-5'))).not.toHaveProperty('thinking');
+ // Router protocols must retain their own parameter format.
+ expect(body(provider({ baseUrl: 'https://openrouter.ai/api/v1' }), model('deepseek/deepseek-flash'), 'none').reasoning).toEqual({ effort: 'none' });
+});
+
+it('does not leak saved chat thinking strength into a DeepSeek translation override', () => {
+ const m = model('deepseek-flash', {reasoningEffort:'high',reasoningEfforts:['high']});
+ const result = body(provider({presetId:'magpie'}),m,'none');
+ expect(result.thinking).toEqual({type:'disabled'});
+ expect(result).not.toHaveProperty('reasoning_effort');
+ expect(m.reasoningEffort).toBe('high');
+});

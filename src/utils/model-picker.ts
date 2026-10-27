@@ -2,14 +2,14 @@ import { createElement, Check, ChevronsUpDown, Plus, Search } from 'lucide';
 import type { ModelConfig, Provider } from '../types/types';
 import { iconTile } from './provider-catalog';
 import { getMessage } from './i18n';
-import { getLocalStorage, setLocalStorage } from './storage-utils';
+import { getLocalStorage, setLocalStorage, generalSettings } from './storage-utils';
 import { effortOptions } from './chat-thinking';
 import { reasoningEffortLabel } from './reasoning-label';
 import { t } from './ui-text';
 
 const RECENT_KEY = 'qiaomuRecentChatModels';
 export function modelEffort(model: ModelConfig): string | undefined {
-	try { const saved = localStorage.getItem(`qiaomuWriteEffort:${model.id}`) || ''; return effortOptions({ ...model, providerModelId: model.providerModelId || '' }).includes(saved) ? saved : undefined; } catch { return undefined; }
+	try { const saved = localStorage.getItem(`qiaomuWriteEffort:${model.id}`) || ''; return effortOptions({ ...model, providerModelId: model.providerModelId || '' }, generalSettings.providers.find(p => p.id === model.providerId)).includes(saved) ? saved : undefined; } catch { return undefined; }
 }
 
 // A searchable, keyboard-friendly model list that replaces a native <select>: models are grouped by provider, the current one is
@@ -108,7 +108,7 @@ export function createModelPicker(options: ModelPickerOptions): ModelPicker {
 	void getLocalStorage(RECENT_KEY).then(value => { if (disposed) return; recent = Array.isArray(value) ? value.filter(v => typeof v === 'string').slice(0, 8) : []; if (!popover.hidden) render(); }).catch(() => {});
 
 	const paintThinking = () => {
-		const model = options.getModels().find(m => m.id === currentId), levels = model ? effortOptions({ ...model, providerModelId: model.providerModelId || '' }) : [];
+		const model = options.getModels().find(m => m.id === currentId), levels = model ? effortOptions({ ...model, providerModelId: model.providerModelId || '' }, options.getProviders().find(p => p.id === model.providerId)) : [];
 		thinking.hidden = !levels.length;
 		const value = model ? modelEffort(model) || '' : '';
 		const label = value ? reasoningEffortLabel(value) : t('自动');

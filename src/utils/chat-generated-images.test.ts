@@ -7,7 +7,7 @@ vi.mock('./browser-polyfill', () => ({ default: { storage: { local: {
 	remove: async (keys: string | string[]) => { for (const key of Array.isArray(keys) ? keys : [keys]) delete state.storage[key]; },
 } } } }));
 import { saveChatImage, getChatImage } from './chat-generated-images';
-import { deleteConversation, loadConversations, MAX_MESSAGES, saveConversation, type Conversation } from './chat-history';
+import { deleteConversation, loadConversations, saveConversation, type Conversation } from './chat-history';
 beforeEach(() => { state.storage = {}; });
 
 it('roundtrips binary pictures separately and retains them in the gallery when history is deleted', async () => {
@@ -21,11 +21,11 @@ it('roundtrips binary pictures separately and retains them in the gallery when h
 	expect(await getChatImage(id)).toBeDefined();
 });
 
-it('retains both old and current images when chat history is trimmed', async () => {
+it('retains both old and current images in long chat history', async () => {
 	const old = await saveChatImage(new Blob(['old'])), keep = await saveChatImage(new Blob(['keep']));
 	const chat: Conversation = { id: 'chat', title: '', updatedAt: 0, messages: [{ role: 'assistant', content: '', generatedImages: [{ prompt: 'Old', aspect: '1:1', imageId: old }] }] };
 	await saveConversation('https://test/b', '', chat);
-	chat.messages.push(...Array.from({ length: MAX_MESSAGES }, () => ({ role: 'user' as const, content: 'next' })));
+	chat.messages.push(...Array.from({ length: 48 }, () => ({ role: 'user' as const, content: 'next' })));
 	chat.messages.push({ role: 'assistant', content: '', generatedImages: [{ prompt: 'Keep', aspect: '1:1', imageId: keep }] });
 	await saveConversation('https://test/b', '', chat);
 	expect(await getChatImage(old)).toBeDefined(); expect(await getChatImage(keep)).toBeDefined();
