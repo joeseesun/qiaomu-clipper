@@ -1,6 +1,34 @@
 // @vitest-environment jsdom
-import { expect, it, vi } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
 import { placeWebBar, WEB_BAR_STYLE } from './web-bar-placement';
+afterEach(() => { delete (document as any).elementFromPoint; vi.restoreAllMocks(); });
+it.each(['imSaasContainerId', 'im-entry-vmok-popup-portal'])('leaves Douyin private messages intact and hides a misplaced bar until %s closes', id => {
+	document.body.innerHTML = `<video></video><div id="${id}"><header>Private messages</header><section>Messages</section><footer><textarea>Unsent draft</textarea></footer></div>`;
+	const panel = document.getElementById(id)!, video = document.querySelector('video')!;
+	const host = document.createElement('div'); host.className = 'qiaomu-web-bar is-inline is-floating'; panel.prepend(host);
+	const children = Array.from(panel.children).filter(node => node !== host), draft = panel.querySelector('textarea')!;
+	Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1440 });
+	Object.defineProperty(window, 'innerHeight', { configurable: true, value: 900 });
+	const panelRect = vi.spyOn(panel, 'getBoundingClientRect').mockReturnValue(new DOMRect(1104, 0, 336, 900));
+	const videoRect = vi.spyOn(video, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 1104, 850));
+	placeWebBar(host, video, 'douyin'); placeWebBar(host, video, 'douyin');
+	expect(host.parentElement).toBe(document.body); expect(getComputedStyle(host).display).toBe('none');
+	expect(Array.from(panel.children)).toEqual(children); expect(draft.value).toBe('Unsent draft');
+	panelRect.mockReturnValue(new DOMRect()); videoRect.mockReturnValue(new DOMRect(0, 0, 1440, 850));
+	placeWebBar(host, video, 'douyin');
+	expect(getComputedStyle(host).display).not.toBe('none'); expect(host.classList.contains('is-inline')).toBe(false); expect(host.classList.contains('is-floating')).toBe(true);
+});
+it('does not treat an arbitrary tall column beside a Douyin player as a recommendation container', () => {
+	document.body.innerHTML = '<video></video><aside><header></header><section></section></aside>';
+	const video = document.querySelector('video')!, column = document.querySelector('aside')!, host = document.createElement('div');
+	host.className = 'qiaomu-web-bar is-inline'; column.prepend(host);
+	Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1440 });
+	vi.spyOn(video, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 1104, 850));
+	vi.spyOn(column, 'getBoundingClientRect').mockReturnValue(new DOMRect(1104, 0, 336, 900));
+	Object.defineProperty(document, 'elementFromPoint', { configurable: true, value: () => column.querySelector('header') });
+	placeWebBar(host, video, 'douyin');
+	expect(host.parentElement).toBe(document.body); expect(host.classList.contains('is-inline')).toBe(false);
+});
 it('places TED subtitles in page flow immediately below the player, outside its clipping box', () => {
 	document.body.innerHTML = '<div><div class="aspect-video" style="overflow:hidden"><video></video></div><h1>Talk</h1></div>';
 	const host = document.createElement('div'); host.className = 'qiaomu-web-bar'; const style = document.createElement('style'); style.textContent = WEB_BAR_STYLE; document.head.append(style);

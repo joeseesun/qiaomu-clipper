@@ -1,7 +1,18 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const ts = require('typescript');
-const { checkInjectedFunctions } = require('./check-injected-functions.cjs');
+const { checkInjectedFunctions, checkProject } = require('./check-injected-functions.cjs');
+test('discovers project injection functions with native filesystem paths', () => {
+ const fs = require('node:fs'), path = require('node:path'), os = require('node:os');
+ const root = fs.mkdtempSync(path.join(os.tmpdir(), 'qiaomu-injection-path-'));
+ try {
+  fs.mkdirSync(path.join(root, 'src'));
+  fs.writeFileSync(path.join(root, 'tsconfig.json'), JSON.stringify({ compilerOptions: { target: 'ES2015', types: [] }, include: ['src/**/*.ts'] }));
+  fs.writeFileSync(path.join(root, 'src/page.ts'), 'declare const browser: any; browser.scripting.executeScript({ func: () => document.title });');
+  const result = checkProject(root);
+  assert.equal(result.checked, 1); assert.deepEqual(result.findings, []);
+ } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
 function audit(text) {
  const file = ts.createSourceFile('/fixture.ts', text, ts.ScriptTarget.ES2015, true);
  const host = ts.createCompilerHost({ noLib: true });
