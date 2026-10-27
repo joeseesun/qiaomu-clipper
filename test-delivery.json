@@ -5,8 +5,13 @@
       "id": "douyin-private-message-layout",
       "title": "抖音学习条避让私信面板，关闭私信后自动恢复",
       "origin": "fix/douyin-direct-message-toolbar",
-      "files": ["src/utils/web-bar-placement.ts"],
-      "tests": ["src/utils/web-bar-placement.test.ts", "src/web-content.test.ts"]
+      "files": [
+        "src/utils/web-bar-placement.ts"
+      ],
+      "tests": [
+        "src/utils/web-bar-placement.test.ts",
+        "src/web-content.test.ts"
+      ]
     },
     {
       "id": "bilibili-picture-playback",
@@ -813,6 +818,102 @@
       "tests": [
         "src/managers/local-helper-settings.test.ts",
         "src/managers/asr-settings.test.ts"
+      ]
+    },
+    {
+      "id": "transcript-translation-throughput",
+      "title": "字幕翻译按文本预算组批、去重上下文、六路并发及限流降速、DeepSeek 反代关闭思考",
+      "origin": "本次翻译速度优化，不增加译文复用或服务器上传",
+      "files": [
+        "src/utils/youtube-translation.ts",
+        "src/utils/chat-llm.ts",
+        "src/utils/chat-thinking.ts"
+      ],
+      "tests": [
+        "src/utils/youtube-translation.test.ts",
+        "src/utils/youtube-translation-performance.test.ts",
+        "src/utils/chat-thinking.test.ts",
+        "src/utils/chat-llm.test.ts"
+      ]
+    },
+    {
+      "id": "chat-reading-position-preservation",
+      "title": "AI 对话输出不打断阅读位置，按需回到底部并清理尺寸监听",
+      "origin": "PR #98 by water-70689368 at b4f2fd7510834271c5ad22fc2abb7b2fc18628a7",
+      "files": [
+        "src/utils/clip-chat.ts",
+        "src/styles/chat-scroll.scss",
+        "src/styles/clip-chat.scss"
+      ],
+      "tests": [
+        "src/utils/clip-chat-scroll.test.ts",
+        "src/utils/clip-chat-images.test.ts",
+        "src/utils/clip-chat-generation.test.ts"
+      ]
+    },
+    {
+      "id": "chat-image-attachments",
+      "title": "上传、粘贴、拖入图片与网页图片选择共存，附件按历史消息恢复",
+      "origin": "PR #99 with integration fixes",
+      "files": [
+        "src/utils/chat-attachments.ts",
+        "src/utils/chat-attachment-composer.ts",
+        "src/utils/clip-chat.ts"
+      ],
+      "tests": [
+        "src/utils/chat-attachments.test.ts",
+        "src/utils/clip-chat-attachments.test.ts",
+        "src/utils/clip-chat-images.test.ts"
+      ]
+    },
+    {
+      "id": "chat-turn-bookmarks",
+      "title": "对话轮次导航与收藏，保留旧历史的收藏和完整问答",
+      "origin": "PR #100 with #101 migration integration",
+      "files": [
+        "src/utils/chat-turn-navigation.ts",
+        "src/utils/chat-history.ts"
+      ],
+      "tests": [
+        "src/utils/chat-turn-navigation.test.ts",
+        "src/utils/clip-chat-navigation.test.ts",
+        "src/utils/chat-history-bookmarks.test.ts"
+      ]
+    },
+    {
+      "id": "cross-page-chat-history",
+      "title": "跨页面历史、原页面续聊、数据迁移和可恢复清理，长对话按需加载",
+      "origin": "PR #101 with attachment and bookmark preservation",
+      "files": [
+        "src/utils/chat-history-store.ts",
+        "src/utils/chat-history-view.ts",
+        "src/utils/chat-history-legacy.ts",
+        "src/utils/chat-history-media.ts",
+        "src/utils/chat-history-resume.ts"
+      ],
+      "tests": [
+        "src/utils/chat-history.test.ts",
+        "src/utils/chat-history-order.test.ts",
+        "src/utils/chat-history-cleanup.test.ts",
+        "src/utils/chat-history-view.test.ts",
+        "src/utils/chat-history-resume.test.ts",
+        "src/utils/clip-chat-history.test.ts"
+      ]
+    },
+    {
+      "id": "token-plan-native-tools",
+      "title": "Token Plan 原生搜索、抓取、计算和图片工具，思考关闭及只读历史兼容",
+      "origin": "PR #97 with official capability and readonly fixes",
+      "files": [
+        "src/utils/token-plan.ts",
+        "src/utils/token-plan-stream.ts",
+        "src/utils/chat-llm.ts"
+      ],
+      "tests": [
+        "src/utils/token-plan.test.ts",
+        "src/utils/token-plan-view.test.ts",
+        "src/utils/chat-agent.test.ts",
+        "src/utils/chat-thinking.test.ts"
       ]
     }
   ]

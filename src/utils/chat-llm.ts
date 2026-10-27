@@ -69,7 +69,7 @@ export function buildRequest(provider: Provider, model: ModelConfig, system: str
 	let url = provider.baseUrl;
 	let body: unknown;
 	const kindNow = kindOf(provider);
-	const thinking = thinkingFields(kindNow, provider, effort);
+	const thinking = thinkingFields(kindNow, provider, effort, model.providerModelId);
 	switch (kindNow) {
 		case 'gemini':
 			url = `https://generativelanguage.googleapis.com/v1beta/models/${model.providerModelId}:streamGenerateContent?alt=sse`;
@@ -99,7 +99,7 @@ export function buildRequest(provider: Provider, model: ModelConfig, system: str
 				url = normalizeOpenAIChatEndpoint(provider.baseUrl);
 				if (name.includes('hugging')) url = provider.baseUrl.replace('{model-id}', model.providerModelId);
 				if (provider.apiKey) headers['Authorization'] = `Bearer ${provider.apiKey}`;
-				body = { model: model.providerModelId, messages: withSystem, stream: true, ...(provider.presetId === 'magpie' && model.reasoningEffort && model.reasoningEfforts?.includes(model.reasoningEffort) ? { reasoning_effort: model.reasoningEffort } : {}), ...(name.includes('deepseek') ? { thinking: { type: 'disabled' } } : {}), ...(thinking.body ?? {}) };
+				body = { model: model.providerModelId, messages: withSystem, stream: true, ...(!effort && provider.presetId === 'magpie' && model.reasoningEffort && model.reasoningEfforts?.includes(model.reasoningEffort) ? { reasoning_effort: model.reasoningEffort } : {}), ...(name.includes('deepseek') ? { thinking: { type: 'disabled' } } : {}), ...(thinking.body ?? {}) };
 			}
 		}
 	}
