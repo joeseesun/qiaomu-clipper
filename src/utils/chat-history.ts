@@ -7,7 +7,7 @@ import { loadPageChats, storeChat, removeChat } from './chat-history-store';
 export { listChatHistory, readConversation, clearChatHistory, retryHistoryCleanup, historyCleanupStatus, HistoryCleanupPendingError } from './chat-history-store';
 export type { ChatHistoryItem, ChatHistoryCursor } from './chat-history-store';
 
-export interface StoredTurn extends Omit<ChatTurn, 'images'> { bookmarked?: boolean; attachments?: HistoryAttachment[]; quote?: string; imageNumbers?: number[]; generatedImages?: ChatImageGeneration[]; tools?: ChatToolResult[] }
+export interface StoredTurn extends Omit<ChatTurn, 'images'> { thought?: string; bookmarked?: boolean; attachments?: HistoryAttachment[]; quote?: string; imageNumbers?: number[]; generatedImages?: ChatImageGeneration[]; tools?: ChatToolResult[] }
 export interface Conversation {
 	id: string;
 	title: string;
@@ -33,8 +33,8 @@ export const deleteConversation = removeChat;
 // Both migration and new saves use the same explicit field allowlist. In
 // particular, live page context and image request bytes must not enter history.
 export function snapshotConversation(conversation: Conversation, source: ChatSource, updatedAt = Date.now()): Conversation {
-	return { id: conversation.id, title: conversation.title, source: chatSource(source), messages: conversation.messages.map(({ role, content, quote, imageNumbers, generatedImages, tools, attachments, bookmarked }) => ({
-		role, content, ...(role === 'user' && bookmarked === true ? { bookmarked: true } : {}), ...(attachments?.length ? { attachments: historyAttachments(attachments) } : {}), ...(tools?.length ? { tools: normalizeToolResults(tools) } : {}), ...(quote ? { quote } : {}), ...(imageNumbers?.length ? { imageNumbers: [...imageNumbers] } : {}),
+	return { id: conversation.id, title: conversation.title, source: chatSource(source), messages: conversation.messages.map(({ role, content, quote, imageNumbers, generatedImages, tools, attachments, bookmarked, thought }) => ({
+		role, content, ...(typeof thought === 'string' && thought ? { thought: thought.slice(0, 100000) } : {}), ...(role === 'user' && bookmarked === true ? { bookmarked: true } : {}), ...(attachments?.length ? { attachments: historyAttachments(attachments) } : {}), ...(tools?.length ? { tools: normalizeToolResults(tools) } : {}), ...(quote ? { quote } : {}), ...(imageNumbers?.length ? { imageNumbers: [...imageNumbers] } : {}),
 		...(generatedImages?.length ? { generatedImages: generatedImages.slice(0, 4).map(({ prompt, aspect, imageId, modelLabel, jobId, error }) => ({ prompt, aspect, ...(imageId ? { imageId } : {}), ...(modelLabel ? { modelLabel } : {}), ...(jobId ? { jobId } : {}), ...(error ? { error } : {}) })) } : {}),
 	})), updatedAt };
 }

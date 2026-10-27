@@ -15,6 +15,12 @@ function run(question: string, extra: any = {}) {
  return { promise, onText, onTools };
 }
 beforeEach(() => { vi.clearAllMocks(); state.tool.mockResolvedValue({ photos: [photo] }); });
+it('uses real native tool events without requiring or calling the separate search service', async () => {
+ const native = { id: 'native', call: { type: 'provider_tool', tool: 'web_search', label: 'news' }, state: 'done', sources: [{ title: 'Source', url: 'https://example.com/', snippet: '' }] };
+ state.stream.mockImplementationOnce(async (o: any) => { expect(o.nativeTools).toBe(true); expect(o.system).not.toContain('尚未连接'); o.onNativeTools([native]); o.onDelta('Found'); });
+ const result = run('Find news', { capabilities: { web: true, webEnabled: true, webProvider: 'Token Plan', images: false, fetch: true, native: ['web_search', 'code_interpreter'] } });
+ expect(await result.promise).toBe('Found'); expect(result.onTools).toHaveBeenCalledWith([native]); expect(state.tool).not.toHaveBeenCalled();
+});
 it('repairs the reported find-landscape request before a mistaken image action can reach generation', async () => {
  state.stream.mockImplementationOnce(answer(image)).mockImplementationOnce(answer(tool({ type: 'search_images', query: 'landscape scenery', label: '风景' }))).mockImplementationOnce(answer('找到这些风景照片。'));
  const r = run('帮我找几张风景图'); await r.promise;

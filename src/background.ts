@@ -1370,7 +1370,7 @@ browser.runtime.onConnect.addListener(port => {
 	port.onDisconnect.addListener(() => controller.abort());
 	let started = false;
 	port.onMessage.addListener(async raw => {
-		const request = raw as { modelId?: string; system?: string; messages?: any[]; sessionId?: string; reasoningEffort?: string };
+		const request = raw as { modelId?: string; system?: string; messages?: any[]; sessionId?: string; reasoningEffort?: string; nativeTools?: boolean };
 		if (started) return;
 		started = true;
 		const send = (message: unknown) => { if (!controller.signal.aborted) port.postMessage(message); };
@@ -1380,7 +1380,7 @@ browser.runtime.onConnect.addListener(port => {
 			if (!model || typeof request.system !== 'string' || !Array.isArray(request.messages)
 				|| (request.sessionId !== undefined && !validChatSession(request.sessionId))
 				|| !validChatTurns(request.messages)) throw new Error(t('无效的 AI 对话请求'));
-			await streamChat({ model, system: request.system, sessionId: request.sessionId, messages: request.messages, reasoningEffort: validEffort(request.reasoningEffort), signal: controller.signal, onDelta: delta => send({ delta }), onThought: thought => send({ thought }) });
+			await streamChat({ model, system: request.system, sessionId: request.sessionId, messages: request.messages, reasoningEffort: validEffort(request.reasoningEffort), nativeTools: request.nativeTools === true, signal: controller.signal, onDelta: delta => send({ delta }), onThought: thought => send({ thought }), onNativeTools: nativeTools => send({ nativeTools }) });
 			send({ done: true });
 		} catch (error) { send({ error: error instanceof Error ? error.message : t('AI 请求失败') }); }
 	});
