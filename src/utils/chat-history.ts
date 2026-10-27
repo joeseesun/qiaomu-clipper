@@ -2,9 +2,16 @@ import { normalizeToolResults, type ChatToolResult } from './chat-tools-types';
 import browser from './browser-polyfill';
 import type { ChatTurn } from './chat-llm';
 import type { ChatImageGeneration } from './chat-image-generation';
+import { attachmentRefs, deleteChatAttachments, type ChatAttachmentRef } from './chat-attachments';
 
 // A question may quote a passage the reader selected in the article.
-export interface StoredTurn extends Omit<ChatTurn, 'images'> { quote?: string; imageNumbers?: number[]; generatedImages?: ChatImageGeneration[]; tools?: ChatToolResult[] }
+export interface StoredTurn extends Omit<ChatTurn, 'images'> {
+	quote?: string;
+	imageNumbers?: number[];
+	attachments?: ChatAttachmentRef[];
+	generatedImages?: ChatImageGeneration[];
+	tools?: ChatToolResult[];
+}
 
 export interface Conversation {
 	id: string;
@@ -15,11 +22,34 @@ export interface Conversation {
 
 interface ArticleChats { url: string; title: string; updatedAt: number; conversations: Conversation[] }
 
+const attachmentIds = (article?: ArticleChats): string[] => article?.conversations.flatMap(c => c.messages.flatMap(m => attachmentRefs(m.attachments).map(ref => ref.id))) ?? [];
+
 const PREFIX = 'qiaomuChat:';
 const INDEX_KEY = 'qiaomuChatIndex';
 export const MAX_ARTICLES = 40;
 export const MAX_CONVERSATIONS = 15;
 export const MAX_MESSAGES = 40;
+
+// Keep mutations in this extension document in call order, including failures.
+// Snapshot the message fields before enqueueing so later edits cannot rewrite
+// an earlier save while it is waiting for storage.
+let pendingWrite = Promise.resolve();
+function write<T>(operation: () => Promise<T>): Promise<T> {
+	const result = pendingWrite.then(operation);
+	pendingWrite = result.then(() => {}, () => {});
+	return result;
+}
+
+function storedTurn({ role, content, quote, imageNumbers, attachments, generatedImages, tools }: StoredTurn): StoredTurn {
+	return {
+		role, content,
+		...(quote ? { quote } : {}),
+		...(imageNumbers?.length ? { imageNumbers: [...imageNumbers] } : {}),
+		...(role === 'user' && attachments?.length ? { attachments: attachmentRefs(attachments) } : {}),
+		...(tools?.length ? { tools: normalizeToolResults(tools) } : {}),
+		...(generatedImages?.length ? { generatedImages: generatedImages.slice(0, 4).map(({ prompt, aspect, imageId, modelLabel, jobId, error }) => ({ prompt, aspect, ...(imageId ? { imageId } : {}), ...(modelLabel ? { modelLabel } : {}), ...(jobId ? { jobId } : {}), ...(error ? { error } : {}) })) } : {}),
+	};
+}
 
 // Same article, same chats: ignore the #fragment and trailing noise.
 export function chatKey(url: string, preserveUrlHash = false): string {
@@ -38,32 +68,44 @@ export async function loadConversations(url: string, preserveUrlHash = false): P
 
 export async function saveConversation(url: string, articleTitle: string, conversation: Conversation, preserveUrlHash = false): Promise<void> {
 	const key = chatKey(url, preserveUrlHash);
-	const saved = (await browser.storage.local.get([key, INDEX_KEY]));
-	const article: ArticleChats = (saved[key] as ArticleChats | undefined) ?? { url, title: articleTitle, updatedAt: 0, conversations: [] };
-	const stored: Conversation = { ...conversation, messages: conversation.messages.slice(-MAX_MESSAGES).map(({ role, content, quote, imageNumbers, generatedImages, tools }) => ({
-		role, content, ...(tools?.length ? { tools: normalizeToolResults(tools) } : {}), ...(quote ? { quote } : {}), ...(imageNumbers?.length ? { imageNumbers } : {}),
-		...(generatedImages?.length ? { generatedImages: generatedImages.slice(0, 4).map(({ prompt, aspect, imageId, modelLabel, jobId, error }) => ({ prompt, aspect, ...(imageId ? { imageId } : {}), ...(modelLabel ? { modelLabel } : {}), ...(jobId ? { jobId } : {}), ...(error ? { error } : {}) })) } : {}),
-	})), updatedAt: Date.now() };
-	article.title = articleTitle;
-	article.updatedAt = stored.updatedAt;
-	article.conversations = [stored, ...article.conversations.filter(c => c.id !== stored.id)].slice(0, MAX_CONVERSATIONS);
+	const stored: Conversation = { ...conversation, messages: conversation.messages.slice(-MAX_MESSAGES).map(storedTurn), updatedAt: Date.now() };
+	return write(async () => {
+		const saved = (await browser.storage.local.get([key, INDEX_KEY]));
+		const article: ArticleChats = (saved[key] as ArticleChats | undefined) ?? { url, title: articleTitle, updatedAt: 0, conversations: [] };
+		const previousAttachments = attachmentIds(article);
+		article.title = articleTitle;
+		article.updatedAt = stored.updatedAt;
+		article.conversations = [stored, ...article.conversations.filter(c => c.id !== stored.id)].slice(0, MAX_CONVERSATIONS);
 
-	const index = ((saved[INDEX_KEY] as { key: string; updatedAt: number }[] | undefined) ?? []).filter(item => item.key !== key);
-	index.unshift({ key, updatedAt: article.updatedAt });
-	const dropped = index.splice(MAX_ARTICLES);
-	await browser.storage.local.set({ [key]: article, [INDEX_KEY]: index });
-	if (dropped.length) await browser.storage.local.remove(dropped.map(item => item.key));
+		const index = ((saved[INDEX_KEY] as { key: string; updatedAt: number }[] | undefined) ?? []).filter(item => item.key !== key);
+		index.unshift({ key, updatedAt: article.updatedAt });
+		const dropped = index.splice(MAX_ARTICLES);
+		await browser.storage.local.set({ [key]: article, [INDEX_KEY]: index });
+		if (dropped.length) {
+			const keys = dropped.map(item => item.key);
+			const droppedArticles = await browser.storage.local.get(keys);
+			await browser.storage.local.remove(keys);
+			await deleteChatAttachments(Object.values(droppedArticles).flatMap(item => attachmentIds(item as ArticleChats)));
+		}
+		const retained = new Set(attachmentIds(article));
+		await deleteChatAttachments(previousAttachments.filter(id => !retained.has(id)));
+	});
 }
 
 export async function deleteConversation(url: string, id: string, preserveUrlHash = false): Promise<void> {
 	const key = chatKey(url, preserveUrlHash);
-	const article = (await browser.storage.local.get(key))[key] as ArticleChats | undefined;
-	if (!article) return;
-	article.conversations = article.conversations.filter(c => c.id !== id);
-	if (article.conversations.length) await browser.storage.local.set({ [key]: article });
-	else {
-		const index = ((await browser.storage.local.get(INDEX_KEY))[INDEX_KEY] as { key: string }[] | undefined) ?? [];
-		await browser.storage.local.remove(key);
-		await browser.storage.local.set({ [INDEX_KEY]: index.filter(item => item.key !== key) });
-	}
+	return write(async () => {
+		const article = (await browser.storage.local.get(key))[key] as ArticleChats | undefined;
+		if (!article) return;
+		const removed = article.conversations.find(c => c.id === id)?.messages.flatMap(m => attachmentRefs(m.attachments).map(ref => ref.id)) ?? [];
+		article.conversations = article.conversations.filter(c => c.id !== id);
+		if (article.conversations.length) await browser.storage.local.set({ [key]: article });
+		else {
+			const index = ((await browser.storage.local.get(INDEX_KEY))[INDEX_KEY] as { key: string }[] | undefined) ?? [];
+			await browser.storage.local.remove(key);
+			await browser.storage.local.set({ [INDEX_KEY]: index.filter(item => item.key !== key) });
+		}
+		const retained = new Set(attachmentIds(article));
+		await deleteChatAttachments(removed.filter(id => !retained.has(id)));
+	});
 }
