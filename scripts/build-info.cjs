@@ -48,6 +48,13 @@ function verifyBuild(dir, { target, current = true, cwd = root } = {}) {
 	if (info.schema !== 1 || info.mode !== 'production' || info.testInstall || (target && info.target !== target)) throw new Error('Expected a production build for ' + target);
 	if (manifest.version !== info.version) throw new Error('Manifest and build version differ');
 	if (JSON.stringify(fileHashes(dir)) !== JSON.stringify(info.files)) throw new Error('Build files changed: rebuild before packaging or testing');
+	if (info.target.startsWith('chrome-')) {
+		// Match Chromium's CheckForIllegalFilenames root-name check, including
+		// empty directories that are not represented by the file hashes.
+		const allowed = new Set(['_locales', '_platform_specific', '__MACOSX']);
+		const invalid = fs.readdirSync(dir).find(name => name.startsWith('_') && !allowed.has(name));
+		if (invalid) throw new Error(`Chrome reserved filename: ${invalid}; rebuild with a safe chunk prefix`);
+	}
 	if (current) {
 		if (info.version !== JSON.parse(fs.readFileSync(path.join(cwd, 'package.json'), 'utf8')).version) throw new Error('Package version changed: rebuild');
 		const state = sourceState(cwd);
