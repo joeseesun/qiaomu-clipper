@@ -35,7 +35,6 @@ export interface ChatHost {
 }
 
 const MODEL_KEY = 'qiaomuChatModel';
-const HISTORY_TURNS = 20;
 
 function renderMarkdown(text: string): string {
 	const html = marked.parse(text, { async: false, breaks: true }) as string;
@@ -412,7 +411,7 @@ export function mountChatPanel(host: ChatHost) {
 		const systemContext = { title: host.getTitle(), digest: host.getDigest(), markdown: host.getMarkdown(), selection: selectionText(), headings, imageReady, includeArticle, references: referenceContext(sent) };
 		current.messages.push({ role: 'user', content: question, ...(sent.length ? { refs: sent.map(a => a.label) } : {}) }, { role: 'assistant', content: '' });
 		const reply = current.messages[current.messages.length - 1];
-		const history = current.messages.slice(0, -2).slice(-HISTORY_TURNS).map(m => ({ role: m.role, content: m.content + toolHistory(m.tools) + (m.generatedImages?.length ? `\n[图片任务：${m.generatedImages.map(i => `${i.prompt}；${i.imageId ? '已生成，图片数据未附上' : i.jobId ? '已提交后台' : '未生成'}`).join('；')}]` : '') }));
+		const history = current.messages.slice(0, -2).map(m => ({ role: m.role, content: m.content + toolHistory(m.tools) + (m.generatedImages?.length ? `\n[图片任务：${m.generatedImages.map(i => `${i.prompt}；${i.imageId ? '已生成，图片数据未附上' : i.jobId ? '已提交后台' : '未生成'}`).join('；')}]` : '') }));
 		const images = imagesOf(sent);
 		const turns = [...history, { role: 'user' as const, content: question, ...(images.length ? { images } : {}) }];
 		input.value = ''; resize();

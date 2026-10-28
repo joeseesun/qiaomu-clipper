@@ -1485,5 +1485,16 @@
  "执行结果": "Resultado da execução",
  "网页内容": "Conteúdo da página",
  "思考过程": "Raciocínio",
- "支持原生工具的 Token Plan 模型直接使用已配置的模型密钥，无需在这里填写搜索密钥。聊天中的联网开关同时控制原生搜索、抓取和搜图。": "Os modelos Token Plan com ferramentas integradas usam a chave do modelo configurada. Não é necessária outra chave de busca. O botão web do chat controla a busca, extração de páginas e busca de imagens."
+ "支持原生工具的 Token Plan 模型直接使用已配置的模型密钥，无需在这里填写搜索密钥。聊天中的联网开关同时控制原生搜索、抓取和搜图。": "Os modelos Token Plan com ferramentas integradas usam a chave do modelo configurada. Não é necessária outra chave de busca. O botão web do chat controla a busca, extração de páginas e busca de imagens.",
+ "沿用 Ollama 的设置": "Usar as configurações do Ollama",
+ "此服务要求填写最大输出 token，但未公布模型上限。请在模型设置中填写服务支持的最大输出 token。": "Este serviço exige um máximo de tokens de saída, mas não publica o limite do modelo. Insira o máximo suportado nas configurações do modelo.",
+ "思考预算已达到最大输出 token，请降低思考强度或检查模型输出设置。": "O orçamento de raciocínio atinge o limite de saída. Reduza a intensidade do raciocínio ou verifique a configuração de saída.",
+ "token 数必须是正整数，或留空使用自动设置。": "Insira um número inteiro positivo ou deixe em branco para a configuração automática.",
+ "最大输出 token（可留空）": "Máximo de tokens de saída (opcional)",
+ "自动：读取服务商公布的上限": "Automático: usar o limite publicado pelo serviço",
+ "Ollama 上下文 token（可留空）": "Tokens de contexto do Ollama (opcional)",
+ "模型服务已达到单次输出上限，回答尚未完成。": "O serviço atingiu o limite de saída. A resposta está incompleta.",
+ "网页超过附件读取上限，请下载正文后粘贴到对话框。": "A página excede o limite de leitura de anexos. Baixe o texto e cole-o no chat.",
+ "留空时优先使用服务商公布的模型上限，未公布则沿用服务默认值。可按该服务的文档填写，不能超过服务端上限。": "Deixe em branco para usar o limite publicado do modelo ou, se indisponível, o padrão do serviço. Você pode inserir o valor documentado; o limite do servidor continua valendo.",
+ "本次完整内容超过了模型服务允许的上下文长度。": "A solicitação completa excede o tamanho de contexto permitido pelo serviço."
 }

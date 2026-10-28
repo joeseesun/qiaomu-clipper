@@ -130,6 +130,10 @@ export interface Settings {
 }
 
 export interface ModelConfig {
+	// Optional user override when the service does not publish output metadata.
+	outputTokenLimit?: number;
+	// Ollama only; absent respects its server/model configuration.
+	ollamaContextTokens?: number;
 	reasoningEfforts?: string[];
 	reasoningEffort?: string;
 	id: string;

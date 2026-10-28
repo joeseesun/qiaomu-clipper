@@ -10,7 +10,7 @@ export function normalizeUserPrompts(raw: unknown): PromptItem[] {
 	const seen = new Set<string>();
 	return (Array.isArray(raw) ? raw : []).flatMap((item: any): PromptItem[] => {
 		const title = typeof item?.title === 'string' ? item.title.trim().slice(0, 80) : '';
-		const body = typeof item?.body === 'string' ? item.body.trim().slice(0, 20000) : '';
+		const body = typeof item?.body === 'string' ? item.body.trim() : '';
 		const id = typeof item?.id === 'string' && item.id ? item.id : '';
 		if (!title || !body || !id || seen.has(id)) return [];
 		seen.add(id);

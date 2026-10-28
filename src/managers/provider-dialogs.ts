@@ -4,6 +4,7 @@ import { detectMagpie, magpieKey } from '../utils/magpie';
 // provider, a short form for it, and a searchable list for picking models. Cards and rows are divs:
 // the app's global button style stretches buttons to the full width of their container.
 import { ModelConfig, OAuthCredentials, Provider } from '../types/types';
+import { positiveTokenLimit } from '../utils/model-limits';
 import { generalSettings, saveSettings } from '../utils/storage-utils';
 import { getMessage } from '../utils/i18n';
 import { t } from '../utils/ui-text';
@@ -502,6 +503,10 @@ function showModelEditor(dlg: Dialog, model: ModelConfig, done: Done): void {
 	head.append(iconTile(provider || {}, 'md'), el('strong', '', provider?.name || msg('unknownProvider')));
 	const nameInput = input('text', model.name, msg('modelName'));
 	const idInput = input('text', model.providerModelId || '', msg('providerModelId'));
+	const outputInput = input('number', model.outputTokenLimit?.toString() || '', t('自动：读取服务商公布的上限'));
+	outputInput.min = '1'; outputInput.step = '1';
+	const contextInput = input('number', model.ollamaContextTokens?.toString() || '', t('沿用 Ollama 的设置'));
+	contextInput.min = '1'; contextInput.step = '1';
   const effort = el('select'); effort.append(new Option(msg('pdEffortDefault'), ''));
   for (const value of model.reasoningEfforts || []) effort.append(reasoningEffortOption(value));
   effort.value = model.reasoningEffort || '';
@@ -509,13 +514,17 @@ function showModelEditor(dlg: Dialog, model: ModelConfig, done: Done): void {
 	const error = el('div', 'pd-status is-error');
 	error.setAttribute('role', 'alert');
 	dlg.body.append(head, field('pd-mname', msg('modelName'), nameInput), field('pd-mid', msg('providerModelId'), idInput, el('div', 'pd-hint', msg('providerModelIdDescription'))), error);
+	if (!provider?.oauth) dlg.body.insertBefore(field('pd-output-tokens', t('最大输出 token（可留空）'), outputInput,
+		el('div', 'pd-hint', t('留空时优先使用服务商公布的模型上限，未公布则沿用服务默认值。可按该服务的文档填写，不能超过服务端上限。'))), error);
+	if (provider?.name.toLowerCase().includes('ollama')) dlg.body.insertBefore(field('pd-context-tokens', t('Ollama 上下文 token（可留空）'), contextInput), error);
 	dlg.actions.append(button(msg('cancel'), '', dlg.close), button(msg('save'), 'pd-primary', async () => {
 		const name = nameInput.value.trim();
 		const providerModelId = idInput.value.trim();
 		if (!name || !providerModelId) { error.textContent = msg('modelRequiredFields'); return; }
+		if ([outputInput, contextInput].some(input => input.value && !positiveTokenLimit(Number(input.value)))) { error.textContent = t('token 数必须是正整数，或留空使用自动设置。'); return; }
 		const index = generalSettings.models.findIndex(m => m.id === model.id);
 		const previous = [...generalSettings.models];
-		const next = { ...model, name, providerModelId, reasoningEffort: providerModelId === model.providerModelId ? effort.value || undefined : undefined, reasoningEfforts: providerModelId === model.providerModelId ? model.reasoningEfforts : undefined };
+		const next = { ...model, name, providerModelId, outputTokenLimit: positiveTokenLimit(Number(outputInput.value)), ollamaContextTokens: positiveTokenLimit(Number(contextInput.value)), reasoningEffort: providerModelId === model.providerModelId ? effort.value || undefined : undefined, reasoningEfforts: providerModelId === model.providerModelId ? model.reasoningEfforts : undefined };
 		if (index >= 0) generalSettings.models[index] = next; else generalSettings.models.push(next);
 		try { await saveSettings(); } catch { generalSettings.models = previous; error.textContent = msg('failedToSaveModel'); return; }
 		dlg.close();

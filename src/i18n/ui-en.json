@@ -1485,5 +1485,16 @@
  "执行结果": "Execution result",
  "网页内容": "Page content",
  "思考过程": "Reasoning",
- "支持原生工具的 Token Plan 模型直接使用已配置的模型密钥，无需在这里填写搜索密钥。聊天中的联网开关同时控制原生搜索、抓取和搜图。": "Token Plan models with built-in tools use the configured model key. No search key is needed here. The chat web toggle controls native search, page extraction and image search."
+ "支持原生工具的 Token Plan 模型直接使用已配置的模型密钥，无需在这里填写搜索密钥。聊天中的联网开关同时控制原生搜索、抓取和搜图。": "Token Plan models with built-in tools use the configured model key. No search key is needed here. The chat web toggle controls native search, page extraction and image search.",
+ "沿用 Ollama 的设置": "Use Ollama settings",
+ "此服务要求填写最大输出 token，但未公布模型上限。请在模型设置中填写服务支持的最大输出 token。": "This service requires a maximum output token value but does not publish the model limit. Enter its supported maximum in model settings.",
+ "思考预算已达到最大输出 token，请降低思考强度或检查模型输出设置。": "The thinking budget reaches the output limit. Lower the thinking effort or check the model output setting.",
+ "token 数必须是正整数，或留空使用自动设置。": "Enter a positive integer token count, or leave blank for automatic settings.",
+ "最大输出 token（可留空）": "Maximum output tokens (optional)",
+ "自动：读取服务商公布的上限": "Auto: use the limit published by the service",
+ "Ollama 上下文 token（可留空）": "Ollama context tokens (optional)",
+ "模型服务已达到单次输出上限，回答尚未完成。": "The service reached its output limit. The answer is incomplete.",
+ "网页超过附件读取上限，请下载正文后粘贴到对话框。": "The page exceeds the attachment download limit. Download its text and paste it into the chat.",
+ "留空时优先使用服务商公布的模型上限，未公布则沿用服务默认值。可按该服务的文档填写，不能超过服务端上限。": "Leave blank to use the published model limit, or the service default if unavailable. You can enter the value documented by your service; its server limit still applies.",
+ "本次完整内容超过了模型服务允许的上下文长度。": "The complete request exceeds the context length allowed by this service."
 }
