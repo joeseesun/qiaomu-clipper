@@ -915,6 +915,19 @@
         "src/utils/chat-agent.test.ts",
         "src/utils/chat-thinking.test.ts"
       ]
+    },
+    {
+      "id": "article-list-preservation",
+      "title": "保留正文段落后的有序和无序列表",
+      "origin": "fix/preserve-article-lists",
+      "files": [
+        "src/utils/defuddle.ts",
+        "src/utils/list-preservation.ts"
+      ],
+      "tests": [
+        "src/utils/list-preservation.test.ts",
+        "src/utils/code-preservation.test.ts"
+      ]
     }
   ]
 }
