@@ -206,6 +206,22 @@
       ]
     },
     {
+      "id": "native-youtube-caption-fullscreen",
+      "title": "YouTube 原生全屏按钮、F 键和双击自动带入双语字幕",
+      "origin": "沉浸学习全屏字幕修复",
+      "files": [
+        "src/utils/player-fullscreen.ts",
+        "src/utils/embedded-player-interaction.ts",
+        "src/utils/player-captions.ts"
+      ],
+      "tests": [
+        "src/utils/player-fullscreen.test.ts",
+        "src/utils/embedded-player-interaction.test.ts",
+        "src/utils/player-captions.test.ts",
+        "src/utils/player-caption-interaction.test.ts"
+      ]
+    },
+    {
       "id": "subtitle-edit-controls",
       "title": "文稿换模型单入口、开源字体、稳定悬停拖动、空格与K播放控制、全屏自动隐藏与3倍速",
       "origin": "本次字幕交互整合",
