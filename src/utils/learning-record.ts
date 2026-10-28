@@ -190,7 +190,8 @@ export async function pickAttachments(): Promise<AttachResult> {
 	return { items: (reply.items || []).map(strip), errors: reply.errors || [] };
 }
 // Pasted or dropped files. Small ones travel as bytes. A large one is found again by the helper where it lives (the
-// clipboard for a paste, the Finder selection for a drop), because a page is never told a file's path.
+// clipboard for a paste, the Finder selection for a drop, or a native confirmation picker on other systems),
+// because a page is never told a file's path.
 export async function addAttachments(files: File[], source: 'clipboard' | 'finder'): Promise<AttachResult> {
 	const items: DraftAttachment[] = [], errors: string[] = [];
 	const large = files.filter(file => file.size > ATTACH_BYTES_LIMIT);
@@ -198,9 +199,10 @@ export async function addAttachments(files: File[], source: 'clipboard' | 'finde
 	if (large.length) local = await attachNative({ mode: 'local', source, names: large.map(file => ({ name: file.name, size: file.size })) });
 	for (const [index, file] of files.entries()) {
 		if (file.size > ATTACH_BYTES_LIMIT) {
+			if (local.cancelled) continue;
 			const found = local.items?.find(item => item.origName === file.name && item.origSize === file.size);
 			if (found) items.push(strip(found));
-			else errors.push(t('{0} 较大，请用“添加附件”选择，或在访达里复制后粘贴', [file.name]));
+			else errors.push(t('{0} 较大，请用“附件”按钮选择本机文件', [file.name]));
 			continue;
 		}
 		const reply = await attachNative({ mode: 'bytes', name: attachmentName(file, index), data: await toBase64(file) });

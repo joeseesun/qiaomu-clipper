@@ -918,7 +918,7 @@
     },
     {
       "id": "native-model-context",
-      "title": "完整输入与原生输出预算及服务端超限检查",
+      "title": "完整输入与原生输出预算、X 全文单次翻译及服务端超限检查",
       "origin": "用户要求取消固定上下文与输出裁剪（2026-10-27）",
       "files": [
         "src/utils/model-limits.ts",
@@ -928,16 +928,87 @@
         "src/managers/provider-dialogs.ts",
         "src/write/ai/chat-store.ts",
         "src/write/ai/protocol.ts",
-        "src/write/editor/ai.ts"
+        "src/write/editor/ai.ts",
+        "src/utils/x-article-chat.ts"
       ],
       "tests": [
         "src/utils/model-limits.test.ts",
         "src/utils/chat-capacity.test.ts",
         "src/utils/chat-llm.test.ts",
         "src/utils/clip-chat-generation.test.ts",
+        "src/utils/x-article-chat.test.ts",
         "src/write/ai/chat-store.test.ts",
         "src/write/ai/protocol.test.ts",
         "src/managers/interpreter-settings.test.ts"
+      ]
+    },
+    {
+      "id": "x-original-link-translation",
+      "title": "对话框读取 X 完整正文、Grok 文章定位、保留代码与逐段翻译",
+      "origin": "feat/optional-x-full-reading",
+      "files": [
+        "src/utils/x-article.ts",
+        "src/utils/x-article-client.ts",
+        "src/utils/x-article-background.ts",
+        "src/utils/x-article-chat.ts",
+        "src/utils/chat-agent.ts",
+        "src/utils/clip-chat.ts",
+        "src/utils/chat-image-generation.ts",
+        "native/x_articles.py",
+        "native/x_article_source.py"
+      ],
+      "tests": [
+        "src/utils/x-article-chat.test.ts",
+        "src/utils/x-article-client.test.ts",
+        "src/utils/x-article-background.test.ts",
+        "src/utils/chat-agent.test.ts",
+        "src/utils/clip-chat-generation.test.ts",
+        "native/test_x_articles.py"
+      ]
+    },
+    {
+      "id": "x-helper-setup",
+      "title": "X 完整阅读可选启用、网络预检与内置运行环境安装包",
+      "origin": "用户要求免手动安装 Python 和命令行（2026-10-28）",
+      "files": [
+        "src/utils/x-setup-view.ts",
+        "src/utils/x-setup-state.ts",
+        "src/utils/x-setup-release.ts",
+        "native/x_setup.py",
+        "native/grok-runtime.json",
+        "scripts/windows/helper.nsi",
+        "src/utils/x-setup-network.ts"
+      ],
+      "tests": [
+        "src/utils/x-setup-view.test.ts",
+        "src/utils/x-article-background.test.ts",
+        "native/test_x_setup.py",
+        "src/utils/x-setup-network.test.ts",
+        "src/managers/settings-routing.test.ts"
+      ]
+    },
+    {
+      "id": "windows-helper-lifecycle",
+      "title": "Windows 助手升级、系统卸载入口与附件写入修复",
+      "origin": "Windows x64 installation and offline regression",
+      "files": [
+        "native/host.py",
+        "native/uninstall.py",
+        "native/media_download.py",
+        "scripts/windows/installer.py",
+        "scripts/windows/helper.nsi",
+        "src/managers/general-settings.ts",
+        "native/asr_engines.py",
+        "native/asr_runner.py"
+      ],
+      "tests": [
+        "src/managers/local-helper-settings.test.ts",
+        "native/test_windows_package.py",
+        "native/test_learning.py",
+        "native/test_uninstall.py",
+        "native/test_media_download.py",
+        "native/test_dialogs.py",
+        "native/test_asr_install.py"
       ]
     }
   ]

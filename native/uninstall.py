@@ -3,7 +3,7 @@
 Used by the extension's "卸载助手" button (through host.py) and by `qiaomu-helper --uninstall`.
 Never touches notes, the Obsidian vault, or models other tools downloaded into the shared Hugging Face cache.
 """
-import json,os,shutil,subprocess,sys
+import json,os,re,shutil,subprocess,sys
 from pathlib import Path
 HOME=Path.home()
 NAME='ai.qiaomu.clipper'
@@ -11,6 +11,27 @@ BASE=Path(os.environ.get('QIAOMU_BASE') or HOME/'.local/share/qiaomu-clipper')
 SYSTEM_ROOT=Path(os.environ.get('QIAOMU_INSTALL_ROOT') or '/Library/QiaomuClipper')
 PKG_ID='ai.qiaomu.clipper.helper'
 WINDOWS_KEYS=['Google\\Chrome','Chromium','Microsoft\\Edge','BraveSoftware\\Brave-Browser']
+WINDOWS_UNINSTALL_KEY='Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\QiaomuClipperHelper'
+
+def windows_package():
+    """Only launch our registered per-user installer, never an arbitrary registry command."""
+    if sys.platform!='win32': return None
+    try:
+        import winreg
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER,WINDOWS_UNINSTALL_KEY) as key:
+            command=winreg.QueryValueEx(key,'UninstallString')[0]
+        if not isinstance(command,str): return None
+        match=re.fullmatch(r'"([^"\r\n]+)"',command)
+        if not match: return None
+        target=Path(match[1]).resolve()
+        root=(Path(os.environ['LOCALAPPDATA'])/'QiaomuClipper').resolve()
+        if target.name.lower()!='uninstall.exe' or target.parent.parent!=root or not re.fullmatch(r'\d+\.\d+\.\d+',target.parent.name): return None
+        return target if target.is_file() else None
+    except (ImportError,OSError,KeyError,ValueError): return None
+
+def busy():
+    import asr,codex_images,x_articles,x_setup
+    return bool(asr.active_job(BASE)[0] or asr.active_install(BASE)[0] or codex_images.active_job(BASE) or x_articles.active_job(BASE) or x_setup.active_job(BASE))
 
 def manifests():
     """Every NativeMessagingHosts/<NAME>.json that is ours, in any Chromium-family browser profile folder."""
@@ -46,7 +67,9 @@ def plan():
     size+=sum(folder_bytes(m) for m in models)
     system=sys.platform=='darwin' and SYSTEM_ROOT.is_dir()
     if system: size+=folder_bytes(SYSTEM_ROOT)
-    return {'registrations':[str(p) for p in manifests()],'user':str(BASE) if BASE.is_dir() else None,'models':[str(m) for m in models],'system':str(SYSTEM_ROOT) if system else None,'freedMb':round(size/1048576),'needsAdmin':system,'preservesSharedModels':True}
+    package=windows_package()
+    if package: size+=folder_bytes(package.parent)
+    return {'registrations':[str(p) for p in manifests()],'user':str(BASE) if BASE.is_dir() else None,'models':[str(m) for m in models],'system':str(SYSTEM_ROOT) if system else None,'windowsPackage':str(package.parent) if package else None,'systemUninstallerAvailable':bool(package),'freedMb':round(size/1048576),'needsAdmin':system,'preservesSharedModels':True}
 
 def remove_system():
     """Delete the installed package files with the standard macOS password dialog. -> (done, cancelled, message)"""
@@ -75,9 +98,16 @@ def remove_user():
         except ImportError: pass
     shutil.rmtree(BASE,ignore_errors=True)
 
-def run():
+def run(from_package=False):
     """Do it. The password dialog comes first so a cancelled dialog leaves a working helper behind."""
     found=plan()
+    package=windows_package()
+    if package and not from_package:
+        # The native host must exit before Windows can delete its Python runtime.
+        # Hand over to the normal GUI; cancellation leaves the helper untouched.
+        subprocess.Popen([str(package)],stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,close_fds=True)
+        return {'ok':True,'pending':True,'systemUninstaller':True}
+    if from_package and busy(): return {'ok':False,'error':'正在生成内容或安装组件，请完成或取消任务后再卸载。'}
     done,cancelled,message=remove_system()
     if not done: return {'ok':False,'cancelled':cancelled,'error':'没能删除系统里的助手文件：'+message if not cancelled else '已取消'}
     remove_user()
@@ -85,4 +115,4 @@ def run():
 
 if __name__=='__main__':
     if '--plan' in sys.argv: print(json.dumps(plan(),ensure_ascii=False,indent=2));sys.exit(0)
-    result=run();print(json.dumps(result,ensure_ascii=False,indent=2));sys.exit(0 if result['ok'] else 1)
+    result=run(from_package='--from-package' in sys.argv);print(json.dumps(result,ensure_ascii=False,indent=2));sys.exit(0 if result['ok'] else 1)

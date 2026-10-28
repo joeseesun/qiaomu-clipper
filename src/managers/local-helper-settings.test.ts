@@ -105,6 +105,16 @@ it('keeps the helper when the password dialog is cancelled', async () => {
  expect((el('local-helper-uninstall') as HTMLButtonElement).hidden).toBe(false);
 });
 
+it('hands Windows removal to the system uninstaller without claiming it is finished', async () => {
+ vi.spyOn(navigator, 'platform', 'get').mockReturnValue('Win32');
+ state.outdated = false;
+ state.send.mockImplementation(async (m:any) => m.action === 'qiaomuLocalUninstallPlan' ? {ok:true,freedMb:80,preservesSharedModels:true,systemUninstallerAvailable:true} : m.action === 'qiaomuLocalUninstall' ? {ok:true,pending:true} : m.action === 'qiaomuLocalStatus' ? {ok:true} : {ok:true,vaults:[]});
+ await initializeLocalVaultSettings(); const confirm=vi.spyOn(window,'confirm').mockReturnValue(true);
+ expect(el('local-helper-uninstall').hidden).toBe(false);el('local-helper-uninstall').click();
+ await vi.waitFor(()=>expect(el('local-helper-note').textContent).toContain('已打开 Windows 卸载程序'));
+ expect(confirm.mock.calls[0][0]).not.toContain('Mac');expect(el('local-helper-note').textContent).not.toContain('助手已卸载');
+});
+
 it.each([{ok:false,error:'不支持的本地操作'}, {ok:true,freedMb:1700}])('blocks older helpers without shared-cache protection: %j', async plan => {
  state.outdated = false;
  const sent: string[] = [];

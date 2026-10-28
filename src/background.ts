@@ -1,4 +1,5 @@
 import { handleImageJobs } from './utils/image-job-background';
+import { handleXArticle } from './utils/x-article-background';
 import { handleChatToolPort } from './utils/chat-tools-background';
 import { openAiSidebar } from './utils/ai-sidebar';
 import { handleChatImageSource } from './utils/chat-image-source';
@@ -41,6 +42,7 @@ browser.runtime.onMessage.addListener(handleLearningNativeMessage);
 browser.runtime.onMessage.addListener(handleAsrMessage);
 browser.runtime.onMessage.addListener(handleChatImageSource);
 browser.runtime.onMessage.addListener(handleImageJobs);
+browser.runtime.onMessage.addListener(handleXArticle);
 browser.runtime.onConnect.addListener(handleChatToolPort);
 
 // Accept RSS writes only from our own extension pages, never a website content script.

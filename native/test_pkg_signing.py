@@ -12,7 +12,7 @@ class PackageSigningTest(unittest.TestCase):
         for path in (ROOT / 'scripts/pkg').glob('*.plist'): shutil.copy(path, pkg / path.name)
         native = root / 'native'; native.mkdir()
         (native / 'VERSION').write_text('1.16.4')
-        for name in ['install.py', 'host.py', 'asr.py', 'asr_cloud.py', 'asr_engines.py', 'asr_runner.py', 'asr_context.py', 'media_download.py', 'uninstall.py', 'codex_images.py']: (native / name).write_text('# fixture')
+        for name in ['install.py', 'host.py', 'asr.py', 'asr_cloud.py', 'asr_engines.py', 'asr_runner.py', 'asr_context.py', 'media_download.py', 'uninstall.py', 'codex_images.py', 'x_articles.py', 'x_article_source.py', 'x_setup.py', 'grok-runtime.json']: (native / name).write_text('# fixture')
         for name in ['qiaomu-helper', 'postinstall', 'welcome.html', 'conclusion.html', 'distribution.xml']: (pkg / name).write_text('fixture')
         runtime = root / 'runtime/bin'; runtime.mkdir(parents=True)
         (runtime / 'python3').write_text('fixture'); (runtime / 'python3').chmod(0o755)

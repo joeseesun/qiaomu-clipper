@@ -1,4 +1,5 @@
 import { streamChatAgent } from './chat-agent';
+import { wantsXTranslation } from './x-article';
 import { mountChatTools, keepChatPhoto, createSearchToggle } from './chat-tool-view';
 import { toolHistory, normalizeToolResults, type ChatToolResult } from './chat-tools-types';
 import { openImageLibrary } from './image-jobs';
@@ -717,13 +718,16 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 		let answer = '';
 		let thought = '';
 		let toolResults: ChatToolResult[] = [];
+		const parseAnswer = () => parseChatImageReply(answer, {
+			literal: wantsXTranslation(text) && toolResults.some(result => result.call.type === 'read_x' && result.state === 'done'),
+		});
 		checkpoint = () => {
-			if (answer || toolResults.length) activeConversation.messages.push({ role: 'assistant', content: parseChatImageReply(answer).text, ...(toolResults.length ? { tools: normalizeToolResults(toolResults) } : {}) });
+			if (answer || toolResults.length) activeConversation.messages.push({ role: 'assistant', content: parseAnswer().text, ...(toolResults.length ? { tools: normalizeToolResults(toolResults) } : {}) });
 			void saveOwnedConversation(activeConversation).catch(console.warn);
 		};
 		const toolArea = el('div', 'qm-tool-results'); answerWrap.append(toolArea);
 		let failed = false;
-		const paint = () => { pendingPaint = 0; if (disposed) return; body.classList.remove('is-thinking'); body.innerHTML = render(parseChatImageReply(answer).text); };
+		const paint = () => { pendingPaint = 0; if (disposed) return; body.classList.remove('is-thinking'); body.innerHTML = render(parseAnswer().text); };
 		try {
 			await saveOwnedConversation(activeConversation);
 			const imageStore = await loadImageModels();
@@ -772,7 +776,7 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 			if (failed && !input.value.trim()) { input.value = question || text; }
 			if (failed && !toolResults.length) { conversation.messages.pop(); questionWrap.remove(); attachments.restore(sentAttachments); } // keep attachments available for retry
 			else if (answer || toolResults.length) {
-				const parsed = parseChatImageReply(answer);
+				const parsed = parseAnswer();
 				toolResults = normalizeToolResults(toolResults);
 				toolArea.replaceChildren(); mountChatTools(toolArea, toolResults, { persist: () => saveConversation(url, articleTitle, activeConversation, options.preserveUrlHash), followup: text => void ask(text) });
 				const reply: StoredTurn = { role: 'assistant', content: failed ? body.textContent || parsed.text : parsed.text, ...(thought ? { thought } : {}), ...(toolResults.length ? { tools: toolResults } : {}), ...(parsed.images.length ? { generatedImages: parsed.images } : {}) };

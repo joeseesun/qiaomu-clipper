@@ -7,30 +7,12 @@ import asr
 spec=importlib.util.spec_from_file_location('asr_host',HERE/'host.py');host=importlib.util.module_from_spec(spec);spec.loader.exec_module(host)
 
 KEY='bilibili:BV1hM4m1U7rA:20'
-FAKE_YTDLP='''#!/bin/bash
-# fake yt-dlp: honours -o and fails on request
-out=""; while [ $# -gt 0 ]; do if [ "$1" = "-o" ]; then out="$2"; fi; if [ "$1" = "--cookies-from-browser" ]; then echo "cookies=$2" >> "$FAKE_LOG"; fi; if [ "$1" = "--cookies" ]; then echo "cookiefile=$(head -c 22 "$2" | head -1)" >> "$FAKE_LOG"; fi; last="$1"; shift; done
-[ -n "$FAKE_NEEDS_LOGIN" ] && [ ! -s "$FAKE_LOG" ] && { echo "ERROR: [youtube] x: Sign in to confirm you’re not a bot. Use --cookies-from-browser" >&2; exit 1; }
-[ -n "$FAKE_YTDLP_FAIL" ] && { echo "ERROR: $FAKE_YTDLP_FAIL" >&2; exit 1; }
-echo "[download]  50.0% of 1MiB"; echo "[download] 100.0% of 1MiB"
-printf 'audio' > "${out/\\%(ext)s/m4a}"
-'''
-FAKE_FFPROBE='#!/bin/bash\necho "${FAKE_DURATION:-120.5}"\n'
-FAKE_FFMPEG='#!/bin/bash\nfor a in "$@"; do last="$a"; done\nprintf wav > "$last"\n'
-FAKE_MLX='''#!/bin/bash
-dir=""; while [ $# -gt 0 ]; do if [ "$1" = "--output-dir" ]; then dir="$2"; fi; if [ "$1" = "--language" ]; then echo "lang=$2" >> "$FAKE_LOG"; fi; if [ "$1" = "--initial-prompt" ]; then echo "prompt=$2" >> "$FAKE_LOG"; fi; shift; done
-[ -n "$FAKE_MLX_FAIL" ] && { echo "boom" >&2; exit 2; }
-echo "[00:00.000 --> 00:04.840] 好了,下面继续。"
-echo "[00:04.900 --> 00:08.000] 谢谢观看"
-echo "[00:08.000 --> 00:12.000] 第三个部分。"
-echo "[01:00:00.500 --> 01:00:03.000] 一小时之后。"
-printf '{"language":"zh","segments":[{"start":0.0,"end":4.84,"text":"好了,下面继续。"},{"start":4.9,"end":8.0,"text":"谢谢观看"},{"start":8.0,"end":12.0,"text":"第三个部分。"},{"start":3600.5,"end":3603.0,"text":"一小时之后。"}]}' > "$dir/whisper.json"
-'''
+from test_support import executable, YTDLP as FAKE_YTDLP, FFPROBE as FAKE_FFPROBE, FFMPEG as FAKE_FFMPEG, MLX as FAKE_MLX
 class AsrTests(unittest.TestCase):
  def setUp(self):
   self.temp=tempfile.TemporaryDirectory();self.base=Path(self.temp.name)/'state';self.base.mkdir();self.tools=Path(self.temp.name)/'tools';self.tools.mkdir()
   for name,body in (('yt-dlp',FAKE_YTDLP),('ffprobe',FAKE_FFPROBE),('ffmpeg',FAKE_FFMPEG),('mlx_whisper',FAKE_MLX)):
-   path=self.tools/name;path.write_text(body);path.chmod(path.stat().st_mode|stat.S_IEXEC)
+   executable(self.tools,name,body)
   self.log=Path(self.temp.name)/'calls.log'
   self.patches=[patch.dict(os.environ,{'QIAOMU_TOOL_DIRS':str(self.tools),'FAKE_LOG':str(self.log),'HF_HOME':str(Path(self.temp.name)/'hf'),'QIAOMU_TOOLS_HOME':str(Path(self.temp.name)/'private')}),patch.object(asr,'apple_silicon',lambda:True),patch.object(asr,'mlx_model_ready',lambda:True),patch.object(asr,'whisper_cpp_model',lambda:None),patch.object(asr,'spawn_worker',lambda directory,key=None:424242)]
   for p in self.patches:p.start()
@@ -115,7 +97,7 @@ class AsrTests(unittest.TestCase):
   self.assertFalse((asr.job_dir(self.base,done['id'])/'cookies.txt').exists())
   for bad in ('not a cookie file',text+'x'*(asr.COOKIE_FILE_MAX+1),'a\tb\tc'):
    with self.assertRaises(ValueError):asr.handle({'action':'asrStart','videoKey':KEY,'cookies':'chrome','cookiesTxt':bad},self.base)
-  path=asr.write_private(self.base/'c.txt','x') or self.base/'c.txt';self.assertEqual(stat.S_IMODE(path.stat().st_mode),0o600)
+  path=asr.write_private(self.base/'c.txt','x') or self.base/'c.txt';self.assertTrue(path.is_file()) if os.name=='nt' else self.assertEqual(stat.S_IMODE(path.stat().st_mode),0o600)
  def test_a_browser_cookie_file_the_helper_may_not_open_is_reported_as_such(self):
   with patch.dict(os.environ,{'FAKE_YTDLP_FAIL':'could not find chrome cookies database in "/Users/x/Library/Application Support/Google/Chrome"'}):
    done=self.work(self.run_job(cookies='chrome')['id']);self.assertEqual(done['state'],'failed');self.assertEqual(done['errorCode'],'cookies-unreadable')
@@ -131,8 +113,9 @@ class AsrTests(unittest.TestCase):
   job=self.run_job()['id'];asr.write_state(asr.job_dir(self.base,job),state='transcribing',pid=2**22+12345)
   p=asr.handle({'action':'asrPoll','jobId':job},self.base);self.assertEqual(p['state'],'failed');self.assertIn('意外退出',p['error'])
   job=self.run_job()['id'];asr.write_state(asr.job_dir(self.base,job),state='transcribing',pid=os.getpid())  # alive, but not an asr worker
-  with patch.object(asr.os,'killpg') as kill:
+  with patch.object(asr.os,'killpg',create=True) as kill:
    c=asr.handle({'action':'asrCancel','jobId':job},self.base);self.assertFalse(kill.called);self.assertEqual(c['state'],'failed')
+ @unittest.skipIf(os.name=='nt', 'POSIX process groups; Windows taskkill is tested in test_asr_install')
  def test_cancel_stops_the_worker_group_and_marks_the_job(self):
   job=self.run_job()['id'];asr.write_state(asr.job_dir(self.base,job),state='transcribing',pid=4242)
   alive=iter([True,True,False,False,False,False])

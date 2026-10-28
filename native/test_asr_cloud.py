@@ -29,29 +29,18 @@ class Provider:
   return {'text':'第一句。第二句话在这里。'} if path.endswith('/audio/transcriptions') else {'choices':[{'message':{'content':'你好。世界。'}}]}
  def close(self):self.server.shutdown();self.server.server_close()
 
-FAKE_FFMPEG='''#!/bin/bash
-args="$*"
-if [[ "$args" == *volumedetect* ]]; then echo "[Parsed_volumedetect_0 @ 0x1] mean_volume: -15.0 dB" >&2; exit 0; fi
-if [[ "$args" == *silencedetect* ]]; then
-  echo "$args" >> "$FAKE_FFMPEG_LOG"
-  for pair in $FAKE_PAUSES; do echo "[silencedetect @ 0x1] silence_start: ${pair%%:*}" >&2; echo "[silencedetect @ 0x1] silence_end: ${pair##*:} | silence_duration: 0.3" >&2; done
-  exit 0
-fi
-for a in "$@"; do last="$a"; done
-[ "$FAKE_FFMPEG_FAIL" = "1" ] && exit 1
-printf 'audio-bytes' > "$last"
-'''
+from test_support import executable, FFMPEG as FAKE_FFMPEG, YTDLP, FFPROBE
 class CloudTests(unittest.TestCase):
  def setUp(self):
   self.temp=tempfile.TemporaryDirectory();self.dir=Path(self.temp.name);self.tools=self.dir/'tools';self.tools.mkdir()
-  ff=self.tools/'ffmpeg';ff.write_text(FAKE_FFMPEG);ff.chmod(ff.stat().st_mode|stat.S_IEXEC)
+  self.ffmpeg=executable(self.tools,'ffmpeg',FAKE_FFMPEG)
   self.env=dict(os.environ,FAKE_FFMPEG_LOG=str(self.dir/'ff.log'),FAKE_PAUSES='');self.provider=Provider()
   self.cfg=cloud.clean_config({'protocol':'openai-transcriptions','baseUrl':self.provider.url,'model':'vendor/asr-1','timestamps':'none','label':'测试服务'})
   self.wav=self.dir/'a.wav';self.wav.write_bytes(b'RIFF');self.mp3=self.dir/'c.mp3';self.mp3.write_bytes(b'mp3data')
  def tearDown(self):self.provider.close();self.temp.cleanup()
  def run_cloud(self,total=100.0,cfg=None,workers=3,**env):
   cues=[];prog=[];self.env.update(env)
-  made,det=cloud.recognise(self.wav,total,self.dir,cfg or self.cfg,'sk-test','auto',{'ffmpeg':str(self.tools/'ffmpeg')},self.env,cues.extend,lambda d,c,e:prog.append((d,c,round(e,1))),workers=workers,sleep=lambda s:None)
+  made,det=cloud.recognise(self.wav,total,self.dir,cfg or self.cfg,'sk-test','auto',{'ffmpeg':str(self.ffmpeg)},self.env,cues.extend,lambda d,c,e:prog.append((d,c,round(e,1))),workers=workers,sleep=lambda s:None)
   return made,det,cues,prog
 
  def test_config_is_validated_and_never_carries_a_key(self):
@@ -131,7 +120,7 @@ class CloudTests(unittest.TestCase):
   self.assertIn('413',str(caught.exception));self.assertIsNone(caught.exception.code);self.assertEqual(len(self.provider.requests),1)
  def test_an_unreachable_service_is_retried_and_then_reported(self):
   cfg=cloud.clean_config({'protocol':'openai-transcriptions','baseUrl':'http://127.0.0.1:9/v1','model':'m'});waits=[]
-  with self.assertRaises(cloud.CloudError) as caught:cloud.transcribe(cfg,'sk',self.mp3,'auto',sleep=waits.append)
+  with patch.object(cloud.urllib.request,'urlopen',side_effect=urllib.error.URLError('fixture connection refused')),self.assertRaises(cloud.CloudError) as caught:cloud.transcribe(cfg,'sk',self.mp3,'auto',sleep=waits.append)
   self.assertIn('连接失败',str(caught.exception));self.assertEqual(len(waits),cloud.RETRIES)
  def test_garbage_from_the_service_is_reported_not_crashed_on(self):
   self.provider.default=lambda path,body:['not','an','object']
@@ -209,7 +198,7 @@ class CloudTests(unittest.TestCase):
   with self.assertRaises(cloud.CloudError) as caught:cloud.transcribe(cfg,'k',self.mp3,'auto',sleep=lambda s:None)
   self.assertIn('45000001',str(caught.exception));self.assertIsNone(caught.exception.code)
  def test_the_cloud_check_accepts_any_answer_and_reports_a_wrong_key(self):
-  ff=str(self.tools/'ffmpeg');self.assertTrue(cloud.test(self.cfg,'sk',ff,self.env)['ok'])
+  ff=str(self.ffmpeg);self.assertTrue(cloud.test(self.cfg,'sk',ff,self.env)['ok'])
   self.provider.script=[(401,{},{'error':'no'})]
   with self.assertRaises(cloud.CloudError):cloud.test(self.cfg,'sk',ff,self.env,sleep=lambda s:None)
 
@@ -217,8 +206,8 @@ class CloudJobTests(unittest.TestCase):
  """The worker and the host's actions around the cloud engine."""
  def setUp(self):
   self.temp=tempfile.TemporaryDirectory();self.base=Path(self.temp.name)/'state';self.base.mkdir();self.tools=Path(self.temp.name)/'tools';self.tools.mkdir()
-  for name,body in (('yt-dlp','#!/bin/bash\nout="";while [ $# -gt 0 ]; do [ "$1" = "-o" ] && out="$2"; shift; done\nprintf audio > "${out/\\%(ext)s/m4a}"\n'),('ffprobe','#!/bin/bash\necho 100\n'),('ffmpeg',FAKE_FFMPEG)):
-   path=self.tools/name;path.write_text(body);path.chmod(path.stat().st_mode|stat.S_IEXEC)
+  for name,body in (('yt-dlp',YTDLP),('ffprobe',FFPROBE),('ffmpeg',FAKE_FFMPEG)):
+   executable(self.tools,name,body)
   self.provider=Provider();self.cloud={'protocol':'openai-transcriptions','baseUrl':self.provider.url,'model':'vendor/asr-1','timestamps':'none','label':'测试服务'}
   self.patches=[patch.dict(os.environ,{'QIAOMU_TOOL_DIRS':str(self.tools),'FAKE_FFMPEG_LOG':str(Path(self.temp.name)/'f.log'),'FAKE_PAUSES':'19.5:20.5 59.5:60.5','HF_HOME':str(Path(self.temp.name)/'hf'),'QIAOMU_TOOLS_HOME':str(Path(self.temp.name)/'private')}),patch.object(asr,'apple_silicon',lambda:False),patch.object(asr,'whisper_cpp_model',lambda:None),patch.object(asr,'spawn_worker',lambda directory,key=None:424242)]
   for p in self.patches:p.start()

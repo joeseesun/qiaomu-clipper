@@ -4,7 +4,7 @@ import { generalSettings } from '../utils/storage-utils';
 import { updatePromptContextVisibility } from './interpreter-settings';
 import { initializePropertyTypesManager } from './property-types-manager';
 
-export type SettingsSection = 'general' | 'write' | 'study' | 'asr' | 'clip' | 'learning' | 'video' | 'properties' | 'highlighter' | 'interpreter' | 'asr-models' | 'web-search' | 'image-models' | 'about' | 'reader' | 'templates' | 'templates-home';
+export type SettingsSection = 'optional' | 'general' | 'write' | 'study' | 'asr' | 'clip' | 'learning' | 'video' | 'properties' | 'highlighter' | 'interpreter' | 'asr-models' | 'web-search' | 'image-models' | 'about' | 'reader' | 'templates' | 'templates-home';
 
 export function showSettingsSection(requested: SettingsSection | 'video', templateId?: string): void {
 	// Subtitle bar settings now sit on the Subtitles and transcription page.
@@ -89,7 +89,8 @@ export function initializeSidebar(): void {
 			if (link?.dataset.href) { void browser.tabs.create({ url: browser.runtime.getURL(link.dataset.href) }); return; }
 			const li = target.closest('li[data-section]') as HTMLElement | null;
 			const section = li?.dataset.section;
-			if (section === 'general'
+			if (section === 'optional'
+				|| section === 'general'
 				|| section === 'study'
 				|| section === 'asr'
 				|| section === 'clip'

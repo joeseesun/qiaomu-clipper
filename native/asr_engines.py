@@ -109,6 +109,8 @@ def runtime_probe_code(engine_id):
     # model weights. Import-only checks can miss deferred Metal library loading.
     spec = ENGINES[engine_id]
     code = ('from mlx_qwen3_asr import Session' if engine_id == 'mlx-qwen3' else 'import ' + spec['module'])
+    if windows():
+        code = 'import os, sys\n_private_runtime = os.add_dll_directory(os.path.join(sys.prefix, "Scripts"))\n' + code
     if spec['apple']:
         code += '\nimport mlx.core as mx\nassert mx.array([1, 2]).sum().item() == 3'
     return code
@@ -121,6 +123,10 @@ def plan(engine_id, python=None):
     python = python or (modern_python() if engine_id == 'base' else None) or sys.executable
     standalone = engine_id == 'base' and not (python_version(python) or (0, 0)) >= MIN_YTDLP_PYTHON
     packages = [x for x in spec['packages'] if not (standalone and x == 'yt-dlp')]
+    # CTranslate2 needs the C++ runtime, which is absent on clean Windows PCs.
+    # This wheel installs its DLLs inside the engine's venv, without elevation or
+    # a machine-wide redistributable install. Only the selected engine needs it.
+    if windows() and engine_id == 'faster-whisper': packages.append('msvc-runtime')
     steps = []
     if not venv_python(spec['id'] if engine_id == 'base' else engine_id).exists(): steps.append(('正在创建独立的 Python 环境', 5, [python, '-m', 'venv', str(venv_dir(engine_id))]))
     steps.append(('正在安装 ' + ', '.join(packages), 55 if engine_id != 'base' else (60 if standalone else 90), [str(venv_python(engine_id)), '-m', 'pip', 'install', '--progress-bar', 'off', '--disable-pip-version-check', '-U', *packages]))

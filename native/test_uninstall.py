@@ -1,5 +1,6 @@
 import json, os, subprocess, sys, tempfile, unittest
 from pathlib import Path
+from test_support import directory_link
 
 SCRIPT = Path(__file__).with_name('uninstall.py')
 
@@ -26,7 +27,7 @@ class UninstallTests(unittest.TestCase):
     def run_script(self, *args):
         # Never alter real Windows registrations, even when run on a developer's PC.
         bootstrap = "import runpy,sys; from unittest.mock import MagicMock; sys.modules['winreg']=MagicMock(); sys.argv=sys.argv[1:]; runpy.run_path(sys.argv[0],run_name='__main__')"
-        r = subprocess.run([sys.executable, '-I', '-c', bootstrap, str(SCRIPT), *args], env=self.env, capture_output=True, text=True)
+        r = subprocess.run([sys.executable, '-I', '-X', 'utf8', '-c', bootstrap, str(SCRIPT), *args], env=self.env, capture_output=True, text=True, encoding='utf8')
         return r.returncode, json.loads(r.stdout)
 
     def test_plan_reads_only_and_counts_what_would_go(self):
@@ -54,11 +55,10 @@ class UninstallTests(unittest.TestCase):
         self.assertEqual(marker.stat().st_size, 2 * 1048576)
         self.assertFalse(self.base.exists())
 
-    @unittest.skipIf(sys.platform == 'win32', 'symlinks require additional Windows privileges')
     def test_symlink_inside_helper_never_deletes_external_model(self):
         shared = self.home / 'shared-model'; shared.mkdir()
         (shared / 'keep.bin').write_text('owned elsewhere')
-        (self.base / 'models').symlink_to(shared, target_is_directory=True)
+        directory_link(self.base / 'models', shared)
         code, result = self.run_script()
         self.assertEqual(code, 0); self.assertTrue(result['ok'])
         self.assertEqual((shared / 'keep.bin').read_text(), 'owned elsewhere')
