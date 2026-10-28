@@ -280,6 +280,20 @@
       ]
     },
     {
+      "id": "study-control-contrast",
+      "title": "深色主题的学习按钮、菜单和小技巧保持可读对比度",
+      "origin": "沉浸学习控件对比度修复",
+      "files": [
+        "src/reader.scss",
+        "src/styles/reader/study-controls.scss"
+      ],
+      "tests": [
+        "src/utils/study-tips.test.ts",
+        "src/utils/caption-mode-menu.test.ts",
+        "src/utils/player-caption-interaction.test.ts"
+      ]
+    },
+    {
       "id": "storage-quota-recovery",
       "title": "字幕存储额度修复、缓存容量限制与草稿保护",
       "origin": "本次存储额度回归修复",
