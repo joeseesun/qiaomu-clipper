@@ -915,6 +915,30 @@
         "src/utils/chat-agent.test.ts",
         "src/utils/chat-thinking.test.ts"
       ]
+    },
+    {
+      "id": "native-model-context",
+      "title": "完整输入与原生输出预算及服务端超限检查",
+      "origin": "用户要求取消固定上下文与输出裁剪（2026-10-27）",
+      "files": [
+        "src/utils/model-limits.ts",
+        "src/utils/chat-capacity.ts",
+        "src/utils/chat-llm.ts",
+        "src/utils/clip-chat.ts",
+        "src/managers/provider-dialogs.ts",
+        "src/write/ai/chat-store.ts",
+        "src/write/ai/protocol.ts",
+        "src/write/editor/ai.ts"
+      ],
+      "tests": [
+        "src/utils/model-limits.test.ts",
+        "src/utils/chat-capacity.test.ts",
+        "src/utils/chat-llm.test.ts",
+        "src/utils/clip-chat-generation.test.ts",
+        "src/write/ai/chat-store.test.ts",
+        "src/write/ai/protocol.test.ts",
+        "src/managers/interpreter-settings.test.ts"
+      ]
     }
   ]
 }

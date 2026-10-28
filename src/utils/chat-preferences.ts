@@ -40,7 +40,7 @@ export function normalizeQuickPrompts(value: unknown): QuickPrompt[] | null {
 		if (!raw || typeof raw !== 'object') continue;
 		const item = raw as Partial<QuickPrompt>;
 		const title = typeof item.title === 'string' ? item.title.trim().slice(0, 40) : '';
-		const body = typeof item.body === 'string' ? item.body.trim().slice(0, 2000) : '';
+		const body = typeof item.body === 'string' ? item.body.trim() : '';
 		if (!title || !body) continue;
 		let id = typeof item.id === 'string' && item.id ? item.id.slice(0, 64) : `p-${list.length}`;
 		while (seen.has(id)) id += '_';
@@ -69,7 +69,7 @@ export function normalizeChatPreferences(value: unknown): ChatPreferences {
 		font: typeof data.font === 'string' && CHAT_FONTS.includes(data.font) ? data.font : 'reader',
 		customFont: typeof data.customFont === 'string' ? data.customFont.replace(/["'\\;{}\n\r]/g, '').trim().slice(0, 100) : '',
 		fontSize: typeof data.fontSize === 'number' && Number.isFinite(data.fontSize) ? Math.round(Math.max(12, Math.min(28, data.fontSize))) : 14,
-		prompt: typeof data.prompt === 'string' ? data.prompt.slice(0, 4000) : '',
+		prompt: typeof data.prompt === 'string' ? data.prompt : '',
 		promptEnabled: data.promptEnabled !== false,
 		quickPrompts: normalizeQuickPrompts(data.quickPrompts),
 	};

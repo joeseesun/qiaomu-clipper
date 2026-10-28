@@ -58,6 +58,22 @@ async function mount() {
 	chat.toggle(true); await flush();
 }
 
+it('sends the complete article, long quote and all conversation turns without fixed clipping', async () => {
+	const markdown = 'Article '.repeat(12000) + 'ARTICLE_TAIL';
+	const quote = 'Selected '.repeat(700) + 'QUOTE_TAIL';
+	const messages = Array.from({ length: 50 }, (_, i) => ({ role: i % 2 ? 'assistant' : 'user', content: `HISTORY_${i}` }));
+	chat = mountClipChat({ initialConversation: { id: 'long-context', title: 'Long', updatedAt: Date.now(), messages } as any,
+		getContext: () => ({ title: 'Long article', markdown, url: 'https://article.test/long' }) });
+	chat.toggle(true); await flush(); chat.quote(quote);
+	state.stream.mockImplementation(async (o: any) => { o.onDelta('Complete'); return 'Complete'; });
+	await submit('请看全文');
+	const request = state.stream.mock.calls[0][0];
+	expect(request.system).toContain(markdown);
+	expect(request.messages).toHaveLength(51);
+	expect(request.messages[0].content).toContain('HISTORY_0');
+	expect(request.messages[50].content).toContain(quote);
+});
+
 it('generates directly from natural-language chat and restores the picture without another request', async () => {
 	await mount(); await submit();
 	expect(state.stream.mock.calls[0][0].system).toContain('你可以调用已配置的生图模型');

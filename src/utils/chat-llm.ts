@@ -8,6 +8,8 @@ import { tokenPlanEndpoint, tokenPlanProfile, tokenPlanTools } from './token-pla
 import { readTokenPlanStream } from './token-plan-stream';
 import { normalizeNativeResult, type ChatToolResult } from './chat-tools-types';
 import { loadWebSearch } from './web-search';
+import { positiveTokenLimit, resolveOutputLimit } from './model-limits';
+import { ChatCapacityError, checkChatCapacityError, checkStreamEvent } from './chat-capacity';
 
 import { t } from './ui-text';
 import { opencodeHeaders, supportsOpenCodeGoChat } from './opencode-go';
@@ -62,7 +64,7 @@ export function enabledChatModels(): ModelConfig[] {
 	return generalSettings.models.filter(model => model.enabled && generalSettings.providers.some(p => p.id === model.providerId));
 }
 
-export function buildRequest(provider: Provider, model: ModelConfig, system: string, messages: ChatTurn[], sessionId?: string, effort?: string): { url: string; init: RequestInit } {
+export function buildRequest(provider: Provider, model: ModelConfig, system: string, messages: ChatTurn[], sessionId?: string, effort?: string, outputLimit = positiveTokenLimit(model.outputTokenLimit)): { url: string; init: RequestInit } {
 	provider = { ...provider, apiKey: magpieKey(provider) };
 	const headers: Record<string, string> = { 'Content-Type': 'application/json', ...(opencodeHeaders(provider.baseUrl, sessionId) || {}) };
 	const name = provider.name.toLowerCase();
@@ -74,32 +76,34 @@ export function buildRequest(provider: Provider, model: ModelConfig, system: str
 		case 'gemini':
 			url = `https://generativelanguage.googleapis.com/v1beta/models/${model.providerModelId}:streamGenerateContent?alt=sse`;
 			headers['X-goog-api-key'] = provider.apiKey;
-			body = { systemInstruction: { parts: [{ text: system }] }, contents: messages.map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: geminiParts(m) })), generationConfig: { maxOutputTokens: 8000 + (thinking.geminiBudget ?? 0), ...(thinking.geminiBudget ? { thinkingConfig: { thinkingBudget: thinking.geminiBudget } } : {}) } };
+			body = { systemInstruction: { parts: [{ text: system }] }, contents: messages.map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: geminiParts(m) })), generationConfig: { ...(outputLimit ? { maxOutputTokens: outputLimit } : {}), ...(thinking.geminiBudget ? { thinkingConfig: { thinkingBudget: thinking.geminiBudget } } : {}) } };
 			break;
 		case 'anthropic':
+			if (!outputLimit) throw new Error(t('此服务要求填写最大输出 token，但未公布模型上限。请在模型设置中填写服务支持的最大输出 token。'));
+			if (thinking.anthropicBudget && thinking.anthropicBudget >= outputLimit) throw new Error(t('思考预算已达到最大输出 token，请降低思考强度或检查模型输出设置。'));
 			headers['x-api-key'] = provider.apiKey;
 			headers['anthropic-version'] = '2023-06-01';
 			headers['anthropic-dangerous-direct-browser-access'] = 'true';
-			body = { model: model.providerModelId, max_tokens: 8000 + (thinking.anthropicBudget ?? 0), system, messages: messages.map(m => ({ role: m.role, content: anthropicContent(m) })), stream: true, ...(thinking.anthropicBudget ? { thinking: { type: 'enabled', budget_tokens: thinking.anthropicBudget } } : {}) };
+			body = { model: model.providerModelId, max_tokens: outputLimit, system, messages: messages.map(m => ({ role: m.role, content: anthropicContent(m) })), stream: true, ...(thinking.anthropicBudget ? { thinking: { type: 'enabled', budget_tokens: thinking.anthropicBudget } } : {}) };
 			break;
 		case 'ollama':
-			body = { model: model.providerModelId, messages: [{ role: 'system', content: system }, ...messages.map(m => ({ role: m.role, content: m.content + (m.images?.length ? '\n' + m.images.map(image => image.label).join('\n') : ''), ...(m.images?.length ? { images: m.images.map(image => imageData(image).data) } : {}) }))], stream: true, options: { num_ctx: 32768 } };
+			body = { model: model.providerModelId, messages: [{ role: 'system', content: system }, ...messages.map(m => ({ role: m.role, content: m.content + (m.images?.length ? '\n' + m.images.map(image => image.label).join('\n') : ''), ...(m.images?.length ? { images: m.images.map(image => imageData(image).data) } : {}) }))], stream: true, options: { ...(positiveTokenLimit(model.ollamaContextTokens) ? { num_ctx: model.ollamaContextTokens } : {}), ...(outputLimit ? { num_predict: outputLimit } : {}) } };
 			break;
 		case 'responses':
 			if (provider.apiKey) headers['Authorization'] = `Bearer ${provider.apiKey}`;
-			body = { model: model.providerModelId, instructions: system, input: messages.map(m => ({ role: m.role, content: responsesContent(m) })), stream: true, store: false, ...(thinking.body ?? {}) };
+			body = { model: model.providerModelId, instructions: system, input: messages.map(m => ({ role: m.role, content: responsesContent(m) })), stream: true, store: false, ...(outputLimit ? { max_output_tokens: outputLimit } : {}), ...(thinking.body ?? {}) };
 			break;
 		default: {
 			const withSystem = [{ role: 'system', content: system }, ...messages.map(m => ({ role: m.role, content: openAIContent(m) }))];
 			if (provider.baseUrl.includes('openai.azure.com')) {
 				url = provider.baseUrl.replace('{deployment-id}', model.providerModelId);
 				headers['api-key'] = provider.apiKey;
-				body = { messages: withSystem, max_completion_tokens: 8000, stream: true };
+				body = { messages: withSystem, ...(outputLimit ? { max_completion_tokens: outputLimit } : {}), stream: true };
 			} else {
 				url = normalizeOpenAIChatEndpoint(provider.baseUrl);
 				if (name.includes('hugging')) url = provider.baseUrl.replace('{model-id}', model.providerModelId);
 				if (provider.apiKey) headers['Authorization'] = `Bearer ${provider.apiKey}`;
-				body = { model: model.providerModelId, messages: withSystem, stream: true, ...(!effort && provider.presetId === 'magpie' && model.reasoningEffort && model.reasoningEfforts?.includes(model.reasoningEffort) ? { reasoning_effort: model.reasoningEffort } : {}), ...(name.includes('deepseek') ? { thinking: { type: 'disabled' } } : {}), ...(thinking.body ?? {}) };
+				body = { model: model.providerModelId, messages: withSystem, stream: true, ...(outputLimit ? (new URL(provider.baseUrl).hostname === 'api.openai.com' ? { max_completion_tokens: outputLimit } : { max_tokens: outputLimit }) : {}), ...(!effort && provider.presetId === 'magpie' && model.reasoningEffort && model.reasoningEfforts?.includes(model.reasoningEffort) ? { reasoning_effort: model.reasoningEffort } : {}), ...(name.includes('deepseek') ? { thinking: { type: 'disabled' } } : {}), ...(thinking.body ?? {}) };
 			}
 		}
 	}
@@ -136,11 +140,11 @@ function streamViaBackground(options: StreamOptions): Promise<string> {
 		};
 		const abort = () => finish(new DOMException('Aborted', 'AbortError'));
 		port.onMessage.addListener(raw => {
-			const message = raw as { delta?: string; thought?: string; nativeTools?: unknown[]; error?: string; done?: boolean };
+			const message = raw as { delta?: string; thought?: string; nativeTools?: unknown[]; error?: string; code?: string; done?: boolean };
 			if (typeof message.delta === 'string') { answer += message.delta; options.onDelta(message.delta); }
 			if (typeof message.thought === 'string') options.onThought?.(message.thought);
 			if (Array.isArray(message.nativeTools)) options.onNativeTools?.(message.nativeTools.flatMap(item => { const result = normalizeNativeResult(item); return result ? [result] : []; }));
-			if (message.error) finish(new Error(message.error));
+			if (message.error) finish(message.code === 'context-limit' || message.code === 'output-limit' ? new ChatCapacityError(message.code) : new Error(message.error));
 			else if (message.done) finish();
 		});
 		port.onDisconnect.addListener(() => finish(new Error(t('AI 连接已中断，请重试'))));
@@ -164,9 +168,10 @@ export async function streamChat({ model: chosen, system, messages, signal, onDe
 
 	if (!provider.oauth && !supportsOpenCodeGoChat(provider.baseUrl, model.providerModelId)) throw new Error(t('此 OpenCode Go 模型或端点尚不支持，请从聊天模型列表中选择。'));
 	const native = nativeTools && !provider.oauth ? tokenPlanProfile(provider, model.providerModelId, effort) : undefined;
+	const outputLimit = await resolveOutputLimit(provider, model, signal);
 	let { url, init } = provider.oauth
 		? responsesRequest(await freshOAuth(provider, () => saveSettings()), model, system, messages)
-		: buildRequest(provider, model, system, messages, sessionId, effort);
+		: buildRequest(provider, model, system, messages, sessionId, effort, outputLimit);
 	if (native) {
 		if (!native.vision && messages.some(m => m.images?.length)) throw new Error(t('当前模型不支持看图，请选择支持图片的模型。'));
 		const web = await loadWebSearch();
@@ -174,12 +179,15 @@ export async function streamChat({ model: chosen, system, messages, signal, onDe
 		init = { method: 'POST', credentials: 'omit', redirect: 'error', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${provider.apiKey}` }, body: JSON.stringify({
 			model: model.providerModelId, instructions: system, input: messages.map(m => ({ role: m.role, content: responsesContent(m) })),
 			stream: true, store: false, tools: tokenPlanTools(native, web.enabled, messages.some(m => m.images?.length)),
+			...(outputLimit ? { max_output_tokens: outputLimit } : {}),
 			...(effort ? { reasoning: { effort } } : {}),
 		}) };
 	}
 	const response = await fetch(url, { ...init, signal });
 	if (!response.ok) {
-		const text = (await response.text()).slice(0, 300);
+		const detail = await response.text();
+		checkChatCapacityError(response.status, detail);
+		const text = detail.slice(0, 300);
 		if (kindOf(provider) === 'ollama' && response.status === 403) throw new Error(t('Ollama 拒绝了来自浏览器扩展的请求，请设置 OLLAMA_ORIGINS 后重试。'));
 		if (messages.some(m => m.images?.length) && [400, 413, 415, 422].includes(response.status)) throw new Error(t('图片请求被当前服务拒绝，请减少图片或换一个支持读图的模型。') + ` (${provider.name} ${response.status})`);
 		throw new Error(`${provider.name} ${response.status}: ${text}`);
@@ -192,6 +200,7 @@ export async function streamChat({ model: chosen, system, messages, signal, onDe
 	const decoder = new TextDecoder();
 	let buffer = '';
 	let full = '';
+	try {
 	for (;;) {
 		const { done, value } = await reader.read();
 		if (done) break;
@@ -199,13 +208,17 @@ export async function streamChat({ model: chosen, system, messages, signal, onDe
 		const lines = buffer.split('\n');
 		buffer = lines.pop() ?? '';
 		for (const line of lines) {
+			checkStreamEvent(line.trim(), kind);
 			const text = textFromLine(kind, line.trim());
 			if (text) { full += text; onDelta(text); }
 			else if (onThought) { const thought = thoughtFromLine(kind, line.trim()); if (thought) onThought(thought); }
 		}
 	}
+	buffer += decoder.decode();
+	checkStreamEvent(buffer.trim(), kind);
 	const tail = textFromLine(kind, buffer.trim());
 	if (tail) { full += tail; onDelta(tail); }
+	} finally { await reader.cancel().catch(() => {}); reader.releaseLock(); }
 	if (!full) throw new Error('The model returned no text.');
 	return full;
 }
