@@ -958,6 +958,7 @@
  "缩短": "Raccourcir",
  "扩写": "Développer",
  "翻译成英文": "Traduire en anglais",
+ "翻译": "Traduire",
  "翻译成中文": "Traduire en chinois",
  "按我的要求改…": "Modifier selon ma demande…",
  "文字格式": "Mise en forme du texte",
@@ -1485,6 +1486,5 @@
  "执行结果": "Résultat d’exécution",
  "网页内容": "Contenu de la page",
  "思考过程": "Raisonnement",
- "支持原生工具的 Token Plan 模型直接使用已配置的模型密钥，无需在这里填写搜索密钥。聊天中的联网开关同时控制原生搜索、抓取和搜图。": "Les modèles Token Plan avec outils intégrés utilisent la clé du modèle configurée. Aucune clé de recherche supplémentaire n’est nécessaire. Le bouton web du chat contrôle la recherche, l’extraction de pages et la recherche d’images.",
- "翻译": "Traduire"
+ "支持原生工具的 Token Plan 模型直接使用已配置的模型密钥，无需在这里填写搜索密钥。聊天中的联网开关同时控制原生搜索、抓取和搜图。": "Les modèles Token Plan avec outils intégrés utilisent la clé du modèle configurée. Aucune clé de recherche supplémentaire n’est nécessaire. Le bouton web du chat contrôle la recherche, l’extraction de pages et la recherche d’images."
 }
