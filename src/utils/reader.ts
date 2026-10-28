@@ -1,3 +1,4 @@
+import { captureEnglishSelection, openEnglishLearning } from './english-selection';
 import Defuddle from './defuddle';
 import browser from './browser-polyfill';
 import { detectBrowser } from './browser-detection';
@@ -2466,7 +2467,10 @@ export class Reader {
  const diary = doc.createElement('button'); diary.type = 'button'; diary.textContent = t('记笔记'); diary.className = 'obsidian-selection-action learning-selection-action';
 		diary.addEventListener('mousedown', event => event.preventDefault());
  diary.addEventListener('click', () => { const quote = learningSelection(doc); if (quote) void learningNotes(doc)?.open({quote}); hide(); });
- menu.append(btn, diary); doc.body.append(menu);
+ const translate = doc.createElement('button'); translate.type = 'button'; translate.textContent = t('翻译'); translate.className = 'obsidian-selection-action learning-selection-action';
+ translate.addEventListener('mousedown', event => event.preventDefault());
+ translate.addEventListener('click', () => { const selection = captureEnglishSelection(doc); hide(); if (selection) void openEnglishLearning(selection, undefined, translate); });
+ menu.append(translate, btn, diary); doc.body.append(menu);
 
  const hide = () => { menu.style.display = 'none'; };
 

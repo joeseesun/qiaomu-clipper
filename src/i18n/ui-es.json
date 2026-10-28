@@ -1485,5 +1485,6 @@
  "执行结果": "Resultado de ejecución",
  "网页内容": "Contenido de la página",
  "思考过程": "Razonamiento",
- "支持原生工具的 Token Plan 模型直接使用已配置的模型密钥，无需在这里填写搜索密钥。聊天中的联网开关同时控制原生搜索、抓取和搜图。": "Los modelos Token Plan con herramientas integradas usan la clave del modelo configurada. No hace falta otra clave de búsqueda. El interruptor web del chat controla la búsqueda, extracción de páginas y búsqueda de imágenes."
+ "支持原生工具的 Token Plan 模型直接使用已配置的模型密钥，无需在这里填写搜索密钥。聊天中的联网开关同时控制原生搜索、抓取和搜图。": "Los modelos Token Plan con herramientas integradas usan la clave del modelo configurada. No hace falta otra clave de búsqueda. El interruptor web del chat controla la búsqueda, extracción de páginas y búsqueda de imágenes.",
+ "翻译": "Traducir"
 }

@@ -915,6 +915,31 @@
         "src/utils/chat-agent.test.ts",
         "src/utils/chat-thinking.test.ts"
       ]
+    },
+    {
+      "id": "original-selection-english-learning",
+      "title": "原页划词操作栏和阅读器英文学习浮卡",
+      "origin": "本机日常 Chrome 定制（2026-10-26）",
+      "files": [
+        "src/selection-toolbar-content.ts",
+        "src/utils/english-selection.ts",
+        "src/utils/english-dictionary.ts",
+        "src/utils/english-learning-background.ts",
+        "src/core/english-learning.ts",
+        "src/styles/english-learning.scss",
+        "src/utils/english-speech.ts",
+        "src/content.ts",
+        "src/utils/english-presentation.ts"
+      ],
+      "tests": [
+        "src/utils/english-dictionary.test.ts",
+        "src/utils/english-learning-background.test.ts",
+        "src/utils/english-selection.test.ts",
+        "src/utils/english-speech.test.ts",
+        "src/core/english-learning.test.ts",
+        "src/core/ai-chat-page.test.ts",
+        "src/utils/english-presentation.test.ts"
+      ]
     }
   ]
 }

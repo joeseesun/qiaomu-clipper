@@ -39,6 +39,8 @@ module.exports = (env, argv) => {
 		entry: {
 			'content-loader': './src/content-loader.ts',
 			'triple-key': './src/triple-key-content.ts',
+			'selection-toolbar': './src/selection-toolbar-content.ts',
+			'english-learning': ['./src/core/english-learning.ts', './src/styles/english-learning.scss'],
 			'youtube-player-bridge': './src/youtube-player-bridge.ts',
 			'youtube-panel': './src/youtube-panel-content.ts',
 			'bilibili-panel': './src/bilibili-panel-content.ts',
@@ -185,6 +187,7 @@ module.exports = (env, argv) => {
 					{ from: "src/side-panel.html", to: "side-panel.html" },
 					{ from: "src/ai-side-panel.html", to: "ai-side-panel.html" },
 					{ from: "src/ai-chat-page.html", to: "ai-chat-page.html" },
+					{ from: "src/english-learning.html", to: "english-learning.html" },
 					{ from: "src/image-runner.html", to: "image-runner.html" },
 					{ from: "src/image-library.html", to: "image-library.html" },
 					{ from: "src/settings.html", to: "settings.html" },

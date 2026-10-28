@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 const state = vi.hoisted(() => ({
-	query: vi.fn(), execute: vi.fn(), load: vi.fn(), mount: vi.fn(),
+	query: vi.fn(), execute: vi.fn(), load: vi.fn(), mount: vi.fn(), sessionGet: vi.fn(), sessionRemove: vi.fn(), changed: vi.fn(), removed: vi.fn(),
 	chat: { toggle: vi.fn(), quote: vi.fn(), destroy: vi.fn() },
 }));
 vi.mock('../utils/browser-polyfill', () => ({ default: {
 	tabs: { query: state.query }, scripting: { executeScript: state.execute },
+	storage: { session: { get: state.sessionGet, remove: state.sessionRemove }, onChanged: { addListener: state.changed, removeListener: state.removed } },
 } }));
 vi.mock('../utils/storage-utils', () => ({ loadSettings: state.load }));
 vi.mock('../utils/i18n', () => ({
@@ -22,6 +23,8 @@ beforeEach(() => {
 	history.replaceState(null, '', `/?tab=10&window=7&url=${encodeURIComponent(url)}`);
 	document.body.innerHTML = '<strong id="ai-page-title"></strong><p id="ai-page-status"></p><button id="ai-page-quote"></button>';
 	state.load.mockResolvedValue(undefined);
+	state.sessionGet.mockResolvedValue({});
+	state.sessionRemove.mockResolvedValue(undefined);
 	state.query.mockResolvedValue([{ id: 10, url, status: 'complete' }]);
 	state.execute.mockResolvedValue(result());
 	state.mount.mockReturnValue(state.chat);
@@ -58,4 +61,14 @@ it('cannot mount after disposal while settings are still loading', async () => {
 	window.dispatchEvent(new Event('qiaomu-ai-dispose'));
 	resolve(); await flush();
 	expect(state.mount).not.toHaveBeenCalled();
+});
+
+it('quotes the toolbar selection only for its matching current page', async () => {
+ state.sessionGet.mockImplementation(async (key: string) => key === 'qiaomuSelectionQuote:10' ? { [key]: { text: 'resilient', url, at: Date.now() } } : {});
+ await start(); expect(state.chat.quote).toHaveBeenCalledWith('resilient');
+ expect(state.sessionRemove).toHaveBeenCalledWith('qiaomuSelectionQuote:10');
+});
+it('ignores a stale or different-page selection', async () => {
+ state.sessionGet.mockImplementation(async (key: string) => key === 'qiaomuSelectionQuote:10' ? { [key]: { text: 'private', url: 'https://example.com/other', at: Date.now() } } : {});
+ await start(); expect(state.chat.quote).not.toHaveBeenCalled();
 });

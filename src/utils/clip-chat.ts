@@ -1,11 +1,11 @@
+import { captureEnglishSelection, openEnglishLearning } from './english-selection';
 import { streamChatAgent } from './chat-agent';
 import { mountChatTools, keepChatPhoto, createSearchToggle } from './chat-tool-view';
 import { toolHistory, normalizeToolResults, type ChatToolResult } from './chat-tools-types';
 import { openImageLibrary } from './image-jobs';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
-import { createElement, ImagePlus, WandSparkles, X, Plus, Copy, Send, Square, FilePlus2, History, Quote, Trash2, Highlighter, Settings2, Pencil, NotebookPen } from 'lucide';
-import { ArrowDown } from 'lucide';
+import { createElement, ArrowDown, ImagePlus, WandSparkles, X, Plus, Copy, Send, Square, FilePlus2, History, Quote, Trash2, Highlighter, Languages, Settings2, Pencil, NotebookPen } from 'lucide';
 import browser from './browser-polyfill';
 import { getMessage } from './i18n';
 import { getLocalStorage, setLocalStorage, generalSettings } from './storage-utils';
@@ -944,6 +944,9 @@ function mountSelectionPill(onAsk: (text: string) => void, onHighlight?: () => v
 	};
 	let text = '';
 	const hide = () => { pill.hidden = true; };
+	const translate = segment(Languages, t('翻译'));
+	translate.addEventListener('click', () => { const selection = captureEnglishSelection(); hide(); if (selection) void openEnglishLearning(selection, undefined, translate); });
+	pill.appendChild(translate);
 	if (onHighlight) {
 		const highlight = segment(Highlighter, getMessage('highlightSelection'));
 		highlight.addEventListener('click', () => { hide(); onHighlight(); });
@@ -974,7 +977,7 @@ function mountSelectionPill(onAsk: (text: string) => void, onHighlight?: () => v
 		clearTimeout(timer);
 		timer = setTimeout(() => {
 			text = enabled ? selectedArticleText() : '';
-			if (text.length < 2) { hide(); return; }
+			if (!text.length) { hide(); return; }
 			pill.hidden = false;
 			const width = pill.offsetWidth || 120;
 			pill.style.left = `${Math.min(Math.max(8, clientX - width / 2), window.innerWidth - width - 8)}px`;

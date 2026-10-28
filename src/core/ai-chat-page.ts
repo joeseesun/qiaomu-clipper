@@ -10,11 +10,13 @@ import { readConversation } from '../utils/chat-history';
 async function start() {
 	let disposed = false, refreshGeneration = 0;
 	let chat: ReturnType<typeof mountClipChat> | undefined;
+	let removeQuoteListener = () => {};
 	function dispose() {
 		if (disposed) return;
 		disposed = true;
 		refreshGeneration++;
 		chat?.destroy();
+		removeQuoteListener();
 		window.removeEventListener('pagehide', dispose);
 		window.removeEventListener('qiaomu-ai-dispose', dispose);
 	}
@@ -29,6 +31,21 @@ async function start() {
 	const tabId = Number(params.get('tab')), windowId = Number(params.get('window'));
 	const expected = params.get('url') || '';
 	let documentId: string | undefined;
+	const quoteKey = 'qiaomuSelectionQuote:' + tabId;
+	let quoteQueue = Promise.resolve();
+	async function consumeQuote() {
+		quoteQueue = quoteQueue.catch(() => {}).then(async () => {
+		if (!chat || disposed) return;
+		const value = (await browser.storage.session.get(quoteKey))[quoteKey] as { text?: string; url?: string; at?: number } | undefined;
+		if (disposed || !value) return;
+		await browser.storage.session.remove(quoteKey);
+		if (typeof value.text === 'string' && value.url === expected && Date.now() - (value.at || 0) < 30_000) chat.quote(value.text);
+		});
+		await quoteQueue;
+	}
+	const quoteChanged = (changes: Record<string, unknown>, area: string) => { if (area === 'session' && changes[quoteKey]) void consumeQuote(); };
+	browser.storage.onChanged.addListener(quoteChanged);
+	removeQuoteListener = () => browser.storage.onChanged.removeListener(quoteChanged);
 	let context = { title: t('普通对话'), url: expected || `qiaomu-chat://tab/${tabId}`, markdown: '', available: false };
 	const pageChanged = () => new Error(t('页面已切换，请在当前页重新提问。'));
 	async function assertCurrent(generation: number) {
@@ -71,5 +88,6 @@ async function start() {
 		onClose: () => { dispose(); parent.postMessage('close-ai-sidebar', location.origin); },
 	});
 	chat.toggle(true);
+	await consumeQuote();
 }
 void start();
