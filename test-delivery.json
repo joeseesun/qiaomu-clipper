@@ -166,6 +166,22 @@
       ]
     },
     {
+      "id": "study-original-language",
+      "title": "沉浸学习保留原文与译文，避免浏览器整页翻译二次改写",
+      "origin": "双语文稿重复中文修复",
+      "files": [
+        "src/core/reader-view.ts",
+        "src/utils/reader.ts",
+        "src/utils/youtube-study.ts"
+      ],
+      "tests": [
+        "src/utils/youtube-study.test.ts",
+        "src/utils/youtube-translation.test.ts",
+        "src/utils/transcript-format.test.ts",
+        "src/utils/transcript-export.test.ts"
+      ]
+    },
+    {
       "id": "doubao-word-captions",
       "title": "豆包逐字/逐词时间与播放器卡拉 OK 高亮",
       "origin": "codex/doubao-karaoke",
