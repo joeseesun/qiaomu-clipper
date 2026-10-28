@@ -14,7 +14,7 @@ beforeEach(() => { document.body.innerHTML = ''; vi.clearAllMocks(); state.saved
 
 it('normalizes invalid saved values and falls back safely for an unavailable custom font', () => {
 	expect(normalizeChatPreferences({font: 'broken', fontSize: NaN, prompt: 123})).toMatchObject({font: 'reader', fontSize: 14, prompt: ''});
-	expect(normalizeChatPreferences({fontSize: 400, prompt: 'x'.repeat(5000)})).toMatchObject({fontSize: 28, prompt: 'x'.repeat(4000)});
+	expect(normalizeChatPreferences({fontSize: 400, prompt: 'x'.repeat(5000)})).toMatchObject({fontSize: 28, prompt: 'x'.repeat(5000)});
 	expect(chatFontFamily(normalizeChatPreferences({font:'custom', customFont:'Foo";{}'}))).toContain('"Foo", system-ui');
 });
 

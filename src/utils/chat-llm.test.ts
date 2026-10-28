@@ -1,4 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest';
+vi.mock('./model-limits', async original => ({ ...await original<any>(), resolveOutputLimit: async (_p: unknown, model: any) => model.outputTokenLimit }));
 import { generalSettings } from './storage-utils';
 import { normalizeOpenAIChatEndpoint, opencodeHeaders, streamChat } from './chat-llm';
 
@@ -39,13 +40,21 @@ it('uses the normalized endpoint for a Magpie-style provider', async () => {
 it('streams Anthropic text deltas', async () => {
 	generalSettings.providers = [{ id: 'a', name: 'Anthropic', baseUrl: 'https://api.anthropic.com/v1/messages', apiKeyRequired: true, apiKey: 'k' }] as any;
 	vi.stubGlobal('fetch', vi.fn().mockResolvedValue(stream(['event: content_block_delta\ndata: {"type":"content_block_delta","delta":{"text":"Hi"}}\n\n'])));
-	expect(await streamChat({ model: model('a'), system: 's', messages: [], onDelta: () => {} })).toBe('Hi');
+	expect(await streamChat({ model: { ...model('a'), outputTokenLimit: 64000 }, system: 's', messages: [], onDelta: () => {} })).toBe('Hi');
 });
 
 it('reports provider errors with the status', async () => {
 	generalSettings.providers = [{ id: 'p', name: 'OpenAI', baseUrl: 'https://api.test', apiKeyRequired: false, apiKey: '' }] as any;
 	vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('bad key', { status: 401 })));
 	await expect(streamChat({ model: model('p'), system: 's', messages: [], onDelta: () => {} })).rejects.toThrow('401');
+});
+
+it('does not mark a streamed length-limited response as successful', async () => {
+	generalSettings.providers = [{ id: 'p', name: 'Gateway', baseUrl: 'https://api.test/v1/chat/completions', apiKey: '' }] as any;
+	vi.stubGlobal('fetch', vi.fn().mockResolvedValue(stream(['data: {"choices":[{"delta":{"content":"partial"}}]}\n', 'data: {"choices":[{"finish_reason":"length"}]}\n'])));
+	const onDelta = vi.fn();
+	await expect(streamChat({ model: model('p'), system: 's', messages: [], onDelta })).rejects.toMatchObject({ code: 'output-limit' });
+	expect(onDelta).toHaveBeenCalledWith('partial');
 });
 
 it('routes live-page requests through a background port without exposing provider credentials', async () => {

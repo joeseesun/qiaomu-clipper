@@ -34,13 +34,13 @@ it('switches thinking on the way each kind of service expects', () => {
 });
 
 it('gives Claude and Gemini a thinking budget and room to answer after it', () => {
-	const claude = body(provider({ name: 'Anthropic', baseUrl: 'https://api.anthropic.com' }), model('claude-sonnet-5-5'), 'medium');
+	const claude = body(provider({ name: 'Anthropic', baseUrl: 'https://api.anthropic.com' }), model('claude-sonnet-5-5', { outputTokenLimit: 64000 }), 'medium');
 	expect(claude.thinking).toEqual({ type: 'enabled', budget_tokens: 6000 });
 	expect(claude.max_tokens).toBeGreaterThan(6000);
 	const gemini = body(provider({ baseUrl: 'https://generativelanguage.googleapis.com/v1beta' }), model('gemini-2.5-pro'), 'high');
 	expect(gemini.generationConfig.thinkingConfig).toEqual({ thinkingBudget: 24576 });
-	expect(gemini.generationConfig.maxOutputTokens).toBeGreaterThan(24576);
-	expect(body(provider({ name: 'Anthropic', baseUrl: 'https://api.anthropic.com' }), model('claude-sonnet-5-5')).thinking).toBeUndefined();
+	expect(gemini.generationConfig.maxOutputTokens).toBeUndefined();
+	expect(body(provider({ name: 'Anthropic', baseUrl: 'https://api.anthropic.com' }), model('claude-sonnet-5-5', { outputTokenLimit: 64000 })).thinking).toBeUndefined();
 });
 
 it('reads the model\'s reasoning text out of a stream', () => {

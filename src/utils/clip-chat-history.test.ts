@@ -82,7 +82,7 @@ it('shows save failure instead of silently losing a reply', async () => {
  expect(state.stream).not.toHaveBeenCalled();
 });
 
-it('bounds model context while retaining every saved message', async () => {
+it('sends the complete current conversation while the history UI remains paginated', async () => {
  const c = saved('long'); c.messages = Array.from({ length: 75 }, (_, i) => [{ role: 'user' as const, content: `Q${i}` }, { role: 'assistant' as const, content: `A${i}` }]).flat();
  await saveConversation(A, 'Original', c); await mount(A); await openFirst();
  document.querySelector<HTMLAnchorElement>('.clip-chat-history-resume a')!.click();
@@ -90,8 +90,9 @@ it('bounds model context while retaining every saved message', async () => {
  document.querySelector<HTMLFormElement>('.clip-chat-composer')!.requestSubmit();
  await vi.waitFor(() => expect(state.stream).toHaveBeenCalledOnce());
  const request = state.stream.mock.calls[0][0];
- expect(request.messages.length).toBeLessThanOrEqual(41); expect(request.messages[0].role).toBe('user');
- expect(request.system).toContain('most recent conversation turns');
+ expect(request.messages).toHaveLength(151); expect(request.messages[0]).toMatchObject({ role: 'user', content: 'Q0' });
+ expect(request.messages[150].content).toBe('Latest question');
+ expect(request.system).not.toContain('most recent conversation turns');
  await vi.waitFor(async () => expect((await readConversation(A, 'long'))!.messages).toHaveLength(152));
 });
 it('checkpoints a streaming answer to its source when opening another history item', async () => {

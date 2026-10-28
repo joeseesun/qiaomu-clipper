@@ -36,7 +36,8 @@ it('tells the model about the article, the selection and whether pictures can be
 	expect(prompt).toContain('- 一');
 	expect(prompt).toContain('"type":"image"');
 	expect(buildSystemPrompt({ ...base, imageReady: false })).not.toContain('"type":"image"');
-	expect(buildSystemPrompt({ ...base, markdown: 'x'.repeat(13000) })).toContain('只给出了前 12000 字');
+	expect(buildSystemPrompt({ ...base, markdown: 'x'.repeat(13000) + 'ARTICLE_END', selection: 's'.repeat(5000) + 'SELECTION_END' })).toContain('x'.repeat(13000) + 'ARTICLE_END');
+	expect(buildSystemPrompt({ ...base, selection: 's'.repeat(5000) + 'SELECTION_END' })).toContain('SELECTION_END');
 });
 
 it('finds quoted text inside a single paragraph', () => {
