@@ -1035,6 +1035,20 @@
         "src/x-publish/resume.test.ts",
         "src/x-publish/transport.test.ts"
       ]
+    },
+    {
+      "id": "oauth-refresh-isolation",
+      "title": "ChatGPT/Codex 登录不再因旧页面保存设置而反复过期；跨页面续期只消耗一次 token；重新授权复用原注册",
+      "origin": "PR #113 (issue #112)",
+      "files": [
+        "src/utils/oauth/accounts.ts",
+        "src/utils/storage-utils.ts"
+      ],
+      "tests": [
+        "src/utils/storage-utils-oauth.test.ts",
+        "src/utils/oauth/accounts.test.ts",
+        "src/utils/storage-utils.test.ts"
+      ]
     }
   ]
 }
