@@ -1,7 +1,7 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 
 const { store, settings } = vi.hoisted(() => ({ store: {} as Record<string, unknown>, settings: { providers: [] as any[] } }));
-vi.mock('../utils/storage-utils', () => ({ getLocalStorage: async (k: string) => store[k], setLocalStorage: async (k: string, v: unknown) => { store[k] = v; }, generalSettings: settings, saveSettings: async () => {} }));
+vi.mock('../utils/storage-utils', () => ({ getLocalStorage: async (k: string) => store[k], setLocalStorage: async (k: string, v: unknown) => { store[k] = v; }, generalSettings: settings, oauthStore: {} }));
 vi.mock('../utils/oauth/accounts', () => ({
 	CHATGPT_BASE: 'https://api.openai.com/v1', CODEX_BASE: 'https://chatgpt.com/backend-api/codex',
 	freshOAuth: async (provider: any) => provider.oauth,
