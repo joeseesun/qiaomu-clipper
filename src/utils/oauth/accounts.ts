@@ -85,7 +85,8 @@ export function openRouterAuthUrl(redirect: string, challenge: string, state: st
 	return `${OPENROUTER_AUTH}?${new URLSearchParams({ callback_url: redirect, code_challenge: challenge, code_challenge_method: 'S256', key_label: 'Qiaomu Clipper', state })}`;
 }
 
-export async function startSignIn(kind: 'tokendance' | 'openrouter' | OAuthKind): Promise<PendingSignIn> {
+// Signing in again to a saved ChatGPT account reuses its registration instead of registering a new app each time.
+export async function startSignIn(kind: 'tokendance' | 'openrouter' | OAuthKind, previous?: OAuthCredentials): Promise<PendingSignIn> {
 	const { verifier, challenge } = await pkcePair();
 	const state = randomString(32);
 	if (kind === 'codex') {
@@ -105,20 +106,29 @@ export async function startSignIn(kind: 'tokendance' | 'openrouter' | OAuthKind)
 	if (kind === 'chatgpt') {
 		const nonce = randomString(24);
 		const host = hostId();
-		const url = `${SIWC_AUTHORIZE}?${new URLSearchParams({ client_id: 'dynamic_agent_client', agent_name_hint: 'qiaomu-clipper', ext_agent_host_id: host, response_type: 'code', redirect_uri: SIWC_REDIRECT, resource: SIWC_RESOURCE, scope: SIWC_SCOPES, state, nonce, code_challenge: challenge, code_challenge_method: 'S256' })}`;
+		const again = previous?.kind === 'chatgpt' && previous.clientId && previous.clientId !== 'dynamic_agent_client' ? previous : undefined;
+		const registration: Record<string, string> = again
+			? { client_id: again.clientId, ...(again.idToken ? { id_token_hint: again.idToken } : {}), ...(again.email ? { login_hint: again.email } : {}) }
+			: { client_id: 'dynamic_agent_client', agent_name_hint: 'qiaomu-clipper' };
+		const url = `${SIWC_AUTHORIZE}?${new URLSearchParams({ ...registration, ext_agent_host_id: host, response_type: 'code', redirect_uri: SIWC_REDIRECT, resource: SIWC_RESOURCE, scope: SIWC_SCOPES, state, nonce, code_challenge: challenge, code_challenge_method: 'S256' })}`;
 		const handle = openSignIn(url, SIWC_REDIRECT);
 		return { handle, async finish() {
 			const back = await handle.result;
 			if (back.searchParams.get('state') !== state) throw new Error(t('登录结果与本次请求不符，请重试'));
 			const code = back.searchParams.get('code');
-			const clientId = (back.searchParams.get('client_id') || '').trim();
+			const returned = (back.searchParams.get('client_id') || '').trim();
 			if (!code) throw new Error(back.searchParams.get('error_description') || t('登录没有完成'));
+			// A reauthorization may leave the client out of the callback, but must not swap it.
+			if (again && returned && returned !== again.clientId) throw new Error(t('登录凭证校验未通过，请重试'));
+			const clientId = returned || again?.clientId || '';
 			if (!clientId) throw new Error(t('OpenAI 没有完成应用注册，请重试'));
 			const tok = await postToken(SIWC_TOKEN, new URLSearchParams({ grant_type: 'authorization_code', client_id: clientId, code, code_verifier: verifier, redirect_uri: SIWC_REDIRECT, resource: SIWC_RESOURCE }).toString(), t('登录 ChatGPT'));
 			if (!tok.access_token || !tok.refresh_token || !tok.id_token) throw new Error(t('OpenAI 没有返回登录凭证'));
 			const id = jwtClaims(tok.id_token);
 			const aud = Array.isArray(id.aud) ? id.aud : [id.aud];
 			if (String(id.iss || '').replace(/\/$/, '') !== SIWC_ISSUER || !aud.includes(clientId) || id.nonce !== nonce) throw new Error(t('登录凭证校验未通过，请重试'));
+			const before = jwtClaims(again?.idToken).sub;
+			if (before && id.sub !== before) throw new Error(t('登录凭证校验未通过，请重试'));
 			if (!String(tok.scope || '').split(/\s+/).includes(SIWC_DIRECT_SCOPE)) throw new Error(t('这个 ChatGPT 账号暂不支持通过 API 使用套餐额度'));
 			const oauth = creds('chatgpt', tok, { clientId });
 			return { oauth, label: oauth.email || 'ChatGPT' };
@@ -151,7 +161,19 @@ export async function startSignIn(kind: 'tokendance' | 'openrouter' | OAuthKind)
 	} };
 }
 
-let refreshing: Promise<OAuthCredentials> | undefined;
+// Where the latest credentials live. Every extension page holds its own copy of the settings,
+// so the store, not the page, is the source of truth for a rotating refresh token.
+export interface OAuthStore {
+	load(providerId: string): Promise<OAuthCredentials | undefined>;
+	save(providerId: string, oauth: OAuthCredentials): Promise<void>;
+}
+
+// OpenAI's terminal refresh errors: the refresh token can no longer be used.
+const SPENT = new Set(['invalid_grant', 'invalid_refresh_token', 'token_expired', 'refresh_token_expired', 'refresh_token_invalidated', 'refresh_token_reused']);
+const isSpent = (error: unknown) => {
+	const { code, status } = error as { code?: string; status?: number };
+	return code ? SPENT.has(code) : status === 400 || status === 401;
+};
 
 async function refresh(oauth: OAuthCredentials): Promise<OAuthCredentials> {
 	let tok: any;
@@ -160,22 +182,56 @@ async function refresh(oauth: OAuthCredentials): Promise<OAuthCredentials> {
 			? await postToken(CODEX_TOKEN, { client_id: oauth.clientId || CODEX_CLIENT_ID, grant_type: 'refresh_token', refresh_token: oauth.refresh, scope: 'openid profile email' }, t('刷新 Codex 登录'))
 			: await postToken(SIWC_TOKEN, new URLSearchParams({ grant_type: 'refresh_token', client_id: oauth.clientId, refresh_token: oauth.refresh, resource: SIWC_RESOURCE }).toString(), t('刷新 ChatGPT 登录'));
 	} catch (error) {
-		const status = (error as { status?: number }).status;
-		if (status === 400 || status === 401) throw new Error(t('{0} 登录已过期，请在设置里重新登录', [oauth.kind === 'codex' ? 'Codex' : 'ChatGPT']));
+		const { code, status } = error as { code?: string; status?: number };
+		const name = oauth.kind === 'codex' ? 'Codex' : 'ChatGPT';
+		// Keep the cause: a client the server no longer accepts is not fixed by signing in over and over.
+		if (code === 'invalid_client') throw Object.assign(new Error(t('{0} 不接受当前的应用注册（invalid_client），请反馈这个问题', [name])), { code, status });
+		if (isSpent(error)) throw Object.assign(new Error(t('{0} 登录已过期，请在设置里重新登录', [name])), { code, status });
 		throw error;
 	}
 	if (!tok.access_token) throw new Error(t('刷新登录失败'));
 	return creds(oauth.kind, tok, oauth);
 }
 
+const usable = (oauth: OAuthCredentials) => oauth.expires - Date.now() > MARGIN_MS;
+const refreshing = new Map<string, Promise<OAuthCredentials>>();
+
+// Popup, side panel, settings and background each run this module separately; a shared lock keeps them
+// from spending one rotating refresh token twice.
+function acrossPages<T>(name: string, work: () => Promise<T>): Promise<T> {
+	return typeof navigator !== 'undefined' && navigator.locks ? navigator.locks.request(name, work) as Promise<T> : work();
+}
+
+async function renew(provider: Provider, store: OAuthStore): Promise<OAuthCredentials> {
+	// Another page may have renewed or signed in again while this one waited for the lock.
+	let current = (await store.load(provider.id).catch(() => undefined)) || provider.oauth!;
+	if (!usable(current)) {
+		try {
+			current = await refresh(current);
+		} catch (error) {
+			// A page outside the lock (or an older build) may have rotated the token meanwhile.
+			const latest = isSpent(error) ? await store.load(provider.id).catch(() => undefined) : undefined;
+			if (!latest || latest.refresh === current.refresh) throw error;
+			current = usable(latest) ? latest : await refresh(latest);
+		}
+		provider.oauth = current;
+		await store.save(provider.id, current);
+	}
+	provider.oauth = current;
+	return current;
+}
+
 // The token a request should carry, renewed (and saved) when it is about to expire.
-export async function freshOAuth(provider: Provider, save: (oauth: OAuthCredentials) => Promise<void>): Promise<OAuthCredentials> {
+export async function freshOAuth(provider: Provider, store: OAuthStore): Promise<OAuthCredentials> {
 	const oauth = provider.oauth;
 	if (!oauth) throw new Error(t('{0} 还没有登录', [provider.name]));
-	if (oauth.expires - Date.now() > MARGIN_MS) return oauth;
-	// Refresh tokens rotate; two requests must not spend the same one.
-	refreshing ??= refresh(oauth).then(async next => { provider.oauth = next; await save(next); return next; }).finally(() => { refreshing = undefined; });
-	return refreshing;
+	if (usable(oauth)) return oauth;
+	let pending = refreshing.get(provider.id);
+	if (!pending) {
+		pending = acrossPages(`qiaomu-oauth-refresh:${provider.id}`, () => renew(provider, store)).finally(() => refreshing.delete(provider.id));
+		refreshing.set(provider.id, pending);
+	}
+	return pending;
 }
 
 type Turn = ChatTurn;

@@ -3,7 +3,7 @@ import { Provider } from '../types/types';
 import { openAICompatibleBasePath, opencodeHeaders } from './chat-llm';
 import { freshOAuth, oauthModelsRequest } from './oauth/accounts';
 import { brandOf } from './provider-catalog';
-import { saveSettings } from './storage-utils';
+import { oauthStore } from './storage-utils';
 import { isOpenCodeGo, supportsOpenCodeGoChat } from './opencode-go';
 import modelNames from './model-names.json';
 
@@ -109,7 +109,7 @@ export async function fetchProviderModels(input: Provider, signal?: AbortSignal)
 // A signed-in ChatGPT or Codex account lists its own models; both answer with
 // either an OpenAI-style `data` list or ChatGPT's `models` catalogue.
 async function fetchAccountModels(provider: Provider, signal?: AbortSignal): Promise<ProviderModel[]> {
-	const oauth = await freshOAuth(provider, () => saveSettings());
+	const oauth = await freshOAuth(provider, oauthStore);
 	const { url, headers } = oauthModelsRequest(oauth);
 	const response = await fetch(url, { headers, signal, credentials: 'omit' });
 	if (!response.ok) throw new Error(`http-${response.status}`);

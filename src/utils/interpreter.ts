@@ -1,5 +1,5 @@
 import { magpieKey } from './magpie';
-import { generalSettings, saveSettings } from './storage-utils';
+import { generalSettings, oauthStore, saveSettings } from './storage-utils';
 import { PromptVariable, Template, ModelConfig, Provider } from '../types/types';
 import { compileTemplate } from './template-compiler';
 import { applyFilters } from './filters';
@@ -49,7 +49,7 @@ export async function sendToLLM(promptContext: string, content: string, promptVa
 		};
 
 		if (provider.oauth) {
-			const oauth = await freshOAuth(provider, () => saveSettings());
+			const oauth = await freshOAuth(provider, oauthStore);
 			const { url, init } = responsesRequest(oauth, model, systemContent, [
 				{ role: 'user', content: promptContext },
 				{ role: 'user', content: JSON.stringify(promptContent) }
