@@ -12,6 +12,7 @@ import { initializeIcons, getPropertyTypeIcon } from '../icons/icons';
 import { findMatchingTemplate, initializeTriggers } from '../utils/triggers';
 import { getLocalStorage, setLocalStorage, loadSettings, generalSettings, saveSettings, Settings } from '../utils/storage-utils';
 import { normalizeSites, isSiteBlocked } from '../utils/triple-key';
+import { readShortcutContext } from '../utils/shortcut-context';
 import { escapeHtml, unescapeValue } from '../utils/string-utils';
 import { loadTemplates, createDefaultTemplate } from '../managers/template-manager';
 import browser from '../utils/browser-polyfill';
@@ -50,6 +51,9 @@ let lastSelectedVault: string | null = null;
 const isSidePanel = window.location.pathname.includes('side-panel.html');
 const urlParams = new URLSearchParams(window.location.search);
 const isIframe = urlParams.get('context') === 'iframe';
+const shortcutContext = readShortcutContext(window.location.search);
+let shortcutHandler: (() => Promise<void>) | undefined;
+let shortcutConsumed = false;
 
 // Memoize compileTemplate with a short expiration and URL-sensitive key
 const memoizedCompileTemplate = memoizeWithExpiration(
@@ -117,6 +121,7 @@ async function getCurrentTabInfo(): Promise<{ url: string; title?: string; image
 		};
 	} catch (error) {
 		console.warn('Failed to get current tab info for stats:', error);
+		if (shortcutContext) throw error;
 		return { url: '' };
 	}
 }
@@ -272,7 +277,7 @@ function setupMessageListeners() {
 			}
 		} else if (request.action === "activeTabChanged") {
 			// Only handle active tab changes if we're in side panel mode, not iframe mode
-			if (!isIframe) {
+			if (!isIframe && !shortcutContext) {
 				currentTabId = request.tabId;
 				if (request.isRestrictedUrl) {
 					showError('pageCannotBeClipped');
@@ -310,7 +315,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
 	try {
 		// Get the active tab via background script to handle Firefox compatibility
-		const response = await browser.runtime.sendMessage({ action: "getActiveTab" }) as { tabId?: number; error?: string };
+		const response: { tabId?: number; error?: string } = shortcutContext ?? await browser.runtime.sendMessage({ action: "getActiveTab" }) as { tabId?: number; error?: string };
 		if (!response || response.error || !response.tabId) {
 			showError(getMessage('pleaseReload'));
 			return;
@@ -324,7 +329,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 		const openBehavior: Settings['openBehavior'] = isMobile && loadedSettings.openBehavior !== 'reader' ? 'popup' : loadedSettings.openBehavior;
 
 		// Check if we should open in an iframe, but only if the URL is valid
-		if (isValidUrl(tab.url) && !isBlankPage(tab.url) && openBehavior === 'embedded' && !isIframe && !isSidePanel) {
+		if (isValidUrl(tab.url) && !isBlankPage(tab.url) && openBehavior === 'embedded' && !isIframe && !isSidePanel && !shortcutContext) {
 			try {
 				const response = await browser.runtime.sendMessage({ action: "getActiveTabAndToggleIframe" }) as { success?: boolean; error?: string };
 				if (response && response.success) {
@@ -341,7 +346,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 		}
 
 		// Check if we should open in reader mode
-		if (isValidUrl(tab.url) && !isBlankPage(tab.url) && openBehavior === 'reader' && !isIframe && !isSidePanel) {
+		if (isValidUrl(tab.url) && !isBlankPage(tab.url) && openBehavior === 'reader' && !isIframe && !isSidePanel && !shortcutContext) {
 			try {
 				const response = await browser.runtime.sendMessage({
 					action: "toggleReaderMode",
@@ -408,7 +413,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 				await consumePendingAction();
 			} catch (error) {
 				console.error('Error initializing popup:', error);
-				showError(getMessage('pleaseReload'));
+				showError(shortcutContext && error instanceof Error ? error.message : getMessage('pleaseReload'));
 			}
 		} else {
 			showError(getMessage('pleaseReload'));
@@ -421,6 +426,18 @@ document.addEventListener('DOMContentLoaded', async function() {
 
 // Triple-press shortcuts (read / edit / clip) open the popup and leave the action here; run it once the clip is ready.
 async function consumePendingAction() {
+	if (shortcutContext) {
+		if (shortcutConsumed) return;
+		shortcutConsumed = true;
+		if (!currentTemplate) throw new Error(getMessage('pleaseReload'));
+		if (shortcutContext.action === 'clip') await handleClipObsidian();
+		else {
+			if (!shortcutHandler) throw new Error(getMessage('pleaseReload'));
+			await shortcutHandler();
+			window.close();
+		}
+		return;
+	}
 	const data = await browser.storage.local.get('qiaomuPendingAction');
 	const pending = data.qiaomuPendingAction as { action: 'read' | 'edit' | 'clip'; at: number; hidden?: boolean } | undefined;
 	if (!pending) return;
@@ -763,6 +780,7 @@ async function refreshFields(tabId: number, { checkTemplateTriggers = true, rebu
 		console.error('Error refreshing fields:', error);
 		const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
 		showError(errorMessage);
+		if (shortcutContext) throw error;
 	}
 }
 
@@ -1588,7 +1606,7 @@ function setupCompactPopup() {
         event.preventDefault();
         document.getElementById('open-editor')?.click();
     });
-    document.getElementById('open-editor')?.addEventListener('click', async () => {
+    const openEditor = async () => {
         if (!currentTemplate) return;
         const button = document.getElementById('open-editor') as HTMLButtonElement;
         button.disabled = true;
@@ -1607,17 +1625,19 @@ function setupCompactPopup() {
         } catch (error) {
             const status = document.getElementById('clip-action-status');
             if (status) status.textContent = String(error);
+            if (shortcutContext) throw error;
         } finally { button.disabled = false; }
-    });
+    };
+    document.getElementById('open-editor')?.addEventListener('click', () => { void openEditor().catch(() => {}); });
     document.addEventListener('keydown', event => {
         if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
             event.preventDefault();
             (document.getElementById('clip-btn') as HTMLButtonElement | null)?.click();
         }
     });
-    document.getElementById('preview-clip')?.addEventListener('click', async () => {
+    const openReader = async () => {
         // On a video or audio page, Read opens the study player, exactly as the triple-press and the toolbar icon do.
-        const study = await browser.runtime.sendMessage({ action: 'qiaomuOpenStudy' }).catch(() => undefined) as { opened?: boolean } | undefined;
+        const study = shortcutContext?.action === 'writeSource' ? undefined : await browser.runtime.sendMessage({ action: 'qiaomuOpenStudy', tabId: currentTabId }).catch(() => undefined) as { opened?: boolean } | undefined;
         if (study?.opened) { void browser.runtime.sendMessage({ action: 'closeIframe' }).catch(() => {}); window.close(); return; }
         if (!currentTemplate) return;
         const button = document.getElementById('preview-clip') as HTMLButtonElement;
@@ -1627,16 +1647,22 @@ function setupCompactPopup() {
             const name = (document.getElementById('note-name-field') as HTMLTextAreaElement).value || 'Untitled';
             const tab = await getCurrentTabInfo();
             const content = await generateFrontmatter(getPropertiesFromDOM()) + markdown;
-            await openClipPreview({
+            const draft: ClipPreview = {
                 local: { requestId: crypto.randomUUID(), content, name: `${sanitizeFileName(name)}.md`, folder: (document.getElementById('path-name-field') as HTMLInputElement).value, vault: (document.getElementById('vault-select') as HTMLSelectElement).value || currentTemplate.vault || '', behavior: currentTemplate.behavior },
                 clip: { url: tab.url, title: name, markdown, image: tab.image },
                 aggregate: (document.getElementById('qiaomu-rss-enabled') as HTMLInputElement).checked,
                 native: nativeLocalSave,
                 properties: getPropertiesFromDOM(),
-            });
+            };
+            if (shortcutContext?.action === 'writeSource') await openClipPreview(draft, 'reader.html?write=1&preview=');
+            else await openClipPreview(draft);
         } catch (error) {
             const status = document.getElementById('clip-action-status');
             if (status) status.textContent = String(error);
+            if (shortcutContext) throw error;
         } finally { button.disabled = false; }
-    });
+    };
+    document.getElementById('preview-clip')?.addEventListener('click', () => { void openReader().catch(() => {}); });
+    if (shortcutContext?.action === 'read' || shortcutContext?.action === 'writeSource') shortcutHandler = openReader;
+    if (shortcutContext?.action === 'edit') shortcutHandler = openEditor;
 }

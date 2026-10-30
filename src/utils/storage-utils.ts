@@ -69,7 +69,7 @@ interface StorageData {
 		saveBehavior?: 'addToObsidian' | 'copyToClipboard' | 'saveFile';
 		defaultTemplateId?: string;
 		tripleKeyShortcuts?: boolean;
-		tripleKeys?: { read: string; edit: string; clip: string; note?: string; write?: string };
+		tripleKeys?: { read: string; edit: string; clip: string; note?: string; write?: string; writeSource?: string };
 		tripleKeyBlockedSites?: string[];
 		selectionToolbar?: boolean;
 		readerAutoChat?: boolean;

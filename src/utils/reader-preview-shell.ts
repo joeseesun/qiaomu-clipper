@@ -17,7 +17,7 @@ import { showClipStatus } from './clip-bar';
 
 import { t } from './ui-text';
 // The same shell for a normal clip preview and a progressively loaded video.
-export function mountReaderPreviewShell(draft: ClipPreview, pending = false) {
+export function mountReaderPreviewShell(draft: ClipPreview, pending = false, writeFromSource = false) {
 	const id = draft.local.requestId;
 	document.documentElement.classList.add('qiaomu-preview');
 	const title = document.createElement('span'); title.textContent = draft.clip.title;
@@ -58,8 +58,16 @@ export function mountReaderPreviewShell(draft: ClipPreview, pending = false) {
 		pending = value;
 		bar.dataset.pending = String(value);
 		for (const control of Array.from(bar.querySelectorAll<HTMLButtonElement>('.clip-bar-segment button[aria-selected="false"], #clip-bar-copy, #clip-bar-download, #clip-bar-ai, #clip-bar-clip'))) control.disabled = value || (control.id === 'clip-bar-clip' && Boolean(draft.localDone && (!draft.aggregate || draft.rssDone))) || (control.id === 'clip-bar-ai' && Boolean(videoKey(draft.clip.url)) && !transcriptText(document.querySelector('article')!));
+		if (!value && writeFromSource) {
+			writeFromSource = false;
+			bar.querySelector<HTMLButtonElement>('#clip-bar-write')?.click();
+		}
 	};
 	setPending(pending);
-	listenTripleKey(() => [normalizeTripleKeys(generalSettings.tripleKeys).edit].filter(Boolean), () => { if (!pending) openEditor(); }, () => generalSettings.tripleKeyShortcuts !== false && !document.querySelector('.learning-composer[open]'));
+	listenTripleKey(() => { const keys = normalizeTripleKeys(generalSettings.tripleKeys); return [keys.edit, keys.writeSource].filter(Boolean); }, key => {
+		if (pending) return;
+		if (key === normalizeTripleKeys(generalSettings.tripleKeys).writeSource) bar.querySelector<HTMLButtonElement>('#clip-bar-write')?.click();
+		else openEditor();
+	}, () => generalSettings.tripleKeyShortcuts !== false && !document.querySelector('.learning-composer[open]'));
 	return {bar,chat, setPending, refresh: () => {title.textContent = draft.clip.title;} };
 }

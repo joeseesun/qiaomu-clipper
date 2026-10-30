@@ -44,3 +44,19 @@ it('counts media against the X limit like the engine does', () => {
 	const parsed = shared.parseMarkdown(prepareForX(article(many)).markdown, { setTitle: true, setCover: true });
 	expect(shared.articleMediaEstimate(parsed, { setCover: true }).overSoftLimit).toBe(true);
 });
+
+it('keeps MP4 blocks in order with pictures/GIFs and counts all of them in the media budget', () => {
+ const markdown='Before\n\n![photo](https://example.com/a.png)\n\n[Clip](https://example.com/b.mp4?token=fixture)\n\n<video controls><source src="https://example.com/c.mp4" type="video/mp4"></video>\n\n![animation](https://example.com/d.gif)\n\nAfter';
+ const parsed=shared.parseMarkdown(prepareForX(article(markdown)).markdown,{setCover:true});
+ expect(parsed.segments.filter(s=>s.source).map(s=>s.type)).toEqual(['image','video','video','image']);
+ expect(shared.articleMediaEstimate(parsed).total).toBe(4);
+ const media=new Map(parsed.segments.filter(s=>s.source).map(s=>[s,{ok:true,base64:'YQ==',mime:s.type==='video'?'video/mp4':'image/png',fileName:s.type==='video'?'clip.mp4':'pic.png',bytes:1}]));
+ const plan=shared.buildPastePlan(parsed.segments,media,new Map(),{});
+ expect(plan.plan.map((p:any)=>p.op.file.mime)).toEqual(['image/png','video/mp4','video/mp4','image/png']);
+ expect(plan.plan[1].op.fallbackText).toBe('[Clip](https://example.com/b.mp4?token=fixture)');
+ expect(plan.plan.every((p:any)=>p.op.file.bytes===1)).toBe(true);
+});
+it('does not upload video-looking URLs inside fenced code or ordinary prose links',()=>{
+ const parsed=shared.parseMarkdown('```html\n<video src="https://example.com/code.mp4"></video>\n```\n\nSee [this video](https://example.com/linked.mp4) for details.');
+ expect(parsed.segments.filter(s=>s.type==='video')).toHaveLength(0);
+});

@@ -25,18 +25,21 @@ import { normalizeTripleKeys, commandForKey, DEFAULT_TRIPLE_KEYS } from './utils
 
 it('uses the defaults when nothing is configured', () => {
 	expect(normalizeTripleKeys(undefined)).toEqual(DEFAULT_TRIPLE_KEYS);
+	expect(commandForKey(normalizeTripleKeys({ read: 'a', edit: 'e', clip: 'q', note: 'i', write: 'u' }), 'y')).toBe('writeSource');
 });
 
 it('keeps valid custom keys, lowercases them, and turns empty ones off', () => {
 	const keys = normalizeTripleKeys({ read: 'R', edit: '', clip: '7' });
-	expect(keys).toEqual({ read: 'r', edit: '', clip: '7', note: 'i', write: 'u' });
+	expect(keys).toEqual({ read: 'r', edit: '', clip: '7', note: 'i', write: 'u', writeSource: 'y' });
 	expect(commandForKey(keys, 'r')).toBe('read');
 	expect(commandForKey(keys, '7')).toBe('clip');
 	expect(commandForKey(keys, 'e')).toBeUndefined();
 });
 
 it('drops invalid and duplicate keys instead of letting two actions share one', () => {
-	expect(normalizeTripleKeys({ read: 'x', edit: 'x', clip: 'ab' })).toEqual({ read: 'x', edit: '', clip: '', note: 'i', write: 'u' });
+	expect(normalizeTripleKeys({ read: 'x', edit: 'x', clip: 'ab' })).toEqual({ read: 'x', edit: '', clip: '', note: 'i', write: 'u', writeSource: 'y' });
+	expect(normalizeTripleKeys({ read: 'y' }).writeSource).toBe('');
+	expect(normalizeTripleKeys({ writeSource: '' }).writeSource).toBe('');
 });
 
 it('listens to a key list that changes at runtime', () => {

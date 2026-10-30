@@ -78,8 +78,11 @@ it('lets the writer pick any model of any connected service, and uses that one',
 	button('生成').click(); await vi.waitFor(() => expect(document.querySelector('.qw-image-preview img')).not.toBeNull());
 	expect(generate).toHaveBeenCalledWith(models[0], '猫', '16:9', expect.anything(), 'gpt-image-2', undefined);
 	select.value = select.querySelectorAll('option')[2].value;
-	button('重新生成').click(); await settle();
-	expect(generate).toHaveBeenLastCalledWith(models[1], '猫', '16:9', expect.anything(), 'seedream-5', undefined);
+	const previousPreview = document.querySelector('.qw-image-preview img');
+	button('重新生成').click();
+	await vi.waitFor(() => expect(generate).toHaveBeenLastCalledWith(models[1], '猫', '16:9', expect.anything(), 'seedream-5', undefined));
+	// Wait for this job to finish before the next fixture replaces the DB/runner.
+	await vi.waitFor(() => { const next = document.querySelector('.qw-image-preview img'); expect(next).not.toBeNull(); expect(next).not.toBe(previousPreview); });
 });
 
 it('closing the generation dialog preserves the background job', async () => {

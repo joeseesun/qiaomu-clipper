@@ -13,6 +13,7 @@ import { articleFromClip, completeSourceImport, extractedArticleSource, openClip
 import type { ClipPreview } from '../utils/clip-preview';
 import { Editor } from '@tiptap/core';
 import { buildExtensions } from './editor/extensions';
+import Defuddle from '../utils/defuddle';
 
 const videoUrl = 'https://www.youtube.com/watch?v=dbqweBCynuI';
 const clip = (url = videoUrl): ClipPreview => ({ clip: { title: 'Source title', url, markdown: 'Template without transcript' }, local: { requestId: 'source-1', content: '', name: 'Source.md', folder: '', vault: '', behavior: 'create' }, aggregate: false, native: false });
@@ -52,6 +53,21 @@ it('imports the visible ordinary article even when a clip template leaves out it
 	expect(snapshot.markdown).toContain('Actual text');
 	expect(snapshot.markdown).toContain('https://example.com/image.jpg');
 	expect(snapshot.markdown).not.toMatch(/Template without|Reader control/);
+});
+
+it('keeps hidden image descriptions out of the writer while retaining visible captions', () => {
+	const alt = '图片展示的是应用空间界面，上方有分类标签，下方有笔记、定时任务和文件管理等应用图标。';
+	const caption = 'The visible screenshot caption';
+	const source = new DOMParser().parseFromString(`<article><h1>Review</h1><p>${'Article body with useful explanations. '.repeat(12)}</p><figure><img src="https://example.com/one.png" alt="${alt}"></figure><figure><img src="https://example.com/two.png" alt="${alt}"><figcaption>${caption}</figcaption></figure></article>`, 'text/html');
+	const result = new Defuddle(source, { url: 'https://example.com/review' }).parse();
+	document.body.innerHTML = `<article>${result.content}</article>`;
+	const snapshot = sourceSnapshot(clip('https://example.com/review'), document.querySelector('article'));
+	const editor = new Editor({ element: document.body.appendChild(document.createElement('div')), extensions: buildExtensions({ resolveImage: async () => undefined }), content: snapshot.markdown });
+	try {
+		expect(editor.getText()).not.toContain(alt);
+		expect(editor.getText()).toContain(caption);
+		expect(editor.getJSON().content?.filter(node => node.type === 'image').map(node => node.attrs?.alt)).toEqual([alt, alt]);
+	} finally { editor.destroy(); }
 });
 
 it('uses the selected full bilingual transcript without mutating the learning page', () => {
@@ -108,4 +124,15 @@ it('focuses an existing writer tab and refuses external or unrelated handoff URL
 	await openSourcePage('chrome-extension://other/write.html');
 	await openSourcePage('chrome-extension://fixture/settings.html');
 	expect(browser.tabs.query).toHaveBeenCalledTimes(1);
+});
+
+it('preserves direct MP4s in a mixed article without turning it into a standalone video lesson',()=>{
+ const draft=clip('https://example.com/article');
+ document.body.innerHTML='<article><p>Before</p><video controls><source src="/demo.mp4?download=1" type="video/mp4"></video><img src="https://example.com/a.png"><p>After</p></article>';
+ const snapshot=sourceSnapshot(draft,document.querySelector('article'));
+ expect(snapshot.markdown).toContain('[Video](https://example.com/demo.mp4?download=1)');
+ expect(snapshot.markdown.indexOf('Before')).toBeLessThan(snapshot.markdown.indexOf('[Video]'));
+ expect(snapshot.markdown.indexOf('[Video]')).toBeLessThan(snapshot.markdown.indexOf('After'));
+ expect(snapshot.media).toBe(false);expect(snapshot.ready).toBe(true);
+ expect(snapshot.markdown).not.toContain('视频简介');
 });

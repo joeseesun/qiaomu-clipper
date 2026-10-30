@@ -1,3 +1,4 @@
+import { t } from '../utils/ui-text';
 import { openDb, requestResult, transactionDone } from './db';
 import { IMAGE_SCHEME, StoredImage } from './types';
 
@@ -90,10 +91,39 @@ export class ImageUrlCache {
 	revokeAll(): void { for (const url of this.urls.values()) URL.revokeObjectURL(url); this.urls.clear(); }
 }
 
-export async function fetchRemoteImage(url: string): Promise<Blob> {
-	const response = await fetch(url, { credentials: 'omit' });
+export async function fetchRemoteImage(url: string, signal?: AbortSignal): Promise<Blob> {
+	return fetchRemoteAsset(url, signal, false);
+}
+
+export async function fetchRemoteMedia(url: string, signal?: AbortSignal): Promise<Blob> {
+	return fetchRemoteAsset(url, signal, true);
+}
+
+async function fetchRemoteAsset(url: string, signal: AbortSignal | undefined, video: boolean): Promise<Blob> {
+	const controller = new AbortController();
+	const abort = () => controller.abort();
+	const timeout = setTimeout(abort, video ? 60000 : 25000);
+	signal?.addEventListener('abort', abort, { once: true });
+	if (signal?.aborted) abort();
+	try {
+	const response = await fetch(url, { credentials: 'omit', signal: controller.signal });
 	if (!response.ok) throw new Error(`HTTP ${response.status}`);
-	const blob = await response.blob();
-	if (!blob.type.startsWith('image/')) throw new Error('not an image');
+	const maxBytes = video ? 32 * 1024 * 1024 : 64 * 1024 * 1024;
+	if (Number(response.headers.get('content-length')) > maxBytes) { controller.abort(); throw new Error(video ? t('媒体超过 32MB，请压缩后再添加') : 'Image exceeds 64MB'); }
+	let blob: Blob;
+	if (response.body) {
+		const reader = response.body.getReader(), parts: Uint8Array[] = []; let received = 0;
+		try {
+			while (true) {
+				const { done, value } = await reader.read(); if (done) break;
+				received += value.byteLength;
+				if (received > maxBytes) { controller.abort(); throw new Error(video ? t('媒体超过 32MB，请压缩后再添加') : 'Image exceeds 64MB'); }
+				parts.push(value);
+			}
+		} finally { reader.releaseLock(); }
+		blob = new Blob(parts, { type: response.headers.get('content-type')?.split(';')[0].trim() || '' });
+	} else blob = await response.blob();
+	if (!blob.type.startsWith('image/') && !(video && blob.type.split(';')[0] === 'video/mp4')) throw new Error(video ? t('不支持的媒体格式，请使用图片或 MP4') : 'not an image');
 	return blob;
+	} finally { clearTimeout(timeout); signal?.removeEventListener('abort', abort); }
 }

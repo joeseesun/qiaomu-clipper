@@ -91,7 +91,7 @@ export interface Settings {
 	openBehavior: 'popup' | 'embedded' | 'reader';
 	defaultTemplateId?: string;
 	tripleKeyShortcuts?: boolean;
-	tripleKeys?: { read: string; edit: string; clip: string; note?: string; write?: string };
+	tripleKeys?: { read: string; edit: string; clip: string; note?: string; write?: string; writeSource?: string };
 	tripleKeyBlockedSites?: string[];
 	selectionToolbar?: boolean;
 	// Open the AI chat panel by itself when the reading page opens.

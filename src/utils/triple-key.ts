@@ -1,14 +1,14 @@
 // Press the same plain key three times quickly (outside text fields and open dialogs) to run an action.
 export const TRIPLE_KEY_WINDOW_MS = 600;
 
-export type TripleCommand = 'read' | 'edit' | 'clip' | 'note' | 'write';
+export type TripleCommand = 'read' | 'edit' | 'clip' | 'note' | 'write' | 'writeSource';
 export type TripleKeyMap = Record<TripleCommand, string>;
-export const DEFAULT_TRIPLE_KEYS: TripleKeyMap = { read: 'a', edit: 'e', clip: 'q', note: 'i', write: 'u' };
-export const TRIPLE_COMMANDS: TripleCommand[] = ['read', 'edit', 'clip', 'note', 'write'];
+export const DEFAULT_TRIPLE_KEYS: TripleKeyMap = { read: 'a', edit: 'e', clip: 'q', note: 'i', write: 'u', writeSource: 'y' };
+export const TRIPLE_COMMANDS: TripleCommand[] = ['read', 'edit', 'clip', 'note', 'write', 'writeSource'];
 
 // One lowercase letter or digit per command; empty turns a command off. A key can only be used once.
 export function normalizeTripleKeys(raw: Partial<Record<TripleCommand, unknown>> | undefined | null): TripleKeyMap {
-	const result: TripleKeyMap = { read: '', edit: '', clip: '', note: '', write: '' };
+	const result: TripleKeyMap = { read: '', edit: '', clip: '', note: '', write: '', writeSource: '' };
 	const used = new Set<string>();
 	for (const command of TRIPLE_COMMANDS) {
 		const value = raw && command in raw ? String(raw[command] ?? '').trim().toLowerCase() : DEFAULT_TRIPLE_KEYS[command];
@@ -28,11 +28,11 @@ function isEditableTarget(event: KeyboardEvent): boolean {
 	return !!target.closest?.('dialog[open]') || target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.getAttribute?.('role') === 'textbox';
 }
 
-export function listenTripleKey(keys: string[] | (() => string[]), onTriple: (key: string) => void, isEnabled: () => boolean = () => true): void {
+export function listenTripleKey(keys: string[] | (() => string[]), onTriple: (key: string) => void, isEnabled: () => boolean = () => true): () => void {
 	let lastKey = '';
 	let count = 0;
 	let lastAt = 0;
-	document.addEventListener('keydown', event => {
+	const listener = (event: KeyboardEvent) => {
 		const key = event.key.toLowerCase();
 		if (event.repeat || event.isComposing || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey || !(typeof keys === 'function' ? keys() : keys).includes(key) || isEditableTarget(event) || !isEnabled()) {
 			lastKey = ''; count = 0;
@@ -43,7 +43,9 @@ export function listenTripleKey(keys: string[] | (() => string[]), onTriple: (ke
 		lastKey = key;
 		lastAt = now;
 		if (count === 3) { count = 0; lastKey = ''; onTriple(key); }
-	}, true);
+	};
+	document.addEventListener('keydown', listener, true);
+	return () => document.removeEventListener('keydown', listener, true);
 }
 
 // Sites where the shortcuts stay off. Entries may be a bare domain, a URL, or `*.example.com`; subdomains are included.

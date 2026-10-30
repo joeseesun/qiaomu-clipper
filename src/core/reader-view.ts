@@ -480,6 +480,7 @@ async function setupReaderPageMessageHandler(articleUrl: string, defuddleResult:
 }
 
 async function showClipPreview(id: string) {
+    const writeFromSource = new URLSearchParams(window.location.search).get('write') === '1';
     const draft = await loadClipPreview(id);
     if (!draft) { document.body.textContent = t('剪藏预览已过期，请重新打开预览'); return; }
     const rendered = DOMPurify.sanitize(await marked.parse(draft.clip.markdown));
@@ -500,7 +501,7 @@ async function showClipPreview(id: string) {
     await Reader.apply(document);
     document.title = draft.clip.title;
     await loadSettings();
-    const {chat} = mountReaderPreviewShell(draft);
+    const {chat} = mountReaderPreviewShell(draft, false, writeFromSource);
     const article = document.querySelector<HTMLElement>('article')!;
     if (draft.localMedia || draft.remoteMedia) {
         const anchor = document.createElement('div'); article.prepend(anchor);

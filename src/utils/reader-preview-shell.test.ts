@@ -1,22 +1,35 @@
 // @vitest-environment jsdom
 import { beforeEach, expect, it, vi } from 'vitest';
-const state=vi.hoisted(()=>({chat:vi.fn((_options: any)=>({toggle:vi.fn(()=>true)})),update:vi.fn(),copy:vi.fn().mockResolvedValue(true)}));
+const state=vi.hoisted(()=>({chat:vi.fn((_options: any)=>({toggle:vi.fn(()=>true)})),update:vi.fn(),copy:vi.fn().mockResolvedValue(true),write:vi.fn().mockResolvedValue(undefined)}));
+vi.mock('../write/source-import',()=>({openClipArticle:state.write}));
 vi.mock('./clip-chat',()=>({mountClipChat:state.chat}));
 vi.mock('./clip-preview',()=>({updateClipPreview:state.update,patchClipPreview:state.update,saveClipPreview:vi.fn().mockResolvedValue(['saved'])}));
 vi.mock('./obsidian-note-creator',()=>({generateFrontmatter:async()=>''}));
 vi.mock('./reader',()=>({Reader:{onEdit:null,highlightSelection:vi.fn()}}));
 vi.mock('./highlighter',()=>({getHighlights:()=>[]}));
 vi.mock('./storage-utils',()=>({generalSettings:{tripleKeys:{},tripleKeyShortcuts:true},getLocalStorage:async()=>undefined,setLocalStorage:async()=>{}}));
-vi.mock('./triple-key',()=>({listenTripleKey:vi.fn(),normalizeTripleKeys:()=>({edit:'e'})}));
+vi.mock('./triple-key',()=>({listenTripleKey:vi.fn(),normalizeTripleKeys:()=>({edit:'e',writeSource:'y'})}));
 vi.mock('./youtube-study',()=>({transcriptText:()=> '[0:12] Source transcript'}));
 vi.mock('./clipboard-utils',()=>({copyToClipboard:state.copy}));
 vi.mock('./i18n',()=>({getMessage:(key:string)=>key}));
 vi.mock('./browser-polyfill',()=>({default:{runtime:{getURL:(path:string)=>path},storage:{onChanged:{addListener:vi.fn()}}}}));
 import { mountReaderPreviewShell } from './reader-preview-shell';
+import { listenTripleKey } from './triple-key';
 import type { ClipPreview } from './clip-preview';
 const draft=():ClipPreview=>({createdAt:Date.now(),aggregate:false,native:true,local:{requestId:'same-draft',content:'Note',name:'Video.md',folder:'Clips',vault:'Vault',behavior:'create'},clip:{title:'Video',url:'https://youtube.com/watch?v=dbqweBCynuI',markdown:'Body'}});
 const flush=async()=>{for(let i=0;i<15;i++)await Promise.resolve();};
 beforeEach(()=>{vi.clearAllMocks();document.body.innerHTML='<article></article><div class="obsidian-reader-settings"><button>Aa</button></div>';});
+
+it('hands the live reader article to the existing Write button once, after rendering is ready',async()=>{
+ const data=draft();const shell=mountReaderPreviewShell(data,true,true);await flush();expect(state.write).not.toHaveBeenCalled();
+ document.querySelector('article')!.innerHTML='<h2>Current reader text</h2><p>Visible caption</p>';
+ shell.setPending(false);await vi.waitFor(()=>expect(state.write).toHaveBeenCalledWith(data,document.querySelector('article'),undefined));
+ shell.setPending(false);await flush();expect(state.write).toHaveBeenCalledTimes(1);
+});
+it('YYY inside the reader uses its current content and the same Write action',async()=>{
+ const data=draft();mountReaderPreviewShell(data);const [keys,onTriple]=vi.mocked(listenTripleKey).mock.calls[0];
+ expect(typeof keys==='function'?keys():keys).toContain('y');onTriple('y');await vi.waitFor(()=>expect(state.write).toHaveBeenCalledWith(data,document.querySelector('article'),undefined));
+});
 
 it('uses identical bar controls for ordinary reading and the pending study page, including the same Aa component',()=>{
 	const ordinary=mountReaderPreviewShell(draft());

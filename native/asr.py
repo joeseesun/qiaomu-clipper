@@ -762,6 +762,29 @@ def cancel(base, message):
         state = write_state(directory, state='cancelled', stage='已取消', error=None)
     for leftover in directory.glob('audio.*'): leftover.unlink(missing_ok=True)
     return view(directory, state)
+def downloader_text(text):
+    """Terminal styling is not user-facing text (some yt-dlp configs force color)."""
+    text = re.sub(r'\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)', '', text)
+    text = re.sub(r'\x1b\[[0-?]*[ -/]*[@-~]', '', text)
+    return re.sub(r'[\x00-\x08\x0b-\x1f\x7f]', '', text)
+
+def apple_catalog_fallback(url, error=None):
+    """Retry only a missing Apple catalog entry, never a media/CDN or login error.
+
+    Keep the episode, query and original source identity. US is a single alternate
+    public catalog, not an unbounded country search or a subscription workaround.
+    """
+    from urllib.parse import urlsplit, urlunsplit, parse_qs
+    try:
+        parsed = urlsplit(url)
+        if parsed.scheme != 'https' or parsed.hostname != 'podcasts.apple.com' or parsed.port not in (None, 443) or parsed.username or parsed.password: return None
+        path = re.fullmatch(r'/([a-zA-Z]{2})/(podcast/[^/?#]+(?:/[^/?#]+)?/?)', parsed.path)
+        ids = parse_qs(parsed.query).get('i', [])
+        if not path or path[1].lower() == 'us' or len(ids) != 1 or not re.fullmatch(r'[0-9]+', ids[0]): return None
+        if error is not None and not re.search(r'\[apple:podcasts\]\s+' + re.escape(ids[0]) + r':\s+Unable to download (?:JSON metadata|webpage):\s+HTTP Error 404\b', downloader_text(error), re.I): return None
+        return urlunsplit(parsed._replace(path='/us/' + path[2]))
+    except (ValueError, TypeError): return None
+
 def probe(message):
     """What yt-dlp can tell about an address without downloading it: whether it can read it, and what it is (title, who, length, picture, and a
     direct media address when the site gives a plain file the page can play)."""
@@ -772,7 +795,7 @@ def probe(message):
     cookie_text = clean_cookie_text(message.get('cookiesTxt')) if cookies else None
     ytdlp = find_tool('yt-dlp')
     if not ytdlp: return {'ok': False, 'error': 'missing', 'missing': ['yt-dlp']}
-    command = [ytdlp, '--dump-single-json', '--no-playlist', '--skip-download', '--no-warnings', '--socket-timeout', '20', '-f', 'bestaudio/best']
+    command = [ytdlp, '--dump-single-json', '--no-playlist', '--skip-download', '--no-warnings', '--no-color', '--socket-timeout', '20', '-f', 'bestaudio/best']
     cookie_path = None
     if cookie_text:
         import tempfile
@@ -780,12 +803,20 @@ def probe(message):
         command += ['--cookies', cookie_path]
     elif cookies: command += ['--cookies-from-browser', cookies]
     command.append(url)
-    try: result = subprocess.run(command, capture_output=True, text=True, timeout=60, env=tool_env())
+    try:
+        deadline = time.monotonic() + 60
+        result = subprocess.run(command, capture_output=True, text=True, timeout=60, env=tool_env())
+        fallback = apple_catalog_fallback(url, result.stderr or '') if result.returncode else None
+        if fallback:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0: return {'ok': False, 'error': 'timeout'}
+            command[-1] = fallback
+            result = subprocess.run(command, capture_output=True, text=True, timeout=remaining, env=tool_env())
     except subprocess.TimeoutExpired: return {'ok': False, 'error': 'timeout'}
     finally:
         if cookie_path: Path(cookie_path).unlink(missing_ok=True)
     if result.returncode != 0:
-        text = (result.stderr or '').strip(); low = text.lower()
+        text = downloader_text(result.stderr or '').strip(); low = text.lower()
         return {'ok': False, 'error': 'unsupported' if 'unsupported url' in low else 'cookies-unreadable' if COOKIES_UNREADABLE.search(low) else 'needs-cookies' if NEEDS_LOGIN.search(low) else 'failed', 'message': (text.splitlines() or [''])[-1][:200]}
     try: info = json.loads(result.stdout)
     except ValueError: return {'ok': False, 'error': 'failed'}
@@ -974,7 +1005,7 @@ def download(directory, spec, env, tools):
     if spec['videoKey'].startswith('file:'): return copy_staged(directory, spec, directory.parent.parent.parent)
     if spec['videoKey'].startswith('web:') and spec.get('mediaUrl') and xiaoe_media(spec['url'], spec['mediaUrl']): return download_hls(directory, spec, env, tools)
     if spec['videoKey'].startswith('web:') and spec.get('mediaUrl'): return download_page_media(directory, spec)
-    command = [tools['yt-dlp'], '--no-playlist', '--no-warnings', '--newline', '--no-continue', '--retries', '4', '--fragment-retries', '4', '-f', 'bestaudio/best', '--write-info-json', '-o', str(directory / 'audio.%(ext)s')]
+    command = [tools['yt-dlp'], '--no-playlist', '--no-warnings', '--no-color', '--newline', '--no-continue', '--retries', '4', '--fragment-retries', '4', '-f', 'bestaudio/best', '--write-info-json', '-o', str(directory / 'audio.%(ext)s')]
     cookie_args = []
     if spec.get('cookiesFile') and (directory / 'cookies.txt').is_file(): cookie_args = ['--cookies', str(directory / 'cookies.txt')]
     elif spec.get('cookies') in COOKIE_BROWSERS: cookie_args = ['--cookies-from-browser', spec['cookies']]
@@ -984,8 +1015,9 @@ def download(directory, spec, env, tools):
         match = pattern.search(line)
         if match: write_state(directory, state='downloading', stage='正在下载音频', progress=round(min(float(match.group(1)), 100) * 0.15, 1))
     refreshed = False; client_retry = False; anonymous_retry = False; network_retries = 0
-    # Only YouTube needs room for the extra client retry; preserve other sites' three-attempt limit.
-    for attempt in range((6 if cookie_args else 5) if spec['videoKey'].startswith('youtube:') else 3):
+    # Apple gets one extra slot for the alternate catalog, preserving the network retry budget.
+    apple_extra = bool(apple_catalog_fallback(spec['url']))
+    for attempt in range((6 if cookie_args else 5) if spec['videoKey'].startswith('youtube:') else 3 + int(apple_extra)):
         for leftover in directory.glob('audio.*'): leftover.unlink(missing_ok=True)  # never resume a truncated CDN stream as if it were whole
         write_state(directory, state='downloading', stage='正在不使用登录状态重试视频下载' if anonymous_retry else '正在下载音频', progress=0)
         code, tail = stream(command, env, progress)
@@ -996,7 +1028,12 @@ def download(directory, spec, env, tools):
             info = read_json(directory / 'audio.info.json')
             if info: save_meta(directory, asr_context.from_ytdlp(info))
             return audio
+        tail = [downloader_text(line) for line in tail]
         text = ' '.join(tail).lower()
+        fallback = apple_catalog_fallback(command[-1], text)
+        if fallback:
+            command[-1] = fallback
+            continue
         if network_retries < 2 and (any(x in text for x in ('timed out', 'connection reset', 'winerror 10054', 'incomplete read', 'unexpected end', 'http error 5')) or re.search(r'downloaded.{0,20}expected', text)):
             network_retries += 1; time.sleep(network_retries); continue
         if NEEDS_LOGIN.search(text) and not using_login:

@@ -915,6 +915,126 @@
         "src/utils/chat-agent.test.ts",
         "src/utils/chat-thinking.test.ts"
       ]
+    },
+    {
+      "id": "image-alt-caption-preservation",
+      "title": "阅读转写作保留原有图注，不把隐藏的图片替代说明加入正文",
+      "origin": "codex/fix-image-alt-captions",
+      "files": [
+        "src/utils/defuddle.ts",
+        "src/write/source-import.ts"
+      ],
+      "tests": [
+        "src/utils/defuddle-images.test.ts",
+        "src/write/source-import.test.ts"
+      ]
+    },
+    {
+      "id": "shortcut-reload-and-page-action-recovery",
+      "title": "三击快捷键重载后重新绑定，阅读/编辑/剪藏在扩展页面按原文章执行，笔记监听可恢复",
+      "origin": "codex/fix-image-alt-captions 用户快捷键故障修复",
+      "files": [
+        "src/triple-key-content.ts",
+        "src/utils/triple-key.ts",
+        "src/note-card-content.ts",
+        "src/background.ts",
+        "src/core/popup.ts",
+        "src/utils/shortcut-context.ts"
+      ],
+      "tests": [
+        "src/triple-key-content.test.ts",
+        "src/triple-key.test.ts",
+        "src/note-card-lifecycle.test.ts",
+        "src/note-card-content.test.ts",
+        "src/shortcut-actions.test.ts",
+        "src/utils/shortcut-context.test.ts"
+      ]
+    },
+    {
+      "id": "write-current-article-shortcut",
+      "title": "YYY 按阅读模式提取当前文章并带入写作，阅读页使用当前内容，UUU 保持新建空白文章",
+      "origin": "用户本次 YYY 快捷键需求",
+      "files": [
+        "src/utils/triple-key.ts",
+        "src/background.ts",
+        "src/core/popup.ts",
+        "src/core/reader-view.ts",
+        "src/utils/reader-preview-shell.ts",
+        "src/managers/general-settings.ts",
+        "src/settings.html"
+      ],
+      "tests": [
+        "src/triple-key.test.ts",
+        "src/triple-key-content.test.ts",
+        "src/shortcut-actions.test.ts",
+        "src/utils/shortcut-context.test.ts",
+        "src/utils/reader-preview-shell.test.ts",
+        "src/write/source-import.test.ts"
+      ]
+    },
+    {
+      "id": "x-article-image-transport-recovery",
+      "title": "X 文章写入任务隔离、图片数据安全重传、停止清理、空图校验、上传完成确认与失败占位还原",
+      "origin": "用户 X 图片上传卡住、缺图和 Prepared image data 超时反馈",
+      "files": [
+        "src/x-publish/x-content.ts",
+        "src/x-publish/main-world.js",
+        "src/x-publish/driver.ts",
+        "src/write/publish/x.ts",
+        "src/write/images.ts"
+      ],
+      "tests": [
+        "src/x-publish/transport.test.ts",
+        "src/x-publish/media-recovery.test.ts",
+        "src/x-publish/lifecycle.test.ts",
+        "src/x-publish/preflight.test.ts",
+        "src/x-publish/x-content.test.ts",
+        "src/write/publish/x-images.test.ts",
+        "src/write/publish/x-prepare.test.ts",
+        "src/publish-bridge/publish-bridge.test.ts"
+      ]
+    },
+    {
+      "id": "x-article-gif-mp4-media",
+      "title": "X 文章 GIF/MP4 媒体链路、原生上传状态确认、视频块与 Map 识别、失败提示和动图保护",
+      "origin": "用户 GIF 已上传却误报超时及 MP4 支持需求",
+      "files": [
+        "src/x-publish/main-world.js",
+        "src/x-publish/shared.js",
+        "src/x-publish/x-content.ts",
+        "src/x-publish/media-messages.ts",
+        "src/write/publish/x.ts",
+        "src/write/images.ts",
+        "src/write/source-import.ts"
+      ],
+      "tests": [
+        "src/x-publish/media-status.test.ts",
+        "src/x-publish/media-recovery.test.ts",
+        "src/x-publish/preflight.test.ts",
+        "src/write/publish/x-images.test.ts",
+        "src/write/publish/x-prepare.test.ts",
+        "src/write/source-import.test.ts",
+        "src/x-publish/media-messages.test.ts"
+      ]
+    },
+    {
+      "id": "x-article-stop-retry-resume",
+      "title": "X 文章停止确认、原草稿续传剩余媒体、持久恢复入口与新草稿重试",
+      "origin": "用户上传卡住后的停止、重试及保留已完成图片需求",
+      "files": [
+        "src/x-publish/stop.ts",
+        "src/x-publish/driver.ts",
+        "src/x-publish/x-content.ts",
+        "src/x-publish/main-world.js",
+        "src/x-publish/media-messages.ts",
+        "src/write/publish/x.ts"
+      ],
+      "tests": [
+        "src/write/publish/x-retry.test.ts",
+        "src/x-publish/recovery-card.test.ts",
+        "src/x-publish/resume.test.ts",
+        "src/x-publish/transport.test.ts"
+      ]
     }
   ]
 }

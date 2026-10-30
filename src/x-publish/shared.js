@@ -174,6 +174,18 @@
       });
     }
 
+    const videoHtml = /<video\b[^>]*>[\s\S]*?<\/video\s*>|<video\b[^>]*\/\s*>/gi;
+    while ((match = videoHtml.exec(markdown)) !== null) {
+      if (overlaps(spans, match.index)) continue;
+      const source = match[0].match(/\bsrc\s*=\s*["']([^"']+)["']/i)?.[1];
+      if (source) spans.push({ start: match.index, end: match.index + match[0].length, segment: { type: "video", source: source.replace(/&amp;/g, "&"), alt: "video" } });
+    }
+    const videoLink = /^[ \t]*(?:\[([^\]]*)\]\((https?:\/\/[^\s<>]+\.mp4(?:[?#][^\s<>]*)?)\)|<?(https?:\/\/[^\s<>]+\.mp4(?:[?#][^\s<>]*)?)>?)[ \t]*$/gim;
+    while ((match = videoLink.exec(markdown)) !== null) {
+      if (overlaps(spans, match.index)) continue;
+      spans.push({ start: match.index, end: match.index + match[0].length, segment: { type: "video", source: match[2] || match[3], alt: match[1] || "video" } });
+    }
+
     const table = /^(?:[ \t]*\|.+\|[ \t]*\n)(?:[ \t]*\|[\s:|\-]+\|[ \t]*\n)((?:[ \t]*\|.+\|[ \t]*\n?)*)/gm;
     while ((match = table.exec(markdown)) !== null) {
       if (overlaps(spans, match.index)) continue;
@@ -217,7 +229,7 @@
         end: image.end,
         segment: tweet
           ? { type: "tweet", tweetId: tweet[1] }
-          : { type: "image", source, alt: image.alt.trim() }
+          : { type: /\.mp4(?:[?#]|$)/i.test(source) ? "video" : "image", source, alt: image.alt.trim() }
       });
     }
 
@@ -476,7 +488,7 @@
         counts[segment.type] = (counts[segment.type] || 0) + 1;
         return counts;
       },
-      { text: 0, image: 0, table: 0, tweet: 0, code: 0, divider: 0 }
+      { text: 0, image: 0, video: 0, table: 0, tweet: 0, code: 0, divider: 0 }
     );
   }
 
@@ -488,7 +500,7 @@
     const dropped = { images: 0, tables: 0, tweets: 0 };
 
     for (const segment of segments) {
-      if (segment.type === "image") {
+      if (segment.type === "image" || segment.type === "video") {
         counters.image += 1;
         if (counters.image > limits.maxImagesPerImport) {
           dropped.images += 1;
@@ -597,7 +609,8 @@
             base64: result.base64,
             mime: result.mime,
             fileName: result.fileName,
-            alt: segment.alt || ""
+            alt: segment.alt || "",
+            bytes: result.bytes
           },
           source: segment.source,
           fallbackText: coverOnly ? "" : imageFallbackMarkdown(segment),
@@ -665,7 +678,7 @@
         continue;
       }
 
-      if (segment.type === "image") {
+      if (segment.type === "image" || segment.type === "video") {
         const result = imageResults.get(segment);
         if (result?.ok) {
           addImageOperation(segment, result);
@@ -727,6 +740,7 @@
       .trim();
     const alt = rawAlt || "image";
     const source = String(segment.source || "").trim();
+    if (segment.type === "video") return source && !source.startsWith("data:") ? `[${alt}](${source})` : `[video unavailable: ${alt}]`;
     if (!source || source.startsWith("data:")) return `[image unavailable: ${alt}]`;
     return `![${alt}](${source})`;
   }
@@ -883,7 +897,8 @@
         webp: "image/webp",
         svg: "image/svg+xml",
         bmp: "image/bmp",
-        avif: "image/avif"
+        avif: "image/avif",
+        mp4: "video/mp4"
       }[ext] || fallback
     );
   }
@@ -945,9 +960,11 @@
     return Math.max(0, Math.floor((clean.length * 3) / 4) - padding);
   }
 
+  function isSupportedMediaMime(mime) { return isSupportedImageMime(mime) || mime === "video/mp4"; }
+
   function validateImagePayload(mime, bytes, maxBytes = MAX_IMAGE_BYTES) {
-    if (!isSupportedImageMime(mime)) return { ok: false, error: `Unsupported image type: ${mime || "unknown"}` };
-    if (bytes > maxBytes) return { ok: false, error: `Image is too large (${bytes} bytes)` };
+    if (!isSupportedMediaMime(mime)) return { ok: false, error: `Unsupported media type: ${mime || "unknown"}` };
+    if (bytes > (mime === "video/mp4" ? 32 * 1024 * 1024 : mime === "image/gif" ? Math.min(maxBytes, 15 * 1024 * 1024) : maxBytes)) return { ok: false, error: `Image is too large (${bytes} bytes)` };
     return { ok: true };
   }
 
@@ -1073,7 +1090,7 @@
     const coverSource = options.setCover === false ? "" : String(parsed?.cover || "").trim();
     let bodyImages = 0, tables = 0, coverInBody = false;
     for (const segment of parsed?.segments || []) {
-      if (segment.type === "image") {
+      if (segment.type === "image" || segment.type === "video") {
         bodyImages += 1;
         if (coverSource && imageSourcesMatch(segment.source, coverSource)) coverInBody = true;
       } else if (segment.type === "table") tables += 1;
@@ -1087,6 +1104,6 @@
 
   export {
     ARTICLE_MEDIA_POLICY, articleMediaEstimate, parseMarkdown, segmentCounts, applyLimits, buildPastePlan,
-    imageSourcesMatch, isLocalImageSource, isRemoteHttpImageSource, guessFileName, extensionMime,
+    imageSourcesMatch, isLocalImageSource, isRemoteHttpImageSource, guessFileName, extensionMime, isSupportedMediaMime,
     isSupportedImageMime, parseDataUri, arrayBufferToBase64, renderTableImage, escapeHtml
   };

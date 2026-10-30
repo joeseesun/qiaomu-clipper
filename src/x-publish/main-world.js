@@ -47,25 +47,29 @@
 
 ;
 (() => {
-  if (window.__qiaomuWriteXMain) return;
-  window.__qiaomuWriteXMain = true;
+  const version = "2026-10-21.3";
+  const previous = window.__qiaomuWriteXMainV2;
+  if (previous?.version === version || previous?.busy?.()) return;
+  previous?.dispose?.();
+  // Retire an older importer before using the isolated v2 transport.
+  window.postMessage({ source: "qiaomu-write-x", kind: "cancel" }, "*");
   const LOG = "[Qiaomu X]";
-  const CHANNEL_TO_MAIN = "qiaomu-write-x";
-  const CHANNEL_FROM_MAIN = "qiaomu-write-x-main";
+  const CHANNEL_TO_MAIN = "qiaomu-write-x-v2";
+  const CHANNEL_FROM_MAIN = "qiaomu-write-x-main-v2";
   const MEDIA_UPLOAD_BASE_TIMEOUT_MS = 90000;
-  const MEDIA_UPLOAD_PER_ITEM_TIMEOUT_MS = 2500;
-  const MEDIA_UPLOAD_MAX_TIMEOUT_MS = 150000;
   const MEDIA_UPLOAD_PROGRESS_HEARTBEAT_MS = 15000;
-  const MEDIA_UPLOAD_PENDING_READY_MS = 20000;
-  const MEDIA_UPLOAD_PENDING_STABLE_MS = 5000;
   const MEDIA_UPLOAD_TIMEOUT_ERROR =
-    "X media upload took too long. X may be throttling this draft, especially with many images. Wait a moment, then write again or split the article.";
+    "X did not confirm media completion. The media may already be in the draft; check it before writing again.";
 
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   let cancelRequested = false;
+  let activeRunId = null;
+  let recovery = null;
+  const pendingFileCancels = new Set();
+  const pendingNetworkCancels = new Set();
 
   function post(kind, payload = {}) {
-    window.postMessage({ source: CHANNEL_FROM_MAIN, kind, ...payload }, "*");
+    window.postMessage({ source: CHANNEL_FROM_MAIN, runId: activeRunId, kind, ...payload }, "*");
   }
 
   function progress(text, level = "work") {
@@ -80,25 +84,36 @@
   }
 
   function requestPreparedFile(operation, timeoutMs = 30000) {
+    throwIfCancelled();
+    const runId = activeRunId;
     const token = operation?.op?.file?.token || operation?.marker || "";
     if (operation?.op?.file?.base64) return Promise.resolve(operation.op.file);
     if (!token) return Promise.reject(new Error("Prepared image token is missing"));
     const requestId = `file_${Math.random().toString(36).slice(2, 10)}`;
     return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
+      let retry;
+      const finish = () => {
+        clearTimeout(timeout); clearTimeout(retry);
         window.removeEventListener("message", listener);
+        pendingFileCancels.delete(cancel);
+      };
+      const cancel = () => { finish(); const error = new Error("Writing stopped by user."); error.cancelled = true; reject(error); };
+      const timeout = setTimeout(() => {
+        finish();
         reject(new Error("Prepared image data did not arrive"));
       }, timeoutMs);
       const listener = (event) => {
         if (event.source !== window || event.data?.source !== CHANNEL_TO_MAIN) return;
         const message = event.data;
-        if (message.kind !== "file-response" || message.requestId !== requestId) return;
-        clearTimeout(timeout);
-        window.removeEventListener("message", listener);
+        if (message.runId !== runId || message.kind !== "file-response" || message.requestId !== requestId) return;
+        finish();
         if (message.ok && message.file?.base64) resolve(message.file);
         else reject(new Error(message.error || "Prepared image data was not available"));
       };
       window.addEventListener("message", listener);
+      pendingFileCancels.add(cancel);
+      // Retrying a data request is safe: it does not upload the picture twice.
+      retry = setTimeout(() => post("file-request", { requestId, token, marker: operation.marker }), Math.min(10000, timeoutMs / 2));
       post("file-request", { requestId, token, marker: operation.marker });
     });
   }
@@ -487,110 +502,194 @@
 
   function existingMediaEntities(contentState) {
     const entities = new Set();
-    contentState.getBlockMap().forEach((block) => {
+    entities.blockKeys = new Set();
+    contentState.getBlockMap().forEach((block, blockKey) => {
       if (block.getType() !== "atomic") return;
-      block.findEntityRanges(
-        (character) => Boolean(character.getEntity()),
-        (start) => {
-          const entityKey = block.getCharacterList().get(start)?.getEntity?.();
-          if (!entityKey) return;
-          try {
-            if (contentState.getEntity(entityKey).getType() === "MEDIA") entities.add(entityKey);
-          } catch {}
-        }
-      );
+      entities.blockKeys.add(blockKey);
+      block.findEntityRanges(character => Boolean(character.getEntity()), start => {
+        const key = block.getCharacterList().get(start)?.getEntity?.();
+        if (key) entities.add(key);
+      });
     });
     return entities;
   }
 
-  function normalizeMediaIdValue(value) {
-    if (value == null || value === "") return null;
-    const text = String(value).trim();
-    if (!text) return null;
-    if (/^\d+$/.test(text)) return text;
-    const mediaKey = text.match(/^\d+_(\d+)$/);
-    if (mediaKey) return mediaKey[1];
-    const trailingDigits = text.match(/(?:^|[_:])(\d{8,})$/);
-    return trailingDigits ? trailingDigits[1] : null;
+  // Draft data can be plain objects or Immutable/Map collections. Only named
+  // identity fields count: duration, dimensions and progress are never IDs.
+  function mediaEntries(value) {
+    if (!value || typeof value !== "object") return [];
+    try {
+      if (typeof value.entrySeq === "function") return value.entrySeq().toArray();
+      if (Object.prototype.toString.call(value) === "[object Map]") return Array.from(value.entries());
+      return Object.entries(value);
+    } catch { return []; }
   }
 
-  function mediaIdFromEntityData(data = {}, depth = 0) {
-    if (data == null || depth > 5) return null;
-    const primitive = normalizeMediaIdValue(data);
-    if (primitive) return primitive;
-    if (typeof data !== "object") return null;
+  function walkMediaData(data, visit, depth = 0, seen = new Set()) {
+    if (!data || typeof data !== "object" || depth > 7 || seen.has(data)) return;
+    seen.add(data);
+    for (const [key, value] of mediaEntries(data)) {
+      visit(String(key), value);
+      walkMediaData(value, visit, depth + 1, seen);
+    }
+  }
 
-    if (Array.isArray(data)) {
-      for (const item of data) {
-        const mediaId = mediaIdFromEntityData(item, depth + 1);
-        if (mediaId) return mediaId;
+  function normalizeMediaIdValue(value) {
+    if (typeof value !== "string" && !(typeof value === "number" && Number.isSafeInteger(value))) return null;
+    const text = String(value).trim();
+    const match = text.match(/^(?:\d+_)?(\d{8,})$/);
+    return match ? match[1] : null;
+  }
+
+  function mediaIdFromEntityData(data = {}) {
+    const seen = new Set();
+    function find(value, generic, depth) {
+      if (!value || typeof value !== "object" || depth > 7 || seen.has(value)) return null;
+      seen.add(value);
+      const entries = mediaEntries(value);
+      for (const [key, child] of entries) {
+        if (/^(?:media_?id(?:_string)?|mediaID|mediaIdString|media_?key)$/i.test(String(key)) ||
+            (generic && /^(?:id_str|rest_id|id)$/i.test(String(key)))) {
+          const id = normalizeMediaIdValue(child); if (id) return id;
+        }
+      }
+      for (const [key, child] of entries) {
+        const id = find(child, (Array.isArray(value) || /^\d+$/.test(String(key))) ? generic : /^(?:mediaItems?|media_items?|media|upload|uploadResult|result|data)$/i.test(String(key)), depth + 1);
+        if (id) return id;
       }
       return null;
     }
+    return find(data, true, 0);
+  }
 
-    const directKeys = [
-      "mediaId",
-      "mediaID",
-      "media_id",
-      "media_id_string",
-      "mediaIdString",
-      "mediaKey",
-      "media_key",
-      "id_str",
-      "id",
-      "rest_id"
-    ];
-    for (const key of directKeys) {
-      if (!Object.prototype.hasOwnProperty.call(data, key)) continue;
-      const mediaId = normalizeMediaIdValue(data[key]);
-      if (mediaId) return mediaId;
-    }
-
-    const containerKeys = [
-      "mediaItems",
-      "media_items",
-      "mediaItem",
-      "media_item",
-      "media",
-      "upload",
-      "uploadResult",
-      "result"
-    ];
-    for (const key of containerKeys) {
-      if (!Object.prototype.hasOwnProperty.call(data, key)) continue;
-      const mediaId = mediaIdFromEntityData(data[key], depth + 1);
-      if (mediaId) return mediaId;
-    }
-
-    for (const value of Object.values(data)) {
-      const mediaId = mediaIdFromEntityData(value, depth + 1);
-      if (mediaId) return mediaId;
-    }
-    return null;
+  function mediaEntityState(data) {
+    const mediaId = mediaIdFromEntityData(data);
+    let processing = false, failed = false, error = "", progress = null, remoteAsset = false;
+    walkMediaData(data, (key, value) => {
+      if (typeof value === "string" && /^(?:url|src|media_url_https|media_url)$/i.test(key)) {
+        try { const url = new URL(value); remoteAsset ||= url.protocol === "https:" &&
+          ((url.hostname === "video.twimg.com" && /\/(?:tweet_video|ext_tw_video|amplify_video)\//.test(url.pathname)) ||
+           (url.hostname === "pbs.twimg.com" && url.pathname.startsWith("/media/"))); } catch {}
+      }
+      if (/^(?:state|status|uploadStatus|uploadState|processingState)$/i.test(key) && typeof value === "string") {
+        const state = value.toLowerCase();
+        processing ||= ["pending", "in_progress", "uploading", "processing", "transcoding", "initializing"].includes(state);
+        failed ||= ["failed", "error", "canceled", "cancelled"].includes(state);
+      }
+      if (/^(?:isUploading|isProcessing|uploading|processing)$/i.test(key) && value === true) processing = true;
+      if (/^(?:processing_info|processingInfo)$/i.test(key) && value && typeof value === "object") {
+        const state = mediaEntries(value).find(([name]) => name === "state")?.[1];
+        if (state !== "succeeded" && state !== "failed") processing = true;
+      }
+      if (key === "errors" && Array.isArray(value) && value.length) { failed = true; error ||= String(value[0]?.message || "X media processing failed"); }
+      if (/^(?:error|uploadError|processingError)$/i.test(key) && value) {
+        const message = typeof value === "string" ? value : value.message || value.name || (value.code ? "X media processing failed" : "");
+        if (message) { failed = true; error ||= String(message); }
+      }
+      if (/^(?:progress_percent|progressPercent|uploadProgress)$/i.test(key) && typeof value === "number" && Number.isFinite(value)) progress = value;
+    });
+    return { mediaId, state: failed ? "failed" : processing ? "processing" : mediaId || remoteAsset ? "ready" : "pending", error, progress };
   }
 
   function findNewMediaUpload(contentState, existingEntities) {
-    let pending = null;
-    let complete = null;
+    const candidates = [];
     contentState.getBlockMap().forEach((block, blockKey) => {
-      if (complete || block.getType() !== "atomic") return;
-      block.findEntityRanges(
-        (character) => Boolean(character.getEntity()),
-        (start) => {
-          if (complete) return;
-          const entityKey = block.getCharacterList().get(start)?.getEntity?.();
-          if (!entityKey || existingEntities.has(entityKey)) return;
-          try {
-            const entity = contentState.getEntity(entityKey);
-            if (entity.getType() !== "MEDIA") return;
-            const candidate = { entityKey, blockKey, mediaId: mediaIdFromEntityData(entity.getData()) };
-            if (candidate.mediaId) complete = candidate;
-            else pending ||= candidate;
-          } catch {}
-        }
-      );
+      if (block.getType() !== "atomic" || existingEntities.blockKeys?.has(blockKey)) return;
+      block.findEntityRanges(character => Boolean(character.getEntity()), start => {
+        const entityKey = block.getCharacterList().get(start)?.getEntity?.();
+        if (!entityKey || existingEntities.has(entityKey)) return;
+        try {
+          const entity = contentState.getEntity(entityKey), entityType = entity.getType();
+          if (!["MEDIA", "VIDEO", "IMAGE", "GIF", "ANIMATED_GIF"].includes(entityType)) return;
+          const data = entity.getData();
+          candidates.push({ entityKey, blockKey, entityType, dataKeys: mediaEntries(data).map(([key]) => String(key)).slice(0, 12), ...mediaEntityState(data) });
+        } catch {}
+      });
     });
-    return complete || pending;
+    // Never attribute an unrelated/new user upload to the current operation.
+    const unique = new Map(candidates.map(item => [item.entityKey, item]));
+    return unique.size === 1 ? unique.values().next().value : null;
+  }
+
+  // Observe only X's native media responses during this one import operation.
+  // No requests, credentials, request bodies or original response objects leave
+  // the page. INIT is not completion; FINALIZE/STATUS own that decision.
+  function observeNativeMediaUpload(file) {
+    let active = true, fileFailure = null;
+    const sessions = new Map(), removers = [];
+    const nativeFetch = window.fetch, xhr = window.XMLHttpRequest?.prototype;
+    const nativeOpen = xhr?.open, nativeSend = xhr?.send;
+    const requests = new WeakMap();
+    function requestInfo(input, body) {
+      try {
+        const url = new URL(typeof input === "string" || input instanceof URL ? input : input.url, location.href);
+        if (!["upload.twitter.com", "upload.x.com", "api.x.com", "api.twitter.com", "x.com"].includes(url.hostname) ||
+            !/\/(?:i|1\.1|2)\/media\/upload(?:\.json|\/|$)/.test(url.pathname)) return null;
+        const values = new URLSearchParams(url.search);
+        if (typeof body === "string") {
+          try { const json = JSON.parse(body); for (const key of ["command", "media_id", "total_bytes", "media_type"]) if (json[key] != null) values.set(key, String(json[key])); }
+          catch { for (const [key, value] of new URLSearchParams(body)) if (["command", "media_id", "total_bytes", "media_type"].includes(key)) values.set(key, value); }
+        } else if (body && typeof body.get === "function") {
+          for (const key of ["command", "media_id", "total_bytes", "media_type"]) { const value = body.get(key); if (typeof value === "string") values.set(key, value); }
+        }
+        let command = (values.get("command") || "").toUpperCase();
+        if (!command) command = /\/initialize$/.test(url.pathname) ? "INIT" : /\/finalize$/.test(url.pathname) ? "FINALIZE" : /\/append$/.test(url.pathname) ? "APPEND" : "STATUS";
+        return { command, id: normalizeMediaIdValue(values.get("media_id") || url.pathname.match(/upload\/(\d+)/)?.[1]), matchesFile: Number(values.get("total_bytes")) === file.size && values.get("media_type") === file.type };
+      } catch { return null; }
+    }
+    function record(info, body, httpStatus) {
+      if (!active || !info) return;
+      const data = body?.data || body || {}, id = mediaIdFromEntityData(data) || info.id;
+      if (!id) {
+        if (info.matchesFile && httpStatus >= 400) fileFailure = { state: "failed", error: `X media request failed (HTTP ${httpStatus})` };
+        return;
+      }
+      const previous = sessions.get(id), state = mediaEntityState(data);
+      const hasProcessing = state.state === "processing";
+      const ready = state.state !== "failed" && httpStatus >= 200 && httpStatus < 300 && ["FINALIZE", "STATUS"].includes(info.command) && !hasProcessing;
+      sessions.set(id, { mediaId: id, matchesFile: previous?.matchesFile || (info.command === "INIT" && info.matchesFile),
+        state: httpStatus >= 400 || state.state === "failed" ? "failed" : ready ? "ready" : hasProcessing ? "processing" : "pending",
+        progress: state.progress, error: state.error || (httpStatus >= 400 ? `X media request failed (HTTP ${httpStatus})` : "") });
+    }
+    function wrappedFetch(input, init) {
+      const info = requestInfo(input, init?.body);
+      const result = nativeFetch.apply(this, arguments);
+      if (info) Promise.resolve(result).then(response => {
+        if (active) response.clone().json().then(body => record(info, body, response.status)).catch(() => {});
+      }, () => {});
+      return result;
+    }
+    function wrappedOpen(method, url) { requests.set(this, { url: String(url) }); return nativeOpen.apply(this, arguments); }
+    function wrappedSend(body) {
+      const request = requests.get(this), info = request && requestInfo(request.url, body);
+      if (info) {
+        const loaded = () => {
+          this.removeEventListener("loadend", loaded);
+          if (!active) return;
+          try { record(info, this.responseType === "json" ? this.response : JSON.parse(this.responseText), this.status); } catch {}
+        };
+        this.addEventListener("loadend", loaded);
+        removers.push(() => this.removeEventListener("loadend", loaded));
+      }
+      return nativeSend.apply(this, arguments);
+    }
+    try { if (nativeFetch) window.fetch = wrappedFetch; } catch { /* Read-only host API: editor state remains the fallback. */ }
+    try { if (nativeOpen && nativeSend) { xhr.open = wrappedOpen; xhr.send = wrappedSend; } } catch { /* A host may lock these methods. */ }
+    return {
+      status(mediaId) {
+        if (fileFailure) return fileFailure;
+        if (mediaId) return sessions.get(mediaId) || null;
+        const matched = Array.from(sessions.values()).filter(item => item.matchesFile);
+        return matched.length === 1 ? matched[0] : null;
+      },
+      dispose() {
+        active = false;
+        try { if (window.fetch === wrappedFetch) window.fetch = nativeFetch; } catch {}
+        try { if (xhr?.open === wrappedOpen) xhr.open = nativeOpen; } catch {}
+        try { if (xhr?.send === wrappedSend) xhr.send = nativeSend; } catch {}
+        for (const remove of removers) remove();
+      }
+    };
   }
 
   function placeSelectionAtMarker(draftNode, marker) {
@@ -625,78 +724,53 @@
     // the current body and caret to the uploader's closure.
     const onFilesAdded = findOnFilesAdded();
     if (!onFilesAdded) return { ok: false, error: "X upload handler was not reachable" };
-    onFilesAdded([file]);
-    const timeoutMs = Math.min(
-      MEDIA_UPLOAD_MAX_TIMEOUT_MS,
-      MEDIA_UPLOAD_BASE_TIMEOUT_MS + Math.max(0, Number(context.total || 0) - 1) * MEDIA_UPLOAD_PER_ITEM_TIMEOUT_MS
-    );
+    let uploadError = null;
+    const nativeUpload = observeNativeMediaUpload(file);
+    const inflight = context.checkpoint?.inflight;
+    if (inflight) Object.assign(inflight, { before, location: { markerBlock: markerLocation.blockKey, markerOffset: markerLocation.offset, markerLength: markerLocation.length, markerExact: markerLocation.exact } });
+    // Videos and GIFs have an additional processing stage. A hard upper bound
+    // still applies; ordinary images retain their existing 90-second budget.
+    const animated = file.type === "image/gif" || file.type.startsWith("video/");
+    const timeoutMs = animated ? 600000 : MEDIA_UPLOAD_BASE_TIMEOUT_MS;
     const deadline = Date.now() + timeoutMs;
-    let nextProgressAt = Date.now() + MEDIA_UPLOAD_PROGRESS_HEARTBEAT_MS;
-    let pendingUpload = null;
-    let pendingSignature = "";
-    let pendingFirstSeenAt = 0;
-    let pendingStableSince = 0;
-    while (Date.now() < deadline) {
-      throwIfCancelled();
-      await sleep(350);
-      const now = Date.now();
-      if (now >= nextProgressAt) {
-        const index = Number(context.index || 0);
-        const total = Number(context.total || 0);
-        if (index && total) {
-          progress(
-            pendingUpload
-              ? `Uploading image ${index}/${total}... waiting for X to finish.`
-              : `Uploading image ${index}/${total}...`
-          );
-        }
-        nextProgressAt = Date.now() + MEDIA_UPLOAD_PROGRESS_HEARTBEAT_MS;
-      }
-      draftNode = findDraftStateNode() || draftNode;
-      const contentState = draftNode.props.editorState.getCurrentContent();
-      const found = findNewMediaUpload(contentState, before);
-      if (found?.mediaId) {
-        existingAtomicBlocks.add(found.blockKey);
-        return {
-          ok: true,
-          ...found,
-          markerBlock: markerLocation.blockKey,
-          markerOffset: markerLocation.offset,
-          markerLength: markerLocation.length,
-          markerExact: markerLocation.exact
-        };
-      }
-      if (found) {
-        const signature = `${found.entityKey}:${found.blockKey}`;
-        if (signature !== pendingSignature) {
-          pendingSignature = signature;
-          pendingFirstSeenAt = now;
-          pendingStableSince = now;
-        }
-        pendingUpload = found;
-        const pendingReady =
-          canUsePendingMediaUpload(imageOperation) &&
-          now - pendingFirstSeenAt >= MEDIA_UPLOAD_PENDING_READY_MS &&
-          now - pendingStableSince >= MEDIA_UPLOAD_PENDING_STABLE_MS;
-        if (pendingReady) {
-          const index = Number(context.index || 0);
-          const total = Number(context.total || 0);
+    let nextProgressAt = 0, pendingUpload = null;
+    try {
+      if (inflight) inflight.handedOff = true;
+      Promise.resolve(onFilesAdded([file])).catch(error => { uploadError = error; if (inflight) inflight.failed = true; });
+      while (Date.now() < deadline) {
+        throwIfCancelled();
+        if (context.articleId && articleIdFromUrl() !== context.articleId) throw new Error("The X draft changed during upload. Writing stopped.");
+        await sleep(350);
+        if (uploadError) return { ok: false, error: String(uploadError.message || uploadError) };
+        draftNode = findDraftStateNode() || draftNode;
+        const found = findNewMediaUpload(draftNode.props.editorState.getCurrentContent(), before);
+        const native = nativeUpload.status(found?.mediaId);
+        if (found) { pendingUpload = found; if (inflight) inflight.blockKey = found.blockKey; }
+        if (inflight && native) inflight.native = { ...native };
+        const state = native?.state === "failed" || found?.state === "failed" ? "failed" : native?.state || found?.state;
+        if (state === "failed") return { ok: false, error: native?.error || found?.error || "X media processing failed" };
+        if (found && state === "ready") {
           existingAtomicBlocks.add(found.blockKey);
-          if (index && total) progress(`Image ${index}/${total} is in the editor; continuing...`);
-          return {
-            ok: true,
-            ...found,
-            mediaPending: true,
-            markerBlock: markerLocation.blockKey,
-            markerOffset: markerLocation.offset,
-            markerLength: markerLocation.length,
-            markerExact: markerLocation.exact
-          };
+          return { ok: true, ...found, mediaId: native?.mediaId || found.mediaId,
+            markerBlock: markerLocation.blockKey, markerOffset: markerLocation.offset,
+            markerLength: markerLocation.length, markerExact: markerLocation.exact };
+        }
+        if (Date.now() >= nextProgressAt) {
+          const index = Number(context.index || 0), total = Number(context.total || 0);
+          if (index && total) progress(`Uploading media ${index}/${total}... ${state === "processing" ? "X is processing" : "waiting for completion"}${native?.progress != null || found?.progress != null ? ` (${native?.progress ?? found.progress}%)` : ""}`);
+          nextProgressAt = Date.now() + MEDIA_UPLOAD_PROGRESS_HEARTBEAT_MS;
         }
       }
+      const detail = pendingUpload ? ` [${pendingUpload.entityType || "MEDIA"}; ${(pendingUpload.dataKeys || []).join(", ")}]` : "";
+      return { ok: false, error: MEDIA_UPLOAD_TIMEOUT_ERROR + detail, timeout: true, timeoutMs, pendingEntity: Boolean(pendingUpload) };
+    } finally {
+      if (inflight) {
+        const found = findNewMediaUpload((findDraftStateNode() || draftNode).props.editorState.getCurrentContent(), before);
+        if (found) inflight.blockKey = found.blockKey;
+        const native = nativeUpload.status(found?.mediaId); if (native) inflight.native = { ...native };
+      }
+      nativeUpload.dispose();
     }
-
-    return { ok: false, error: MEDIA_UPLOAD_TIMEOUT_ERROR, timeout: true, timeoutMs, pendingEntity: Boolean(pendingUpload) };
   }
 
   function replaceMarkerText(draftNode, marker, text) {
@@ -773,7 +847,7 @@
         );
         if (!protectedAtomicBlocks.has(blockKey) && firstEntity) {
           try {
-            if (contentState.getEntity(firstEntity).getType() === "MEDIA") {
+            if (["MEDIA", "VIDEO", "IMAGE", "GIF", "ANIMATED_GIF"].includes(contentState.getEntity(firstEntity).getType())) {
               mediaBlocks.push({ blockKey, entityKey: firstEntity });
             }
           } catch {}
@@ -850,10 +924,9 @@
     blockMap.forEach((block, key) => {
       if (block.getType() === "atomic") return;
       const text = block.getText() || "";
-      if (!text.includes(resolvedPrefix) && !text.includes("__XPOSTER_")) return;
+      if (!text.includes(resolvedPrefix)) return;
       const cleaned = text
         .replace(markerPattern, "")
-        .replace(allMarkerTokenPattern(), "")
         .replace(/\s{2,}/g, " ")
         .trim();
       if (!cleaned) {
@@ -916,7 +989,13 @@
   }
 
   async function xGraphql(queryId, operationName, body) {
+    const controller = new AbortController();
+    const cancel = () => controller.abort();
+    pendingNetworkCancels.add(cancel);
+    const timeout = setTimeout(cancel, 25000);
+    try {
     const response = await fetch(`https://x.com/i/api/graphql/${queryId}/${operationName}`, {
+      signal: controller.signal,
       method: "POST",
       credentials: "include",
       headers: {
@@ -933,6 +1012,7 @@
       text = await response.text();
     } catch {}
     return { ok: response.ok, status: response.status, body: text.slice(0, 240) };
+    } finally { clearTimeout(timeout); pendingNetworkCancels.delete(cancel); }
   }
 
   function updateTitleGraphql(articleId, title) {
@@ -1064,10 +1144,6 @@
     return "image";
   }
 
-  function canUsePendingMediaUpload(operation) {
-    return !operation?.op?.coverOnly;
-  }
-
   async function applyCoverMetadata(coverSource, articleId, upload, summary) {
     if (!uploadMatchesCover(upload, coverSource) || summary.cover.graphql || summary.cover.skippedReason) return false;
     summary.cover.matchedUpload = true;
@@ -1111,12 +1187,85 @@
     }
   }
 
+  // A checkpoint belongs to one exact source and one still-open X draft.
+  // It stores immutable Draft blocks, not a second copy of the whole editor.
+  function recoverySignature(content) {
+    const rows = [];
+    content.getBlockMap().forEach((block, key) => {
+      if (block.getType() === "atomic") return;
+      const characters = block.getCharacterList?.(), linked = [];
+      characters?.forEach?.(character => { const entityKey = character.getEntity?.(); if(entityKey) { const entity = content.getEntity(entityKey); linked.push([entityKey,entity.getType(),entity.getData()]); } });
+      rows.push([key, block.getType(), block.getText(), block.getData?.()?.toJS?.(), characters?.toJS?.(), linked]);
+    });
+    return JSON.stringify(rows);
+  }
+
+  function recoveryMedia(content) {
+    const result = [];
+    content.getBlockMap().forEach((block, blockKey) => {
+      if (block.getType() !== "atomic") return;
+      let first = null;
+      block.findEntityRanges(character => Boolean(character.getEntity()), start => { first ||= block.getCharacterList().get(start)?.getEntity?.(); });
+      if (!first) return;
+      const entity = content.getEntity(first);
+      if (["MEDIA", "VIDEO", "IMAGE", "GIF", "ANIMATED_GIF"].includes(entity.getType())) result.push({ blockKey, entityKey: first, ...mediaEntityState(entity.getData()) });
+    });
+    return result;
+  }
+
+  function validateRecovery(checkpoint, sourceMarkdown, articleId, content) {
+    if (!checkpoint || !sourceMarkdown || checkpoint.payload.sourceMarkdown !== sourceMarkdown || checkpoint.articleId !== articleId) throw new Error("This draft has no matching upload checkpoint. Check the draft before starting again.");
+    if (checkpoint.signature !== recoverySignature(content)) throw new Error("The draft was edited after stopping. Resume was stopped to preserve your changes.");
+    const media = recoveryMedia(content), matched = new Set(), completed = checkpoint.uploads.map(upload => {
+      const current = media.find(item => item.blockKey === upload.blockKey) || media.find(item => !matched.has(item.blockKey) && (item.entityKey === upload.entityKey || (upload.mediaId && item.mediaId === upload.mediaId)));
+      if(current) { if(upload.mediaId && current.mediaId && current.mediaId!==upload.mediaId) throw new Error("An uploaded media item was removed or changed. Check the draft before resuming."); matched.add(current.blockKey); }
+      if (!current && !(upload.coverOnly && checkpoint.summary.cover.bodyBlockDeleted?.ok)) throw new Error("An uploaded media item was removed or changed. Check the draft before resuming.");
+      return current ? { ...upload, blockKey: current.blockKey, entityKey: current.entityKey } : upload;
+    });
+    const inflight = checkpoint.inflight;
+    let resolved = null, failedBlockKey = null, candidate = null;
+    if (inflight?.handedOff) {
+      candidate = media.find(item => item.blockKey === inflight.blockKey) || media.find(item => !matched.has(item.blockKey) && inflight.native?.mediaId && item.mediaId === inflight.native.mediaId);
+      if (!candidate) {
+        const unexpected = media.filter(item => !inflight.before.blockKeys?.has(item.blockKey));
+        if (unexpected.length) throw new Error("The current media status is uncertain. Check X before resuming to avoid duplicates.");
+        if (!inflight.failed && inflight.native?.state !== "failed") throw new Error("The current media status is uncertain. Check X before resuming to avoid duplicates.");
+      } else if (candidate.state === "ready" || inflight.native?.state === "ready") {
+        resolved = { ...candidate, mediaId: inflight.native?.mediaId || candidate.mediaId, ...inflight.location, marker: inflight.operation.marker, source: inflight.operation.op.source, coverOnly: Boolean(inflight.operation.op.coverOnly) };
+      } else if (candidate.state === "failed" || inflight.failed || inflight.native?.state === "failed") failedBlockKey = candidate.blockKey;
+      else throw new Error("X is still processing the current media. Wait for it to finish before resuming.");
+    }
+    const allowed = new Set([...checkpoint.protectedAtomicBlocks, ...completed.map(item => item.blockKey), ...(candidate ? [candidate.blockKey] : [])]);
+    content.getBlockMap().forEach((block, key) => { if (block.getType() === "atomic" && !allowed.has(key)) throw new Error("The draft media changed after stopping. Check it before resuming."); });
+    for (const fallback of checkpoint.fallbacks || []) {
+      if (content.getBlockMap().get(fallback.key)?.getText() !== fallback.text) throw new Error("The draft was edited after stopping. Resume was stopped to preserve your changes.");
+    }
+    return { completed, resolved, failedBlockKey };
+  }
+
+  function restoreRecoveryMarkers(draftNode, checkpoint) {
+    const editorState = draftNode.props.editorState, EditorState = editorState.constructor;
+    let content = editorState.getCurrentContent(), blocks = content.getBlockMap();
+    for (const fallback of checkpoint.fallbacks || []) blocks = blocks.set(fallback.key, fallback.original);
+    content = content.set("blockMap", blocks);
+    draftNode.props.onChange(EditorState.push(editorState, content, "insert-characters"));
+    checkpoint.fallbacks = [];
+  }
+
   async function runFlow(payload) {
     cancelRequested = false;
+    const resuming = Boolean(payload.resume);
+    let checkpoint = resuming ? recovery : null;
     let draftNode = findDraftStateNode();
     if (!draftNode) throw new Error("X Draft.js editor was not reachable");
     let articleId = articleIdFromUrl();
-    const summary = {
+    let resumeState = null;
+    if (resuming) {
+      try { resumeState = validateRecovery(checkpoint, payload.sourceMarkdown, articleId, draftNode.props.editorState.getCurrentContent()); }
+      catch(error) { if(checkpoint && /^(The current media status|X is still processing)/.test(error.message)) error.recovery={articleId,completed:checkpoint.uploads.length,total:checkpoint.payload.plan.filter(item=>item.op.type==="image").length}; throw error; }
+      payload = checkpoint.payload;
+    } else if (payload.sourceMarkdown) recovery = null;
+    const summary = resuming ? checkpoint.summary : {
       atomicOk: 0,
       atomicFail: 0,
       imgOk: 0,
@@ -1143,6 +1292,28 @@
       }
     };
 
+    const uploads = resuming ? resumeState.completed : [];
+    const protectedAtomicBlocks = resuming ? checkpoint.protectedAtomicBlocks : new Set();
+    let expectedArticleText = resuming ? checkpoint.expectedArticleText : [];
+    let written = resuming;
+    try {
+    if (resuming) {
+      if (resumeState.failedBlockKey) deleteBlockByKey(draftNode, resumeState.failedBlockKey);
+      draftNode = findDraftStateNode() || draftNode;
+      restoreRecoveryMarkers(draftNode, checkpoint);
+      if (resumeState.resolved) uploads.push(resumeState.resolved);
+      checkpoint.uploads = uploads; checkpoint.inflight = null;
+      summary.imgOk = uploads.length; summary.imgFail = 0; summary.imageErrors = [];
+      if (!summary.cover.graphql?.ok) { summary.cover.graphql = null; summary.cover.skippedReason = null; }
+    } else {
+    // Prove image transport before changing the editor or its metadata.
+    const firstImage = (payload.plan || []).find(item => item.op?.type === "image");
+    if (firstImage) {
+      progress("Preparing image transfer...");
+      const firstFile = await requestPreparedFile(firstImage);
+      firstImage.op.file = firstFile;
+    }
+
     await applyTitleMetadata(payload.title, articleId, summary);
     draftNode = findDraftStateNode() || draftNode;
 
@@ -1155,6 +1326,7 @@
       console.warn(LOG, "structured block write failed; falling back to paste", writeResult.error);
       pasteHtml(payload.html, payload.plain);
     }
+    written = true;
     draftNode = await waitForDraftMarkers(payload.markerPrefix, (payload.plan || []).length);
     if (!draftNode) throw new Error("X Draft.js editor was not reachable after writing Markdown");
     await sleep(150);
@@ -1183,7 +1355,6 @@
     }
 
     draftNode = findDraftStateNode() || draftNode;
-    const protectedAtomicBlocks = new Set();
     draftNode.props.editorState
       .getCurrentContent()
       .getBlockMap()
@@ -1191,31 +1362,27 @@
         if (block.getType() === "atomic") protectedAtomicBlocks.add(key);
       });
 
-    const uploads = [];
-    const expectedArticleText = articleTextBlocks(draftNode.props.editorState.getCurrentContent());
-    let coverUpload = null;
+    expectedArticleText = articleTextBlocks(draftNode.props.editorState.getCurrentContent());
+    if (payload.sourceMarkdown && articleId && !summary.atomicFail) checkpoint = recovery = { payload, articleId, uploads, protectedAtomicBlocks, expectedArticleText, summary, inflight: null, fallbacks: [], signature: null };
+    }
+    const imageOps = (payload.plan || []).filter(item => item.op.type === "image");
+    let coverUpload = uploads.find(upload => upload.coverOnly || uploadMatchesCover(upload, payload.cover)) || null;
+    if (coverUpload && !summary.cover.graphql?.ok) await applyCoverMetadata(payload.cover, articleId, coverUpload, summary);
     for (let index = 0; index < imageOps.length; index += 1) {
       throwIfCancelled();
       draftNode = findDraftStateNode() || draftNode;
       assertArticleTextPreserved(expectedArticleText, draftNode.props.editorState.getCurrentContent());
       const op = imageOps[index];
-      progress(`Uploading image ${index + 1}/${imageOps.length}...`);
-      let result = await uploadImageAtMarker(draftNode, op, protectedAtomicBlocks, {
+      if (uploads.some(upload => upload.marker === op.marker)) continue;
+      if (checkpoint) checkpoint.inflight = { operation: op, handedOff: false, failed: false };
+      progress(`Uploading media ${index + 1}/${imageOps.length}...`);
+      const result = await uploadImageAtMarker(draftNode, op, protectedAtomicBlocks, {
         index: index + 1,
-        total: imageOps.length
+        total: imageOps.length,
+        checkpoint, articleId
       });
-      // Retry a rejected/stalled request only when X did not create a media
-      // entity. Pending media must not be uploaded twice.
-      if (result.timeout && !result.pendingEntity) {
-        progress(`Retrying X image ${index + 1}/${imageOps.length}...`, "warn");
-        await sleep(1200);
-        draftNode = findDraftStateNode() || draftNode;
-        assertArticleTextPreserved(expectedArticleText, draftNode.props.editorState.getCurrentContent());
-        result = await uploadImageAtMarker(draftNode, op, protectedAtomicBlocks, {
-          index: index + 1, total: imageOps.length
-        });
-      }
       if (result.ok) {
+        if (checkpoint) checkpoint.inflight = null;
         summary.imgOk += 1;
         if (result.mediaPending) summary.imgPending += 1;
         uploads.push({
@@ -1246,8 +1413,10 @@
           fileName: op.op.file?.fileName || null,
           error: result.error || "Image upload failed"
         });
-        replaceMarkerText(draftNode, op.marker, op.op.fallbackText || (op.op.coverOnly ? "" : "[image upload failed]"));
         console.warn(LOG, "image failed", result.error);
+        const failure = new Error(`Media ${index + 1}/${imageOps.length}: ${result.error || "Media upload failed"}`);
+        failure.summary = summary;
+        throw failure;
       }
       draftNode = findDraftStateNode() || draftNode;
     }
@@ -1270,7 +1439,7 @@
         summary.cover.skippedReason = "Cover source was not uploaded; it may have stayed as a Markdown link";
         console.info(LOG, "cover skipped because the source was not uploaded", payload.cover);
       }
-      if (coverUpload?.coverOnly && coverUpload.blockKey) {
+      if (coverUpload?.coverOnly && coverUpload.blockKey && !summary.cover.bodyBlockDeleted?.ok) {
         await sleep(600);
         draftNode = findDraftStateNode() || draftNode;
         const deleteResult = deleteBlockByKey(draftNode, coverUpload.blockKey);
@@ -1291,28 +1460,67 @@
       error.summary = summary;
       throw error;
     }
+    if (payload.sourceMarkdown) recovery = null;
     post("done", { summary });
+    } catch (error) {
+      // Keep completed images and readable source links when a later image fails.
+      // Do not touch a different draft or overwrite edits made while uploading.
+      if (written && articleIdFromUrl() === articleId) {
+        try {
+          draftNode = findDraftStateNode() || draftNode;
+          assertArticleTextPreserved(expectedArticleText, draftNode.props.editorState.getCurrentContent());
+          relocateImages(draftNode, uploads.filter(upload => !upload.coverOnly), protectedAtomicBlocks);
+          draftNode = findDraftStateNode() || draftNode;
+          const completed = new Set(uploads.map(upload => upload.marker));
+          if (checkpoint) checkpoint.fallbacks = [];
+          for (const item of payload.plan || []) {
+            if (item.op?.type !== "image" || completed.has(item.marker)) continue;
+            const content = draftNode.props.editorState.getCurrentContent();
+            const at = checkpoint ? findMarkerLocation(content, item.marker) : null;
+            const original = at ? content.getBlockMap().get(at.blockKey) : null;
+            replaceMarkerText(draftNode, item.marker, item.op.fallbackText || (checkpoint ? "[Cover pending]" : ""));
+            if (checkpoint && original) {
+              const latest = (findDraftStateNode() || draftNode).props.editorState.getCurrentContent();
+              checkpoint.fallbacks.push({ key: at.blockKey, original, text: latest.getBlockMap().get(at.blockKey)?.getText() });
+            }
+            draftNode = findDraftStateNode() || draftNode;
+          }
+          summary.markersCleaned += cleanupMarkers(draftNode, payload.markerPrefix);
+          if (checkpoint) checkpoint.signature = recoverySignature((findDraftStateNode() || draftNode).props.editorState.getCurrentContent());
+        } catch (cleanupError) { if (checkpoint) { checkpoint.signature = null; recovery = null; } console.warn(LOG, "partial draft cleanup skipped", cleanupError); }
+      }
+      const failure = error instanceof Error ? error : new Error(String(error));
+      failure.summary ||= summary;
+      if (checkpoint?.signature) failure.recovery = { articleId, completed: uploads.length, total: (payload.plan || []).filter(item => item.op.type === "image").length };
+      throw failure;
+    }
   }
 
-  window.addEventListener("message", (event) => {
+  const onMessage = (event) => {
     if (event.source !== window || event.data?.source !== CHANNEL_TO_MAIN) return;
     if (event.data.kind === "ready?") {
-      post("ready");
+      post("ready", { busy: Boolean(activeRunId), protocol: 2 });
       return;
     }
     if (event.data.kind === "run") {
+      const runId = event.data.runId;
+      if (!runId || typeof runId !== "string") return;
+      if (activeRunId) { post("error", { runId, code: "busy", error: "An X import is already running" }); return; }
+      activeRunId = runId;
       runFlow(event.data.payload).catch((error) => {
         console.error(LOG, error);
         if (error?.cancelled) {
-          post("cancelled", { reason: error.message || "Writing stopped by user." });
+          post("cancelled", { reason: error.message || "Writing stopped by user.", recovery: error.recovery || null });
           return;
         }
-        post("error", { error: error?.message || String(error), stack: error?.stack || null, summary: error?.summary || null });
-      });
+        post("error", { error: error?.message || String(error), stack: error?.stack || null, summary: error?.summary || null, recovery: error?.recovery || null });
+      }).finally(() => { pendingFileCancels.clear(); activeRunId = null; });
       return;
     }
     if (event.data.kind === "cancel") {
+      if (!activeRunId || event.data.runId !== activeRunId) return;
       cancelRequested = true;
+      for (const cancel of [...pendingFileCancels, ...pendingNetworkCancels]) cancel();
       progress("Writing stopped by user.", "warn");
       return;
     }
@@ -1352,7 +1560,17 @@
         }
       });
     }
-  });
+  };
+  window.addEventListener("message", onMessage);
+  window.__qiaomuWriteXMainV2 = {
+    version,
+    busy: () => Boolean(activeRunId),
+    dispose: () => {
+      cancelRequested = true;
+      for (const cancel of [...pendingFileCancels, ...pendingNetworkCancels]) cancel();
+      window.removeEventListener("message", onMessage);
+    }
+  };
 
   console.log(LOG, "ready");
   post("ready");

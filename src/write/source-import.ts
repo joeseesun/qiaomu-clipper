@@ -26,6 +26,15 @@ export function extractedArticleSource(result: { content?: string; description?:
 	const doc = new DOMParser().parseFromString(result.content || '', 'text/html');
 	const transcript = doc.querySelector('.transcript');
 	if (transcript) { source.captions = exportTranscript(transcript, url, 'original'); transcript.remove(); }
+	// Preserve direct article videos before removing player widgets. Blob URLs,
+	// streams and iframe players remain outside the file-upload path.
+	for (const video of Array.from(doc.querySelectorAll('video'))) {
+		const raw = video.getAttribute('src') || video.querySelector('source')?.getAttribute('src') || '';
+		let source = ''; try { source = publicUrl(new URL(raw, url).href); } catch { /* invalid source */ }
+		if (!raw || !source || !/\.mp4(?:[?#]|$)/i.test(source)) continue;
+		const paragraph = doc.createElement('p'), link = doc.createElement('a');
+		link.href = source; link.textContent = video.getAttribute('aria-label') || 'Video'; paragraph.append(link); video.replaceWith(paragraph);
+	}
 	doc.querySelectorAll(`${controls},iframe,video,audio,.player-container,.reader-video-wrapper`).forEach(el => el.remove());
 	source.body = createMarkdownContent(doc.body.innerHTML, url).trim();
 	return source;
@@ -45,7 +54,7 @@ export interface SourceSnapshot { title: string; markdown: string; captions: str
 export function sourceSnapshot(draft: ClipPreview, article?: Element | null, mode?: TranscriptExportMode): SourceSnapshot {
 	const url = publicUrl(draft.clip.url);
 	const embed = parseEmbedUrl(url);
-	const media = Boolean(draft.mediaReadUrl || draft.studySource || draft.localMedia || draft.remoteMedia || (embed && embed.kind !== 'tweet') || article?.querySelector('.transcript,video,iframe'));
+	const media = Boolean(draft.mediaReadUrl || draft.studySource || draft.localMedia || draft.remoteMedia || (embed && embed.kind !== 'tweet') || article?.querySelector('.transcript,iframe'));
 	const source = draft.articleSource || {};
 	const transcript = article?.querySelector('.transcript');
 	const visibleTranslation = !!article?.querySelector('.youtube-translate-toggle input:checked,.transcript-translation:not([hidden])');

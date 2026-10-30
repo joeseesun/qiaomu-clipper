@@ -667,7 +667,7 @@ browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime
 		}
 
 		if (typedRequest.action === "qiaomuOpenStudy") {
-			browser.tabs.query({ active: true, currentWindow: true })
+			(typedRequest.tabId ? Promise.resolve([{ id: typedRequest.tabId }]) : browser.tabs.query({ active: true, currentWindow: true }))
 				.then(tabs => tabs[0]?.id ? openStudyForTab(tabs[0].id) : false)
 				.then(opened => sendResponse({ opened }))
 				.catch(() => sendResponse({ opened: false }));
@@ -1315,22 +1315,12 @@ async function runTripleKeyAction(action: string, tabId: number): Promise<void> 
 	if (action === 'note') { await openNoteCard(tabId); return; }
 	// A new long article opens in its own tab; the writer page reuses an untouched blank article instead of piling up new ones.
 	if (action === 'write') { await browser.tabs.create({ url: browser.runtime.getURL('write.html?new=1'), openerTabId: tabId }); return; }
-	if (action !== 'read' && action !== 'edit' && action !== 'clip') return;
+	if (action !== 'read' && action !== 'edit' && action !== 'clip' && action !== 'writeSource') return;
 	if (action === 'read' && await openStudyForTab(tabId)) return;
-	// Reading and editing need no window of their own: an invisible copy of the clipper in the page does the work and opens our page.
-	// Where the page cannot host one (browser pages, a page that was open before an update), fall back to the popup.
-	const windowless = action === 'read' || action === 'edit';
-	if (windowless) {
-		await browser.storage.local.set({ qiaomuPendingAction: { action, at: Date.now(), hidden: true } });
-		try { const answer = await sendMessageToContentScript(tabId, { action: 'run-hidden-iframe' }) as { success?: boolean } | undefined; if (answer?.success) return; } catch { /* no content script here */ }
-	}
-	await browser.storage.local.set({ qiaomuPendingAction: { action, at: Date.now() } });
-	try {
-		await openPopup();
-	} catch {
-		// Popups can't always be opened without a toolbar click; the embedded panel runs the same code.
-		await sendMessageToContentScript(tabId, { action: "toggle-iframe" });
-	}
+	// Use our own page, not a host iframe or a gesture-dependent toolbar popup.
+	// The action and source travel together, so another tab cannot steal a global pending action.
+	const params = new URLSearchParams({ context: 'shortcut', tabId: String(tabId), action });
+	await browser.tabs.create({ url: browser.runtime.getURL(`popup.html?${params}`), openerTabId: tabId });
 }
 
 // With the toolbar button set to reading mode the popup is switched off; turn it on just long enough to open it, because the
