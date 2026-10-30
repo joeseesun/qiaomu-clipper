@@ -204,7 +204,7 @@ function showProviderForm(dlg: Dialog, entry: CatalogEntry | null, existing: Pro
 		status.textContent = msg('providerSignInOpen');
 		paste.hidden = false;
 		try {
-			const started = await startSignIn(signIn);
+			const started = await startSignIn(signIn, oauth);
 			if (!current()) { started.handle.cancel(); return; }
 			pending = started;
 			const result = await pending.finish();

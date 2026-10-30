@@ -78,6 +78,7 @@
  "{0} 没有返回内容": "{0} n'a rien renvoyé",
  "{0} 添加失败": "Impossible d'ajouter {0}",
  "{0} 登录已过期，请在设置里重新登录": "La connexion {0} a expiré. Connectez-vous à nouveau dans les Paramètres",
+ "{0} 不接受当前的应用注册（invalid_client），请反馈这个问题": "{0} n'accepte pas l'enregistrement actuel de l'app (invalid_client). Signalez ce problème",
  "{0} 秒": "{0} s",
  "{0} 较大，请用“添加附件”选择，或在访达里复制后粘贴": "{0} est volumineux. Utilisez « Ajouter une pièce jointe », ou copiez-le dans le Finder et collez",
  "{0} 还没有登录": "{0} n'est pas encore connecté",

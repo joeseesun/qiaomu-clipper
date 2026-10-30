@@ -1,7 +1,8 @@
 import { decodeInterpreterSettings, encodeInterpreterSettings, interpreterChunkKeys, INTERPRETER_KEY } from './interpreter-storage';
 import browser from './browser-polyfill';
-import { Settings, ModelConfig, PropertyType, HistoryEntry, Provider, Rating } from '../types/types';
+import { Settings, ModelConfig, PropertyType, HistoryEntry, Provider, Rating, OAuthCredentials } from '../types/types';
 import { debugLog } from './debug';
+import type { OAuthStore } from './oauth/accounts';
 
 export type { Settings, ModelConfig, PropertyType, HistoryEntry, Provider, Rating };
 
@@ -251,13 +252,74 @@ export async function loadSettings(): Promise<Settings> {
 	};
 
 	generalSettings = loadedSettings;
+	rememberOAuth(generalSettings.providers);
 	debugLog('Settings', 'Loaded settings:', generalSettings);
 	return generalSettings;
 }
 
+// The refresh token each provider had when this page last read or wrote settings. Refresh tokens rotate,
+// so a page that did not change a sign-in must not write its older copy back over a newer one.
+const oauthSeen = new Map<string, string>();
+const oauthMark = (provider: Provider) => provider.oauth?.refresh || '';
+function rememberOAuth(providers: Provider[]): void {
+	oauthSeen.clear();
+	for (const provider of providers) oauthSeen.set(provider.id, oauthMark(provider));
+}
+
+// Settings are written whole from each page's copy; one writer at a time keeps the read-merge-write intact.
+function oneWriter<T>(work: () => Promise<T>): Promise<T> {
+	return typeof navigator !== 'undefined' && navigator.locks ? navigator.locks.request('qiaomu-settings-write', work) as Promise<T> : work();
+}
+
+function storedProviders(raw: Record<string, unknown>): Provider[] {
+	try { return decodeInterpreterSettings(raw)?.providers || []; } catch { return []; }
+}
+
+async function writeInterpreterSettings(encoded: Record<string, unknown>, previous: unknown, rest: Record<string, unknown> = {}): Promise<void> {
+	await browser.storage.sync.set({ ...rest, ...encoded });
+	const currentKeys = new Set(Object.keys(encoded));
+	const stale = interpreterChunkKeys(previous).filter(key => !currentKeys.has(key));
+	// Settings are already saved; cleanup failure must not turn success into a retry.
+	if (stale.length) await browser.storage.sync.remove(stale).catch(() => {});
+}
+
+async function storedOAuth(providerId: string): Promise<OAuthCredentials | undefined> {
+	return storedProviders(await browser.storage.sync.get(null)).find(p => p.id === providerId)?.oauth;
+}
+
+// Writes one provider's renewed credentials into the stored settings, leaving everything else as stored.
+async function saveProviderOAuth(providerId: string, oauth: OAuthCredentials): Promise<void> {
+	await oneWriter(async () => {
+		const raw = await browser.storage.sync.get(null);
+		const stored = decodeInterpreterSettings(raw);
+		const provider = stored?.providers?.find(p => p.id === providerId);
+		// Removed or signed out on another page meanwhile: that choice stands.
+		if (!stored || !provider?.oauth) return;
+		provider.oauth = oauth;
+		await writeInterpreterSettings(encodeInterpreterSettings(stored), raw[INTERPRETER_KEY]);
+	});
+	const mine = generalSettings.providers.find(p => p.id === providerId);
+	if (mine) mine.oauth = oauth;
+	oauthSeen.set(providerId, oauth.refresh);
+}
+
+export const oauthStore: OAuthStore = { load: storedOAuth, save: saveProviderOAuth };
+
 export async function saveSettings(settings?: Partial<Settings>): Promise<void> {
 	if (settings) {
 		generalSettings = { ...generalSettings, ...settings };
+	}
+	await oneWriter(writeSettings);
+}
+
+async function writeSettings(): Promise<void> {
+	const raw = await browser.storage.sync.get(null);
+	const latest = storedProviders(raw);
+	for (const provider of generalSettings.providers) {
+		const stored = latest.find(p => p.id === provider.id);
+		// Only sign-ins this page changed are written; the rest follow what is stored now.
+		if (!stored || oauthSeen.get(provider.id) !== oauthMark(provider) || oauthMark(stored) === oauthMark(provider)) continue;
+		if (stored.oauth) provider.oauth = stored.oauth; else delete provider.oauth;
 	}
 
 	const interpreterSettings = {
@@ -268,9 +330,7 @@ export async function saveSettings(settings?: Partial<Settings>): Promise<void> 
 		interpreterAutoRun: generalSettings.interpreterAutoRun,
 		defaultPromptContext: generalSettings.defaultPromptContext
 	};
-	const encodedInterpreterSettings = encodeInterpreterSettings(interpreterSettings);
-	const previous = await browser.storage.sync.get(INTERPRETER_KEY);
-	await browser.storage.sync.set({
+	await writeInterpreterSettings(encodeInterpreterSettings(interpreterSettings), raw[INTERPRETER_KEY], {
 		vaults: generalSettings.vaults,
 		general_settings: {
 			showMoreActionsButton: generalSettings.showMoreActionsButton,
@@ -299,7 +359,6 @@ export async function saveSettings(settings?: Partial<Settings>): Promise<void> 
 			alwaysShowHighlights: generalSettings.alwaysShowHighlights,
 			highlightBehavior: generalSettings.highlightBehavior
 		},
-		...encodedInterpreterSettings,
 		property_types: generalSettings.propertyTypes,
 		reader_settings: {
 			fontSize: generalSettings.readerSettings.fontSize,
@@ -320,10 +379,7 @@ export async function saveSettings(settings?: Partial<Settings>): Promise<void> 
 		},
 		stats: generalSettings.stats
 	});
-	const currentKeys = new Set(Object.keys(encodedInterpreterSettings));
-	const stale = interpreterChunkKeys(previous[INTERPRETER_KEY]).filter(key => !currentKeys.has(key));
-	// Settings are already saved; cleanup failure must not turn success into a retry.
-	if (stale.length) await browser.storage.sync.remove(stale).catch(() => {});
+	rememberOAuth(generalSettings.providers);
 }
 
 export async function setLegacyMode(enabled: boolean): Promise<void> {

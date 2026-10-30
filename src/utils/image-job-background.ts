@@ -1,5 +1,5 @@
 import browser from './browser-polyfill';
-import { loadSettings, saveSettings, getLocalStorage } from './storage-utils';
+import { loadSettings, oauthStore, getLocalStorage } from './storage-utils';
 import { freshOAuth } from './oauth/accounts';
 import { ASPECTS, loadImageModels, readyModels, modelsOf, labelOf, providerOf } from '../write/image-models';
 import { callHelper } from './native-helper-call';
@@ -46,7 +46,7 @@ export function handleImageJobs(request: any, sender: browser.Runtime.MessageSen
 			const config = readyModels(await loadImageModels()).find(c => c.id === request.configId && modelsOf(c).includes(request.modelId));
 			if (!config) throw new Error('not-ready');
 			const provider = config.engine === 'oauth' ? providerOf(config) : undefined;
-			if (provider?.oauth) await freshOAuth(provider, () => saveSettings());
+			if (provider?.oauth) await freshOAuth(provider, oauthStore);
 			const job: ImageJob = { id: request.id, prompt: request.prompt.trim(), aspect: request.aspect, configId: config.id, modelId: request.modelId, modelLabel: labelOf(config, request.modelId), created: Date.now(), state: 'queued', ...(config.engine === 'codex' ? { engine: 'codex' as const } : {}) };
 			return await browser.runtime.sendMessage({ target: 'image-runner', action: 'enqueue', work: { job, config, provider }, language: await getLocalStorage('language') });
 		} catch (error) { return { ok: false, error: String((error as Error)?.message || t('生成失败')) }; }

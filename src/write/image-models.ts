@@ -1,6 +1,6 @@
 import { generateCodexImage } from '../utils/codex-image';
 import { t } from '../utils/ui-text';
-import { getLocalStorage, setLocalStorage, generalSettings, saveSettings } from '../utils/storage-utils';
+import { getLocalStorage, setLocalStorage, generalSettings, oauthStore } from '../utils/storage-utils';
 import { CHATGPT_BASE, CODEX_BASE, freshOAuth, oauthModelsRequest } from '../utils/oauth/accounts';
 import type { Provider } from '../types/types';
 
@@ -187,7 +187,7 @@ export async function generateImage(config: ImageModelConfig, prompt: string, as
 // These account adapters are separate from the local app-server route.
 // For Codex, the top-level model orchestrates image_generation; it is not an image model.
 async function accountHeaders(provider: Provider): Promise<{ oauth: NonNullable<Provider['oauth']>; headers: Record<string, string> }> {
-	const oauth = await freshOAuth(provider, () => saveSettings());
+	const oauth = await freshOAuth(provider, oauthStore);
 	const headers: Record<string, string> = { 'Content-Type': 'application/json', Authorization: `Bearer ${oauth.access}` };
 	return { oauth, headers };
 }
@@ -257,7 +257,7 @@ export async function fetchImageModels(source: ImageSource, baseUrl: string, api
 	if (source.engine === 'oauth') {
 		const provider = generalSettings.providers.find(p => p.id === source.providerId && p.oauth);
 		if (!provider?.oauth) throw new Error('not-ready');
-		const oauth = await freshOAuth(provider, () => saveSettings());
+		const oauth = await freshOAuth(provider, oauthStore);
 		const request = oauthModelsRequest(oauth);
 		const json = await get(request.url, request.headers);
 		const list: any[] = Array.isArray(json?.data) ? json.data : Array.isArray(json?.models) ? json.models : [];

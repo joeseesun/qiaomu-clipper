@@ -78,6 +78,7 @@
  "{0} 没有返回内容": "{0} hat nichts zurückgegeben",
  "{0} 添加失败": "{0} konnte nicht hinzugefügt werden",
  "{0} 登录已过期，请在设置里重新登录": "Anmeldung bei {0} ist abgelaufen. Melden Sie sich in den Einstellungen erneut an",
+ "{0} 不接受当前的应用注册（invalid_client），请反馈这个问题": "{0} akzeptiert die aktuelle App-Registrierung nicht (invalid_client). Bitte melden Sie dieses Problem",
  "{0} 秒": "{0} Sek.",
  "{0} 较大，请用“添加附件”选择，或在访达里复制后粘贴": "{0} ist groß. Verwenden Sie „Anhang hinzufügen\" oder kopieren Sie es im Finder und fügen Sie es ein",
  "{0} 还没有登录": "{0} ist noch nicht angemeldet",
