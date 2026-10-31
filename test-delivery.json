@@ -780,6 +780,31 @@
       ]
     },
     {
+      "id": "original-selection-english-learning",
+      "title": "原页划词操作栏和阅读器英文学习浮卡",
+      "origin": "feat/english-selection-learning",
+      "files": [
+        "src/selection-toolbar-content.ts",
+        "src/utils/english-selection.ts",
+        "src/utils/english-dictionary.ts",
+        "src/utils/english-learning-background.ts",
+        "src/core/english-learning.ts",
+        "src/styles/english-learning.scss",
+        "src/utils/english-speech.ts",
+        "src/content.ts",
+        "src/utils/english-presentation.ts"
+      ],
+      "tests": [
+        "src/utils/english-dictionary.test.ts",
+        "src/utils/english-learning-background.test.ts",
+        "src/utils/english-selection.test.ts",
+        "src/utils/english-speech.test.ts",
+        "src/core/english-learning.test.ts",
+        "src/core/ai-chat-page.test.ts",
+        "src/utils/english-presentation.test.ts"
+      ]
+    },
+    {
       "id": "chat-composer-scroll-layout",
       "title": "写作独立滚动与 AI 对话输入区统一、引用预览、联网图标、思考菜单及弹窗写文章入口",
       "origin": "codex/sidebar-image-generation",

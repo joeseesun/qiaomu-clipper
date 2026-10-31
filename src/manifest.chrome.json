@@ -61,6 +61,16 @@
 		},
 		{
 			"matches": [
+				"http://*/*",
+				"https://*/*"
+			],
+			"js": [
+				"selection-toolbar.js"
+			],
+			"run_at": "document_idle"
+		},
+		{
+			"matches": [
 				"https://www.youtube.com/*"
 			],
 			"js": [
@@ -204,7 +214,10 @@
 				"style.css",
 				"side-panel.html",
 				"flatten-shadow-dom.js",
-				"highlighter.css"
+				"highlighter.css",
+				"english-learning.html",
+				"english-learning.js",
+				"english-learning.css"
 			],
 			"extension_ids": [
 				"*"

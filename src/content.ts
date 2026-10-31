@@ -434,7 +434,10 @@ declare global {
 			sendResponse({ isActive: document.documentElement.classList.contains('obsidian-reader-active') });
 			return true;
 		}
-		return true;
+		// Unknown messages belong to other on-demand content scripts (e.g. the note
+		// card). Holding their response channel open prevents the background from
+		// detecting that the recipient is missing and injecting it.
+		return undefined;
 	});
 
 	function extractContentBySelector(selector: string, attribute?: string, extractHtml: boolean = false): string | string[] {

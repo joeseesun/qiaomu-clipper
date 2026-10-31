@@ -1,3 +1,4 @@
+import { registerEnglishLearning } from './utils/english-learning-background';
 import { handleImageJobs } from './utils/image-job-background';
 import { handleChatToolPort } from './utils/chat-tools-background';
 import { openAiSidebar } from './utils/ai-sidebar';
@@ -37,6 +38,7 @@ import { helperInstallUrl } from './utils/helper-install';
 import { pruneHandedFiles } from './utils/file-handoff';
 void pruneHandedFiles();
 registerPublishBridge();
+registerEnglishLearning();
 browser.runtime.onMessage.addListener(handleLearningNativeMessage);
 browser.runtime.onMessage.addListener(handleAsrMessage);
 browser.runtime.onMessage.addListener(handleChatImageSource);
@@ -1100,6 +1102,7 @@ async function injectTripleKeyIntoOpenTabs(): Promise<void> {
 browser.runtime.onInstalled.addListener(() => {
 	debouncedUpdateContextMenu(-1); // Use a dummy tabId for initial creation
 	void injectTripleKeyIntoOpenTabs();
+	void browser.tabs.query({ url: ['http://*/*', 'https://*/*'] }).then(tabs => Promise.all(tabs.filter(tab => tab.id !== undefined).map(tab => browser.scripting.executeScript({ target: { tabId: tab.id! }, files: ['selection-toolbar.js'] }).catch(() => {}))));
 });
 
 async function isSidePanelOpen(windowId: number): Promise<boolean> {
@@ -1601,4 +1604,26 @@ browser.runtime.onMessage.addListener((raw: unknown, sender) => {
 		const playlist = (url: string) => fetchXiaoePlaylist(url);
 		return readXiaoeLive(address, api, playlist);
 	})().catch(() => ({ ok: false, error: 'failed' }));
+});
+
+// Selection actions only operate on the requesting tab; never trust a supplied tab id.
+browser.runtime.onMessage.addListener((request: any, sender) => {
+ if (request?.action !== 'qiaomuSelectionAction') return;
+ const tab = sender.tab;
+ if (sender.id !== browser.runtime.id || tab?.id === undefined || !/^https?:\/\//.test(tab.url || '') || typeof request.text !== 'string' || request.text.length > 100_000) return Promise.resolve({ ok: false });
+ const text = request.text;
+ // Start opening synchronously so Chrome retains the user's click gesture.
+ const opened = request.command === 'ask' && tab.windowId !== undefined ? openAiSidebar(tab.windowId) : undefined;
+ return (async () => {
+  try {
+   if (request.command === 'ask') {
+    await browser.storage.session.set({ ['qiaomuSelectionQuote:' + tab.id]: { text, url: tab.url, at: Date.now() } });
+    await opened;
+   } else if (request.command === 'highlight') {
+    await sendMessageToContentScript(tab.id!, { action: 'highlightSelection', isActive: false });
+   } else if (request.command === 'note') await openNoteCard(tab.id!, text);
+   else return { ok: false };
+   return { ok: true };
+  } catch { return { ok: false }; }
+ })();
 });
