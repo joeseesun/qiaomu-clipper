@@ -325,3 +325,17 @@ it('allows model-independent exports only from this extension and rejects YouTub
  expect(await handleAsrMessage({action:'qiaomuAsr',payload},{id:'test-id',url:payload.url})).toMatchObject({ok:false});
  expect(native).not.toHaveBeenCalled();
 });
+
+it.runIf(__LOCAL_EDITION__)('standalone edition forwards an explicit YouTube watch page and nothing else from YouTube',async()=>{
+ asrStore.cookiePermission=false;native.mockResolvedValue({ok:true,id:'a'.repeat(32),state:'queued'});
+ const page='https://www.youtube.com/watch?v=jNQXAC9IJRw',payload={mode:'downloadStart',url:page,name:'Test',video:true,allowYoutube:true};
+ expect(await handleAsrMessage({action:'qiaomuAsr',payload},sender)).toMatchObject({ok:true});
+ expect(native.mock.calls[0][1]).toMatchObject({action:'mediaDownloadStart',url:page,allowYoutube:true});native.mockClear();
+ for(const bad of [{...payload,allowYoutube:undefined},{...payload,allowYoutube:'true'},{...payload,mediaUrl:'https://r1.googlevideo.com/videoplayback'},{...payload,url:'https://r1.googlevideo.com/videoplayback'},{...payload,url:'https://www.youtube-nocookie.com/embed/x'}])
+  expect(await handleAsrMessage({action:'qiaomuAsr',payload:bad},sender)).toMatchObject({ok:false});
+ expect(await handleAsrMessage({action:'qiaomuAsr',payload},{id:'test-id',url:page})).toMatchObject({ok:false});expect(native).not.toHaveBeenCalled();
+});
+it.runIf(!__LOCAL_EDITION__)('store edition refuses YouTube even when the request asks for it',async()=>{
+ asrStore.cookiePermission=false;native.mockResolvedValue({ok:true});
+ expect(await handleAsrMessage({action:'qiaomuAsr',payload:{mode:'downloadStart',url:'https://www.youtube.com/watch?v=jNQXAC9IJRw',name:'T',video:true,allowYoutube:true}},sender)).toMatchObject({ok:false});expect(native).not.toHaveBeenCalled();
+});

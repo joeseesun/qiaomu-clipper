@@ -2193,5 +2193,41 @@
 	},
 	"pdEffortDefault": {
 		"message": "使用模型預設值"
+	},
+	"captionDlTitle": {
+		"message": "下載字幕"
+	},
+	"captionDlDefault": {
+		"message": "預設"
+	},
+	"captionDlDone": {
+		"message": "已下載"
+	},
+	"captionDlFixed": {
+		"message": "下載 {format}（右鍵選其他格式）"
+	},
+	"captionDlMd": {
+		"message": "Markdown"
+	},
+	"captionDlMdNote": {
+		"message": "附標題與來源，適合放進筆記"
+	},
+	"captionDlSrt": {
+		"message": "SRT 字幕"
+	},
+	"captionDlSrtNote": {
+		"message": "附時間軸，可直接放進播放器"
+	},
+	"captionDlVtt": {
+		"message": "VTT 字幕"
+	},
+	"captionDlVttNote": {
+		"message": "附時間軸，網頁播放器通用"
+	},
+	"captionDlTxt": {
+		"message": "純文字"
+	},
+	"captionDlTxtNote": {
+		"message": "每行一句，附時間"
 	}
 }

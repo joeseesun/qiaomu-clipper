@@ -1,4 +1,5 @@
 import { formatSegments, safeFileName, type PanelSegment } from './youtube-panel-actions';
+import { buildDownload, DEFAULT_DOWNLOAD_FORMAT, DOWNLOAD_FORMATS, FORMAT_LABELS, type DownloadFormat, type DownloadPref, type DownloadStrings } from './caption-download';
 import { groupSegments } from './youtube-dom-transcript';
 import type { LanguageOption } from './subtitle-language';
 import { buildGenerationPanel, GENERATION_STYLE, type GenerationActions, type GenerationStrings, type GenUi } from './subtitle-generation-panel';
@@ -28,6 +29,9 @@ export interface BarHooks {
 	onLanguage?: (id: string) => void;
 	// Offers "generate subtitles" when the video has none. The bar draws it; the page's script runs the job.
 	generation?: { strings: GenerationStrings; actions: GenerationActions };
+	// The download icon: a menu of formats, or one click for the format the viewer fixed in settings (the menu then opens on right-click).
+	// Without it the icon downloads plain text in one click.
+	download?: { strings: DownloadStrings; preference: () => DownloadPref; url?: () => string };
 }
 export interface TranscriptBar { element: HTMLElement; setState: (state: BarState, segments?: PanelSegment[]) => void; setGeneration: (ui: GenUi | null) => void; setLanguages: (options: LanguageOption[], selected?: string) => void; setOpen: (open: boolean) => void; setTime: (seconds: number, afterSeek?: boolean) => void }
 
@@ -268,17 +272,77 @@ export function buildTranscriptBar(doc: Document, hooks: BarHooks): TranscriptBa
 
 	// Opening the strip also reads the transcript if it has not arrived yet.
 	const openAndLoad = () => { setOpen(true); if (state !== 'ready') void hooks.getSegments().then(found => { if (found.length) { segments = found; state = 'ready'; rendered = -1; paint(); } }); };
+
+	// Download: a small menu under the icon (or, with a fixed format in settings, one click and the menu on right-click).
+	const save = (format: DownloadFormat, found: PanelSegment[]) => {
+		const { filename, content, mime } = buildDownload(format, found, { title: hooks.title(), url: hooks.download?.url?.() ?? doc.location?.href });
+		const url = URL.createObjectURL(new Blob([content], { type: mime }));
+		const link = doc.createElement('a'); link.href = url; link.download = filename;
+		doc.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+	};
+	const download = async (button: HTMLElement, format: DownloadFormat) => {
+		const found = await hooks.getSegments(); if (!found.length) { flash(button, strings.empty); return; }
+		save(format, found); flash(button, hooks.download?.strings.done ?? strings.copied, true);
+	};
+	const downloadWrap = doc.createElement('span'); downloadWrap.className = 'qiaomu-yt-bar-download';
+	const downloadButton = tool('download', strings.download, button => {
+		if (!hooks.download) { void downloadLegacy(button); return; }
+		const choice = hooks.download.preference();
+		if (choice === 'ask') toggleMenu(); else { closeMenu(); void download(button, choice); }
+	});
+	const downloadLegacy = async (button: HTMLElement) => {
+		const value = formatSegments(await hooks.getSegments()); if (!value) { flash(button, strings.empty); return; }
+		const url = URL.createObjectURL(new Blob([`${value}\n`], { type: 'text/plain;charset=utf-8' }));
+		const link = doc.createElement('a'); link.href = url; link.download = `${safeFileName(hooks.title())}.txt`;
+		doc.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+	};
+	const menu = doc.createElement('div'); menu.className = 'qiaomu-yt-bar-menu'; menu.setAttribute('role', 'menu'); menu.hidden = true;
+	let menuItems: HTMLElement[] = [];
+	const fixedLabel = () => { const pref = hooks.download?.preference() ?? 'ask'; return pref === 'ask' || !hooks.download ? strings.download : hooks.download.strings.fixed.replace('{format}', FORMAT_LABELS[pref]); };
+	const refreshTitle = () => { if (downloadButton.classList.contains('is-notice')) return; downloadButton.title = fixedLabel(); downloadButton.setAttribute('aria-label', downloadButton.title); };
+	const closeMenu = (refocus = false) => { if (menu.hidden) return; menu.hidden = true; downloadButton.setAttribute('aria-expanded', 'false'); doc.removeEventListener('pointerdown', outside, true); if (refocus) downloadButton.focus(); };
+	const outside = (event: Event) => { if (!downloadWrap.contains(event.target as Node)) closeMenu(); };
+	const openMenu = () => {
+		if (!hooks.download) return;
+		const { strings: words, preference } = hooks.download, pref = preference(), first = pref === 'ask' ? DEFAULT_DOWNLOAD_FORMAT : pref;
+		menu.setAttribute('aria-label', words.title);
+		menuItems = [first, ...DOWNLOAD_FORMATS.filter(format => format !== first)].map(format => {
+			const item = doc.createElement('div'); item.className = 'qiaomu-yt-bar-menuitem'; item.setAttribute('role', 'menuitem'); item.tabIndex = -1; item.dataset.format = format;
+			const name = doc.createElement('span'); name.className = 'qiaomu-yt-bar-menuname'; name.textContent = words[format];
+			const extension = doc.createElement('span'); extension.className = 'qiaomu-yt-bar-menuext'; extension.textContent = `.${format}`;
+			const note = doc.createElement('span'); note.className = 'qiaomu-yt-bar-menunote'; note.textContent = words[`${format}Note` as 'mdNote'];
+			item.append(name, extension);
+			if (format === first) { const mark = doc.createElement('span'); mark.className = 'qiaomu-yt-bar-menumark'; mark.textContent = words.default; item.append(mark); }
+			item.append(note);
+			press(item, () => { closeMenu(true); void download(downloadButton, format); });
+			item.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); closeMenu(true); void download(downloadButton, format); } });
+			return item;
+		});
+		menu.replaceChildren(...menuItems); menu.hidden = false; downloadButton.setAttribute('aria-expanded', 'true');
+		// The icon sits inside the strip, so a menu lined up with its edge can reach past the strip's start: slide it back inside.
+		menu.style.transform = ''; const room = menu.getBoundingClientRect().left - element.getBoundingClientRect().left; if (room < 0 && doc.dir !== 'rtl' && doc.documentElement.dir !== 'rtl') menu.style.transform = `translateX(${Math.round(-room)}px)`;
+		doc.addEventListener('pointerdown', outside, true);
+		menuItems[0].focus();
+	};
+	const toggleMenu = () => { if (menu.hidden) openMenu(); else closeMenu(true); };
+	menu.addEventListener('keydown', event => {
+		event.stopPropagation(); // YouTube listens for single-key shortcuts
+		const at = menuItems.indexOf(doc.activeElement as HTMLElement);
+		if (event.key === 'Escape') { event.preventDefault(); closeMenu(true); }
+		else if (event.key === 'Tab') closeMenu();
+		else if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) { event.preventDefault(); const last = menuItems.length - 1; menuItems[event.key === 'Home' ? 0 : event.key === 'End' ? last : event.key === 'ArrowDown' ? (at + 1) % menuItems.length : (at <= 0 ? last : at - 1)].focus(); }
+	});
+	for (const type of ['keyup', 'keypress']) menu.addEventListener(type, event => event.stopPropagation());
+	downloadButton.setAttribute('aria-haspopup', 'menu'); downloadButton.setAttribute('aria-expanded', 'false');
+	downloadButton.addEventListener('contextmenu', event => { if (!hooks.download) return; event.preventDefault(); event.stopPropagation(); if (menu.hidden) openMenu(); else closeMenu(true); });
+	for (const type of ['pointerenter', 'focus']) downloadButton.addEventListener(type, refreshTitle);
+	downloadWrap.append(downloadButton, menu);
 	tools.append(
 		tool('copy', strings.copy, async button => {
 			const value = formatSegments(await hooks.getSegments()); if (!value) { flash(button, strings.empty); return; }
 			try { await navigator.clipboard.writeText(value); flash(button, strings.copied, true); } catch { flash(button, strings.empty); }
 		}),
-		tool('download', strings.download, async button => {
-			const value = formatSegments(await hooks.getSegments()); if (!value) { flash(button, strings.empty); return; }
-			const url = URL.createObjectURL(new Blob([`${value}\n`], { type: 'text/plain;charset=utf-8' }));
-			const link = doc.createElement('a'); link.href = url; link.download = `${safeFileName(hooks.title())}.txt`;
-			doc.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
-		}),
+		downloadWrap,
 		tool('study', strings.study, button => { if (hooks.openStudy() === false) flash(button, strings.reload); }, strings.study),
 		toggle,
 	);
@@ -330,6 +394,16 @@ ytd-engagement-panel-section-list-renderer[data-qiaomu-auto="1"]{display:none!im
 .qiaomu-yt-tool.is-notice{color:var(--qm-accent)}
 .qiaomu-yt-tool:focus{outline:none}.qiaomu-yt-tool:focus-visible{outline:2px solid var(--qm-accent);outline-offset:-2px}
 .qiaomu-yt-tool svg{display:block;pointer-events:none}
+.qiaomu-yt-bar-download{position:relative;display:inline-flex}
+.qiaomu-yt-bar-menu{position:absolute;z-index:1000;top:calc(100% + 4px);inset-inline-end:0;box-sizing:border-box;width:max-content;min-width:300px;max-width:min(400px,calc(100vw - 32px));padding:4px;border:1px solid var(--qm-line);border-radius:10px;background:var(--qm-bg);box-shadow:0 4px 16px rgba(0,0,0,.18);color:var(--qm-fg);cursor:default}
+.qiaomu-yt-bar-menu[hidden]{display:none}
+.qiaomu-yt-bar-menuitem{display:flex;align-items:baseline;gap:12px;padding:7px 10px;border-radius:6px;background:transparent;color:var(--qm-fg);font-size:13px;line-height:18px;cursor:pointer;user-select:none}
+.qiaomu-yt-bar-menuitem:hover,.qiaomu-yt-bar-menuitem:focus{background:var(--qm-hover)}
+.qiaomu-yt-bar-menuitem:focus{outline:none}.qiaomu-yt-bar-menuitem:focus-visible{outline:2px solid var(--qm-accent);outline-offset:-2px}
+.qiaomu-yt-bar-menuname{flex:0 0 auto;font-weight:500;white-space:nowrap}
+.qiaomu-yt-bar-menuext{flex:0 0 auto;margin-inline-start:-8px;color:var(--qm-fg2);font-size:12px}
+.qiaomu-yt-bar-menumark{flex:0 0 auto;margin-inline-start:-4px;padding:0 6px;border-radius:4px;background:var(--qm-field);color:var(--qm-fg2);font-size:11px;font-weight:400;line-height:16px}
+.qiaomu-yt-bar-menunote{flex:1 1 auto;min-width:0;margin-inline-start:auto;color:var(--qm-fg2);font-size:12px;line-height:16px;text-align:end}
 .qiaomu-yt-tool-study{width:auto;margin-inline-start:4px;padding:0 10px;color:var(--qm-fg);font-size:13px;font-weight:500;white-space:nowrap}
 .qiaomu-yt-bar-finder .qiaomu-yt-tool{opacity:.65}.qiaomu-yt-bar-finder .qiaomu-yt-tool:hover{opacity:1}
 .qiaomu-yt-tool-toggle svg{transition:transform .15s}

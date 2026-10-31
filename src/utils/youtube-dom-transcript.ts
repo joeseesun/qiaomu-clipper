@@ -108,18 +108,17 @@ const seconds = (stamp: string) => stamp.split(':').reduce((total, part) => tota
 const escapeHtml = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 // Caption lines are only a couple of seconds long. Merge them into paragraphs the way Defuddle does, so the study
-// page reads as text rather than as hundreds of one-line rows.
+// page reads as text rather than as hundreds of one-line rows. Keep a space between cues in every
+// language: unpunctuated Chinese cues still need a visible boundary, without inventing punctuation.
 export function groupSegments(segments: PanelSegment[], maxSeconds = 30, sentenceSeconds = 12): PanelSegment[] {
 	const groups: PanelSegment[] = []; let start = -1;
 	for (const { time, text, chapter, start: preciseStart, end } of segments) {
 		const at = preciseStart ?? seconds(time), last = groups[groups.length - 1];
-		if (last && !chapter && start >= 0 && at - start < maxSeconds && !(/[.!?。！？]["”)]?$/.test(last.text) && at - start >= sentenceSeconds)) { last.text = joinText(last.text, text); if (end !== undefined) last.end = end; }
+		if (last && !chapter && start >= 0 && at - start < maxSeconds && !(/[.!?。！？]["”)]?$/.test(last.text) && at - start >= sentenceSeconds)) { last.text += ` ${text}`; if (end !== undefined) last.end = end; }
 		else { groups.push({ time, text, ...(chapter ? { chapter } : {}), ...(preciseStart !== undefined ? { start: preciseStart } : {}), ...(end !== undefined ? { end } : {}) }); start = at; }
 	}
 	return groups;
 }
-const CJK = /[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]/;
-const joinText = (a: string, b: string) => CJK.test(a.slice(-1)) && CJK.test(b[0] || '') ? a + b : `${a} ${b}`;
 
 // The same markup Defuddle produces, without its " · " separator: the reader shows the time in its own column, and a dot left in front of the text
 // (as it was whenever the reader did not strip it) is noise.

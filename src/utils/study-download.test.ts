@@ -48,3 +48,19 @@ it('falls back to native on CDN fetch failure and keeps an actionable error when
 });
 it('does not offer downloads on builds without the declared API permission',async()=>{api.getManifest.mockReturnValue({permissions:[]});expect((await mount()).querySelector('.qiaomu-dl')).toBeNull();});
 it('checks encrypted media again at click time',async()=>{const article=await mount();Object.defineProperty(article.querySelector('video'),'mediaKeys',{value:{}});article.querySelector<HTMLButtonElement>('.qiaomu-dl-main')!.click();await flush();expect(fetch).not.toHaveBeenCalled();expect(api.download).not.toHaveBeenCalled();});
+
+it.runIf(__LOCAL_EDITION__)('offers a YouTube page in the standalone edition and sends it to the helper, never fetching a media address',async()=>{
+ api.helper.mockResolvedValue({reveal:vi.fn()});
+ document.body.innerHTML='<article><div class="player-container"><div class="player-toggles"></div></div></article>';
+ const article=document.querySelector('article')!;
+ await mountStudyDownload(article,undefined,{title:'Test',sourceUrl:'https://www.youtube.com/watch?v=jNQXAC9IJRw',mediaUrl:'',video:true});
+ expect(article.querySelector('.qiaomu-dl-main')).not.toBeNull();article.querySelector<HTMLButtonElement>('.qiaomu-dl-main')!.click();await flush();
+ expect(api.helper).toHaveBeenCalledWith(expect.objectContaining({sourceUrl:'https://www.youtube.com/watch?v=jNQXAC9IJRw',mediaUrl:''}),expect.anything(),expect.anything());
+ expect(fetch).not.toHaveBeenCalled();
+});
+it.runIf(__LOCAL_EDITION__)('still refuses a YouTube media host and DRM players in the standalone edition',async()=>{
+ for(const over of [{sourceUrl:'https://www.youtube.com/watch?v=1',mediaUrl:'https://r1.googlevideo.com/videoplayback'},{sourceUrl:'https://r1.googlevideo.com/videoplayback',mediaUrl:''},{sourceUrl:'https://www.youtube-nocookie.com/embed/1',mediaUrl:''}]){
+  document.body.innerHTML='<article><div class="player-container"><div class="player-toggles"></div></div></article>';const article=document.querySelector('article')!;
+  await mountStudyDownload(article,undefined,{title:'T',video:true,...over});expect(article.querySelector('.qiaomu-dl')).toBeNull();
+ }
+});

@@ -1,0 +1,35 @@
+frontend
+
+ RUN  v4.1.11 /Users/joe/Documents/ChatGPT/qiaomu-clipper-integ-oct21
+
+Not implemented: navigation to another Document
+
+ Test Files  193 passed (193)
+      Tests  1619 passed | 7 skipped (1626)
+   Start at  10:13:38
+   Duration  23.98s (transform 20.58s, setup 2.80s, import 71.59s, tests 71.68s, environment 140.55s)
+
+
+i18n
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 /Users/joe/Documents/ChatGPT/qiaomu-clipper-integ-oct21
+
+
+ Test Files  7 passed (7)
+      Tests  110 passed (110)
+   Start at  10:15:04
+   Duration  1.58s (transform 1.53s, setup 67ms, import 2.92s, tests 156ms, environment 2.80s)
+
+
+native
+[asr] Download attempt 4: client=default, login=False, exit=1
+[asr] Download attempt 5: client=default,web_embedded, login=False, exit=0
+.[asr] Download attempt 1: client=default, login=False, exit=1
+[asr] Download attempt 2: client=default, login=False, exit=1
+[asr] Download attempt 3: client=default,web_embedded, login=False, exit=1
+............................................................................................................
+----------------------------------------------------------------------
+Ran 232 tests in 50.451s
+
+OK

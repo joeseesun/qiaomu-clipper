@@ -8,6 +8,8 @@ code, kbd, tt {
 	padding: 0.1em 0.25em;
 }
 pre {
+	font-family: var(--font-monospace-default, ui-monospace, Menlo, Consolas, monospace);
+	tab-size: 4;
 	white-space: pre;
 	max-width: 100%;
 	overflow-x: auto;
@@ -15,6 +17,8 @@ pre {
 	position: relative;
 	pre,
 	code {
+		font-family: inherit;
+		white-space: pre;
 		font-size: inherit;
 		border: none;
 		background-color: transparent;
@@ -58,8 +62,8 @@ pre {
 code[class*="language-"],
 pre[class*="language-"] {
 	color: var(--text-normal);
-	word-wrap: break-word;
-	white-space: pre-wrap;
+	word-wrap: normal;
+	white-space: pre;
 	word-break: normal;
 	word-spacing: normal;
 	-webkit-hyphens: none;

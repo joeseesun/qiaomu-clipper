@@ -1,0 +1,22 @@
+verify	Run python3 -m unittest discover -s native -p 'test_*.py'	2026-10-20T17:13:03.7366246Z FAIL: test_plan_reads_only_and_counts_what_would_go (test_uninstall.UninstallTests.test_plan_reads_only_and_counts_what_would_go)
+verify	Run python3 -m unittest discover -s native -p 'test_*.py'	2026-10-20T17:13:03.7367455Z ----------------------------------------------------------------------
+verify	Run python3 -m unittest discover -s native -p 'test_*.py'	2026-10-20T17:13:03.7368146Z Traceback (most recent call last):
+verify	Run python3 -m unittest discover -s native -p 'test_*.py'	2026-10-20T17:13:03.7369398Z   File "/home/runner/work/qiaomu-clipper/qiaomu-clipper/native/test_uninstall.py", line 32, in test_plan_reads_only_and_counts_what_would_go
+verify	Run python3 -m unittest discover -s native -p 'test_*.py'	2026-10-20T17:13:03.7370751Z     self.assertEqual(sorted(plan['registrations']), sorted(map(str, self.ours)))
+verify	Run python3 -m unittest discover -s native -p 'test_*.py'	2026-10-20T17:13:03.7372085Z AssertionError: Lists differ: [] != ['/tmp/tmp5vn8sh_0/home/Library/Applicatio[175 chars]son']
+verify	Run python3 -m unittest discover -s native -p 'test_*.py'	2026-10-20T17:13:03.7372666Z 
+verify	Run python3 -m unittest discover -s native -p 'test_*.py'	2026-10-20T17:13:03.7372943Z Second list contains 2 additional elements.
+verify	Run python3 -m unittest discover -s native -p 'test_*.py'	2026-10-20T17:13:03.7373423Z First extra element 0:
+verify	Run python3 -m unittest discover -s native -p 'test_*.py'	2026-10-20T17:13:03.7374364Z '/tmp/tmp5vn8sh_0/home/Library/Application Support/Arc/User Data/NativeMessagingHosts/ai.qiaomu.clipper.json'
+verify	Run python3 -m unittest discover -s native -p 'test_*.py'	2026-10-20T17:13:03.7375108Z 
+verify	Run python3 -m unittest discover -s native -p 'test_*.py'	2026-10-20T17:13:03.7375243Z - []
+verify	Run python3 -m unittest discover -s native -p 'test_*.py'	2026-10-20T17:13:03.7375843Z + ['/tmp/tmp5vn8sh_0/home/Library/Application Support/Arc/User '
+verify	Run python3 -m unittest discover -s native -p 'test_*.py'	2026-10-20T17:13:03.7376703Z +  'Data/NativeMessagingHosts/ai.qiaomu.clipper.json',
+verify	Run python3 -m unittest discover -s native -p 'test_*.py'	2026-10-20T17:13:03.7377458Z +  '/tmp/tmp5vn8sh_0/home/Library/Application '
+verify	Run python3 -m unittest discover -s native -p 'test_*.py'	2026-10-20T17:13:03.7378322Z +  'Support/Google/Chrome/NativeMessagingHosts/ai.qiaomu.clipper.json']
+verify	Run python3 -m unittest discover -s native -p 'test_*.py'	2026-10-20T17:13:03.7378861Z 
+verify	Run python3 -m unittest discover -s native -p 'test_*.py'	2026-10-20T17:13:03.7379261Z ----------------------------------------------------------------------
+verify	Run python3 -m unittest discover -s native -p 'test_*.py'	2026-10-20T17:13:03.7379917Z Ran 232 tests in 36.262s
+verify	Run python3 -m unittest discover -s native -p 'test_*.py'	2026-10-20T17:13:03.7380177Z 
+verify	Run python3 -m unittest discover -s native -p 'test_*.py'	2026-10-20T17:13:03.7380432Z FAILED (failures=1, skipped=1)
+verify	Run python3 -m unittest discover -s native -p 'test_*.py'	2026-10-20T17:13:03.7650551Z ##[error]Process completed with exit code 1.

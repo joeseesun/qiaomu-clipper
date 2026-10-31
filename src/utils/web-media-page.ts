@@ -1,6 +1,7 @@
 import { siteOf, xStatus } from './study-sites';
 import { xiaoeAddress } from './xiaoe';
 import { xhsAddress, xhsVideo } from './xiaohongshu';
+import { channelsStudyAddress } from './channels-study';
 
 // Only a supported media detail address, never a site's home/search/profile feed.
 export function webMediaAddress(address: string): string | null {
@@ -10,6 +11,7 @@ export function webMediaAddress(address: string): string | null {
 	if (site.id === 'x') return xStatus(address);
 	if (site.id === 'xiaohongshu') return xhsAddress(address);
 	if (site.id === 'xiaoe') return xiaoeAddress(address);
+	if (site.id === 'channels') return channelsStudyAddress(address) ?? null;
 	if (site.id === 'douyin') {
 		const id = url.pathname.match(/^\/(?:video|note)\/(\d+)/)?.[1] || url.searchParams.get('modal_id')?.match(/^\d+$/)?.[0] || url.searchParams.get('vid')?.match(/^\d+$/)?.[0];
 		return id ? `https://www.douyin.com/video/${id}` : null;
@@ -50,6 +52,21 @@ export function activeWebMedia(doc: Document): WebMedia | undefined {
 export function currentWebMediaAddress(doc: Document, media: WebMedia, address: string): string | null {
 	const site = siteOf(address); if (!site || site.builtin) return null;
 	if (site.id === 'xiaohongshu') return xhsVideo(doc, address) === media ? xhsAddress(address) : null;
+	if (site.id === 'x') {
+		const tweet = media.closest('article[data-testid="tweet"]');
+		// Long articles stay articles even when their body embeds a video or GIF.
+		// X serves animated images as MP4s; a <video> alone is not media-study evidence.
+		if (!tweet || /\/(?:article|articles)\//.test(new URL(address).pathname)
+			|| tweet.querySelector('[data-testid="twitterArticleReadView"], [data-testid="twitterArticleRichTextView"], [data-testid="twitter-article-title"]')) return null;
+		const sources = [media.getAttribute('src'), media.getAttribute('poster'), 'currentSrc' in media ? media.currentSrc : '',
+			...Array.from(media.querySelectorAll('source[src]'), source => source.getAttribute('src'))];
+		if (sources.some(src => src && /\/(?:tweet_video|tweet_video_thumb)\//.test(src))) return null;
+		// Use this post's own timestamp, never a quoted/recommended item's link.
+		const link = Array.from(tweet.querySelectorAll<HTMLAnchorElement>('a[href]')).find(a =>
+			a.querySelector('time') && a.closest('article') === tweet && xStatus(a.href));
+		const post = link ? xStatus(link.href) : null, current = xStatus(address);
+		return post && (!current || current.split('/').pop() === post.split('/').pop()) ? post : null;
+	}
 	// The current URL wins for modal_id navigation; a feed card can provide the item address.
 	const own = webMediaAddress(address); if (own) return own;
 	const card = media.closest('article, [data-e2e="recommend-list-item-container"], [data-e2e="feed-active-video"], [data-e2e="video-detail"]');
@@ -68,10 +85,12 @@ export function currentWebMediaAddress(doc: Document, media: WebMedia, address: 
 
 // Some players live in inaccessible frames or are created only after pressing play.
 // Item-only routes let us offer study without falsely claiming source-page time control.
-const ITEM_ONLY_SITES = ['vimeo', 'tiktok', 'douyin', 'twitch', 'dailymotion', 'soundcloud', 'bandcamp', 'niconico', 'ximalaya', 'netease', 'ted', 'applepodcasts'];
+const ITEM_ONLY_SITES = ['vimeo', 'tiktok', 'douyin', 'twitch', 'dailymotion', 'soundcloud', 'bandcamp', 'niconico', 'ximalaya', 'netease', 'ted', 'applepodcasts', 'channels'];
 export const isMediaItemAddress = (address: string): boolean => Boolean(webMediaAddress(address) && ITEM_ONLY_SITES.includes(siteOf(address)?.id ?? ''));
 export function declaredWebMediaAddress(doc: Document, address: string): string | null {
 	const detail = webMediaAddress(address), site = siteOf(address); if (!detail || !site) return null;
+	// X metadata is page-wide and may describe an article animation or another post.
+	if (site.id === 'x') return null;
 	if (site.id === 'xiaohongshu') return xhsVideo(doc, address) ? detail : null;
 	if (isMediaItemAddress(detail) || doc.querySelector('meta[property="og:video"], meta[property="og:video:url"], meta[property="og:audio"]')) return detail;
 	return null;

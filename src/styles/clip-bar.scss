@@ -35,12 +35,13 @@ html.clip-bar-hidden.clip-bar-collapse { --clip-bar-height: 0px; }
 	}
 	// Quiet by default: ghost buttons, one soft primary action.
 	svg { mix-blend-mode: normal !important; }  // reading mode multiplies every svg; light icons would vanish
-	> button {
+	.clip-bar-actions { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+	> button, .clip-bar-actions > button {
 		display: flex; align-items: center; gap: 6px; width: auto; flex: 0 0 auto; height: 32px; padding: 0 10px; margin: 0; border: none; border-radius: 8px;
 		background: transparent; box-shadow: none; color: var(--text-muted); font: inherit; font-size: 14px; font-weight: 500; cursor: pointer; transition: background .15s, color .15s;
 		svg { width: 16px; height: 16px; flex-shrink: 0; }
 		&:hover { background: var(--background-modifier-hover, rgb(128 128 128 / 14%)); color: var(--text-normal); }
-		&:focus-visible { outline: 2px solid var(--background-modifier-border-focus, currentColor); outline-offset: 1px; }
+		&:focus-visible { outline: 1px solid var(--text-muted); outline-offset: 2px; }
 		&:disabled { opacity: .55; cursor: default; }
 		&.is-icon { width: 32px; padding: 0; justify-content: center; &[aria-pressed="true"] { background: var(--background-modifier-hover, rgb(128 128 128 / 14%)); color: var(--text-normal); } &[hidden] { display: none; } }
 		&.is-primary { background: var(--text-normal); color: var(--background-primary); padding: 0 14px; margin-inline-start: 4px; font-weight: 600;
@@ -50,10 +51,33 @@ html.clip-bar-hidden.clip-bar-collapse { --clip-bar-height: 0px; }
 	.clip-bar-extras { display: flex; align-items: center; flex-shrink: 0; }
 	// The reader's font/theme panel moves into the bar and opens right under its button.
 	.obsidian-reader-settings { position: relative; top: auto; right: auto; width: 32px; height: 32px; z-index: 1; }
-	.obsidian-reader-nav { position: static; padding: 0; background: transparent; box-shadow: none; &::before { display: none; }
+	.obsidian-reader-nav { position: static; width: auto; top: auto; left: auto; right: auto; padding: 0; background: transparent; box-shadow: none; &::before { display: none; }
 		.nav-btn { width: 32px; height: 32px; background: transparent; svg { width: 18px; height: 18px; } &:hover { background: var(--background-modifier-hover, rgb(128 128 128 / 14%)); } }
 	}
 	.obsidian-reader-settings-controls { position: absolute; top: calc(100% + 12px); right: 0; width: 300px; max-width: calc(100vw - 24px); max-height: 80vh; overflow-y: auto; padding: 16px; border-radius: 12px; border: 1px solid var(--background-modifier-border); box-shadow: 0 8px 28px rgb(0 0 0 / 18%); }
+}
+// Override global button sizing and reader typography inside this one action menu.
+html .clip-bar .clip-more-menu {
+	position: fixed; z-index: 1000; width: 264px; max-width: calc(100vw - 16px); overflow-y: auto;
+	padding: 6px; border: 1px solid var(--background-modifier-border); border-radius: 8px;
+	background: var(--background-primary); color: var(--text-normal); box-shadow: 0 6px 24px rgb(0 0 0 / 14%);
+	font: 14px/1.45 var(--font-ui, var(--font-default));
+	&[hidden] { display: none !important; }
+	button:not(.clickable-icon) {
+		appearance: none; display: flex; align-items: center; justify-content: flex-start; gap: 10px;
+		width: 100%; min-height: 36px; height: auto; margin: 0; padding: 8px 10px; border: 0; border-radius: 4px;
+		background: transparent; box-shadow: none; color: var(--text-normal); font: inherit; text-align: start;
+		cursor: pointer; white-space: normal;
+		&:hover { background: var(--background-modifier-hover); color: var(--text-normal); box-shadow: none; }
+		&:disabled { opacity: .5; cursor: default; }
+		&:focus-visible { outline: 1px solid var(--text-muted); outline-offset: -1px; }
+		svg { width: 16px; height: 16px; flex: 0 0 16px; mix-blend-mode: normal !important; }
+	}
+	.clip-more-divider { height: 1px; margin: 5px 4px; background: var(--background-modifier-border); }
+	.clip-bar-rss { padding: 8px 10px 4px; gap: 8px; white-space: normal; color: var(--text-normal); font: inherit; }
+	.clip-bar-rss > span { flex: 1; }
+	.clip-more-hint { padding: 0 10px 6px; margin: 0; color: var(--text-muted); font: 12px/1.5 var(--font-ui, var(--font-default)); }
+	input.switch:focus-visible { outline: 1px solid var(--text-muted); outline-offset: 2px; }
 }
 #clip-bar-status {
 	position: fixed; left: 50%; bottom: 28px; z-index: 1000; max-width: min(520px, 90vw); padding: 10px 16px; border-radius: 8px;
@@ -65,3 +89,15 @@ html.qiaomu-preview .metadata { display: none; }
 html.qiaomu-preview body { padding-top: var(--clip-bar-height); transition: padding-top .2s ease; }
 @media (max-width: 1000px) { .clip-bar .clip-bar-domain { display: none; } }
 @media (max-width: 760px) { .clip-bar { flex-wrap: wrap; height: auto; padding: 8px 12px; .clip-bar-title { flex: 1 0 100%; } } }
+@media (max-width: 480px) {
+	.clip-bar { column-gap: 6px; }
+	html .clip-bar #clip-bar-copy { width: 32px; padding: 0; justify-content: center; }
+	.clip-bar #clip-bar-copy > span { display: none; }
+}
+@media (max-width: 768px) {
+	html .clip-bar .obsidian-reader-settings.is-open .obsidian-reader-settings-controls {
+		position: fixed; top: calc(var(--clip-bar-offset) + 8px); right: 12px; left: auto; bottom: auto;
+		width: 300px; max-width: calc(100vw - 24px); max-height: calc(100vh - var(--clip-bar-offset) - 24px);
+		padding: 16px; margin: 0; border-radius: 8px; background: var(--background-primary);
+	}
+}

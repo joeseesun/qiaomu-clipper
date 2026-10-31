@@ -1,4 +1,4 @@
-import { createMarkdownContent } from 'defuddle/full';
+import { createMarkdownContent } from './defuddle';
 import { ClipPreview, updateClipPreview, loadClipPreview, loadEditedStudyPreview } from './clip-preview';
 import { generalSettings, loadSettings } from './storage-utils';
 import browser from './browser-polyfill';
@@ -10,6 +10,7 @@ import { sanitizeFileName } from './string-utils';
 import { findMatchingTemplate, initializeTriggers } from './triggers';
 
 import { t } from './ui-text';
+import { extractedArticleSource } from '../write/source-import';
 export async function createReaderSourceDraft(url: string, initialTitle: string, resumeId?: string, restoreEdits = false) {
     const previous = resumeId ? await loadClipPreview(resumeId) : restoreEdits ? await loadEditedStudyPreview(url) : null;
     if (resumeId && (!previous || previous.clip.url !== url)) throw new Error(t('原编辑草稿无法恢复，请返回原编辑页导出文字后重试。'));
@@ -36,6 +37,7 @@ export async function createReaderSourceDraft(url: string, initialTitle: string,
 			Promise.all(selected.properties.map(async property => ({...property,value:await compile(property.value)}))),
 		]);
 		draft.properties = properties;
+		draft.articleSource = extractedArticleSource(result, url);
 		const body = markdown + (draft.readerAppendix || '');
 			draft.clip = {url,title:name.trim() || result.title || title,markdown:body,image:result.image};
 			if (typeof DOMParser !== 'undefined') {

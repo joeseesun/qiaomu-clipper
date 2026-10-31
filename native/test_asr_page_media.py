@@ -38,7 +38,10 @@ class ChannelsMediaTests(unittest.TestCase):
     def test_source_and_cdn_are_strict(self):
         self.assertTrue(asr.channels_media(self.PAGE, self.MEDIA))
         self.assertTrue(asr.channels_media('https://channels.weixin.qq.com/finder-preview/pages/sph?id=Fixture123', self.MEDIA))
-        for page in ('https://mp.weixin.qq.com/s/x', self.PAGE+'?id=other', 'https://weixin.qq.com.evil.org/sph/Fixture123', 'https://user:pw@weixin.qq.com/sph/Fixture123', 'https://channels.weixin.qq.com/finder-preview/pages/feed?token=fixture&eid=fixture'):
+        feed = 'https://channels.weixin.qq.com/finder-preview/pages/feed?eid=fixture-id'
+        self.assertTrue(asr.channels_media(feed, self.MEDIA))
+        self.assertTrue(asr.channels_media('https://channels.weixin.qq.com/finder-preview/pages/feed?eid=a%2Fb', self.MEDIA))
+        for page in ('https://channels.weixin.qq.com/finder-preview/pages/feed?eid=', 'https://channels.weixin.qq.com/finder-preview/pages/feed?eid=a&eid=b', 'https://channels.weixin.qq.com/finder-preview/pages/feed', 'https://mp.weixin.qq.com/s/x', self.PAGE+'?id=other', 'https://weixin.qq.com.evil.org/sph/Fixture123', 'https://user:pw@weixin.qq.com/sph/Fixture123', 'https://channels.weixin.qq.com/finder-preview/pages/feed?token=fixture&eid=fixture'):
             self.assertFalse(asr.channels_media(page,self.MEDIA))
         for media in ('http://finder.video.qq.com/251/20302/stodownload', 'https://finder.video.qq.com.evil.org/251/20302/stodownload', 'https://finder.video.qq.com:8443/251/20302/stodownload', 'https://user:pw@finder.video.qq.com/251/20302/stodownload', 'https://finder.video.qq.com/other', 'https://127.0.0.1/251/20302/stodownload'):
             self.assertFalse(asr.channels_media(self.PAGE,media))

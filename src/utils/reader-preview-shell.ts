@@ -38,19 +38,25 @@ export function mountReaderPreviewShell(draft: ClipPreview, pending = false) {
 		},
 	});
 	if (generalSettings.readerAutoChat) chat.toggle(true);
-	const bar = createClipBar({onToggleChat:chat.toggle, mode:'read', id, draft, title, domain:getDomain(draft.clip.url), url:draft.clip.url, sync: action => sync(action)});
+	const bar = createClipBar({onToggleChat:chat.toggle, mode:'read', id, draft, title, domain:getDomain(draft.clip.url), url:draft.clip.url, dailyNoteButton: learning.button, sync: action => sync(action),
+		onWrite: async () => {
+			const { openClipArticle } = await import('../write/source-import');
+			const mode = bar.dataset.transcriptExportMode;
+			await openClipArticle(draft, document.querySelector('article'), mode === 'original' || mode === 'translated' || mode === 'bilingual' ? mode : undefined);
+		},
+	});
 	const exportTranscript = mountTranscriptExport(bar, draft);
 	sync = async action => { await exportTranscript(action); if (action === 'edit') await preserveLocalPreviewMedia(draft); };
 	document.body.prepend(bar);
 	const readerSettings = document.querySelector('.obsidian-reader-settings');
 	if (readerSettings) bar.querySelector('.clip-bar-extras')?.appendChild(readerSettings);
-	bar.querySelector('.clip-bar-extras')?.append(learning.button);
 	autoHideBar(bar);
 	const updateHighlights = () => setClipBarHighlights(bar, getHighlights().length);
 	updateHighlights(); setTimeout(updateHighlights,800);
 	browser.storage.onChanged.addListener(changes => { if (changes.highlights) setTimeout(updateHighlights,200); });
 	const setPending = (value: boolean) => {
 		pending = value;
+		bar.dataset.pending = String(value);
 		for (const control of Array.from(bar.querySelectorAll<HTMLButtonElement>('.clip-bar-segment button[aria-selected="false"], #clip-bar-copy, #clip-bar-download, #clip-bar-ai, #clip-bar-clip'))) control.disabled = value || (control.id === 'clip-bar-clip' && Boolean(draft.localDone && (!draft.aggregate || draft.rssDone))) || (control.id === 'clip-bar-ai' && Boolean(videoKey(draft.clip.url)) && !transcriptText(document.querySelector('article')!));
 	};
 	setPending(pending);

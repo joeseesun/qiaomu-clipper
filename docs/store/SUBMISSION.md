@@ -1,10 +1,12 @@
 # 乔木剪藏 Chrome Web Store 提交资料
 
-资料日期：2026-10-12。以下内容按当前源代码与 Google 官方文档准备；资料齐备、后台草稿、提交审核和正式上架是不同状态。账号、联系方式、分发范围及后台认证以实际发布者配置为准。
+资料日期：2026-10-21。以下内容按当前源代码与 Google 官方文档准备；资料齐备、后台草稿、提交审核和正式上架是不同状态。账号、联系方式、分发范围及后台认证以实际发布者配置为准。
 
 ## 文件与链接
 
-- 上传包：`releases/1.18.0/<build-id>/qiaomu-clipper-1.18.0-chrome-store.zip`（构建后检查 ZIP 根目录 manifest.json）
+- 本版上传包：1.19.0，由干净提交执行 `npm run package -- --release` 生成。助手单独发布 1.16.9，不能复用旧助手资产。
+- 本轮素材、规格和证据：[2026-10 商店改版](2026-10-refresh/README.md)。
+- 初始状态：公开商店 1.18.8；GitHub Release 1.18.9。1.19.0 基于集成 PR #95 / `37cc07a3`，叠加安全卸载与真实生图修复。最终状态见对应 Release/后台。
 - 项目主页：https://github.com/joeseesun/qiaomu-clipper
 - 支持地址：https://github.com/joeseesun/qiaomu-clipper/issues
 - 隐私政策：https://joeseesun.github.io/qiaomu-clipper/privacy.html
@@ -15,66 +17,108 @@
 
 ## 中文商店介绍
 
-短介绍：剪藏网页到 Obsidian，阅读、编辑 Markdown，并用自己的 AI 模型提问；可选择分享到乔木 RSS。
+名称
+乔木剪藏 · Obsidian + RSS
 
-详细介绍：
+短介绍
+把看过的，变成自己的。网页剪藏、双语视频学习、随页 AI 问答、Markdown 写作与配图，在浏览器里连起来。
 
-把网页或选中文字整理成 Obsidian Markdown 笔记。在保存前，你可以先阅读、修改标题和属性、编辑正文，也可以复制或下载 Markdown。
+详细介绍
+读到一篇好文章、看完一段视频，然后呢？
 
-主要功能：
-• 简洁剪藏面板：阅读、编辑、复制、下载与保存入口。
-• 阅读模式：清晰排版、可调字体和配色、划线高亮。
-• 整页编辑器：编辑标题、属性和 Markdown，阅读与编辑之间切换。
-• 文章 AI 对话：全文或选中片段提问、流式回答、复制回答或加入笔记，历史对话保存在本机。
-• 模板：配置保存位置、属性、正文和可选 AI 提示，按网页规则选择模板。
-• 快捷操作：默认连按三次 A 阅读、E 编辑、Q 剪藏，可更改、关闭或按网站禁用；在输入框内打字不触发。
-• 视频学习：YouTube、B 站及 TED 官方字幕，字幕搜索、点击时间戳跳转、随播放滚动；原文、译文或双语复制、下载与剪藏。
-• 沉浸学习页：视频与字幕同屏、剧场模式、悬浮与画中画，结合 AI 问答和学习日记。
-• 生成字幕：可选本机或用户配置的云端语音服务；支持媒体链接及本地音视频文件，需安装本地助手。网站兼容性取决于平台和登录状态。
-• 媒体保存：在支持的学习页下载当前完整音视频文件，首次点击申请下载权限；不支持 YouTube 媒体文件下载、DRM 解密或分段流合并。仅保存你有权下载的内容。
-• 快捷笔记：连按三次 I 打开笔记卡片，可附选区、来源及文件，保存到 Obsidian 日记。
-• AI 设置：服务商卡片、搜索和多模型选择，新增可选账号登录入口。
-• 可选公开分享：勾选“分享到乔木 RSS”后，剪藏会公开提交链接、标题、正文和封面。
+乔木剪藏把阅读、学习和创作放进同一个浏览器工作流：留下值得记住的内容，问清没看懂的地方，再写成自己的笔记或文章。
 
-使用前请了解：
-1. 保存到 Obsidian 需要你安装 Obsidian；也可只复制/下载 Markdown。
-2. 不打开 Obsidian 的静默保存需要另装本地 Native Messaging 助手，支持 macOS/Linux Chrome；Windows 已有安装支持，尚待真机验证。商店安装不会自动安装该助手。
-3. AI 功能需要你自行配置服务商、模型及凭证，费用按服务商规则计算。文章内容、提示词和对话会发送给你选择的服务商。
-4. “分享到乔木 RSS”默认不勾选。开启后内容会公开发布，请在剪藏私人页面前确认；阅读和编辑本身不会提交 RSS。
-5. 本项目基于 Obsidian Web Clipper 独立开发，保留 MIT 许可；不是 Obsidian 官方扩展，也不代表 Obsidian 官方。
+不用先配置 AI。安装后，就能开始阅读、剪藏和编辑。
+
+看懂一页，留下重点
+去掉页面干扰，调整字体、行距与配色；划线标记，保留来源，把网页和选中文字整理成干净的 Markdown。代码缩进、表格与公式有各自的呈现方式。可以保存到 Obsidian，也可以直接复制或下载文件。
+
+让长视频成为可以翻阅的文字
+在支持的视频和播客页面，把播放器与文字稿放在一起。搜索一句话，点击时间戳回到那一刻；原文、译文、双语按需切换。调整字幕位置、样式和播放速度，边看边记。字幕可导出为 Markdown、SRT、VTT 或 TXT；没有可用字幕时，可选择本机或自己配置的云端语音服务生成。
+
+问题，就在原网页旁边问
+打开 AI 侧栏，针对当前页面或选中的一段话追问。支持图片输入的模型还可以看正文图片、指定单图和长图分段。对话按页面保存；配置搜索服务后，可以开启联网搜索并查看来源。模型选择、最近使用和可用的思考强度集中在同一处。
+
+从一份素材，开始一篇文章
+在阅读或学习页选择“写文章”，带入来源内容；视频素材可带入视频、简介与已取得的字幕。所见即所得的 Markdown 编辑器支持大纲、表格、代码、公式、流程图和图片。让 AI 帮你梳理结构、润色选段、续写或起标题，检查后再将结果放进正文。文章自动保存在本机，可导入、导出和继续编辑。
+
+找图、生成、收好，再用进文章
+连接图片服务后，在对话里描述需要的配图，或搜索现成图片。生图任务在后台继续，关闭侧栏后可返回查看结果。图库集中管理生成图片、上传图片、授权的本地图片文件夹与 Unsplash 搜索结果；预览、下载、插入文章各自独立。
+
+把成果带走
+笔记保存到 Obsidian，文章导出为 Markdown 或带图片的 ZIP。需要分发时，可将文章送到 X 文章草稿；搭配乔木 Publish，可交接到支持的平台编辑器，由你检查后手动发布。可选的乔木 RSS 公开分享默认关闭。
+
+顺手的小功能，也已经准备好
+• 连按三次 A 阅读、E 编辑、Q 剪藏、I 记笔记、U 写文章；按键可调整或按网站关闭。
+• 模板管理保存目录、属性和正文格式。
+• 阅读、学习与写作使用统一的操作入口。
+• 完整界面翻译覆盖简体中文、繁体中文、英语、日语、韩语、西班牙语、法语、德语与巴西葡萄牙语。
+
+使用与数据说明
+• 扩展免费。AI 问答、翻译、生图和联网搜索需连接你自己的服务或受支持账号，可能产生服务商费用；扩展不包含免费模型额度。
+• AI 请求会将所需的文章、选区、图片、问题或对话上下文发送给你选择的服务；联网搜索和图片搜索会向相应服务发送查询，读取来源页会请求该网站。
+• 文章与图库保存在本机浏览器，不会自动上传到乔木服务器。部分设置和模板可随浏览器同步。卸载或清除扩展数据前，请导出需要保留的内容。
+• 保存到 Obsidian 需安装 Obsidian。静默保存、部分字幕生成及本机 Codex 生图需另装本地助手；本机 Codex 还需已登录的 Codex CLI。商店安装不会自动安装它们。只有选择云端语音服务时，相关音频才发送给该服务。
+• 视频字幕、媒体读取和平台草稿功能取决于网站、登录状态、账号权限及地区；不能保证每个网页都可用。商店版不提供 YouTube 媒体文件下载。
+• 乔木 RSS 分享默认关闭；开启并提交后，所选链接、标题、正文和封面会公开。发到平台的内容由该平台处理，最终发布由你操作。
+• 本项目基于 Obsidian Web Clipper 独立开发，保留 MIT 许可，不是 Obsidian 官方扩展。
 
 支持与反馈：https://github.com/joeseesun/qiaomu-clipper/issues
 隐私政策：https://joeseesun.github.io/qiaomu-clipper/privacy.html
 
 ## English store listing
 
-Short description:
-Clip web pages to Obsidian, read and edit Markdown, ask your own AI models, and optionally share clips to Qiaomu RSS.
+Name
+乔木剪藏 · Obsidian + RSS
 
-Detailed description:
+Short description
+Turn what you read and watch into notes and articles. Clip pages, study captions, ask AI, write Markdown and add images.
 
-Turn web pages or selected passages into Obsidian Markdown notes. Preview the article, edit its title, properties and Markdown, or copy/download the draft before saving.
+Detailed description
+Read something worth keeping? Watch something worth learning?
 
-Features:
-• Compact clipping panel with read, edit, copy, download and save actions.
-• Clean reading mode with adjustable fonts/themes and highlights.
-• Full-page Markdown and property editor, with a shared read/edit toolbar.
-• Article AI chat: ask about the whole article or a selected passage, stream answers, copy them or add them to your note. Conversation history stays in local browser storage.
-• Templates for folders, properties, Markdown and optional AI prompts.
-• Configurable triple-press shortcuts: A to read, E to edit, Q to clip. Disable them per action or per website. Typing in editable fields does not trigger them.
-• Video study with YouTube, Bilibili and TED captions: search, click timestamps to seek, follow playback and copy/download/clip original or bilingual transcripts.
-• An immersive player and transcript workspace with theater, floating and picture-in-picture modes, AI chat and learning notes.
-• Generate subtitles with an on-device engine or your chosen cloud speech service using the separately installed helper. Accepts supported media links and local audio/video files; site availability depends on the platform and login state.
-• Save complete media files from supported study pages with an optional download permission requested on click. YouTube media-file downloads, DRM decryption and segmented-stream merging are not supported. Only download content you have permission to save.
-• Triple-press I to take a quick note with optional excerpts, sources and file attachments in an Obsidian daily note.
-• Searchable provider cards, multiple model selection and optional account sign-in entries.
-• Optional public sharing to Qiaomu RSS.
+Qiaomu Clipper connects reading, video study and writing in your browser. Keep the useful parts, ask about what you don't understand, and turn your source material into notes or an article of your own.
 
-Requirements and privacy:
-Obsidian must be installed for the Obsidian save workflow; Markdown copy/download works without it. Silent saving requires a separately installed Native Messaging helper for macOS/Linux Chrome, with Windows installation support covered by tests and awaiting device validation. The helper is not bundled with the store installation.
-AI features require your own provider/model and credentials. Content, prompts and conversation context are sent to your configured provider, whose fees and terms apply.
-Share to Qiaomu RSS is off by default. Clipping with it enabled publicly submits the URL, title, Markdown and optional cover image. Keep it off for private content. Reading/editing alone does not submit RSS content.
-This is an independent project based on Obsidian Web Clipper under MIT, not an official Obsidian extension.
+Start reading, clipping and editing without configuring AI.
+
+READ WITH FOCUS
+Open a clean reading view, adjust typography and colors, and highlight passages. Keep the source link and turn pages or selections into Markdown. Save to Obsidian, or simply copy and download your notes.
+
+READ YOUR VIDEOS, TOO
+On supported video and podcast pages, keep the player and transcript together. Search a phrase and jump to its timestamp. Switch between original, translated and bilingual text, adjust captions, and take learning notes. Export transcripts as Markdown, SRT, VTT or TXT. When captions are unavailable, choose an on-device engine or your configured cloud speech service.
+
+ASK QUESTIONS BESIDE THE PAGE
+Open an AI sidebar for the current page or a selected passage. Models that accept images can also answer questions about article images, selected images and sections of a long image. Conversations are saved by page. Connect a search service to search the web and inspect sources. A shared model picker keeps recent models and supported reasoning settings within reach.
+
+TURN SOURCE MATERIAL INTO YOUR NEXT DRAFT
+Choose Write article from a reading or study page. Bring in the source, including a video, its description and available transcript. The visual Markdown editor supports outlines, tables, code, formulas, diagrams and images. Ask AI to develop a structure, edit a passage, continue a draft or suggest a title. Review changes before adding them to the document. Articles autosave locally and can be imported or exported.
+
+FIND AN IMAGE. MAKE AN IMAGE. KEEP IT HANDY.
+Connect an image service, describe an illustration in chat, or search for an existing photo. Image jobs can continue after the sidebar closes. Your image library brings together generated images, uploads, authorized local folders and Unsplash search. Preview, download and insert images as separate actions.
+
+TAKE YOUR WORK WITH YOU
+Save notes to Obsidian and export articles as Markdown or ZIP files with images. Send an article to an X Article draft, or use the Qiaomu Publish integration to hand content to supported platform editors. Review and publish it yourself. Optional public sharing to Qiaomu RSS is off by default.
+
+SMALL DETAILS THAT MAKE IT EASIER
+• Configurable triple-press shortcuts for reading, editing, clipping, quick notes and writing, with per-site controls.
+• Templates for note folders, properties and content.
+• Shared reading and study actions.
+• Complete interface translations in Simplified Chinese, Traditional Chinese, English, Japanese, Korean, Spanish, French, German and Brazilian Portuguese.
+
+REQUIREMENTS AND DATA
+The extension is free. AI chat, translation, image generation and web search require your own service or supported account; provider charges may apply. No free model credits are included.
+
+AI requests send the required content, selections, images, questions and conversation context to the provider you choose. Web and image search send queries to the selected service; opening source content requests that website.
+
+Articles and library images stay in local browser storage and are not automatically uploaded to Qiaomu servers. Some settings and templates can sync through the browser. Export important content before uninstalling or clearing extension data.
+
+Obsidian must be installed for Obsidian saving. Silent saving, some subtitle workflows and local Codex image generation need a separately installed helper. Local Codex also needs a signed-in Codex CLI. These are not installed with the store extension. Audio is sent to a cloud speech service only when you select that service.
+
+Caption access, media access and platform drafts depend on the website, sign-in state, account access and region. Not every page is supported. The store edition does not download YouTube media files.
+
+Qiaomu RSS sharing is off by default. Enabling it and submitting a clip makes the selected URL, title, text and cover public. Content sent to a publishing platform is handled by that platform; final publication remains your action.
+
+This independent MIT-licensed project is based on Obsidian Web Clipper. It is not an official Obsidian extension.
 
 Support: https://github.com/joeseesun/qiaomu-clipper/issues
 Privacy: https://joeseesun.github.io/qiaomu-clipper/privacy.html
@@ -82,13 +126,15 @@ Privacy: https://joeseesun.github.io/qiaomu-clipper/privacy.html
 ## Privacy practices — copy-ready English fields
 
 Single purpose:
-Help users turn web articles and audio/video transcripts into Obsidian Markdown learning notes: extract or generate content, read/edit/study it, optionally ask their chosen AI provider, then save locally or explicitly share a clip to a public RSS feed.
+Help users turn web reading and audio/video transcripts into reusable notes and articles: read, study, ask their selected AI services, draft and illustrate the result, then save or explicitly hand off the finished content. Clipping, captions, AI chat, writing and the image library support this one content-to-notes-and-articles workflow.
 
 | Permission | Justification |
 |---|---|
 | downloads (optional) | Requested only on a Download click to save a supported study-page media file to the local Downloads folder, monitor that download and reveal its file. Does not inspect unrelated download history. YouTube media-file downloads are blocked. |
 | activeTab | Identify and access the page the user chooses to clip via the toolbar, context menu or shortcut. |
 | scripting | Inject the bundled extraction, highlighting, reading and clipping scripts into the selected page. No remotely hosted code is injected. |
+| offscreen | Keep user-requested image generation, Blob decoding and local image storage running when a popup or sidebar closes. The bundled offscreen document uses runtime messaging; it does not execute remote code or track browsing. |
+| unlimitedStorage | Preserve local articles, transcript caches and image-library data without the small default extension-storage quota. This permission does not upload content or provide access to unrelated files. |
 | storage | Store templates, settings, local chat history, clip drafts, pending retries and the anonymous RSS client ID. Some preferences/templates use Chrome sync storage. |
 | clipboardWrite | Copy Markdown/property values at the user's request and support the Obsidian URI fallback save workflow. |
 | nativeMessaging | Communicate with the optional, separately installed local helper to choose a vault/folder and save Markdown/attachments and learning notes inside that vault, and perform user-requested media download and subtitle generation with the selected local/cloud engine. No helper is installed automatically. |
@@ -115,13 +161,13 @@ Certification statements, after publisher review: no sale of user data; no use/t
 
 ## Reviewer test instructions (English)
 
-Optional account sign-in is not required to test clipping or AI with an API-key provider; ChatGPT/Codex/TokenDance account flows have not been verified with real accounts.
+Optional account sign-in is not required to test clipping or AI with an API-key provider. Local Codex image generation was verified with a signed-in Codex CLI and helper 1.16.9; other account-based image providers have not all been verified with real accounts.
 No Qiaomu account is needed for basic clipping, reading, editing, copy or download. No AI account or helper is required to verify the basic workflow.
 1. Install the uploaded package and open a public article, e.g. https://developer.chrome.com/docs/webstore/publish .
 2. Click the extension toolbar icon. Turn OFF Share to Qiaomu RSS for tests that should stay local.
 3. Use Read to view the current draft, and Edit to modify its title/properties/Markdown. Switch back and verify the edits persist. Copy or download Markdown and confirm the draft contents.
 4. With Obsidian installed and a local vault open, configure/select a vault and relative folder, then click Clip to Obsidian. Without the helper, the standard Obsidian URI workflow opens Obsidian. Chrome may ask to open the external application.
-5. Optional helper test: follow native/README.md in the public repository. Install the helper with YOUR installed extension ID, not the developer's unpacked ID, then choose a vault/folder in Settings and save. macOS/Linux Chrome is verified; Windows installation support awaits device validation. Update the helper from the 1.14.1 source when upgrading from store version 1.7.1.
+5. Optional helper test: use helper 1.16.9 and follow native/README.md in the public repository. Install the helper with YOUR installed extension ID, not the developer's unpacked ID, then choose a vault/folder in Settings and save. The signed, notarized macOS package and isolated native-message self-test were verified; this release's system upgrade and Windows installation still require device validation.
 6. Optional AI test: use YOUR configured provider/model/API key in AI settings. Open an article's AI panel and ask a question. The package does not include credentials or free credits. Check error recovery with no model configured; choose a plain template to save without AI.
 7. Optional RSS test: choose only a public article, enable Share to Qiaomu RSS and clip. This sends the URL/title/Markdown/image to https://rss.qiaomu.ai/api/clipper/clips and publishes to https://rss.qiaomu.ai/feeds/user-submitted.xml . This is a real public side effect, so skip if your review should not publish test content.
 8. Optional triple-key test: on a public page outside an input, press A three times to read, E three times to edit. Q triggers a real save using the default template and sharing choice; disable RSS before testing it. Shortcuts can be disabled per site.
@@ -133,7 +179,7 @@ No Qiaomu account is needed for basic clipping, reading, editing, copy or downlo
 - Fill listings, privacy, reviewer instructions and distribution, then save a draft.
 - Recheck fresh installation and upgrade using the exact uploaded ZIP; runtime screenshots must show that build and no credentials/private article.
 - Confirm the RSS disclosure is clear before first public share. RSS is off by default; confirm it stays off for private tests.
-- Only mark “submitted” when the dashboard confirms review submission. README stays “not yet available” until the public listing is visible.
+- Only mark “submitted” when the dashboard confirms review submission. A public listing already exists; verify its displayed version independently of the pending package.
 
 References checked 2026-10-02:
 - https://developer.chrome.com/docs/webstore/publish
@@ -242,3 +288,28 @@ When the user enables browser-login support and approves the optional permission
 - `downloads` 是可选权限，拒绝后不发起媒体下载。原有 cookies 可选权限、站点访问和 Native Messaging 功能保留。
 - 审核演示使用自有或明确允许下载的媒体。下载完成以浏览器文件状态为准；原有图片问答和小红书提取包含在本版。
 - 当前文件只是提交材料，不代表已提交或审核通过；实际提交结果单独记录。
+
+
+## 1.18.6 提审材料（2026-10-16，尚未提交）
+
+- 上传 `qiaomu-clipper-1.18.6-chrome-store.zip`，独立版包不得上传商店。商店构建剔除 `allowYoutube`；前端、后台及助手默认策略均拒绝 YouTube 文件下载。
+- downloads 为可选权限：用户点击下载后才请求，用于保存允许下载的非 YouTube 媒体并显示进度。分轨媒体或回放可由用户另装的本机助手下载合并，不解密 DRM。
+- cookies 为可选权限：用户开启登录支持并授权后，仅将当前媒体站点的登录信息交给本机助手向原站验证；临时文件在成功、失败、取消后删除，不发送给 AI、RSS 或开发者。
+- unlimitedStorage：保留用户本机的字幕、草稿和学习内容，避免小额度导致保存失败；缓存仍有数量和容量上限，不用于上传或追踪。
+- 视频号学习把当前分享链接交给用户登录的腾讯元宝解析，仅读取返回的官方播放页；需登录时由用户完成。隐私页已补充此处理。
+- 以上为本版本材料；旧版“商店无媒体导出”及“不合并分轨”的记录仅描述历史版本。
+
+Reviewer instructions (under 500 characters):
+1.18.6: Clip/read/edit/export a public article without login; RSS is off by default. Study pages offer original/bilingual captions. Optional subtitle generation needs the separately installed helper and your model/service. Optional downloads save non-YouTube media; the helper can merge split streams. YouTube file download is absent in this store build. Cookies are optional, passed only to the local helper and deleted after use. Channels links use your Tencent Yuanbao login. No DRM decryption.
+
+## 1.18.7 提审材料（2026-10-17）
+
+新包包含小宇宙紧凑吸顶播放条、写长文编辑器及助手、Obsidian 发布桥和取消/图片完整性修复。使用 chrome-store.zip；商店版继续排除 YouTube 文件下载。现有 cookies/downloads 仍为可选权限，无新增权限。
+
+写长文与发布桥的数据处理详见公开隐私页。Website content 包含写作文章、附图与选定发布目标；仅用户主动操作才交给选定 AI 服务或已登录的 X/知乎/小红书平台，不自动点击最终发布。
+
+审核说明（500 字符内）：
+
+1.18.7: Clip/read/edit/export public articles without login. Open Write long articles to create/save/export locally; AI uses your provider. Optional Qiaomu Publish handoff sends selected content via localhost to signed-in X/Zhihu/Xiaohongshu draft editors; no final Publish click. Captions may use a separately installed helper/model. Downloads exclude YouTube. Cookies are optional and passed only to the local helper. Channels resolution uses your Yuanbao login. RSS is off by default. No DRM decryption.
+
+上传及提交结果以后台实际状态为准，此处不代表已经送审。

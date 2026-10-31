@@ -91,7 +91,7 @@ export interface Settings {
 	openBehavior: 'popup' | 'embedded' | 'reader';
 	defaultTemplateId?: string;
 	tripleKeyShortcuts?: boolean;
-	tripleKeys?: { read: string; edit: string; clip: string; note?: string };
+	tripleKeys?: { read: string; edit: string; clip: string; note?: string; write?: string };
 	tripleKeyBlockedSites?: string[];
 	selectionToolbar?: boolean;
 	// Open the AI chat panel by itself when the reading page opens.
@@ -103,6 +103,8 @@ export interface Settings {
 	learningIncludeQuote?: boolean;
 	learningIncludeSource?: boolean;
 	youtubeAutoTranscript?: boolean;
+	// Format the transcript bar's download icon saves in one click; 'ask' opens a menu of formats.
+	captionDownloadFormat?: 'ask' | 'md' | 'srt' | 'vtt' | 'txt';
 	youtubeHideNativeTranscript?: boolean;
 	highlighterEnabled: boolean;
 	alwaysShowHighlights: boolean;

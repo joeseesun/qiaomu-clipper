@@ -1,10 +1,11 @@
-import { mountTranscriptRegenerate } from './transcript-heading';
+import { mountTranscriptRegenerate, transcriptHeadingTools } from './transcript-heading';
 import { startStudyMedia, type StudyPlayback } from './study-playback-handoff';
 import { marked } from 'marked';
 import { patchClipPreview } from './clip-preview';
 import { bindRemotePreviewMedia, preserveRemotePreviewMedia, restoreRemotePreviewPlayback } from './remote-preview-media';
 import { mountStudyCaptionLanguage } from './study-caption-language';
 import { isProtectedStudy, probeProtectedStudy } from './protected-study';
+import { channelsPlaybackPage } from './channels-study';
 import { readTedMedia } from './ted-media';
 import { probeDouyinPage, probeWebStudy, probeXiaoeLive, type XiaoeAnswer } from './web-study-probe';
 import DOMPurify from 'dompurify';
@@ -78,6 +79,10 @@ const STYLE = `
 html .qiaomu-web-retry:has(.qiaomu-web-retry-actions){display:flex;flex-direction:column;align-items:flex-start;gap:6px;margin:8px 0 16px;padding:18px 20px;border-radius:16px;background:linear-gradient(var(--background-secondary,rgba(127,127,127,.1)),var(--background-secondary,rgba(127,127,127,.1))),var(--background-primary,#fff);box-shadow:0 0 0 1px var(--background-modifier-border,rgba(127,127,127,.16))}
 html .qiaomu-web-retry b{font-size:16px;font-weight:600;line-height:24px;color:var(--text-normal,#222)}
 html .qiaomu-web-retry p{margin:0;color:var(--text-muted,#666);font-size:14px;line-height:22px}
+html .qiaomu-web-steps{display:flex;flex-direction:column;gap:2px;margin:2px 0 4px;padding:0;list-style:none;counter-reset:qw-step;color:var(--text-muted,#666);font-size:14px;line-height:22px}
+html .qiaomu-web-steps li{counter-increment:qw-step}
+html .qiaomu-web-steps li::before{content:counter(qw-step) '. '}
+html .qiaomu-web-steps li[aria-current=step]{color:var(--text-normal,#222);font-weight:600}
 html .qiaomu-web-retry-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
 html .qiaomu-web-retry-actions button.qw-primary,html .qiaomu-web-retry-actions :is(a,button).qw-secondary{display:inline-flex;align-items:center;justify-content:center;width:auto;min-height:36px;padding:0 16px;border:0;border-radius:10px;font-size:14px;font-weight:600;line-height:1;text-decoration:none;cursor:pointer;box-shadow:none}
 html .qiaomu-web-retry-actions button.qw-primary{background:var(--text-normal,#111);color:var(--background-primary,#fff)}
@@ -90,17 +95,17 @@ html .qiaomu-web-retry-actions :is(button,a):focus-visible{outline:2px solid var
 html .qiaomu-web-retry select{appearance:none;width:auto;max-width:100%;padding:8px 12px;border:1px solid var(--background-modifier-border,#bbb);border-radius:8px;background:var(--background-primary,#fff);color:var(--text-normal,#222);margin:0 8px 8px 0}
 html .qiaomu-web-retry select:focus-visible{outline:2px solid var(--text-accent,#666);outline-offset:2px}
 
-html.qiaomu-audio-page article{--qa-top:72px}
+html.qiaomu-audio-page article{--qa-top:calc(var(--clip-bar-measured-height,56px) + 10px)}
 .qiaomu-audio-hero{display:flex;gap:16px;align-items:center;margin:0 0 20px}
 .qiaomu-audio-hero img{flex:none;width:84px;height:84px;border-radius:18px;object-fit:cover;background:var(--background-secondary,rgba(127,127,127,.15));box-shadow:0 0 0 1px rgba(127,127,127,.18)}
 .qiaomu-audio-hero div{display:flex;flex-direction:column;gap:3px;min-width:0}
 .qiaomu-audio-hero b{font-size:16px;font-weight:600;line-height:24px}
 .qiaomu-audio-hero span{color:var(--text-muted,#666);font-size:13.5px;line-height:20px}
 /* The player is one card: the controls, and under them the switches the transcript brings (follow playback, translate). */
-html.qiaomu-audio-page article > .reader-video-wrapper.is-audio,html.qiaomu-audio-page .player-container{margin:0 0 6px;padding:20px 22px 16px;border-radius:20px;background:linear-gradient(var(--background-secondary,rgba(127,127,127,.12)),var(--background-secondary,rgba(127,127,127,.12))),var(--background-primary,#fff);box-shadow:0 0 0 1px var(--background-modifier-border,rgba(127,127,127,.14))}
+html.qiaomu-audio-page article > .reader-video-wrapper.is-audio,html.qiaomu-audio-page .player-container{margin:0 0 6px;padding:12px;border-radius:10px;container-type:inline-size;background:linear-gradient(var(--background-secondary,rgba(127,127,127,.12)),var(--background-secondary,rgba(127,127,127,.12))),var(--background-primary,#fff);box-shadow:0 0 0 1px var(--background-modifier-border,rgba(127,127,127,.14))}
 /* Stuck to the top while the text scrolls: solid (the tint alone is see-through), and a strip of page colour above it so no line shows between it and the bar. */
 html.qiaomu-audio-page .player-container{box-shadow:0 0 0 1px var(--background-modifier-border,rgba(127,127,127,.14)),0 -14px 0 0 var(--background-primary,#fff)}
-html.qiaomu-audio-page .player-container{position:sticky;top:var(--qa-top);z-index:20;border-top:0}
+html.qiaomu-audio-page .player-container{position:sticky;top:var(--qa-top);z-index:26;border-top:0}
 html.qiaomu-audio-page .player-container .reader-video-wrapper.is-audio{padding:0;background:none;box-shadow:none;border-radius:0;margin:0}
 html.qiaomu-audio-page .reader-video-wrapper.is-audio{aspect-ratio:auto;height:auto;overflow:visible}
 html.qiaomu-audio-page .reader-video-wrapper.is-audio:not(.has-picture) video{display:none!important}
@@ -108,20 +113,20 @@ html.qiaomu-audio-page .reader-video-wrapper.has-picture video.reader-video-play
 .qiaomu-post-text{margin:0 0 20px;font-size:16px;line-height:1.7}.qiaomu-post-text p{margin:0 0 10px}.qiaomu-post-text a{overflow-wrap:anywhere}
 html.qiaomu-audio-page .player-container .player-toggles{background:transparent}
 html.qiaomu-audio-page .player-container .player-toggles[hidden]{display:none}
-html.qiaomu-audio-page .qa-tools .player-toggle-group{display:flex;align-items:center;gap:6px 18px;margin-inline-start:14px;background:transparent}
-html.qiaomu-audio-page .qa-tools .player-toggle{background:transparent;font-size:13px;color:var(--text-muted,#6e6e73)}
+html.qiaomu-audio-page .transcript-heading-tools .player-toggle-group{display:flex;align-items:center;gap:6px 12px;background:transparent}
+html.qiaomu-audio-page .transcript-heading-tools .player-toggle{background:transparent;font-size:13px;color:var(--text-muted,#6e6e73)}
 /* The reader multiplies every svg into its theme; on the dark play button that turns the white icon invisible. */
 html.qiaomu-audio-page .qa-player svg{mix-blend-mode:normal!important;filter:none!important}
 html.qiaomu-audio-page .player-container .youtube-mode-bar,html.qiaomu-audio-page .player-container .youtube-player-resize{display:none}
 html.qiaomu-audio-page .transcript>h2{display:none}
-html.qiaomu-audio-page .qa-player{display:flex;flex-direction:column;gap:18px}
-html.qiaomu-audio-page .qa-main{display:flex;align-items:center;gap:16px}
-html.qiaomu-audio-page .qa-player .qa-play{flex:none;width:48px;height:48px;padding:0;border:0;border-radius:50%;background:var(--text-normal,#1d1d1f);color:var(--background-primary,#fff);box-shadow:none;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .12s,opacity .12s}
+html.qiaomu-audio-page .qa-player{display:block}
+html.qiaomu-audio-page .qa-main{display:flex;align-items:center;gap:10px}
+html.qiaomu-audio-page .qa-player .qa-play{flex:none;width:36px;height:36px;padding:0;border:0;border-radius:50%;background:var(--text-normal,#1d1d1f);color:var(--background-primary,#fff);box-shadow:none;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .12s,opacity .12s}
 html.qiaomu-audio-page .qa-player .qa-play:hover{opacity:.88;transform:scale(1.04);background:var(--text-normal,#1d1d1f);box-shadow:none}
 html.qiaomu-audio-page .qa-player .qa-play svg{width:20px;height:20px}
 html.qiaomu-audio-page .qa-player .qa-play[data-state=false] svg{margin-inline-start:2px}
-html.qiaomu-audio-page .qa-line{flex:1;min-width:0;display:flex;align-items:center;gap:12px}
-html.qiaomu-audio-page .qa-time{flex:none;min-width:44px;color:var(--text-muted,#6e6e73);font-size:12.5px;font-variant-numeric:tabular-nums}
+html.qiaomu-audio-page .qa-line{flex:1;min-width:80px;display:flex;align-items:center;gap:10px}
+html.qiaomu-audio-page .qa-time{flex:none;min-width:34px;color:var(--text-muted,#6e6e73);font-size:12px;font-variant-numeric:tabular-nums}
 html.qiaomu-audio-page .qa-total{text-align:end}
 html.qiaomu-audio-page .qa-seek{--p:0%;flex:1;min-width:0;height:20px;margin:0;padding:0;background:transparent;-webkit-appearance:none;appearance:none;cursor:pointer;box-shadow:none}
 html.qiaomu-audio-page .qa-seek::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:linear-gradient(to right,var(--text-normal,#1d1d1f) var(--p),var(--background-modifier-border,rgba(127,127,127,.3)) var(--p))}
@@ -131,15 +136,13 @@ html.qiaomu-audio-page .qa-seek::-moz-range-track{height:4px;border-radius:2px;b
 html.qiaomu-audio-page .qa-seek::-moz-range-progress{height:4px;border-radius:2px;background:var(--text-normal,#1d1d1f)}
 html.qiaomu-audio-page .qa-seek::-moz-range-thumb{width:14px;height:14px;border:0;border-radius:50%;background:var(--text-normal,#1d1d1f)}
 html.qiaomu-audio-page .qa-seek:focus-visible{outline:2px solid var(--text-normal,#1d1d1f);outline-offset:4px;border-radius:4px}
-html.qiaomu-audio-page .qa-tools{display:flex;flex-wrap:wrap;align-items:center;gap:4px;padding-inline-start:64px}
-html.qiaomu-audio-page .qa-player .qa-skip{flex:none;width:38px;height:38px;padding:0;border:0;border-radius:50%;background:transparent;box-shadow:none;color:var(--text-muted,#6e6e73);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:background .12s,color .12s}
+html.qiaomu-audio-page .qa-player .qa-skip{flex:none;width:36px;height:36px;padding:0;border:0;border-radius:50%;background:transparent;box-shadow:none;color:var(--text-muted,#6e6e73);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:background .12s,color .12s}
 html.qiaomu-audio-page .qa-player .qa-skip:hover{background:var(--background-modifier-hover,rgba(127,127,127,.16));color:var(--text-normal,#1d1d1f);box-shadow:none}
 html.qiaomu-audio-page .qa-player .qa-skip svg{width:26px;height:26px}
-html.qiaomu-audio-page .qa-speed{display:inline-flex;align-items:center;gap:2px;margin-inline-start:auto;padding:3px;border-radius:17px;background:var(--background-modifier-hover,rgba(127,127,127,.16))}
-html.qiaomu-audio-page .qa-player .qa-rate{width:auto;min-width:0;height:28px;padding:0 10px;border:0;border-radius:14px;background:transparent;box-shadow:none;color:var(--text-muted,#6e6e73);font:inherit;font-size:13px;font-variant-numeric:tabular-nums;cursor:pointer}
-html.qiaomu-audio-page .qa-player .qa-rate:hover{background:var(--background-modifier-border,rgba(127,127,127,.2));color:var(--text-normal,#1d1d1f);box-shadow:none}
-html.qiaomu-audio-page .qa-player .qa-rate[aria-checked=true]{background:var(--background-primary,#fff);color:var(--text-normal,#1d1d1f);font-weight:650;box-shadow:0 1px 2px rgba(0,0,0,.12)}
-html.qiaomu-audio-page .qa-player .qa-rate:focus-visible{outline:1px solid var(--text-muted,#6e6e73);outline-offset:2px}
+html.qiaomu-audio-page .qa-player select.qa-rate{appearance:none;-webkit-appearance:none;flex:none;width:52px;min-width:0;height:36px;margin:0;padding:0 6px;border:0;border-radius:6px;background:transparent;box-shadow:none;color:var(--text-normal,#222);font:inherit;font-size:13px;text-align:center;cursor:pointer}
+html.qiaomu-audio-page .qa-player select.qa-rate:hover{background:var(--background-modifier-hover,rgba(127,127,127,.16));box-shadow:none}
+html.qiaomu-audio-page .qa-player select.qa-rate:focus-visible{outline:1px solid var(--text-muted,#777);outline-offset:2px}
+@container (max-width:420px){html.qiaomu-audio-page .qa-main{flex-wrap:wrap;gap:6px 10px}html.qiaomu-audio-page .qa-line{order:1;flex-basis:100%}html.qiaomu-audio-page .qa-player select.qa-rate{margin-inline-start:auto}}
 .qiaomu-audio-tabs{display:flex;gap:22px;margin:22px 0 14px;border-bottom:1px solid var(--background-modifier-border,rgba(127,127,127,.25))}
 .qiaomu-audio-tab{width:auto;height:auto;margin:0 0 -1px;padding:9px 0;border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;box-shadow:none;color:var(--text-muted,#666);font:inherit;font-size:14.5px;font-weight:500;cursor:pointer}
 html.qiaomu-audio-page .qiaomu-audio-tab:hover{background:transparent;box-shadow:none;color:var(--text-normal,#222)}
@@ -150,7 +153,7 @@ html.qiaomu-audio-page .qiaomu-audio-tab[aria-selected=true]{border-bottom-color
 .qiaomu-shownotes blockquote{margin:14px 0}
 article[data-audio-tab=notes] .transcript,article[data-audio-tab=notes] .qiaomu-audio-study .qiaomu-yt-gen,article[data-audio-tab=notes] .youtube-study-feedback,article[data-audio-tab=notes] .qiaomu-audio-status{display:none}
 article[data-audio-tab=transcript] .qiaomu-shownotes{display:none}
-@media (max-width:560px){html.qiaomu-audio-page .qa-tools{padding-inline-start:0}.qiaomu-audio-hero img{width:64px;height:64px}}
+@media (max-width:560px){.qiaomu-audio-hero img{width:64px;height:64px}}
 `;
 
 export async function startAudioStudy(options: AudioStudyOptions): Promise<void> {
@@ -170,8 +173,7 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 	await Reader.apply(document);
 	const article = document.querySelector('article')!;
 	article.dataset.audioStudy = 'true'; document.documentElement.classList.add('qiaomu-audio-page');
-	// The player card sticks just under the reader's top bar, whatever its height.
-	const place = () => article.style.setProperty('--qa-top', `${Math.max(56, document.querySelector('.clip-bar')?.getBoundingClientRect().height || 0) + 10}px`); place(); window.addEventListener('resize', place);
+	// Reuse the bar's measured CSS height, including wrapping after the chat panel changes width.
 	const shell = mountReaderPreviewShell(session.draft, true);
 	if (!document.getElementById('qiaomu-gen-style')) { const style = document.createElement('style'); style.id = 'qiaomu-gen-style'; style.textContent = GENERATION_STYLE; document.head.append(style); }
 	const cache = createTranscriptCache(browser.storage.local as Parameters<typeof createTranscriptCache>[0]);
@@ -218,9 +220,9 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 		attached = true; status.textContent = '';
 		await Reader.attachYouTubeTranscript(document, transcript, title, shell.chat);
 		mountRegenerate(transcript);
-		// The reader puts its switches (follow playback, translate) in a bar of their own under the player; here they belong in the one row of controls.
-		const group = article.querySelector<HTMLElement>('.player-container .player-toggle-group'), tools = article.querySelector<HTMLElement>('.player-container .qa-tools');
-		if (article.dataset.audioStudy === 'true' && group && tools) { tools.insertBefore(group, tools.querySelector('.qa-speed')); article.querySelector('.player-container .player-toggles')?.setAttribute('hidden', ''); }
+		// Transcript follow belongs with the manuscript tools; keep transport compact without removing any control.
+		const group = article.querySelector<HTMLElement>('.player-container .player-toggle-group');
+		if (article.dataset.audioStudy === 'true' && group) { transcriptHeadingTools(transcript).prepend(group); article.querySelector('.player-container .player-toggles')?.setAttribute('hidden', ''); }
 		await session.populate({ content: sourceHtml + transcriptHtml(lines, !lines.some(s => s.start !== undefined)), title }).catch(() => {});
 		shell.refresh(); shell.setPending(false);
 	};
@@ -254,7 +256,7 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 	const panel = buildGenerationPanel(document, generationStrings(text), generation.actions);
 	const mountRegenerate = (transcript: Element) => mountTranscriptRegenerate(transcript, panel.element, t('换模型生成字幕'), () => { if (!generation.active) generation.actions.regenerate?.(); });
 	holder.append(panel.element); if (session.restored) panel.element.hidden = true;
-	window.addEventListener('pagehide', () => { generation.reset(); window.removeEventListener('resize', place); }, { once: true });
+	window.addEventListener('pagehide', () => { generation.reset(); }, { once: true });
 	// With a key, use what was made before, else ask to make it now.
 	const begin = async () => {
 		const made = await cache.read(`generated:${key}`);
@@ -317,6 +319,8 @@ export async function startAudioStudy(options: AudioStudyOptions): Promise<void>
 				if ('info' in found) { address = found.address; return { info: found.info, cookies: undefined }; }
 				return { info: { ok: false as const, error: 'xiaoe-' + found.error, message: found.message }, cookies: undefined };
 			})()
+			// The official playback page the viewer has open already holds its own media: no Yuanbao step.
+			: channelsPlaybackPage(address) ? { ...await probeDouyinPage(address, status, holder, source, 2, '视频号'), cookies: undefined }
 			: isProtectedStudy(address) ? await probeProtectedStudy(address, status, holder)
 			: await probeWebStudy(address, status, holder);
 		if (!info.ok && info.error.startsWith('xiaoe-')) {

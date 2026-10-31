@@ -1,0 +1,22 @@
+install (ubuntu-latest)	Run python -m unittest discover -s native -p 'test_*.py'	2026-10-20T17:11:18.0221245Z FAIL: test_plan_reads_only_and_counts_what_would_go (test_uninstall.UninstallTests.test_plan_reads_only_and_counts_what_would_go)
+install (ubuntu-latest)	Run python -m unittest discover -s native -p 'test_*.py'	2026-10-20T17:11:18.0222264Z ----------------------------------------------------------------------
+install (ubuntu-latest)	Run python -m unittest discover -s native -p 'test_*.py'	2026-10-20T17:11:18.0222644Z Traceback (most recent call last):
+install (ubuntu-latest)	Run python -m unittest discover -s native -p 'test_*.py'	2026-10-20T17:11:18.0228879Z   File "/home/runner/work/qiaomu-clipper/qiaomu-clipper/native/test_uninstall.py", line 32, in test_plan_reads_only_and_counts_what_would_go
+install (ubuntu-latest)	Run python -m unittest discover -s native -p 'test_*.py'	2026-10-20T17:11:18.0229771Z     self.assertEqual(sorted(plan['registrations']), sorted(map(str, self.ours)))
+install (ubuntu-latest)	Run python -m unittest discover -s native -p 'test_*.py'	2026-10-20T17:11:18.0230386Z AssertionError: Lists differ: [] != ['/tmp/tmp4idck81e/home/Library/Applicatio[175 chars]son']
+install (ubuntu-latest)	Run python -m unittest discover -s native -p 'test_*.py'	2026-10-20T17:11:18.0230752Z 
+install (ubuntu-latest)	Run python -m unittest discover -s native -p 'test_*.py'	2026-10-20T17:11:18.0230875Z Second list contains 2 additional elements.
+install (ubuntu-latest)	Run python -m unittest discover -s native -p 'test_*.py'	2026-10-20T17:11:18.0231180Z First extra element 0:
+install (ubuntu-latest)	Run python -m unittest discover -s native -p 'test_*.py'	2026-10-20T17:11:18.0231679Z '/tmp/tmp4idck81e/home/Library/Application Support/Arc/User Data/NativeMessagingHosts/ai.qiaomu.clipper.json'
+install (ubuntu-latest)	Run python -m unittest discover -s native -p 'test_*.py'	2026-10-20T17:11:18.0232139Z 
+install (ubuntu-latest)	Run python -m unittest discover -s native -p 'test_*.py'	2026-10-20T17:11:18.0232224Z - []
+install (ubuntu-latest)	Run python -m unittest discover -s native -p 'test_*.py'	2026-10-20T17:11:18.0232509Z + ['/tmp/tmp4idck81e/home/Library/Application Support/Arc/User '
+install (ubuntu-latest)	Run python -m unittest discover -s native -p 'test_*.py'	2026-10-20T17:11:18.0232922Z +  'Data/NativeMessagingHosts/ai.qiaomu.clipper.json',
+install (ubuntu-latest)	Run python -m unittest discover -s native -p 'test_*.py'	2026-10-20T17:11:18.0233280Z +  '/tmp/tmp4idck81e/home/Library/Application '
+install (ubuntu-latest)	Run python -m unittest discover -s native -p 'test_*.py'	2026-10-20T17:11:18.0233695Z +  'Support/Google/Chrome/NativeMessagingHosts/ai.qiaomu.clipper.json']
+install (ubuntu-latest)	Run python -m unittest discover -s native -p 'test_*.py'	2026-10-20T17:11:18.0234606Z 
+install (ubuntu-latest)	Run python -m unittest discover -s native -p 'test_*.py'	2026-10-20T17:11:18.0234765Z ----------------------------------------------------------------------
+install (ubuntu-latest)	Run python -m unittest discover -s native -p 'test_*.py'	2026-10-20T17:11:18.0235127Z Ran 232 tests in 36.169s
+install (ubuntu-latest)	Run python -m unittest discover -s native -p 'test_*.py'	2026-10-20T17:11:18.0235282Z 
+install (ubuntu-latest)	Run python -m unittest discover -s native -p 'test_*.py'	2026-10-20T17:11:18.0235384Z FAILED (failures=1, skipped=1)
+install (ubuntu-latest)	Run python -m unittest discover -s native -p 'test_*.py'	2026-10-20T17:11:18.0458467Z ##[error]Process completed with exit code 1.

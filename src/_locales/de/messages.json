@@ -2193,5 +2193,41 @@
 	},
 	"pdEffortDefault": {
 		"message": "Modellstandard"
+	},
+	"captionDlTitle": {
+		"message": "Untertitel herunterladen"
+	},
+	"captionDlDefault": {
+		"message": "Standard"
+	},
+	"captionDlDone": {
+		"message": "Heruntergeladen"
+	},
+	"captionDlFixed": {
+		"message": "{format} herunterladen (Rechtsklick für andere Formate)"
+	},
+	"captionDlMd": {
+		"message": "Markdown"
+	},
+	"captionDlMdNote": {
+		"message": "Mit Titel und Quelle, für Notizen"
+	},
+	"captionDlSrt": {
+		"message": "SRT-Untertitel"
+	},
+	"captionDlSrtNote": {
+		"message": "Mit Zeitangaben, direkt im Videoplayer nutzbar"
+	},
+	"captionDlVtt": {
+		"message": "VTT-Untertitel"
+	},
+	"captionDlVttNote": {
+		"message": "Mit Zeitangaben, für Web-Player"
+	},
+	"captionDlTxt": {
+		"message": "Nur Text"
+	},
+	"captionDlTxtNote": {
+		"message": "Eine Zeile pro Eintrag, mit Uhrzeit"
 	}
 }

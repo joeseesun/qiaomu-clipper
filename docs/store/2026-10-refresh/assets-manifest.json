@@ -1,0 +1,57 @@
+{
+  "date": "2026-10-21",
+  "sourceCommit": "37cc07a3c52d35a2c945e60a8ddc3ff1f863371f",
+  "storeUploaded": false,
+  "uiEvidence": "actual source components with sample data; no live provider requests",
+  "images": [
+    {
+      "file": "screenshot-01-read.png",
+      "width": 1280,
+      "height": 800,
+      "mode": "RGB",
+      "sha256": "ecc36642c819309f2f8b6e8784f5cc6134c706a08e75f067a32da277ae9b75f8"
+    },
+    {
+      "file": "screenshot-02-study.png",
+      "width": 1280,
+      "height": 800,
+      "mode": "RGB",
+      "sha256": "c0eea06e85a05a58d50b90c8308a7c4aab644c587691db56c97d02790e8254db"
+    },
+    {
+      "file": "screenshot-03-chat.png",
+      "width": 1280,
+      "height": 800,
+      "mode": "RGB",
+      "sha256": "45ba30773ac3ed656f72dbb5a268f665a1a543a24518790f69003bc37b6a5720"
+    },
+    {
+      "file": "screenshot-04-writing.png",
+      "width": 1280,
+      "height": 800,
+      "mode": "RGB",
+      "sha256": "b252ffcdca87514e354d6597f96d544e078db416356d618ec3b4023d151a6344"
+    },
+    {
+      "file": "screenshot-05-gallery.png",
+      "width": 1280,
+      "height": 800,
+      "mode": "RGB",
+      "sha256": "dd2a4c4f41581130b2a61aa3889cdec623db899ef62e4d34577876439810fe1b"
+    },
+    {
+      "file": "promo-440x280.png",
+      "width": 440,
+      "height": 280,
+      "mode": "RGB",
+      "sha256": "2690d499a26837f4dc7a8ad8b8243e834b920c06ccb3078fd97dd4b0bd9b4bb6"
+    },
+    {
+      "file": "marquee-1400x560.png",
+      "width": 1400,
+      "height": 560,
+      "mode": "RGB",
+      "sha256": "47a721ff8fe828254db3362dda16ea6600c6651c227cd3c6dd83d22581feb641"
+    }
+  ]
+}

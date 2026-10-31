@@ -2,6 +2,15 @@ import { createElement, Check, ChevronsUpDown, Plus, Search } from 'lucide';
 import type { ModelConfig, Provider } from '../types/types';
 import { iconTile } from './provider-catalog';
 import { getMessage } from './i18n';
+import { getLocalStorage, setLocalStorage, generalSettings } from './storage-utils';
+import { effortOptions } from './chat-thinking';
+import { reasoningEffortLabel } from './reasoning-label';
+import { t } from './ui-text';
+
+const RECENT_KEY = 'qiaomuRecentChatModels';
+export function modelEffort(model: ModelConfig): string | undefined {
+	try { const saved = localStorage.getItem(`qiaomuWriteEffort:${model.id}`) || ''; return effortOptions({ ...model, providerModelId: model.providerModelId || '' }, generalSettings.providers.find(p => p.id === model.providerId)).includes(saved) ? saved : undefined; } catch { return undefined; }
+}
 
 // A searchable, keyboard-friendly model list that replaces a native <select>: models are grouped by provider, the current one is
 // set apart by type weight and a check mark (no tinted row, no side bar), and the footer leads to adding another provider.
@@ -22,6 +31,7 @@ export interface ModelPicker {
 	open(): void;
 	close(): void;
 	isOpen(): boolean;
+	destroy(): void;
 }
 
 const node = <K extends keyof HTMLElementTagNameMap>(tag: K, className = '', text = ''): HTMLElementTagNameMap[K] => {
@@ -69,17 +79,76 @@ export function createModelPicker(options: ModelPickerOptions): ModelPicker {
 	const list = node('div', 'clip-chat-picker-list');
 	list.id = `picker-list-${uid}`;
 	list.setAttribute('role', 'listbox');
+	const filters = node('div', 'clip-chat-picker-filters');
+	const thinking = node('div', 'clip-chat-picker-thinking');
+	const thinkingRow = node('div', 'clip-chat-thinking-row', t('思考强度'));
+	const effort = node('button', 'clip-chat-effort');
+	effort.type = 'button';
+	effort.setAttribute('aria-haspopup', 'menu');
+	effort.setAttribute('aria-expanded', 'false');
+	const effortMenu = node('div', 'clip-chat-effort-menu');
+	effortMenu.id = `picker-effort-${uid}`;
+	effortMenu.setAttribute('role', 'menu');
+	effortMenu.setAttribute('aria-label', t('思考强度'));
+	effortMenu.hidden = true;
+	effort.setAttribute('aria-controls', effortMenu.id);
+	thinkingRow.append(effort); thinking.append(thinkingRow, effortMenu);
 	const footer = node('div', 'clip-chat-picker-footer');
 	const manage = node('button', 'clip-chat-picker-manage');
 	manage.type = 'button';
 	manage.append(glyph(Plus), node('span', '', getMessage('qiaomuModelManage')));
 	footer.append(manage);
-	popover.append(searchRow, list, footer);
+	popover.append(searchRow, filters, list, thinking, footer);
 
 	let currentId = '';
 	let activeIndex = -1;
 	let rows: HTMLElement[] = [];
 	let rowModels: ModelConfig[] = [];
+	let recent: string[] = [], filter = '', disposed = false;
+	void getLocalStorage(RECENT_KEY).then(value => { if (disposed) return; recent = Array.isArray(value) ? value.filter(v => typeof v === 'string').slice(0, 8) : []; if (!popover.hidden) render(); }).catch(() => {});
+
+	const paintThinking = () => {
+		const model = options.getModels().find(m => m.id === currentId), levels = model ? effortOptions({ ...model, providerModelId: model.providerModelId || '' }, options.getProviders().find(p => p.id === model.providerId)) : [];
+		thinking.hidden = !levels.length;
+		const value = model ? modelEffort(model) || '' : '';
+		const label = value ? reasoningEffortLabel(value) : t('自动');
+		effort.replaceChildren(node('span', '', label), glyph(ChevronsUpDown));
+		effort.setAttribute('aria-label', `${t('思考强度')}：${label}`);
+		effortMenu.replaceChildren();
+		for (const level of ['', ...levels]) {
+			const item = node('button', 'clip-chat-effort-item');
+			item.type = 'button'; item.tabIndex = -1;
+			item.setAttribute('role', 'menuitemradio');
+			item.setAttribute('aria-checked', String(level === value));
+			const check = node('span', 'clip-chat-effort-check');
+			if (level === value) check.append(glyph(Check));
+			item.append(check, node('span', '', level ? reasoningEffortLabel(level) : t('自动')));
+			item.onclick = () => {
+				try { if (level) localStorage.setItem(`qiaomuWriteEffort:${currentId}`, level); else localStorage.removeItem(`qiaomuWriteEffort:${currentId}`); } catch { /* private mode */ }
+				closeEffort(); paintThinking(); effort.focus();
+			};
+			effortMenu.append(item);
+		}
+	};
+	function closeEffort() { effortMenu.hidden = true; effort.setAttribute('aria-expanded', 'false'); }
+	function openEffort(last = false) {
+		effortMenu.hidden = false; effort.setAttribute('aria-expanded', 'true');
+		const items = Array.from(effortMenu.querySelectorAll('button'));
+		(last ? items[items.length - 1] : effortMenu.querySelector<HTMLButtonElement>('[aria-checked=true]') || items[0])?.focus();
+	}
+	effort.onclick = () => effortMenu.hidden ? openEffort() : closeEffort();
+	thinking.addEventListener('keydown', event => {
+		event.stopPropagation();
+		if (event.key === 'Escape' && !effortMenu.hidden) { event.preventDefault(); closeEffort(); effort.focus(); }
+		else if (event.key === 'Escape') { event.preventDefault(); close(); }
+		else if (event.key === 'Tab' && !effortMenu.hidden) { closeEffort(); effort.focus(); }
+		else if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+			event.preventDefault();
+			if (effortMenu.hidden) { openEffort(event.key === 'ArrowUp'); return; }
+			const items = Array.from(effortMenu.querySelectorAll('button')), index = items.indexOf(document.activeElement as HTMLButtonElement);
+			items[event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : (index + (event.key === 'ArrowUp' ? -1 : 1) + items.length) % items.length]?.focus();
+		}
+	});
 
 	const paintActive = () => {
 		rows.forEach((row, index) => row.classList.toggle('is-active', index === activeIndex));
@@ -91,16 +160,30 @@ export function createModelPicker(options: ModelPickerOptions): ModelPicker {
 	const render = () => {
 		const providers = options.getProviders();
 		const query = search.value.trim();
+		filters.replaceChildren();
+		filters.hidden = options.getModels().length <= 12;
+		if (!filters.hidden) for (const [id, label] of [['', t('全部')], ['recent', t('最近使用')], ...providers.filter(p => options.getModels().some(m => m.providerId === p.id)).map(p => [p.id, p.name])]) {
+			const tab = node('button', '', label); tab.type = 'button'; tab.setAttribute('aria-pressed', String(filter === id));
+			tab.onclick = () => { filter = id; render(); }; filters.append(tab);
+		}
 		rows = [];
 		rowModels = [];
 		const children: HTMLElement[] = [];
-		for (const provider of providers) {
+		const groups: { label: string; provider?: Provider; models: ModelConfig[] }[] = [];
+		const recentModels = recent.map(id => options.getModels().find(m => m.id === id)).filter((m): m is ModelConfig => !!m).filter(m => matchesModel(query, m, providers.find(p => p.id === m.providerId)));
+		if ((!filter || filter === 'recent') && recentModels.length) groups.push({ label: t('最近使用'), models: recentModels });
+		if (filter !== 'recent') for (const provider of providers) {
+			if (filter && filter !== provider.id) continue;
 			const models = options.getModels().filter(m => m.providerId === provider.id && matchesModel(query, m, provider));
+			groups.push({ label: provider.name, provider, models });
+		}
+		for (const { label, provider, models } of groups) {
 			if (!models.length) continue;
 			const group = node('div', 'clip-chat-picker-group');
 			group.setAttribute('role', 'presentation');
-			group.append(iconTile(provider, 'sm'), node('span', 'clip-chat-picker-provider', provider.name));
-			if (provider.oauth) group.append(node('span', 'clip-chat-picker-note', getMessage('qiaomuModelPlan')));
+			if (provider) group.append(iconTile(provider, 'sm'));
+			group.append(node('span', 'clip-chat-picker-provider', label));
+			if (provider?.oauth) group.append(node('span', 'clip-chat-picker-note', getMessage('qiaomuModelPlan')));
 			children.push(group);
 			for (const model of models) {
 				const row = node('div', 'clip-chat-picker-row');
@@ -126,14 +209,19 @@ export function createModelPicker(options: ModelPickerOptions): ModelPicker {
 		const currentRow = rows.findIndex(row => row.classList.contains('is-current'));
 		activeIndex = query ? (rows.length ? 0 : -1) : currentRow;
 		paintActive();
+		paintThinking();
 	};
 
 	const choose = (id: string) => {
+		if (trigger.disabled) return;
+		recent = [id, ...recent.filter(item => item !== id)].slice(0, 8);
+		void setLocalStorage(RECENT_KEY, recent).catch(() => {});
 		close();
 		if (id !== currentId) { picker.setModels(id); options.onSelect(id); }
 	};
 
 	function close() {
+		closeEffort();
 		if (popover.hidden) return;
 		popover.hidden = true;
 		trigger.setAttribute('aria-expanded', 'false');
@@ -145,8 +233,9 @@ export function createModelPicker(options: ModelPickerOptions): ModelPicker {
 		if (target && !popover.contains(target) && !trigger.contains(target)) close();
 	}
 	function open() {
-		if (!popover.hidden) return;
+		if (!popover.hidden || trigger.disabled || disposed) return;
 		search.value = '';
+		filter = '';
 		popover.hidden = false;
 		trigger.setAttribute('aria-expanded', 'true');
 		render();
@@ -159,7 +248,7 @@ export function createModelPicker(options: ModelPickerOptions): ModelPicker {
 	manage.addEventListener('click', () => { close(); options.onManage(); });
 	popover.addEventListener('keydown', event => {
 		if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(); return; }
-		if (event.isComposing) return;
+		if (event.isComposing || event.target === effort) return;
 		if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
 			event.preventDefault();
 			if (!rows.length) return;
@@ -189,7 +278,8 @@ export function createModelPicker(options: ModelPickerOptions): ModelPicker {
 		},
 		open,
 		close,
-		isOpen: () => !popover.hidden
+		isOpen: () => !popover.hidden,
+		destroy: () => { close(); disposed = true; document.removeEventListener('pointerdown', onOutside, true); }
 	};
 	return picker;
 }

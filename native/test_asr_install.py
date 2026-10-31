@@ -206,11 +206,13 @@ class InstallTests(unittest.TestCase):
         self.assertEqual(state['state'], 'failed'); self.assertEqual(state['errorCode'], 'install-failed'); self.assertIn('no network', state['error'])
         self.assertFalse(eng.venv_dir('faster-whisper').exists())
 
-    def test_uninstall_removes_the_environment_and_optionally_the_model(self):
+    def test_uninstall_preserves_shared_model_even_for_older_delete_requests(self):
         eng.venv_dir('mlx-qwen3').mkdir(parents=True)
         snap = eng.hf_home() / 'hub' / 'models--Qwen--Qwen3-ASR-0.6B' / 'snapshots' / 'x'; snap.mkdir(parents=True); (snap / 'w.bin').write_bytes(b'0' * 2048)
         reply = asr.handle({'action': 'asrUninstall', 'engine': 'mlx-qwen3', 'model': True}, self.base)
-        self.assertTrue(reply['ok']); self.assertFalse(eng.venv_dir('mlx-qwen3').exists()); self.assertFalse(snap.exists())
+        self.assertTrue(reply['ok']); self.assertFalse(eng.venv_dir('mlx-qwen3').exists())
+        self.assertEqual((snap / 'w.bin').read_bytes(), b'0' * 2048)
+        self.assertEqual(reply['freedMb'], 0)
 
     def test_runner_engine_command_uses_the_runner_script(self):
         captured = {}

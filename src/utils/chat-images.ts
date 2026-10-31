@@ -80,11 +80,18 @@ async function fetchImage(url: string, signal: AbortSignal): Promise<Blob> {
 	} finally { clearTimeout(timer); signal.removeEventListener('abort', cancel); }
 }
 
-async function prepareImage(blob: Blob, signal: AbortSignal): Promise<string[]> {
+export async function prepareChatImage(blob: Blob, signal: AbortSignal): Promise<{ parts: string[]; thumbnail: string }> {
 	aborted(signal);
 	const bitmap = blob.type === 'image/svg+xml' ? await decodeChatSvg(blob, signal) : await createImageBitmap(blob).then(source => ({ source, width: source.width, height: source.height, close: () => source.close() }));
 	try {
 		const tiles = imageTiles(bitmap.width, bitmap.height), data: string[] = [];
+		const preview = document.createElement('canvas');
+		const scale = Math.min(1, 160 / Math.max(bitmap.width, bitmap.height));
+		preview.width = Math.max(1, Math.round(bitmap.width * scale)); preview.height = Math.max(1, Math.round(bitmap.height * scale));
+		const previewContext = preview.getContext('2d'); if (!previewContext) throw new Error('canvas-unavailable');
+		previewContext.fillStyle = '#fff'; previewContext.fillRect(0, 0, preview.width, preview.height);
+		previewContext.drawImage(bitmap.source, 0, 0, preview.width, preview.height);
+		const thumbnail = preview.toDataURL('image/jpeg', 0.8); preview.width = 0; preview.height = 0;
 		for (const tile of tiles) {
 			aborted(signal);
 			const canvas = document.createElement('canvas');
@@ -95,7 +102,7 @@ async function prepareImage(blob: Blob, signal: AbortSignal): Promise<string[]> 
 			data.push(canvas.toDataURL('image/jpeg', 0.9));
 			canvas.width = 0; canvas.height = 0;
 		}
-		return data;
+		return { parts: data, thumbnail };
 	} finally { bitmap.close(); }
 }
 
@@ -123,7 +130,7 @@ export class ChatImageSession {
 						if (!fallback?.dataUrl) throw new Error('image-unavailable');
 						blob = await fetchImage(fallback.dataUrl, signal);
 					}
-					data = await prepareImage(blob, signal);
+					data = (await prepareChatImage(blob, signal)).parts;
 					aborted(signal);
 					const size = data.reduce((sum, item) => sum + item.length, 0);
 					if (size > MAX_CHAT_IMAGE_DATA) throw new Error('image-too-large');

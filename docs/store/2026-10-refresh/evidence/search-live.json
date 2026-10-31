@@ -1,0 +1,34 @@
+{
+  "time": "2026-10-20T17:39:16.010Z",
+  "source": "src/utils/web-search.ts",
+  "searchCount": 6,
+  "sources": [
+    {
+      "title": "browser.offscreen,browser.offscreen | API | Chrome for Developers",
+      "url": "https://chrome-dot-devsite-v2-prod-3p.appspot.com/docs/extensions/reference/api/offscreen?authuser=1&%3Bhl=ar&hl=nl"
+    },
+    {
+      "title": "browser.offscreen | API | Chrome for Developers",
+      "url": "https://chrome-dot-devsite-v2-prod-3p.appspot.com/docs/extensions/reference/api/offscreen?authuser=1&hl=nl"
+    },
+    {
+      "title": "browser.offscreen | API | Chrome for Developers - browser.offscreenTetap teratur dengan koleksi Simpan dan kategorikan konten berdasarkan preferensi Anda.",
+      "url": "https://developer.chrome.com/docs/extensions/reference/api/offscreen?cmdf=offscreen+document&hl=id#1"
+    },
+    {
+      "title": "Manifest V3 中的屏幕外文档 | Blog | Chrome for Developers - Manifest V3 中的屏幕外文档使用集合让一切井井有条 根据您的偏好保存内容并对其进行分类。",
+      "url": "https://developer.chrome.com/blog/Offscreen-Documents-in-Manifest-v3?hl=zh-cn#1"
+    },
+    {
+      "title": "<br />",
+      "url": "https://developer.chrome.com/docs/extensions/reference/api/offscreen.md.txt#1"
+    },
+    {
+      "title": "Dokumenty poza ekranem w platformie Manifest V3 | Blog | Chrome for Developers",
+      "url": "https://chrome-dot-devsite-v2-prod-3p.appspot.com/blog/Offscreen-Documents-in-Manifest-v3?hl=pl"
+    }
+  ],
+  "fetchedUrl": "https://example.com/",
+  "contentCharacters": 931,
+  "credentialLogged": false
+}

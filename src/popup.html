@@ -11,15 +11,16 @@
 		<div id="popup-header">
 			<textarea id="note-name-field" type="text" data-i18n="noteName" rows="1"></textarea>
 			<div class="popup-actions">
+                <button type="button" id="open-ai-sidebar" class="clickable-icon" title="AI 对话" aria-label="AI 对话"><i data-lucide="wand-sparkles"></i></button>
                 <div class="popup-tools">
                     <button type="button" id="popup-tools-toggle" class="clickable-icon" data-i18n-title="more" aria-label="More" aria-haspopup="menu" aria-expanded="false"><i data-lucide="ellipsis"></i></button>
                     <div id="popup-tools-menu" role="menu" hidden>
-                        <a href="#" id="reader-mode" role="menuitem"><i data-lucide="book-open"></i><span data-i18n="qiaomuReadingMode"></span></a>
-                        <a href="#" id="open-study-home" role="menuitem"><i data-lucide="headphones"></i><span data-i18n="navStudyHome">Transcribe and study</span></a>
-                        <a href="#" id="toggle-triple-site" role="menuitem"><i data-lucide="keyboard"></i><span id="toggle-triple-site-label"></span></a>
-                        <a href="#" id="edit-clip-markdown" role="menuitem"><i data-lucide="file-text"></i><span data-i18n="qiaomuEditMarkdown"></span></a>
-
-                        <a href="https://rss.qiaomu.ai/feeds/user-submitted.xml" target="_blank" rel="noopener noreferrer" role="menuitem"><i data-lucide="rss"></i><span data-i18n="qiaomuPublicRss"></span></a>
+                        <a href="#" id="write-clip-article" role="menuitem"><i data-lucide="pen-line"></i><span class="tool-text">写文章</span></a>
+                        <a href="#" id="open-study-home" role="menuitem"><i data-lucide="headphones"></i><span class="tool-text" data-i18n="navStudyHome">Transcribe and study</span></a>
+                        <hr role="separator">
+                        <a href="#" id="toggle-triple-site" role="menuitemcheckbox" aria-checked="true"><i data-lucide="keyboard"></i><span class="tool-text"><span data-i18n="tripleKeyTitle"></span><small id="toggle-triple-site-label"></small></span><span class="tool-switch" aria-hidden="true"></span></a>
+                        <hr role="separator">
+                        <a href="https://rss.qiaomu.ai/feeds/user-submitted.xml" target="_blank" rel="noopener noreferrer" role="menuitem"><i data-lucide="rss"></i><span class="tool-text" data-i18n="qiaomuPublicRss"></span><i data-lucide="arrow-up-right" class="tool-external"></i></a>
                     </div>
                 </div>
                 <a href="#" id="open-settings" class="clickable-icon" data-i18n-title="settings"><i data-lucide="settings"></i></a>

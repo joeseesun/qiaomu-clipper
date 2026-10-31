@@ -21,7 +21,7 @@ beforeEach(()=>{vi.clearAllMocks();state.models=[{id:'model',name:'Model'}];stat
 
 it('bounds requests and rejects missing, duplicate or unknown segment identifiers',()=>{
 	const batches=translationBatches(['a'.repeat(12000),...Array(20).fill('Text')]);
-	expect(batches.every(batch=>batch.length<=6&&batch.reduce((size,item)=>size+item.text.length,0)<=3500)).toBe(true);
+	expect(batches.every(batch=>batch.length<=24&&batch.reduce((size,item)=>size+item.text.length,0)<=3500)).toBe(true);
 	expect(batches.flat().filter(part=>part.segment===0).map(part=>part.text).join('')).toBe('a'.repeat(12000));
 	const batch=[{id:0,segment:0,text:'A'},{id:1,segment:1,text:'B'}];
 	expect(()=>parseTranslation('[{"id":0,"text":"甲"}]',batch)).toThrow();
@@ -57,8 +57,8 @@ it('retries a dropped connection on its own, without losing the batch',async()=>
 });
 it('stops straight away on a rejected key instead of retrying every batch',async()=>{
 	state.stream.mockRejectedValue(new Error('Provider 401: bad key'));
-	const {article,input}=setup(Array(20).fill('Text'));input.click();await flush();
-	expect(state.stream.mock.calls.length).toBeLessThanOrEqual(3);
+	const {article,input}=setup(Array(180).fill('Text'));input.click();await flush();
+	expect(state.stream.mock.calls.length).toBeLessThanOrEqual(6);
 	expect(article.querySelector('[role=status]')!.textContent).toContain('qiaomuTranslationError');
 	expect(article.querySelector<HTMLButtonElement>('.youtube-translation-retry')!.hidden).toBe(false);
 });
@@ -80,7 +80,8 @@ it('cleans music cues, passes neighboring context and renders short bilingual pa
 	const request = JSON.parse(options.messages[0].content);
 	expect(request.length).toBeGreaterThan(1);
 	expect(request.every((part:{text:string}) => !part.text.includes('[music]'))).toBe(true);
-	expect(request[0].contextAfter).toContain('Why not me');
+	expect(request[1].text).toContain('Why not me');
+	expect(request[0]).not.toHaveProperty('contextAfter');
 	expect(options.system).toBe(TRANSLATION_SYSTEM);
 	expect(article.querySelectorAll('.transcript-bilingual-block')).toHaveLength(request.length);
 	expect(article.querySelector('.transcript-translation')!.textContent).not.toContain('[音乐]');

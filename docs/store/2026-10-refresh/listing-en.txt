@@ -1,0 +1,54 @@
+Name
+乔木剪藏 · Obsidian + RSS
+
+Short description
+Turn what you read and watch into notes and articles. Clip pages, study captions, ask AI, write Markdown and add images.
+
+Detailed description
+Read something worth keeping? Watch something worth learning?
+
+Qiaomu Clipper connects reading, video study and writing in your browser. Keep the useful parts, ask about what you don't understand, and turn your source material into notes or an article of your own.
+
+Start reading, clipping and editing without configuring AI.
+
+READ WITH FOCUS
+Open a clean reading view, adjust typography and colors, and highlight passages. Keep the source link and turn pages or selections into Markdown. Save to Obsidian, or simply copy and download your notes.
+
+READ YOUR VIDEOS, TOO
+On supported video and podcast pages, keep the player and transcript together. Search a phrase and jump to its timestamp. Switch between original, translated and bilingual text, adjust captions, and take learning notes. Export transcripts as Markdown, SRT, VTT or TXT. When captions are unavailable, choose an on-device engine or your configured cloud speech service.
+
+ASK QUESTIONS BESIDE THE PAGE
+Open an AI sidebar for the current page or a selected passage. Models that accept images can also answer questions about article images, selected images and sections of a long image. Conversations are saved by page. Connect a search service to search the web and inspect sources. A shared model picker keeps recent models and supported reasoning settings within reach.
+
+TURN SOURCE MATERIAL INTO YOUR NEXT DRAFT
+Choose Write article from a reading or study page. Bring in the source, including a video, its description and available transcript. The visual Markdown editor supports outlines, tables, code, formulas, diagrams and images. Ask AI to develop a structure, edit a passage, continue a draft or suggest a title. Review changes before adding them to the document. Articles autosave locally and can be imported or exported.
+
+FIND AN IMAGE. MAKE AN IMAGE. KEEP IT HANDY.
+Connect an image service, describe an illustration in chat, or search for an existing photo. Image jobs can continue after the sidebar closes. Your image library brings together generated images, uploads, authorized local folders and Unsplash search. Preview, download and insert images as separate actions.
+
+TAKE YOUR WORK WITH YOU
+Save notes to Obsidian and export articles as Markdown or ZIP files with images. Send an article to an X Article draft, or use the Qiaomu Publish integration to hand content to supported platform editors. Review and publish it yourself. Optional public sharing to Qiaomu RSS is off by default.
+
+SMALL DETAILS THAT MAKE IT EASIER
+• Configurable triple-press shortcuts for reading, editing, clipping, quick notes and writing, with per-site controls.
+• Templates for note folders, properties and content.
+• Shared reading and study actions.
+• Complete interface translations in Simplified Chinese, Traditional Chinese, English, Japanese, Korean, Spanish, French, German and Brazilian Portuguese.
+
+REQUIREMENTS AND DATA
+The extension is free. AI chat, translation, image generation and web search require your own service or supported account; provider charges may apply. No free model credits are included.
+
+AI requests send the required content, selections, images, questions and conversation context to the provider you choose. Web and image search send queries to the selected service; opening source content requests that website.
+
+Articles and library images stay in local browser storage and are not automatically uploaded to Qiaomu servers. Some settings and templates can sync through the browser. Export important content before uninstalling or clearing extension data.
+
+Obsidian must be installed for Obsidian saving. Silent saving, some subtitle workflows and local Codex image generation need a separately installed helper. Local Codex also needs a signed-in Codex CLI. These are not installed with the store extension. Audio is sent to a cloud speech service only when you select that service.
+
+Caption access, media access and platform drafts depend on the website, sign-in state, account access and region. Not every page is supported. The store edition does not download YouTube media files.
+
+Qiaomu RSS sharing is off by default. Enabling it and submitting a clip makes the selected URL, title, text and cover public. Content sent to a publishing platform is handled by that platform; final publication remains your action.
+
+This independent MIT-licensed project is based on Obsidian Web Clipper. It is not an official Obsidian extension.
+
+Support: https://github.com/joeseesun/qiaomu-clipper/issues
+Privacy: https://joeseesun.github.io/qiaomu-clipper/privacy.html

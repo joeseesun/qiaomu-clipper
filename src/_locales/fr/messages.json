@@ -2193,5 +2193,41 @@
 	},
 	"pdEffortDefault": {
 		"message": "Valeur par défaut du modèle"
+	},
+	"captionDlTitle": {
+		"message": "Télécharger les sous-titres"
+	},
+	"captionDlDefault": {
+		"message": "Par défaut"
+	},
+	"captionDlDone": {
+		"message": "Téléchargé"
+	},
+	"captionDlFixed": {
+		"message": "Télécharger {format} (clic droit pour d’autres formats)"
+	},
+	"captionDlMd": {
+		"message": "Markdown"
+	},
+	"captionDlMdNote": {
+		"message": "Avec titre et source, pour les notes"
+	},
+	"captionDlSrt": {
+		"message": "Sous-titres SRT"
+	},
+	"captionDlSrtNote": {
+		"message": "Minutés, prêts pour un lecteur vidéo"
+	},
+	"captionDlVtt": {
+		"message": "Sous-titres VTT"
+	},
+	"captionDlVttNote": {
+		"message": "Minutés, pour les lecteurs web"
+	},
+	"captionDlTxt": {
+		"message": "Texte brut"
+	},
+	"captionDlTxtNote": {
+		"message": "Une ligne à la fois, avec l’heure"
 	}
 }

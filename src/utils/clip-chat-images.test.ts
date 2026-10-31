@@ -60,3 +60,15 @@ it('does not let a canceled image read pollute a new conversation',async()=>{
  expect(state.stream).not.toHaveBeenCalled();expect(document.querySelectorAll('.clip-chat-message')).toHaveLength(0);
  await send('New');expect(state.stream).toHaveBeenCalledTimes(1);expect(state.stream.mock.calls[0][0].messages).toHaveLength(1);
 });
+
+it('previews selection inside the composer, removes it and sends only the next selected quote', async () => {
+ state.markdown = 'Article text';
+ const chat = mountClipChat({getContext:()=>({title:'Article',url:'https://site.test/note',markdown:state.markdown}),getSelection:async()=> 'Quoted passage'});
+ chat.toggle(true); await flush();
+ document.querySelector<HTMLButtonElement>('[aria-label="引用选中文字"]')!.click(); await flush();
+ expect(document.querySelector('.clip-chat-composer .clip-chat-quote')?.textContent).toContain('Quoted passage');
+ document.querySelector<HTMLButtonElement>('.clip-chat-quote button')!.click(); await send('First');
+ expect(state.stream.mock.calls[0][0].messages[0].content).not.toContain('Quoted passage');
+ document.querySelector<HTMLButtonElement>('[aria-label="引用选中文字"]')!.click(); await flush(); await send('Second');
+ expect(state.stream.mock.calls[1][0].messages[2].content).toContain('Quoted passage'); chat.destroy();
+});

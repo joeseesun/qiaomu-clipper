@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { canDownloadMedia } from './media-download-policy';
+import { canDownloadMedia, canDownloadYouTube, isYouTubePageUrl } from './media-download-policy';
 import { fetchMediaBlob } from './media-download';
 const source = 'https://example.org/watch/1', media = 'https://cdn.example.org/video.mp4';
 describe('media download edition policy', () => {
@@ -38,5 +38,17 @@ describe.runIf(!__LOCAL_EDITION__)('store execution boundary', () => {
  });
  it('rejects stream manifests even at a file-looking URL', async () => {
   await expect(fetchMediaBlob(media,{sourceUrl:source,fetcher:vi.fn(async()=>new Response('#EXTM3U',{headers:{'content-type':'application/vnd.apple.mpegurl'}}))})).rejects.toMatchObject({code:'not-media'});
+ });
+});
+
+describe('standalone-only YouTube page downloads', () => {
+ it.each(['https://www.youtube.com/watch?v=x','https://youtube.com/shorts/x','https://m.youtube.com/watch?v=x','https://youtu.be/x'])('accepts a watch page only in the standalone edition: %s', url => {
+  expect(isYouTubePageUrl(url)).toBe(true);
+  expect(canDownloadYouTube(url, '', true)).toBe(true);
+  expect(canDownloadYouTube(url, '', false)).toBe(false);
+  expect(canDownloadYouTube(url, 'https://cdn.example.org/a.mp4', true)).toBe(false);
+ });
+ it.each(['https://r1.googlevideo.com/videoplayback','https://www.youtube-nocookie.com/embed/x','https://youtube.googleapis.com/v/x','https://youtube.com.evil.org/watch','http://youtube.com/watch','https://u:p@youtube.com/watch','https://example.org/watch?v=x'])('never accepts a media, embed or look-alike address: %s', url => {
+  expect(canDownloadYouTube(url, '', true)).toBe(false);
  });
 });

@@ -1,0 +1,36 @@
+.clip-chat {
+	// Size the navigator from the conversation, not the browser window or composer.
+	.clip-chat-nav-area { position: relative; display: flex; flex: 1; min-height: 0; container-type: inline-size; }
+	.clip-chat-nav-area > .clip-chat-messages { min-width: 0; }
+	// Keep the theme's light/dark contrast while removing any tinted theme colors.
+	.clip-chat-turn-nav, .clip-chat-turn-preview { filter: grayscale(1); }
+	.has-turn-navigation .clip-chat-messages { padding-inline-start: clamp(28px, calc(6cqw + 8px), 34px); }
+	.clip-chat-turn-nav { position: absolute; z-index: 2; inset-inline-start: 0; top: calc(100% / 6 + 20px); bottom: 16px; width: clamp(20px, 6cqw, 26px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; &[hidden] { display: none; } &::-webkit-scrollbar { display: none; } }
+	// Append at a fixed pitch: adding a turn must not redistribute existing markers.
+	.clip-chat-turn-track { position: relative; display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; }
+	.clip-chat-turn-marker { position: relative; flex: none; display: flex; align-items: center; width: 100%; min-height: 12px; height: 12px; margin: 0; padding: 0; border: 0; border-radius: 2px; background: transparent; box-shadow: none; color: var(--text-muted); cursor: pointer;
+		.clip-chat-turn-line { display: block; height: 1px; width: clamp(3px, .75cqw, 4px); margin-inline-start: 8px; border-radius: 1px; background: currentColor; opacity: .5; transition: width 140ms ease-out, opacity 140ms ease-out; }
+		&.is-near .clip-chat-turn-line { opacity: .65; }
+		&.is-hovered .clip-chat-turn-line, &:focus-visible .clip-chat-turn-line { width: clamp(4px, 1cqw, 6px); opacity: 1; }
+		&.is-current { color: var(--text-normal); .clip-chat-turn-line { width: clamp(4px, 1cqw, 6px); opacity: .9; } }
+		&.is-bookmarked { color: var(--text-normal); .clip-chat-turn-line { width: clamp(3px, .9cqw, 5px); height: 2px; opacity: 1; } }
+		&.is-bookmarked.is-current .clip-chat-turn-line { width: clamp(4px, 1cqw, 6px); }
+		&:focus-visible { outline: 1px solid var(--text-normal); outline-offset: -1px; }
+	}
+	.clip-chat-turn-preview { position: absolute; z-index: 4; inset-inline-start: clamp(21px, calc(6cqw + 1px), 27px); width: min(320px, calc(100% - 35px)); max-height: calc(100% - 8px); overflow: auto; padding: 10px 12px; border-radius: 12px; background: var(--background-secondary, var(--background-primary)); color: var(--text-normal); box-shadow: 0 5px 20px rgb(0 0 0 / 22%); font: 13px/1.5 var(--font-ui, var(--font-default)); &[hidden] { display: none; }
+		&.is-bookmarked { background: color-mix(in srgb, var(--text-normal) 8%, var(--background-secondary, var(--background-primary))); }
+	}
+	.clip-chat-turn-preview-jump { display: flex; flex-direction: column; gap: 4px; width: 100%; height: auto; padding: 0; border: 0; border-radius: 2px; background: transparent; box-shadow: none; text-align: start; color: inherit; font: inherit; cursor: pointer; }
+	.clip-chat-turn-preview-title { display: block; width: 100%; padding-inline-end: 28px; font-weight: 600; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+	.clip-chat-turn-preview-excerpt { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; color: var(--text-muted); }
+	.clip-chat-turn-preview-state { display: block; padding-top: 2px; font-size: 11px; color: var(--text-muted); }
+	.clip-chat-turn-bookmark { position: absolute; top: 6px; inset-inline-end: 7px; display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; margin: 0; padding: 0; border: 0; border-radius: 5px; background: transparent; box-shadow: none; color: var(--text-muted); cursor: pointer;
+		svg { width: 15px; height: 15px; }
+		&[aria-pressed=true] { color: var(--text-normal); svg { fill: currentColor; } }
+		&:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
+		&[aria-disabled=true] { cursor: wait; }
+	}
+	.clip-chat-turn-preview-error { display: block; font-size: 12px; color: var(--text-normal); &:empty { display: none; } }
+	@media (pointer: coarse) { .clip-chat-turn-marker { height: 26px; } }
+	@media (prefers-reduced-motion: reduce) { .clip-chat-turn-line { transition: none; } }
+}

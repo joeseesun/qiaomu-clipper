@@ -1,7 +1,10 @@
+import { handleImageJobs } from './utils/image-job-background';
+import { handleChatToolPort } from './utils/chat-tools-background';
+import { openAiSidebar } from './utils/ai-sidebar';
 import { handleChatImageSource } from './utils/chat-image-source';
 import { validChatTurns } from './utils/chat-content';
 import { validChatSession } from './utils/opencode-go';
-import { channelsStudyBridge, parseChannelsShare, readChannelsPlayback } from './utils/channels-study';
+import { channelsPlaybackPage, channelsStudyBridge, getChannelsPlaybackMedia, parseChannelsShare, readChannelsPlayback } from './utils/channels-study';
 import { protectedPageBridge, snapshotProtectedPage } from './utils/protected-study';
 import { createContentText } from './utils/content-i18n';
 import { getWebPageMedia, isTikTokMedia, snapshotDouyinPlayer, snapshotTikTokPlayer, tabMayLendTikTokMedia, tiktokVideoPath, validateDouyinTracks } from './utils/web-page-media';
@@ -17,10 +20,11 @@ import { describeHelperFailure } from './utils/native-helper-prompt';
 import { callHelper } from './utils/native-helper-call';
 import { incrementStat, loadSettings } from './utils/storage-utils';
 import { enabledChatModels, streamChat } from './utils/chat-llm';
+import { validEffort } from './utils/chat-thinking';
 import { openStudyWithPlayback } from './utils/study-playback-handoff';
 import { audioStudyPath, videoKey, videoStudyPath } from './utils/video-source';
-import { isSiteOn, loadStudySites, siteOf } from './utils/study-sites';
-import { isMediaItemAddress, webMediaAddress } from './utils/web-media-page';
+import { siteOf } from './utils/study-sites';
+import { webStudyPath } from './utils/web-study-path';
 import { getXhsPageMedia, snapshotXhsPlayer } from './utils/xiaohongshu';
 import { followXiaoeLink, readXiaoeLive, xiaoeParts, fetchXiaoePlaylist } from './utils/xiaoe';
 import { hasStoredHighlights } from './utils/url-utils';
@@ -28,12 +32,16 @@ import { cookiesGranted, handleAsrMessage, handleLearningNativeMessage } from '.
 import { enableYouTubeEmbedRule, disableYouTubeEmbedRule } from './utils/youtube-embed-rules';
 
 import { t } from './utils/ui-text';
+import { registerPublishBridge } from './publish-bridge';
 import { helperInstallUrl } from './utils/helper-install';
 import { pruneHandedFiles } from './utils/file-handoff';
 void pruneHandedFiles();
+registerPublishBridge();
 browser.runtime.onMessage.addListener(handleLearningNativeMessage);
 browser.runtime.onMessage.addListener(handleAsrMessage);
 browser.runtime.onMessage.addListener(handleChatImageSource);
+browser.runtime.onMessage.addListener(handleImageJobs);
+browser.runtime.onConnect.addListener(handleChatToolPort);
 
 // Accept RSS writes only from our own extension pages, never a website content script.
 const qiaomuInFlight = new Map<string, Promise<unknown>>();
@@ -43,11 +51,14 @@ const helperDown = (error: unknown) => { const reason = error instanceof Error ?
 
 browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime.MessageSender) => {
 	const message = request as { action?: string; payload?: { requestId?: string; vaultPath?: string; vault?: string; folder?: string } };
-	if (!['qiaomuLocalStatus', 'qiaomuLocalSave', 'qiaomuLocalConfigure', 'qiaomuLocalChooseVault', 'qiaomuLocalChooseFolder', 'qiaomuLocalListVaults'].includes(message?.action || '')) return;
+	if (!['qiaomuLocalStatus', 'qiaomuLocalSave', 'qiaomuLocalConfigure', 'qiaomuLocalChooseVault', 'qiaomuLocalChooseFolder', 'qiaomuLocalListVaults', 'qiaomuLocalUninstallPlan', 'qiaomuLocalUninstall'].includes(message?.action || '')) return;
 	if (sender.id !== browser.runtime.id || !sender.url?.startsWith(browser.runtime.getURL(''))) return Promise.resolve({ ok: false, error: t('无效的本地保存请求') });
 	if (message.action === 'qiaomuLocalStatus') return callHelper({ action: 'status' }).catch((error: unknown) => ({ ok: false, reason: error instanceof Error ? error.message : String(error) }));
 	if (message.action === 'qiaomuLocalChooseFolder') return callHelper({ action: 'chooseNoteFolder', vault: message.payload?.vault, folder: message.payload?.folder })
 		.catch(error => ({ ...helperDown(error), error: t('{0}也可以手动填写相对路径。', [describeHelperFailure(error instanceof Error ? error.message : String(error))]) }));
+	// Taking the helper away is a settings-page action; the helper refuses while a subtitle job is running.
+	if (message.action === 'qiaomuLocalUninstallPlan') return callHelper({ action: 'helperUninstallPlan' }).catch(helperDown);
+	if (message.action === 'qiaomuLocalUninstall') return callHelper({ action: 'helperUninstall' }).catch(helperDown);
 	if (message.action === 'qiaomuLocalListVaults') return callHelper({ action: 'listVaults' }).catch(helperDown);
 	if (message.action === 'qiaomuLocalChooseVault') return callHelper({ action: 'chooseVault' })
 		.catch(helperDown);
@@ -663,6 +674,22 @@ browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime
 			return true;
 		}
 
+		// A second writer tab for an article that is already open hands over to the first one.
+		if (typedRequest.action === "qiaomuWriteFocus") {
+			const wanted = String((typedRequest as { id?: string }).id || '');
+			void (async () => {
+				const writerPage = browser.runtime.getURL('write.html');
+				const tabs = await browser.tabs.query({ url: `${writerPage}*` });
+				const other = tabs.find(item => item.id !== sender.tab?.id && new URL(item.url || writerPage).searchParams.get('id') === wanted);
+				if (other?.id) {
+					await browser.tabs.update(other.id, { active: true });
+					if (other.windowId) await browser.windows.update(other.windowId, { focused: true });
+					if (sender.tab?.id) await browser.tabs.remove(sender.tab.id);
+				}
+			})().catch(() => {});
+			return undefined;
+		}
+
 		if (typedRequest.action === "qiaomuTripleKey") {
 			const tab = sender.tab;
 			if (tab?.id && tab.url && isValidUrl(tab.url) && !isBlankPage(tab.url)) {
@@ -913,6 +940,10 @@ browser.commands.onCommand.addListener(async (command, tab) => {
 		tab = tabs[0];
 	}
 
+	if (command === 'open_ai_sidebar' && tab?.windowId !== undefined) {
+		await openAiSidebar(tab.windowId);
+		return;
+	}
 	if (command === 'quick_clip') {
 		if (tab?.id) {
 			openPopup();
@@ -1007,6 +1038,10 @@ const debouncedUpdateContextMenu = debounce(async (tabId: number) => {
 			];
 
 		const browserType = await detectBrowser();
+		// Feature detection works even when the polyfill exposes `browser` in a Chrome worker.
+		if (typeof chrome !== 'undefined' && chrome.sidePanel) {
+			menuItems.push({ id: 'open-ai-sidebar', title: t('AI 对话'), contexts: ['page', 'selection', 'action'] });
+		}
 		if (browserType === 'chrome') {
 			menuItems.push({
 				id: 'open-side-panel',
@@ -1026,7 +1061,9 @@ const debouncedUpdateContextMenu = debounce(async (tabId: number) => {
 }, 100); // 100ms debounce time
 
 browser.contextMenus.onClicked.addListener(async (info, tab) => {
-	if (info.menuItemId === "open-obsidian-clipper") {
+	if (info.menuItemId === 'open-ai-sidebar' && tab?.windowId !== undefined) {
+		await openAiSidebar(tab.windowId);
+	} else if (info.menuItemId === "open-obsidian-clipper") {
 		openPopup();
 	} else if (info.menuItemId === "enter-highlighter" && tab && tab.id) {
 		await setHighlighterMode(tab.id, true);
@@ -1043,7 +1080,7 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
 	} else if (info.menuItemId === 'open-embedded' && tab && tab.id) {
 		await sendMessageToContentScript(tab.id, { action: "toggle-iframe" });
 	} else if (info.menuItemId === 'open-side-panel' && tab && tab.id && tab.windowId) {
-		chrome.sidePanel.open({ tabId: tab.id });
+		await Promise.all([chrome.sidePanel.setOptions({ path: 'side-panel.html', enabled: true }), chrome.sidePanel.open({ tabId: tab.id })]);
 		sidePanelOpenWindows.add(tab.windowId);
 		await ensureContentScriptLoadedInBackground(tab.id);
 	} else if (info.menuItemId === 'copy-markdown-to-clipboard' && tab && tab.id) {
@@ -1263,18 +1300,6 @@ async function openNoteCard(tabId: number, quote?: string): Promise<void> {
 	} catch { /* restricted page */ }
 }
 
-// Supported media detail pages share the native study player. A feed adapter supplies the currently playing item address.
-async function webStudyPath(url: string, tabId: number): Promise<string | null> {
-	const site = siteOf(url); if (!site || site.builtin || !isSiteOn(await loadStudySites(), site.id)) return null;
-	let post = webMediaAddress(url);
-	try { const source = await browser.tabs.sendMessage(tabId, { action: 'qiaomuWebMediaSource' }) as { url?: unknown } | undefined; if (site.id === 'xiaohongshu' && !source?.url) return null; if (typeof source?.url === 'string' && siteOf(source.url)?.id === site.id) post = webMediaAddress(source.url); } catch { if (site.id === 'xiaohongshu') return null; /* adapter not loaded */ }
-	if (!post) return null;
-	try {
-		const [result] = await browser.scripting.executeScript({ target: { tabId }, func: () => Boolean(document.querySelector('video, audio, iframe[src*="player.vimeo.com"], iframe[src*="player.twitch.tv"], iframe[src*="dailymotion.com"], [data-testid="videoPlayer"], meta[property="og:video"], meta[property="og:video:url"], meta[property="og:audio"]')) });
-		return result?.result || isMediaItemAddress(post) ? `reader.html?study=web&url=${encodeURIComponent(post)}&sourceTab=${tabId}` : null;
-	} catch { return null; }
-}
-
 // The triple-press commands open the clipper, which runs read / edit / clip once the clip is ready.
 // A video or audio page reads as its study player (the same for the Read button, the toolbar icon and the triple-press); anything else reads as an article.
 async function openStudyForTab(tabId: number): Promise<boolean> {
@@ -1288,6 +1313,8 @@ async function openStudyForTab(tabId: number): Promise<boolean> {
 
 async function runTripleKeyAction(action: string, tabId: number): Promise<void> {
 	if (action === 'note') { await openNoteCard(tabId); return; }
+	// A new long article opens in its own tab; the writer page reuses an untouched blank article instead of piling up new ones.
+	if (action === 'write') { await browser.tabs.create({ url: browser.runtime.getURL('write.html?new=1'), openerTabId: tabId }); return; }
 	if (action !== 'read' && action !== 'edit' && action !== 'clip') return;
 	if (action === 'read' && await openStudyForTab(tabId)) return;
 	// Reading and editing need no window of their own: an invisible copy of the clipper in the page does the work and opens our page.
@@ -1343,7 +1370,7 @@ browser.runtime.onConnect.addListener(port => {
 	port.onDisconnect.addListener(() => controller.abort());
 	let started = false;
 	port.onMessage.addListener(async raw => {
-		const request = raw as { modelId?: string; system?: string; messages?: any[]; sessionId?: string };
+		const request = raw as { modelId?: string; system?: string; messages?: any[]; sessionId?: string; reasoningEffort?: string; nativeTools?: boolean };
 		if (started) return;
 		started = true;
 		const send = (message: unknown) => { if (!controller.signal.aborted) port.postMessage(message); };
@@ -1353,7 +1380,7 @@ browser.runtime.onConnect.addListener(port => {
 			if (!model || typeof request.system !== 'string' || !Array.isArray(request.messages)
 				|| (request.sessionId !== undefined && !validChatSession(request.sessionId))
 				|| !validChatTurns(request.messages)) throw new Error(t('无效的 AI 对话请求'));
-			await streamChat({ model, system: request.system, sessionId: request.sessionId, messages: request.messages, signal: controller.signal, onDelta: delta => send({ delta }) });
+			await streamChat({ model, system: request.system, sessionId: request.sessionId, messages: request.messages, reasoningEffort: validEffort(request.reasoningEffort), nativeTools: request.nativeTools === true, signal: controller.signal, onDelta: delta => send({ delta }), onThought: thought => send({ thought }), onNativeTools: nativeTools => send({ nativeTools }) });
 			send({ done: true });
 		} catch (error) { send({ error: error instanceof Error ? error.message : t('AI 请求失败') }); }
 	});
@@ -1491,6 +1518,7 @@ browser.runtime.onMessage.addListener((raw: unknown, sender) => {
 		const [result] = await browser.scripting.executeScript({ target: { tabId }, world: 'MAIN', func: snapshotXhsPlayer });
 		return result?.result as ReturnType<typeof snapshotXhsPlayer> | undefined;
 	}).then(info => info || null);
+	if (channelsPlaybackPage(request.url)) return getChannelsPlaybackMedia(request.url, request.sourceTabId, browser.tabs as unknown as Parameters<typeof getChannelsPlaybackMedia>[2]).then(info => info || null);
 	return getWebPageMedia(request.url, request.sourceTabId, browser.tabs, async tabId => {
 		const [result] = await browser.scripting.executeScript({ target: { tabId }, func: snapshotDouyinPlayer });
 		const snapshot = result?.result as ReturnType<typeof snapshotDouyinPlayer> | undefined;
@@ -1530,7 +1558,7 @@ browser.runtime.onMessage.addListener((raw: unknown, sender) => {
 
 // User-selected third-party resolver; each reader owns only its own two tabs.
 const channelsStudy = channelsStudyBridge({
- create: options => browser.tabs.create(options), get: id => browser.tabs.get(id),
+ create: options => browser.tabs.create(options), get: id => browser.tabs.get(id), remove: id => browser.tabs.remove(id), update: (id, properties) => browser.tabs.update(id, properties),
  parse: (tabId, share) => browser.scripting.executeScript({ target: { tabId }, world: 'MAIN', func: parseChannelsShare, args: [share] }).then(results => results[0]?.result as Awaited<ReturnType<typeof parseChannelsShare>> || { state: 'unavailable' }),
  inspect: tabId => browser.scripting.executeScript({ target: { tabId }, world: 'MAIN', func: readChannelsPlayback }).then(results => results[0]?.result as Awaited<ReturnType<typeof readChannelsPlayback>> || { state: 'unavailable' }),
 });

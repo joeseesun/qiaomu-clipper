@@ -69,7 +69,7 @@ interface StorageData {
 		saveBehavior?: 'addToObsidian' | 'copyToClipboard' | 'saveFile';
 		defaultTemplateId?: string;
 		tripleKeyShortcuts?: boolean;
-		tripleKeys?: { read: string; edit: string; clip: string; note?: string };
+		tripleKeys?: { read: string; edit: string; clip: string; note?: string; write?: string };
 		tripleKeyBlockedSites?: string[];
 		selectionToolbar?: boolean;
 		readerAutoChat?: boolean;
@@ -79,6 +79,7 @@ interface StorageData {
 		learningIncludeQuote?: boolean;
 		learningIncludeSource?: boolean;
 		youtubeAutoTranscript?: boolean;
+		captionDownloadFormat?: 'ask' | 'md' | 'srt' | 'vtt' | 'txt';
 		youtubeHideNativeTranscript?: boolean;
 	};
 	vaults?: string[];
@@ -214,6 +215,7 @@ export async function loadSettings(): Promise<Settings> {
 		learningIncludeQuote: data.general_settings?.learningIncludeQuote ?? true,
 		learningIncludeSource: data.general_settings?.learningIncludeSource ?? true,
 		youtubeAutoTranscript: data.general_settings?.youtubeAutoTranscript ?? true,
+		captionDownloadFormat: (['md', 'srt', 'vtt', 'txt'] as const).find(format => format === data.general_settings?.captionDownloadFormat) ?? 'ask',
 		youtubeHideNativeTranscript: data.general_settings?.youtubeHideNativeTranscript ?? true,
 		highlighterEnabled: data.highlighter_settings?.highlighterEnabled ?? defaultSettings.highlighterEnabled,
 		alwaysShowHighlights: data.highlighter_settings?.alwaysShowHighlights ?? defaultSettings.alwaysShowHighlights,
@@ -289,6 +291,7 @@ export async function saveSettings(settings?: Partial<Settings>): Promise<void> 
 			learningIncludeQuote: generalSettings.learningIncludeQuote,
 			learningIncludeSource: generalSettings.learningIncludeSource,
 			youtubeAutoTranscript: generalSettings.youtubeAutoTranscript,
+			captionDownloadFormat: generalSettings.captionDownloadFormat,
 			youtubeHideNativeTranscript: generalSettings.youtubeHideNativeTranscript,
 		},
 		highlighter_settings: {

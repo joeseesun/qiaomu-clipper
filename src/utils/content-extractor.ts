@@ -1,5 +1,5 @@
 import { ExtractedContent } from '../types/types';
-import { createMarkdownContent } from 'defuddle/full';
+import { createMarkdownContent } from './defuddle';
 import { normalizeBilibiliEmbeds } from './bilibili-embed';
 import { sanitizeFileName } from './string-utils';
 import { buildVariables, addSchemaOrgDataToVariables } from './shared';

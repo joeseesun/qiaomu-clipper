@@ -1,14 +1,14 @@
 // Press the same plain key three times quickly (outside text fields and open dialogs) to run an action.
 export const TRIPLE_KEY_WINDOW_MS = 600;
 
-export type TripleCommand = 'read' | 'edit' | 'clip' | 'note';
+export type TripleCommand = 'read' | 'edit' | 'clip' | 'note' | 'write';
 export type TripleKeyMap = Record<TripleCommand, string>;
-export const DEFAULT_TRIPLE_KEYS: TripleKeyMap = { read: 'a', edit: 'e', clip: 'q', note: 'i' };
-export const TRIPLE_COMMANDS: TripleCommand[] = ['read', 'edit', 'clip', 'note'];
+export const DEFAULT_TRIPLE_KEYS: TripleKeyMap = { read: 'a', edit: 'e', clip: 'q', note: 'i', write: 'u' };
+export const TRIPLE_COMMANDS: TripleCommand[] = ['read', 'edit', 'clip', 'note', 'write'];
 
 // One lowercase letter or digit per command; empty turns a command off. A key can only be used once.
 export function normalizeTripleKeys(raw: Partial<Record<TripleCommand, unknown>> | undefined | null): TripleKeyMap {
-	const result: TripleKeyMap = { read: '', edit: '', clip: '', note: '' };
+	const result: TripleKeyMap = { read: '', edit: '', clip: '', note: '', write: '' };
 	const used = new Set<string>();
 	for (const command of TRIPLE_COMMANDS) {
 		const value = raw && command in raw ? String(raw[command] ?? '').trim().toLowerCase() : DEFAULT_TRIPLE_KEYS[command];

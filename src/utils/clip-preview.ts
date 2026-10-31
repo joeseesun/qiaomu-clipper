@@ -10,6 +10,7 @@ import { incrementStat, loadSettings, setLocalStorage } from './storage-utils';
 import { t } from './ui-text';
 import type { LocalPreviewMedia } from './local-preview-media';
 export interface ClipPreview {
+    articleSource?: import('../write/source-import').ArticleSource;
     local: LocalSavePayload;
     clip: QiaomuClip;
     aggregate: boolean;

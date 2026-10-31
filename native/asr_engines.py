@@ -54,6 +54,9 @@ def model_ready(model):
     return snapshots.is_dir() and any(snapshots.iterdir())
 def model_bytes(model):
     folder = hf_home() / 'hub' / ('models--' + model.replace('/', '--'))
+    return folder_bytes(folder)
+def folder_bytes(folder):
+    if folder.is_symlink(): return 0
     total = 0
     for path in folder.rglob('*') if folder.is_dir() else []:
         try:

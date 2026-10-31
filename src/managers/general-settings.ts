@@ -250,6 +250,7 @@ export async function initializeLocalVaultSettings(): Promise<void> {
 	const recheck = document.getElementById('local-helper-recheck') as HTMLButtonElement | null;
 	const more = document.getElementById('local-helper-more');
 	const copy = document.getElementById('local-helper-copy') as HTMLButtonElement | null;
+	const uninstall = document.getElementById('local-helper-uninstall') as HTMLButtonElement | null;
 	const uriVaults = document.getElementById('uri-vaults');
 	if (!row || !select || !status || !note) return;
 	const OTHER = '__other__';
@@ -269,6 +270,7 @@ export async function initializeLocalVaultSettings(): Promise<void> {
 		if (help) help.hidden = false;
 		if (download) download.hidden = !isMac;
 		if (copy) copy.hidden = isMac && !/forbidden|exited/i.test(reason || '');
+		if (uninstall) uninstall.hidden = true;
 		if (more) more.hidden = false;
 	};
 	const showOnline = () => {
@@ -277,10 +279,31 @@ export async function initializeLocalVaultSettings(): Promise<void> {
 		note.textContent = t('已连接 ✓');
 		if (help) help.hidden = false;
 		if (copy) copy.hidden = true;
+		if (uninstall) uninstall.hidden = !isMac;
 	};
 	copy?.addEventListener('click', async () => {
 		try { await navigator.clipboard.writeText(nativeHelperRepairPrompt(browser.runtime.id, failure)); copy.textContent = t('已复制，去发给 AI 助手'); }
 		catch { copy.textContent = t('复制失败，请点“所有安装包”'); }
+	});
+
+	// Removing the whole helper: say what goes and how much space comes back, then the Mac asks for its password once.
+	uninstall?.addEventListener('click', async () => {
+		uninstall.disabled = true;
+		try {
+			const plan = await browser.runtime.sendMessage({ action: 'qiaomuLocalUninstallPlan' }) as { ok?: boolean; freedMb?: number; preservesSharedModels?: boolean };
+			const freed = plan?.ok ? Math.max(1, plan.freedMb || 0) : 0;
+			// A helper from before this feature answers with an error: say so instead of failing at the password step.
+			if (!plan?.ok || plan.preservesSharedModels !== true) { note.textContent = t('当前助手版本较旧，不能在这里卸载。请先下载安装最新助手，再回来卸载。'); return; }
+			const gb = freed >= 1024 ? `${(freed / 1024).toFixed(1)} GB` : `${freed} MB`;
+			if (!window.confirm(t('卸载本地助手？将删除助手及其独立运行环境（约 {0}），需要输入这台 Mac 的密码。笔记和共享模型缓存会保留，需要时可以重新安装。', [freed ? gb : t('一些空间')]))) return;
+			note.textContent = t('正在卸载…');
+			const result = await browser.runtime.sendMessage({ action: 'qiaomuLocalUninstall' }) as { ok?: boolean; cancelled?: boolean; error?: string; freedMb?: number; reason?: string };
+			if (result?.ok) { showOffline(t('助手已卸载，释放约 {0}。需要时可以重新下载安装。', [result.freedMb && result.freedMb >= 1024 ? `${(result.freedMb / 1024).toFixed(1)} GB` : `${result.freedMb || 0} MB`])); return; }
+			if (result?.cancelled) note.textContent = t('已取消，助手还在。');
+			else if (result?.error === 'busy') note.textContent = t('正在生成字幕或安装，稍后再试。');
+			else note.textContent = result?.error || t('卸载失败');
+		} catch { await refresh(); }
+		finally { uninstall.disabled = false; }
 	});
 
 	const fill = (vaults: { name: string; path: string }[], active: string) => {
@@ -458,7 +481,7 @@ function populateDefaultTemplateDropdown(templates: Template[]): void {
 function initializeTripleKeyFields(): void {
 	const inputs = Object.fromEntries(TRIPLE_COMMANDS.map(command => [command, document.getElementById(`triple-key-${command}`) as HTMLInputElement | null])) as Record<TripleCommand, HTMLInputElement | null>;
 	const error = document.getElementById('triple-key-error');
-	if (!inputs.read || !inputs.edit || !inputs.clip || !inputs.note) return;
+	if (!inputs.read || !inputs.edit || !inputs.clip || !inputs.note || !inputs.write) return;
 
 	const fill = (keys: Record<TripleCommand, string>) => TRIPLE_COMMANDS.forEach(command => { inputs[command]!.value = keys[command]; });
 	fill(normalizeTripleKeys(generalSettings.tripleKeys));
@@ -492,6 +515,9 @@ function initializeDefaultTemplateDropdown(): void {
 		document.addEventListener('qiaomu-templates-updated', event => populateDefaultTemplateDropdown((event as CustomEvent<Template[]>).detail));
 		dropdown.addEventListener('change', () => saveSettings({ ...generalSettings, defaultTemplateId: dropdown.value }));
 	}
+	initializeSettingDropdown('caption-download-format', generalSettings.captionDownloadFormat ?? 'ask', value => {
+		saveSettings({ ...generalSettings, captionDownloadFormat: value as Settings['captionDownloadFormat'] });
+	});
 	initializeSettingToggle('youtube-hide-native-toggle', generalSettings.youtubeHideNativeTranscript !== false, (checked) => {
 		saveSettings({ ...generalSettings, youtubeHideNativeTranscript: checked });
 	});

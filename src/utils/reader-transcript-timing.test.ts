@@ -4,7 +4,27 @@ vi.mock('./storage-utils', () => ({getLocalStorage:async()=>undefined,setLocalSt
 vi.mock('./i18n', () => ({getMessage:(key:string)=>key}));
 import { wireTranscript, unwireTranscript } from './reader-transcript';
 import { transcriptHtml } from './youtube-dom-transcript';
+import { transcriptHeadingTools } from './transcript-heading';
 afterEach(()=>{const article=document.querySelector('article');if(article)unwireTranscript(article);});
+
+it('keeps the audio heading and current-position target below the sticky player even when video pinning is off', () => {
+ vi.stubGlobal('CSS', {});
+ document.body.innerHTML='<article data-audio-study="true"><div class="player-container" style="position:sticky;top:66px"><div class="reader-video-wrapper is-audio"><video class="reader-video-player"></video></div></div></article>';
+ const article=document.querySelector('article')!, video=article.querySelector('video')!, player=article.querySelector<HTMLElement>('.player-container')!;
+ article.insertAdjacentHTML('beforeend',transcriptHtml([{time:'0:03',text:'Current podcast sentence',start:3,end:20}],false));
+ const transcript=article.querySelector<HTMLElement>('.transcript')!, row=transcriptHeadingTools(transcript).parentElement!;
+ vi.spyOn(player,'getBoundingClientRect').mockReturnValue({top:66,bottom:186,height:120} as DOMRect);
+ vi.spyOn(row,'getBoundingClientRect').mockReturnValue({top:186,bottom:230,height:44} as DOMRect);
+ vi.spyOn(transcript.querySelector('.transcript-segment')!,'getBoundingClientRect').mockReturnValue({top:120,bottom:150,height:30} as DOMRect);
+ const scrollTo=vi.fn();
+ wireTranscript(document,article,{pinPlayer:false,autoScroll:false,highlightActiveLine:false},{getStickyOffset:()=>56,scrollTo,programmaticScroll:()=>false});
+ expect(transcript.style.getPropertyValue('--transcript-heading-top')).toBe('186px');
+ video.currentTime=4;video.dispatchEvent(new Event('timeupdate'));
+ const current=article.querySelector<HTMLButtonElement>('.player-current-pos')!;
+ expect(current.classList.contains('is-visible')).toBe(true);
+ current.click();expect(scrollTo).toHaveBeenCalledWith(-130);
+ vi.restoreAllMocks();vi.unstubAllGlobals();
+});
 it('seeks timestamp clicks to the exact VTT start and removes old listeners when changing language',()=>{
  vi.stubGlobal('CSS',{});
  document.body.innerHTML='<article><div class="reader-video-wrapper"><video class="reader-video-player"></video></div></article>';

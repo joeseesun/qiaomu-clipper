@@ -1,0 +1,59 @@
+:is(.clip-chat, .qw-chat) {
+	// The model button in the header; the list it opens is .clip-chat-picker. Scoped under the panel so the app's global button style cannot stretch it.
+	button.clip-chat-model { display: inline-flex; align-items: center; gap: 4px; flex: 0 1 auto; width: auto; min-width: 56px; max-width: 190px; height: 28px; margin: 0; padding: 0 6px 0 8px; border: 0; border-radius: 6px; background: transparent; box-shadow: none; font-size: 13px; font-weight: 500; color: var(--text-muted); cursor: pointer; transition: background-color .12s, color .12s;
+		.clip-chat-model-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+		svg { flex: none; width: 12px; height: 12px; opacity: .7; }
+		&:hover, &[aria-expanded=true] { background: var(--background-modifier-hover, rgb(128 128 128 / 14%)); color: var(--text-normal); }
+		&:focus-visible { outline: 1px solid var(--text-muted); outline-offset: 2px; }
+		&[hidden] { display: none; } }
+	.clip-chat-picker { position: absolute; top: 49px; inset-inline: 10px; z-index: 5; display: flex; flex-direction: column; max-height: min(440px, calc(100% - 64px)); overflow: hidden;
+		background: var(--background-primary); border: 1px solid var(--divider-color, var(--background-modifier-border, rgb(128 128 128 / 35%))); border-radius: 12px;
+		box-shadow: 0 12px 32px rgb(0 0 0 / 14%), 0 2px 6px rgb(0 0 0 / 8%); animation: clip-chat-picker-in .12s ease-out;
+		&[hidden] { display: none; }
+		.clip-chat-picker-search { display: flex; align-items: center; gap: 8px; flex: none; height: 44px; padding: 0 14px; border-bottom: 1px solid var(--divider-color, var(--background-modifier-border, rgb(128 128 128 / 35%)));
+			svg { flex: none; width: 15px; height: 15px; color: var(--text-muted); }
+			input { flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; outline: none; font-size: 14px; color: var(--text-normal);
+				&:hover, &:focus { border: 0; box-shadow: none; outline: none; background: transparent; }
+				&::placeholder { color: var(--text-faint, var(--text-muted)); } } }
+		.clip-chat-picker-list { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 0 6px; }
+		// A solid background: the group names stay put over the rows that scroll beneath them.
+		.clip-chat-picker-group { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 8px; padding: 12px 14px 5px; background: var(--background-primary); font-size: 12px; font-weight: 500; color: var(--text-muted);
+			.clip-chat-picker-provider { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+			.clip-chat-picker-note { margin-inline-start: auto; flex: none; font-size: 11px; font-weight: 400; color: var(--text-faint, var(--text-muted)); } }
+		.provider-tile { flex: none; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; width: 18px; height: 18px; border-radius: 5px; border: 1px solid var(--background-modifier-border, rgb(128 128 128 / 30%)); background: var(--background-primary); color: var(--text-normal); font-size: 10px; font-weight: 700; line-height: 1;
+			svg { width: 68%; height: 68%; mix-blend-mode: normal !important; }
+			&.is-letter { border-color: transparent; background: hsl(var(--h, 220) 70% 93%); color: hsl(var(--h, 220) 55% 32%); } }
+		// Rows are divs; the current model is set apart by weight and a check mark, never by a tinted card or a side bar.
+		.clip-chat-picker-row { display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 0 14px; font-size: 13.5px; color: var(--text-normal); cursor: pointer;
+			&.is-active { background: var(--background-modifier-hover, rgb(128 128 128 / 10%)); }
+			&.is-current .clip-chat-picker-name { font-weight: 600; }
+			.clip-chat-picker-check { flex: none; display: inline-flex; width: 18px; justify-content: center; svg { width: 14px; height: 14px; } }
+			.clip-chat-picker-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } }
+		.clip-chat-picker-empty { padding: 24px 14px; text-align: center; font-size: 13px; color: var(--text-muted); }
+		.clip-chat-picker-footer { flex: none; padding: 8px; border-top: 1px solid var(--divider-color, var(--background-modifier-border, rgb(128 128 128 / 35%))); }
+		button.clip-chat-picker-manage { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; height: 32px; margin: 0; padding: 0 12px; border: 0; border-radius: 8px; background: var(--background-secondary, rgb(128 128 128 / 12%)); box-shadow: none; font-size: 13px; color: var(--text-normal); cursor: pointer; transition: background-color .12s;
+			svg { flex: none; width: 14px; height: 14px; }
+			&:hover { background: var(--background-modifier-hover, rgb(128 128 128 / 20%)); color: var(--text-normal); }
+			&:focus-visible { outline: 1px solid var(--text-muted); outline-offset: 2px; } } }
+	@media (prefers-color-scheme: dark) { .clip-chat-picker .provider-tile:not(.is-letter) { background: var(--background-secondary); } }
+	.theme-dark & .clip-chat-picker .provider-tile.is-letter, body.theme-dark & .clip-chat-picker .provider-tile.is-letter { background: hsl(var(--h, 220) 35% 24%); color: hsl(var(--h, 220) 70% 85%); }
+
+.clip-chat-picker-filters { display: flex; gap: 4px; padding: 8px; flex-wrap: wrap; border-bottom: 1px solid var(--background-modifier-border); }
+.clip-chat-picker-filters button { width: auto; padding: 4px 8px; margin: 0; background: var(--background-secondary); color: var(--text-muted); border: 0; box-shadow: none; border-radius: 5px; font-size: 12px; }
+.clip-chat-picker-filters button[aria-pressed=true] { color: var(--text-normal); font-weight: 600; background: var(--background-modifier-hover); }
+.clip-chat-picker-thinking { flex: none; padding: 8px 14px; margin: 0; border-top: 1px solid var(--background-modifier-border); font-size: 12px; color: var(--text-muted); }
+.clip-chat-thinking-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+button.clip-chat-effort, button.clip-chat-effort-item { appearance: none; display: inline-flex; align-items: center; gap: 8px; width: auto; margin: 0; padding: 6px 10px; border: 0; border-radius: 6px; background: var(--background-secondary); box-shadow: none; color: var(--text-normal); font: inherit; cursor: pointer;
+	svg { width: 14px; height: 14px; }
+	&:hover { background: var(--background-modifier-hover); box-shadow: none; }
+	&:focus-visible { outline: 1px solid var(--text-muted); outline-offset: 2px; box-shadow: none; }
+}
+.clip-chat-effort-menu { max-height: 136px; overflow-y: auto; padding: 4px; margin-top: 6px; background: var(--background-primary); border: 1px solid var(--background-modifier-border); border-radius: 8px; &[hidden] { display: none; } }
+button.clip-chat-effort-item { display: flex; width: 100%; justify-content: flex-start; background: transparent; border-radius: 0; text-align: start; &:focus-visible { outline-offset: -1px; } &[aria-checked=true] { font-weight: 600; } }
+.clip-chat-effort-check { display: inline-flex; width: 14px; flex: none; }
+.clip-chat-picker-thinking[hidden], .clip-chat-picker-filters[hidden] { display: none; }
+.clip-chat-model:disabled { opacity: .6; cursor: default; }
+svg { mix-blend-mode: normal !important; }
+}
+.qw-chat .clip-chat-picker { top: auto; bottom: 46px; max-height: min(460px, calc(100vh - 220px)); }
+.qw-chat-tools { position: relative; }

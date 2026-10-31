@@ -21,4 +21,7 @@ if (!(manifest(STORE).optional_permissions || []).includes('cookies')) fail('the
 if (manifest(STORE).version !== manifest(LOCAL).version) fail('the two editions differ in version');
 const store = bundles(STORE);
 for (const marker of ['qiaomu-dl-style', 'googlevideo.com', 'youtube-nocookie.com']) if (!store.includes(marker)) fail('missing store media download policy: ' + marker);
+// YouTube page downloads belong to the standalone edition only: the store bundle must carry no trace of the opt-in, the local one must.
+if (store.includes('allowYoutube')) fail('the store package contains the standalone-only YouTube download opt-in');
+if (!bundles(LOCAL).includes('allowYoutube')) fail('the standalone package lacks the YouTube download opt-in');
 console.log('editions ok: store uses optional downloads and a source policy; local has the store ID', id);

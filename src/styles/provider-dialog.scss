@@ -27,6 +27,8 @@
 	.modal { --dialog-width: 520px; max-height: 86vh; }
 	&.pd-wide .modal { --dialog-width: 820px; }
 	.pd-body { overflow: auto; padding: 2px; }
+	.pd-steps { display: flex; flex-wrap: wrap; gap: 8px 24px; margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid var(--background-modifier-border); color: var(--text-muted); font-size: var(--font-ui-small);
+		.is-current { color: var(--text-normal); font-weight: 600; } }
 		.pd-search { width: 100%; height: 36px; padding: 0 12px; margin-bottom: 4px; border-radius: 10px; }
 	.pd-group { margin: 16px 2px 8px; font-size: var(--font-ui-small); font-weight: 600; color: var(--text-muted); }
 	.pd-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }

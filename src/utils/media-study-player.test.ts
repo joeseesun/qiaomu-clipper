@@ -14,6 +14,7 @@ it('shows the video and all layout controls before any subtitles, preserving the
 it('keeps audio in the audio layout without video controls, while classifying local video files correctly', () => {
 	const article=document.querySelector('article')!, video=mountMediaStudyPlayer(article,document.querySelector('#captions')!,'https://sound.example/test.mp3',false);
 	expect(article.dataset.audioStudy).toBe('true');expect(video.controls).toBe(false);expect(video.parentElement!.classList.contains('is-audio')).toBe(true);expect(article.querySelector('.youtube-mode-bar')).toBeNull();
+	expect(video.closest('.player-container')?.parentElement).toBe(article); // Pinning must work before captions arrive too.
 	for(const name of ['test.mp4','test.MOV','test.webm'])expect(isVideoFile({name,type:''})).toBe(true);
 	expect(isVideoFile({name:'unknown',type:'video/mp4'})).toBe(true);expect(isVideoFile({name:'sound.mp3',type:'audio/mpeg'})).toBe(false);
 });

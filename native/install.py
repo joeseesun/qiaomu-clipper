@@ -78,7 +78,11 @@ def registered(label,data):
     except OSError: return 'HKCU\\'+key,None
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--vault');p.add_argument('--extension-id',action='append',default=[],help='repeatable; default: auto-detect');p.add_argument('--check',action='store_true',help='diagnose an existing install without changing anything')
+    p.add_argument('--uninstall',action='store_true',help='remove the helper, its registrations and private environments; preserve shared model caches (asks for the Mac password to delete the installed package)')
     a=p.parse_args()
+    if a.uninstall:
+        sys.path.insert(0,str(Path(__file__).resolve().parent));import uninstall
+        result=uninstall.run();print(json.dumps(result,ensure_ascii=False,indent=2));sys.exit(0 if result['ok'] else 1)
     if HOSTS is None: fail('此系统暂不支持','目前仅支持 macOS / Linux / Windows 的 Chromium 系浏览器（Chrome、Edge、Brave 等）')
     if sys.version_info<(3,9): fail(f'Python 版本过低（{sys.version.split()[0]}）','需要 Python 3.9 或更新版本，请用 python3.9+ 重新运行')
     detected=find_extensions()
@@ -117,7 +121,7 @@ def main():
         # Chrome on Windows can't run a .py directly; it launches this wrapper, which forwards the origin argument.
         host=BASE/'host.bat';host.write_text(f'@echo off\r\n"{sys.executable}" "{script}" %*\r\n',encoding='utf8')
     # Subtitle generation (yt-dlp + ffmpeg + Whisper) lives next to the host; the host imports it from its own folder.
-    for module in ('asr.py','asr_cloud.py','asr_engines.py','asr_runner.py','asr_context.py','media_download.py','VERSION'): (BASE/module).write_text(Path(__file__).with_name(module).read_text(encoding='utf8'),encoding='utf8');(BASE/module).chmod(0o600)
+    for module in ('asr.py','asr_cloud.py','asr_engines.py','asr_runner.py','asr_context.py','media_download.py','uninstall.py','codex_images.py','VERSION'): (BASE/module).write_text(Path(__file__).with_name(module).read_text(encoding='utf8'),encoding='utf8');(BASE/module).chmod(0o600)
     origins=[f'chrome-extension://{i}/' for i in ids]
     config=BASE/'config.json';config.write_text(json.dumps({**({'vault':str(vault)} if vault else {}),'origins':origins},ensure_ascii=False,indent=2),encoding='utf8');config.chmod(0o600)
     manifest={'name':NAME,'description':'Save clipped Markdown silently to the configured Obsidian vault','path':str(host),'type':'stdio','allowed_origins':origins}

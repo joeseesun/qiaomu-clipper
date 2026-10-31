@@ -4,6 +4,7 @@ import { isDouyinMedia } from './web-page-media';
 import { isChannelsMedia } from './channels-study';
 import { isXhsMedia } from './xiaohongshu';
 import { isXiaoeMedia } from './xiaoe';
+import { canDownloadYouTube } from './media-download-policy';
 import { t } from './ui-text';
 
 type Reply = { ok: boolean; id?: string; state?: string; progress?: number; error?: string };
@@ -24,7 +25,7 @@ export async function downloadWithHelper(options: { sourceUrl: string; mediaUrl:
 	signal.addEventListener('abort', cancel, { once: true });
 	try {
 		if (signal.aborted) throw new DownloadError('cancelled', t('已取消'));
-		job = await ask({ mode: 'downloadStart', url: options.sourceUrl, name: options.title, video: options.video, ...(mediaUrl ? { mediaUrl, ...(options.audioUrl && mediaAllowed(options.audioUrl) ? { audioUrl: options.audioUrl } : {}) } : {}) });
+		job = await ask({ mode: 'downloadStart', url: options.sourceUrl, name: options.title, video: options.video, ...(__LOCAL_EDITION__ && canDownloadYouTube(options.sourceUrl, options.mediaUrl) ? { allowYoutube: true } : {}), ...(mediaUrl ? { mediaUrl, ...(options.audioUrl && mediaAllowed(options.audioUrl) ? { audioUrl: options.audioUrl } : {}) } : {}) });
 		if (!job.id) throw new Error(t('下载中断'));
 		while (true) {
 			if (signal.aborted) { cancel(); throw new DownloadError('cancelled', t('已取消')); }

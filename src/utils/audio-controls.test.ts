@@ -35,24 +35,14 @@ it('jumps back 15 and forward 30 seconds, within the audio', () => {
 	media.currentTime = 5; back.click(); expect(media.currentTime).toBe(0); media.currentTime = 90; forward.click(); expect(media.currentTime).toBe(100);
 });
 
-it('shows every speed at once, picks one with a press, and remembers the choice', () => {
-	const { media, root } = make(); const group = q(root, '.qa-speed'); const rates = () => Array.from(group.querySelectorAll<HTMLButtonElement>('[role=radio]'));
-	expect(group.getAttribute('role')).toBe('radiogroup'); expect(rates().map(b => b.textContent)).toEqual(SPEEDS.map(s => `${s}×`));
-	expect(rates().map(b => b.getAttribute('aria-checked'))).toEqual(['false', 'true', 'false', 'false', 'false', 'false']);   // 1× is the start
-	expect(root.querySelector('.qa-menu')).toBeNull();                                                                       // nothing pops up, so nothing can be cut off
-	group.querySelector<HTMLButtonElement>('[data-rate="1.5"]')!.click();
-	expect(media.playbackRate).toBe(1.5); expect(localStorage.getItem('qiaomuAudioRate')).toBe('1.5'); expect(rates().filter(b => b.getAttribute('aria-checked') === 'true').map(b => b.textContent)).toEqual(['1.5×']);
-	expect(make().media.playbackRate).toBe(1.5);
-});
-
-it('moves along the speeds with the arrow keys', () => {
-	const { media, root } = make(); const first = q<HTMLButtonElement>(root, '[data-rate="1"]');
-	first.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true })); expect(media.playbackRate).toBe(1.25);
-	q<HTMLButtonElement>(root, '[data-rate="1.25"]').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true, cancelable: true })); expect(media.playbackRate).toBe(1);
-	q<HTMLButtonElement>(root, '[data-rate="0.75"]').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true, cancelable: true })); expect(media.playbackRate).toBe(2);   // wraps round
+it('chooses a speed from the compact picker and remembers it without starting paused audio', () => {
+ const { media, root } = make(); const speed = q<HTMLSelectElement>(root, '.qa-rate');
+ expect(speed.getAttribute('aria-label')).toBe('Speed'); expect(Array.from(speed.options).map(o => Number(o.value))).toEqual(SPEEDS); expect(speed.value).toBe('1');
+ speed.value='1.5';speed.dispatchEvent(new Event('change'));
+ expect(media.playbackRate).toBe(1.5);expect(localStorage.getItem('qiaomuAudioRate')).toBe('1.5');expect(media.paused).toBe(true);expect(media.play).not.toHaveBeenCalled();expect(make().media.playbackRate).toBe(1.5);
 });
 
 it('follows a speed changed with the browser\'s own means, and starts a new source at the remembered speed', () => {
 	const { media, root } = make(); media.playbackRate = 1.75; media.dispatchEvent(new Event('ratechange'));
-	expect(q(root, '[data-rate="1.75"]').getAttribute('aria-checked')).toBe('true'); expect(localStorage.getItem('qiaomuAudioRate')).toBe('1.75'); expect(media.defaultPlaybackRate).toBe(1.75);
+	expect(q<HTMLSelectElement>(root, '.qa-rate').value).toBe('1.75'); expect(localStorage.getItem('qiaomuAudioRate')).toBe('1.75'); expect(media.defaultPlaybackRate).toBe(1.75);
 });

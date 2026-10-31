@@ -8,11 +8,31 @@ from urllib.parse import urlparse
 import asr
 
 YOUTUBE = ('youtube.com', 'youtu.be', 'youtube-nocookie.com', 'googlevideo.com', 'youtube.googleapis.com')
-def allowed(url):
+def youtube_page(url):
+    """A YouTube watch page, never a media or embed host: the only YouTube address the standalone edition may name."""
+    host = (urlparse(url).hostname or '').lower().rstrip('.')
+    return host == 'youtu.be' or host == 'youtube.com' or host.endswith('.youtube.com')
+def allowed(url, youtube=False):
     if not isinstance(url, str) or len(url) > 1500 or not asr.public_https(url): return False
     host = (urlparse(url).hostname or '').lower().rstrip('.')
     if host == 'localhost' or host.endswith(('.localhost', '.local', '.internal', '.lan', '.home', '.corp', '.intranet')) or '.' not in host: return False
-    return not any(host == h or host.endswith('.' + h) for h in YOUTUBE)
+    if any(host == h or host.endswith('.' + h) for h in YOUTUBE): return youtube is True and youtube_page(url)
+    return True
+
+# Prefer H.264 + AAC, which any player opens inside an .mp4; fall back to the best streams (merged into .mkv when mp4 cannot hold them).
+PLAYABLE_VIDEO = 'bv*[vcodec^=avc1]+ba[acodec^=mp4a]/bv*[ext=mp4]+ba[ext=m4a]/bv*+ba/b'
+
+def why_not(code, tail, files):
+    """A short reason for a failed export, from the tool's own last lines. Never includes a path or a cookie."""
+    detail = ' '.join(tail)
+    errors = [re.sub(r'^ERROR:\s*(\[[^\]]+\]\s*)?([\w-]{6,}:\s*)?', '', line.strip()) for line in tail if line.strip().startswith('ERROR:')]
+    low = detail.lower()
+    if 'requested format is not available' in low or 'only images are available' in low: return '这条视频暂时没有可下载的格式（YouTube 对它做了额外限制，字幕和学习不受影响）'
+    if 'private video' in low or 'video unavailable' in low or 'this video is unavailable' in low: return '这条视频不可用，或是私享视频'
+    if 'does not pass filter' in low: return '直播和受版权保护（DRM）的视频不能下载'
+    if errors: return errors[-1][:140]
+    if code == 0 and not files: return '没有得到可保存的文件'
+    return ''
 
 def destination():
     downloads = (Path.home() / 'Downloads').resolve()
@@ -24,7 +44,9 @@ def destination():
 
 def start(base, message):
     url = message.get('url')
-    if not allowed(url) or not isinstance(message.get('name'), str) or len(message['name']) > 300 or not isinstance(message.get('video'), bool): raise ValueError('bad-request')
+    youtube = message.get('allowYoutube') is True
+    if not allowed(url, youtube) or not isinstance(message.get('name'), str) or len(message['name']) > 300 or not isinstance(message.get('video'), bool): raise ValueError('bad-request')
+    if youtube and (message.get('mediaUrl') is not None or message.get('audioUrl') is not None): raise ValueError('bad-request')
     for field in ('mediaUrl', 'audioUrl'):
         media = message.get(field)
         if media is not None and not (asr.page_media(url, media) or asr.xiaoe_media(url, media)): raise ValueError('bad-request')
@@ -39,6 +61,7 @@ def start(base, message):
     asr.prune(base)
     job_id = uuid.uuid4().hex; directory = asr.job_dir(base, job_id); directory.mkdir(parents=True, mode=0o700)
     spec = {k: message[k] for k in ('url', 'name', 'video', 'mediaUrl', 'audioUrl') if k in message}
+    if youtube and youtube_page(url): spec['allowYoutube'] = True
     spec.update(purpose='download', id=job_id, videoKey='web:' + asr.sha(url, 12), cookies=cookies)
     if cookie_text: asr.write_private(directory / 'cookies.txt', cookie_text); spec['cookiesFile'] = True
     asr.atomic_json(directory / 'spec.json', spec)
@@ -91,34 +114,48 @@ def fetch_full(directory, spec, env, tools):
         other = directory / 'sound'; other.mkdir()
         try:
             audio = asr.download_page_media(other, {**spec, 'mediaUrl': spec['audioUrl']})
-            target = directory / 'audio.mkv'
-            code, tail = asr.stream([tools['ffmpeg'], '-nostdin', '-v', 'error', '-i', str(video), '-i', str(audio), '-map', '0:v:0', '-map', '1:a:0', '-c', 'copy', str(target)], env, lambda _: None)
-            if code or not target.is_file(): raise asr.Failed('下载中断')
-            return target
+            # H.264/AAC stays in an .mp4 that plays everywhere; anything else (e.g. Opus) goes to .mkv.
+            for suffix, extra in (('.mp4', ['-movflags', '+faststart']), ('.mkv', [])):
+                target = directory / ('audio' + suffix)
+                code, tail = asr.stream([tools['ffmpeg'], '-nostdin', '-v', 'error', '-i', str(video), '-i', str(audio), '-map', '0:v:0', '-map', '1:a:0', '-c', 'copy', *extra, str(target)], env, lambda _: None)
+                if not code and target.is_file(): return target
+                target.unlink(missing_ok=True)
+            raise asr.Failed('下载中断')
         finally: shutil.rmtree(other, ignore_errors=True)
     # Never use an ASR bestaudio selector for video exports. Ignore user configs and reject
-    # YouTube extractors (including embeds/redirects), DRM formats and live streams.
-    command = [tools['yt-dlp'], '--ignore-config', '--no-playlist', '--no-warnings', '--newline', '--no-continue', '--abort-on-unavailable-fragments', '--socket-timeout', '30', '--retries', '3', '--fragment-retries', '3',
-               '--match-filter', 'extractor_key !~= (?i)youtube & !is_live & !has_drm', '--ffmpeg-location', tools['ffmpeg'],
-               '-f', 'bv*+ba/b' if spec['video'] else 'ba/b', '--merge-output-format', 'mkv', '-o', str(directory / 'audio.%(ext)s')]
-    if spec.get('cookiesFile'): command += ['--cookies', str(directory / 'cookies.txt')]
-    elif spec.get('cookies'): command += ['--cookies-from-browser', spec['cookies']]
-    command += ['--', spec['url']]
+    # DRM formats and live streams, and YouTube extractors (including embeds/redirects) unless the standalone edition asked for a YouTube page.
+    base = [tools['yt-dlp'], '--ignore-config', '--no-playlist', '--no-warnings', '--newline', '--no-continue', '--abort-on-unavailable-fragments', '--socket-timeout', '30', '--retries', '3', '--fragment-retries', '3',
+            '--match-filter', '!is_live & !has_drm' if spec.get('allowYoutube') else 'extractor_key !~= (?i)youtube & !is_live & !has_drm', '--ffmpeg-location', tools['ffmpeg'],
+            '-f', PLAYABLE_VIDEO if spec['video'] else 'ba/b', '--merge-output-format', 'mp4/mkv', '-o', str(directory / 'audio.%(ext)s')]
     def progress(line):
         match = re.search(r'\[download\]\s+([0-9.]+)%', line)
         if match: asr.write_state(directory, state='downloading', progress=min(95, float(match.group(1)) * .95))
-    code, tail = asr.stream(command, env, progress)
-    candidates = [p for p in directory.glob('audio.*') if p.suffix in ('.mp4', '.m4v', '.mkv', '.webm', '.mov', '.m4a', '.mp3', '.ogg', '.opus', '.aac', '.flac', '.wav', '.ts')]
+    def attempt(with_login):
+        command = list(base)
+        if with_login and spec.get('cookiesFile'): command += ['--cookies', str(directory / 'cookies.txt')]
+        elif with_login and spec.get('cookies'): command += ['--cookies-from-browser', spec['cookies']]
+        code, tail = asr.stream(command + ['--', spec['url']], env, progress)
+        return code, tail, [p for p in directory.glob('audio.*') if p.suffix in ('.mp4', '.m4v', '.mkv', '.webm', '.mov', '.m4a', '.mp3', '.ogg', '.opus', '.aac', '.flac', '.wav', '.ts')]
+    # YouTube hands a signed-in session only its "web" player, whose files need a token we do not have; the anonymous players give plain files.
+    # So a YouTube page is tried without the lent login first, and with it only when YouTube asks for it.
+    login_second = bool(spec.get('allowYoutube') and (spec.get('cookiesFile') or spec.get('cookies')))
+    code, tail, candidates = attempt(not login_second)
     # yt-dlp can leave separate streams after a failed merger. Only exit 0 and one file is success.
+    if login_second and (code or len(candidates) != 1):
+        for leftover in directory.glob('audio.*'): leftover.unlink(missing_ok=True)
+        code, tail, candidates = attempt(True)
     if code or len(candidates) != 1:
         detail = ' '.join(tail)
         if asr.NEEDS_LOGIN.search(detail): raise asr.Failed('这个平台要求登录状态才能下载这条视频的音频', code='needs-cookies')
-        raise asr.Failed('下载中断')
+        # The job folder is private (0700): keep the tool's last lines there for diagnosis, never in the message.
+        asr.write_state(directory, detail=' | '.join(line.strip()[:200] for line in tail[-8:])[:1500])
+        reason = why_not(code, tail, candidates)
+        raise asr.Failed('下载中断：' + reason if reason else '下载中断')
     return candidates[0]
 
 def run_worker(directory, spec):
     try:
-        if not allowed(spec.get('url')): raise asr.Failed('bad-request')
+        if not allowed(spec.get('url'), spec.get('allowYoutube') is True): raise asr.Failed('bad-request')
         tools = {tool: asr.find_tool(tool) for tool in ('yt-dlp', 'ffmpeg')}
         if not all(tools.values()): raise asr.Failed('缺少工具')
         asr.write_state(directory, state='downloading', progress=0)

@@ -173,11 +173,11 @@ export async function initializeAsrSettings(): Promise<void> {
 			const here = Boolean(localInfo(id)?.installed), managed = localInfo(id)?.managed !== false, busy = installing?.engine === id;
 			const state = node('div', 'asr-modal-status'); state.setAttribute('role', 'status'); state.setAttribute('aria-live', 'polite');
 			const meter = node('div', 'asr-meter'), bar = node('i'); meter.append(bar); meter.hidden = !busy; bar.style.width = `${Math.max(2, installing?.progress ?? 0)}%`;
-			state.textContent = busy ? `${installing!.stage}（${Math.round(installing!.progress)}%）` : helperProblem || (here ? t('已安装{0}。', [localInfo(id)?.modelReady ? t('，模型已就绪') : t('，首次使用时会下载模型')]) : t('还没有安装。会下载约 {0}（含识别模型）到本机的私有文件夹，不影响系统环境。', [size(meta.sizeMb)]));
+			state.textContent = busy ? `${installing!.stage}（${Math.round(installing!.progress)}%）` : helperProblem || (here ? t('已安装{0}。', [localInfo(id)?.modelReady ? t('，模型已就绪') : t('，首次使用时会下载模型')]) : t('还没有安装。会下载约 {0}（含识别模型）；运行环境独立安装，模型保存在本机缓存中，不影响系统环境。', [size(meta.sizeMb)]));
 			const actions: HTMLElement[] = [];
 			if (here && managed && !busy) actions.push(button(t('卸载'), 'asr-danger', async () => {
-				if (!window.confirm(t('卸载「{0}」并删除已下载的识别模型（约 {1}）？需要时可以再装回来。', [meta.name, size(meta.sizeMb)]))) return;
-				const reply = await asrUninstall(id, true); say(reply.ok ? t('已卸载，释放约 {0}。', [size(reply.freedMb)]) : reply.error === 'busy' ? t('正在生成字幕或安装，稍后再试。') : t('卸载失败')); closeModal(); await refreshEngines(); say(reply.ok ? t('已卸载，释放约 {0}。', [size(reply.freedMb)]) : t('卸载失败'));
+				if (!window.confirm(t('卸载「{0}」的运行环境？共享模型缓存会保留，需要时可以再装回来。', [meta.name]))) return;
+				const reply = await asrUninstall(id, false); say(reply.ok ? t('已卸载，释放约 {0}。', [size(reply.freedMb)]) : reply.error === 'busy' ? t('正在生成字幕或安装，稍后再试。') : t('卸载失败')); closeModal(); await refreshEngines(); say(reply.ok ? t('已卸载，释放约 {0}。', [size(reply.freedMb)]) : t('卸载失败'));
 			}));
 			actions.push(button(t('关闭'), '', closeModal));
 			if (here && recognizerFor(settings) !== `local:${id}`) actions.push(button(t('设为默认'), '', () => { closeModal(); void save(choosePatch(settings, `local:${id}`)); }));

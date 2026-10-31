@@ -1,4 +1,4 @@
-import Defuddle from 'defuddle/full';
+import Defuddle from './defuddle';
 import { setElementHTML } from './dom-utils';
 import { extractXhsNote } from './xiaohongshu';
 

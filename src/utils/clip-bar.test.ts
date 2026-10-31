@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { expect, it, vi } from 'vitest';
+import { beforeEach, expect, it, vi } from 'vitest';
 
 vi.mock('./browser-polyfill', () => ({ default: { runtime: { getURL: (p: string) => 'chrome-extension://fixture/' + p }, storage: { local: { set: vi.fn(), get: vi.fn() } } } }));
 vi.mock('./i18n', () => ({ getMessage: (key: string) => key }));
@@ -10,6 +10,7 @@ import * as clipBar from './clip-bar';
 const { createClipBar, autoHideBar } = clipBar;
 
 const draft: any = { aggregate: true, local: { content: '', name: 'a.md' }, clip: { title: 'a' } };
+beforeEach(() => { document.body.innerHTML = ''; });
 
 it('shows an icon on copy, download and clip', () => {
 	const bar = createClipBar({ mode: 'read', id: '1', draft, title: document.createElement('span') });
@@ -76,4 +77,49 @@ it('tracks wrapped bar height without losing the hidden-bar offset behavior', ()
  expect(document.documentElement.style.getPropertyValue('--clip-bar-measured-height')).toBe('144px');
  window.dispatchEvent(new Event('pagehide')); expect(disconnect).toHaveBeenCalled();
  bar.remove(); vi.restoreAllMocks(); vi.unstubAllGlobals();
+});
+
+it('keeps copy beside clip and puts secondary actions in the right-hand menu', () => {
+	const daily = document.createElement('button'); daily.className = 'learning-note-entry';
+	const bar = createClipBar({ mode: 'read', id: 'menu', draft, title: document.createElement('span'), dailyNoteButton: daily });
+	document.body.append(bar);
+	expect(bar.querySelector('#clip-bar-copy')?.parentElement?.className).toBe('clip-bar-actions');
+	expect(bar.querySelector('#clip-bar-clip')?.nextElementSibling?.id).toBe('clip-bar-more');
+	const menu = bar.querySelector<HTMLElement>('.clip-more-menu')!;
+	expect(menu.hidden).toBe(true);
+	for (const id of ['clip-bar-write', 'clip-bar-daily', 'clip-bar-download', 'clip-bar-settings']) expect(menu.querySelector(`#${id}`)).not.toBeNull();
+	expect(menu.querySelector('input.switch')).not.toBeNull();
+	bar.querySelector<HTMLButtonElement>('#clip-bar-more')!.click();
+	expect(menu.hidden).toBe(false); expect(document.activeElement?.id).toBe('clip-bar-write');
+	document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+	expect(document.activeElement).toBe(daily);
+	document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+	expect(menu.hidden).toBe(true); expect(document.activeElement?.id).toBe('clip-bar-more');
+});
+
+it('keeps an open action menu visible during scrolling and guards repeated article clicks', async () => {
+	let resolve!: () => void;
+	const onWrite = vi.fn(() => new Promise<void>(done => { resolve = done; }));
+	const bar = createClipBar({ mode: 'read', id: 'write', draft, title: document.createElement('span'), onWrite });
+	document.body.append(bar); autoHideBar(bar);
+	bar.querySelector<HTMLButtonElement>('#clip-bar-more')!.click();
+	const area = document.body.appendChild(document.createElement('textarea'));
+	area.scrollTop = 0; area.dispatchEvent(new Event('scroll'));
+	area.scrollTop = 300; area.dispatchEvent(new Event('scroll'));
+	expect(bar.classList.contains('is-hidden')).toBe(false);
+	const write = bar.querySelector<HTMLButtonElement>('#clip-bar-write')!;
+	write.click(); write.click(); expect(onWrite).toHaveBeenCalledTimes(1);
+	resolve(); await vi.waitFor(() => expect(write.disabled).toBe(false));
+});
+
+it('prevents clipping with the old sharing choice while an RSS toggle is being saved', async () => {
+	const { patchClipPreview } = await import('./clip-preview');
+	let finish!: () => void;
+	vi.mocked(patchClipPreview).mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve; }));
+	const data = { ...draft, aggregate: true };
+	const bar = createClipBar({ mode: 'read', id: 'rss', draft: data, title: document.createElement('span') });
+	const rss = bar.querySelector<HTMLInputElement>('input.switch')!, clip = bar.querySelector<HTMLButtonElement>('#clip-bar-clip')!;
+	rss.checked = false; rss.dispatchEvent(new Event('change'));
+	expect(clip.disabled).toBe(true);
+	finish(); await vi.waitFor(() => expect(clip.disabled).toBe(false)); expect(data.aggregate).toBe(false);
 });

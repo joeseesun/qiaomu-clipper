@@ -49,6 +49,15 @@ function topRightLayer(host: HTMLElement, doc: Document): DOMRect | undefined {
 export function placeWebBar(host: HTMLElement, media: WebMedia | undefined, site: string): void {
 	const doc = host.ownerDocument, win = doc.defaultView!;
 	const video = media?.getBoundingClientRect();
+	if (site === 'douyin' && Array.from(doc.querySelectorAll<HTMLElement>('#imSaasContainerId, #im-entry-vmok-popup-portal')).some(panel => {
+		const r = panel.getBoundingClientRect();
+		return r.width > 0 && r.height > 0 && r.left < win.innerWidth && r.right > 0 && r.top < win.innerHeight && r.bottom > 0 && win.getComputedStyle(panel).visibility !== 'hidden';
+	})) {
+		// A study strip must not become a flex child of private messages or cover its controls.
+		if (host.parentElement !== doc.body) doc.body.append(host);
+		host.style.cssText = 'display:none!important';
+		return;
+	}
 	if (site === 'xiaohongshu') {
 		const scroller = media?.closest('#noteContainer')?.querySelector('.note-scroller');
 		const content = scroller?.querySelector('.note-content');
@@ -70,20 +79,6 @@ export function placeWebBar(host: HTMLElement, media: WebMedia | undefined, site
 			return;
 		}
 	}
-	if (site === 'douyin' && video && typeof doc.elementFromPoint === 'function') {
-		// The column beside the player: the strip goes first in it, where it is seen without scrolling.
-		let node = doc.elementFromPoint(video.right + 60, video.top + 60);
-		if (node && host.contains(node)) return;
-		while (node && node !== doc.body) {
-			const parent = node.parentElement, r = parent?.getBoundingClientRect();
-			if (parent && r && r.left >= video.right - 4 && r.width >= 250 && r.width <= 440 && r.height >= 300 && parent.children.length >= 2) {
-				host.classList.add('is-inline'); host.style.cssText = '';
-				if (parent.firstElementChild !== host) parent.insertBefore(host, parent.firstElementChild);
-				return;
-			}
-			node = parent;
-		}
-	}
 	if (site === 'douyin' && video) {
 		const heading = Array.from(doc.querySelectorAll<HTMLElement>('h2,h3,div,p,span')).find(e => {
 			if (e.children.length || e.textContent?.trim() !== '推荐视频') return false;
@@ -94,6 +89,7 @@ export function placeWebBar(host: HTMLElement, media: WebMedia | undefined, site
 		while (module && module !== doc.body) {
 			const r = module.getBoundingClientRect();
 			if (r.left >= video.right && r.width >= 250 && r.width <= 440 && r.height > 60) {
+				host.classList.remove('is-floating', 'is-compact');
 				host.classList.add('is-inline'); host.style.cssText = '';
 				if (host.nextElementSibling !== module) module.before(host);
 				return;
@@ -102,7 +98,7 @@ export function placeWebBar(host: HTMLElement, media: WebMedia | undefined, site
 		}
 	}
 	host.classList.remove('is-inline', 'is-floating', 'is-compact');
-	if (!host.isConnected) doc.body.append(host);
+	if (host.parentElement !== doc.body) doc.body.append(host);
 	if (site === 'douyin' && video && video.width >= win.innerWidth - 8) {
 		// The 精选 / feed pop-up draws the player across the whole window, in a fixed layer (z-index ~500) that covers anything
 		// placed at the usual z-index. There is no column beside it: float the strip on the search row, left of the like / comment rail (about 64px wide),
@@ -119,6 +115,12 @@ export function placeWebBar(host: HTMLElement, media: WebMedia | undefined, site
 		}
 		if (box && box.width > 0 && box.top < 200 && box.left > win.innerWidth / 2) { right = Math.round(win.innerWidth - box.right); top = Math.round(box.bottom + 8); }
 		host.style.cssText = `right:${right}px;left:auto;top:${top}px;bottom:auto;z-index:2147483000;`;
+		return;
+	}
+	// Channels' playback page is one full-window player: float the strip under the top-right menu, clear of the like/share rail along the bottom right.
+	if (site === 'channels') {
+		host.classList.add('is-floating', 'is-compact', 'is-solid');
+		host.style.cssText = 'right:16px;left:auto;top:88px;bottom:auto;z-index:2147483000;';
 		return;
 	}
 	// TikTok: the same quiet one-line strip as on Douyin, lined up under the site's top-right pill.
@@ -145,6 +147,7 @@ export const WEB_BAR_STYLE = `.qiaomu-web-bar{position:fixed;right:16px;bottom:1
 .qiaomu-web-bar .qiaomu-yt-bar-lines{max-height:min(48vh,calc(100vh - 250px))}
 .qiaomu-web-bar .qiaomu-yt-bar{--qm-frame:1px solid var(--qm-line);--qm-margin:0;--qm-radius:12px}
 .qiaomu-web-bar.is-floating .qiaomu-yt-bar{--qm-card:rgba(34,34,40,.68)!important;--qm-frame:0 none!important;--qm-radius:10px!important;-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);max-height:calc(100vh - 150px)}
+.qiaomu-web-bar.is-floating.is-solid .qiaomu-yt-bar{--qm-card:#1f1f23!important;--qm-frame:1px solid #3a3a42!important;-webkit-backdrop-filter:none;backdrop-filter:none;box-shadow:0 4px 18px rgba(0,0,0,.28)}
 .qiaomu-web-bar:is(.is-floating,.is-compact){width:max-content;max-width:320px}
 .qiaomu-web-bar:is(.is-floating,.is-compact):has(.qiaomu-yt-bar[data-open=true]){width:320px}
 .qiaomu-web-bar:is(.is-floating,.is-compact) .qiaomu-yt-bar[data-open=false] .qiaomu-yt-bar-head{min-height:34px;padding:0 4px 0 10px;gap:6px}

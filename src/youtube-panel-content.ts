@@ -1,5 +1,6 @@
 import { uiLanguage } from './utils/ui-text';
 import { createContentText } from './utils/content-i18n';
+import { downloadStrings, watchDownloadFormat, type DownloadPref } from './utils/caption-download';
 import type { PanelSegment } from './utils/youtube-panel-actions';
 import { BAR_STYLE, buildTranscriptBar, syncTranscriptBar, type BarState, type TranscriptBar } from './utils/youtube-transcript-bar';
 import { fetchCaptionTracks, fetchTrackSegments, trackInfos, type YouTubeTrack } from './utils/youtube-captions';
@@ -34,6 +35,7 @@ try {
 		const api = (typeof browser !== 'undefined' ? browser : chrome) as unknown as Api;
 		void (async () => {
 		const text = await createContentText(api);
+		let downloadPref: DownloadPref = 'ask'; watchDownloadFormat(api, pref => { downloadPref = pref; });
 		const strings = {
 			heading: text('', '乔木剪藏', 'Qiaomu Clipper'),
 			subtitles: text('youtubeBarSubtitles', '字幕', 'Subtitles'),
@@ -184,6 +186,7 @@ try {
 					initialOpen: wasOpen, onToggle: open => remember(OPEN_KEY, open),
 					initialFollow: stored(FOLLOW_KEY, true), onFollow: follow => remember(FOLLOW_KEY, follow),
 					onLanguage: id => { void chooseLanguage(id); },
+					download: { strings: downloadStrings(text), preference: () => downloadPref },
 					generation: { strings: generationStrings(text), actions: generation.actions },
 				});
 				return bar.element;

@@ -2,10 +2,12 @@ import browser from './browser-polyfill';
 import { ClipPreview, saveClipPreview, patchClipPreview } from './clip-preview';
 import { copyToClipboard } from './clipboard-utils';
 import { getMessage } from './i18n';
-import { createElement, Copy, Download, Paperclip, Highlighter, WandSparkles } from 'lucide';
+import { createElement, Copy, Download, Paperclip, Highlighter, WandSparkles, FilePenLine, Settings, Check } from 'lucide';
+import { t } from './ui-text';
+import { clipBarMenu } from './clip-bar-menu';
 
 export type ClipMode = 'read' | 'edit';
-export type ClipSyncAction = ClipMode | 'copy' | 'download' | 'clip';
+export type ClipSyncAction = ClipMode | 'copy' | 'download' | 'clip' | 'write';
 
 interface ClipBarOptions {
 	mode: ClipMode;
@@ -20,6 +22,8 @@ interface ClipBarOptions {
     getExport?: () => Promise<{content:string; name:string}>;
 	// Opens or closes the AI chat panel; returns whether it is now open.
 	onToggleChat?: () => boolean;
+	dailyNoteButton?: HTMLButtonElement;
+	onWrite?: () => Promise<void>;
 }
 
 export const clipPageFor = (mode: ClipMode, id: string, draft: ClipPreview) => {
@@ -60,7 +64,7 @@ export function showClipStatus(text: string): void {
 }
 
 // One top bar for both reading and editing: switch mode, share to RSS, copy, download, clip.
-export function createClipBar({ mode, id, draft, title, domain, url, sync, getExport, onToggleChat }: ClipBarOptions): HTMLElement {
+export function createClipBar({ mode, id, draft, title, domain, url, sync, getExport, onToggleChat, dailyNoteButton, onWrite }: ClipBarOptions): HTMLElement {
 	const bar = document.createElement('header');
 	bar.className = 'clip-bar';
 	// Slot for page-specific tools (the reader's font settings) so they live in the bar, not beside it.
@@ -107,46 +111,73 @@ export function createClipBar({ mode, id, draft, title, domain, url, sync, getEx
 	const rss = document.createElement('label');
 	rss.className = 'clip-bar-rss';
 	const rssText = document.createElement('span');
-	rssText.textContent = getMessage('qiaomuShareRss');
+	rssText.textContent = t('剪藏时分享到乔木 RSS');
 	const rssSwitch = document.createElement('input');
 	rssSwitch.type = 'checkbox';
 	rssSwitch.className = 'switch';
 	rssSwitch.checked = draft.aggregate;
+	rssSwitch.setAttribute('role', 'menuitemcheckbox');
+	rssSwitch.setAttribute('aria-label', t('剪藏时分享到乔木 RSS'));
+	rssSwitch.setAttribute('aria-checked', String(draft.aggregate));
+	rssSwitch.tabIndex = -1;
+	let rssSaving = false;
 	rssSwitch.addEventListener('change', async () => {
-		draft.aggregate = rssSwitch.checked;
-		await patchClipPreview(draft, {aggregate:draft.aggregate});
+		const next = rssSwitch.checked;
+		rssSwitch.disabled = true; rssSaving = true; updateClipLabel();
+		try { await patchClipPreview(draft, { aggregate: next }); draft.aggregate = next; }
+		catch (error) { rssSwitch.checked = draft.aggregate; showClipStatus(String(error)); }
+		finally { rssSwitch.disabled = false; rssSaving = false; rssSwitch.setAttribute('aria-checked', String(draft.aggregate)); updateClipLabel(); }
 	});
 	rss.append(rssText, rssSwitch);
 
 	const copy = button('clip-bar-copy', Copy, 'qiaomuActionCopy');
+	copy.title = t('复制 Markdown');
+	copy.setAttribute('aria-label', copy.title);
 	copy.addEventListener('click', async () => {
-		const exported = getExport ? await getExport() : (await sync?.('copy'), draft.local);
-		showClipStatus(await copyToClipboard(exported.content) ? getMessage('qiaomuEditorCopied') : getMessage('copyToClipboard'));
+		try {
+			const exported = getExport ? await getExport() : (await sync?.('copy'), draft.local);
+			const copied = await copyToClipboard(exported.content);
+			showClipStatus(copied ? getMessage('qiaomuEditorCopied') : getMessage('copyToClipboard'));
+			if (copied) {
+				copy.querySelector('span')!.textContent = getMessage('qiaomuEditorCopied');
+				copy.querySelector('svg')?.replaceWith(createElement(Check));
+				window.setTimeout(() => { copy.querySelector('span')!.textContent = getMessage('qiaomuActionCopy'); copy.querySelector('svg')?.replaceWith(createElement(Copy)); }, 1800);
+			}
+		} catch (error) { showClipStatus(String(error)); }
 	});
 
 	const download = button('clip-bar-download', Download, 'qiaomuActionDownload');
+	download.querySelector('span')!.textContent = t('下载 Markdown');
 	download.addEventListener('click', async () => {
+		try {
 		const exported = getExport ? await getExport() : (await sync?.('download'), draft.local);
 		const link = document.createElement('a');
 		link.href = URL.createObjectURL(new Blob([exported.content], { type: 'text/markdown' }));
 		link.download = exported.name;
 		link.click();
 		setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+		} catch (error) { showClipStatus(String(error)); }
 	});
 
 	const clip = button('clip-bar-clip', Paperclip, 'qiaomuEditorClip', 'is-primary');
+	let clipping = false;
 	const isDone = () => Boolean(draft.localDone && (!draft.aggregate || draft.rssDone));
-	const markDone = () => { clip.disabled = true; clip.querySelector('span')!.textContent = getMessage('qiaomuEditorClipped'); };
-	if (isDone()) markDone();
+	const updateClipLabel = () => {
+		clip.disabled = isDone() || clipping || rssSaving || bar.dataset.pending === 'true';
+		clip.querySelector('span')!.textContent = isDone() ? getMessage('qiaomuEditorClipped') : draft.aggregate ? t('剪藏并分享') : getMessage('qiaomuEditorClip');
+	};
+	updateClipLabel();
 	clip.addEventListener('click', async () => {
 		if (clip.disabled) return;
+		clipping = true;
 		clip.disabled = true;
 		showClipStatus('…');
 		try {
 			await sync?.('clip');
 			showClipStatus((await saveClipPreview(draft)).join(' · '));
 		} catch (error) { showClipStatus(String(error)); }
-		if (isDone()) markDone(); else clip.disabled = false;
+		clipping = false;
+		updateClipLabel();
 	});
 	document.addEventListener('keydown', event => {
 		if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') { event.preventDefault(); clip.click(); }
@@ -162,8 +193,41 @@ export function createClipBar({ mode, id, draft, title, domain, url, sync, getEx
 	// The panel can also open from a text selection or close itself.
 	document.addEventListener('clip-chat-state', event => { ai.setAttribute('aria-pressed', String((event as CustomEvent<boolean>).detail)); });
 
-	bar.append(titleWrap, segment, rss, ai, copy, download, clip);
-	bar.insertBefore(extras, rss);
+	const more = clipBarMenu(bar);
+	const write = button('clip-bar-write', FilePenLine, 'qiaomuActionEditShort');
+	write.querySelector('span')!.textContent = t('写文章');
+	write.addEventListener('click', async () => {
+		if (write.dataset.busy) return;
+		write.dataset.busy = 'true'; write.disabled = true;
+		try {
+			if (onWrite) await onWrite();
+			else {
+				await sync?.('write');
+				const { openClipArticle } = await import('../write/source-import');
+				await openClipArticle(draft);
+			}
+			write.querySelector('span')!.textContent = t('继续写文章');
+		} catch (error) { showClipStatus(error instanceof Error ? error.message : t('创建文章失败，请重试')); }
+		finally { delete write.dataset.busy; write.disabled = false; }
+	});
+	more.add(write);
+	if (dailyNoteButton) {
+		dailyNoteButton.id = 'clip-bar-daily';
+		dailyNoteButton.classList.remove('learning-note-entry');
+		dailyNoteButton.title = t('写入今日笔记');
+		dailyNoteButton.setAttribute('aria-label', t('写入今日笔记'));
+		const label = document.createElement('span'); label.textContent = t('写入今日笔记'); dailyNoteButton.append(label);
+		more.add(dailyNoteButton);
+	}
+	more.divider(); more.add(download); more.divider();
+	const rssHint = document.createElement('p'); rssHint.className = 'clip-more-hint'; rssHint.textContent = t('开启后，剪藏内容会公开');
+	more.menu.append(rss, rssHint); more.divider();
+	const settings = button('clip-bar-settings', Settings, 'settings');
+	settings.addEventListener('click', () => { void browser.tabs.create({ url: browser.runtime.getURL('settings.html') }).catch(error => showClipStatus(String(error))); });
+	more.add(settings);
+	const actions = document.createElement('div'); actions.className = 'clip-bar-actions';
+	actions.append(copy, clip, more.trigger);
+	bar.append(titleWrap, segment, extras, ai, actions, more.menu);
 	return bar;
 }
 
@@ -188,6 +252,7 @@ export function autoHideBar(bar: HTMLElement, { collapseLayout = false }: { coll
 	const lastTop = new WeakMap<object, number>();
 	let quietUntil = 0;
 	const setHidden = (hidden: boolean) => {
+		if (hidden && bar.dataset.menuOpen === 'true') return;
 		if (bar.classList.contains('is-hidden') === hidden) return;
 		bar.classList.toggle('is-hidden', hidden);
 		root.classList.toggle('clip-bar-hidden', hidden);

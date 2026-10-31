@@ -25,9 +25,10 @@ export function mountMediaStudyPlayer(article: HTMLElement, before: HTMLElement,
 		const observer = new MutationObserver(() => { if (!player.isConnected) { audio.pause(); observer.disconnect(); } });
 		observer.observe(article, { childList: true, subtree: true });
 	}
+	// Audio must have its sticky container before captions arrive; transcript wiring reuses it.
+	const container = doc.createElement('div'); container.className = 'player-container'; container.append(wrapper); before.before(container);
 	if (video) {
-		const container = doc.createElement('div'); container.className = 'player-container'; container.append(wrapper); before.before(container);
 		mountPlayerSize(article); mountPlayerMode(article);
-	} else before.before(wrapper);
+	}
 	return player;
 }

@@ -2193,5 +2193,41 @@
 	},
 	"pdEffortDefault": {
 		"message": "모델 기본값"
+	},
+	"captionDlTitle": {
+		"message": "자막 다운로드"
+	},
+	"captionDlDefault": {
+		"message": "기본"
+	},
+	"captionDlDone": {
+		"message": "다운로드했습니다"
+	},
+	"captionDlFixed": {
+		"message": "{format} 다운로드(오른쪽 클릭으로 다른 형식)"
+	},
+	"captionDlMd": {
+		"message": "Markdown"
+	},
+	"captionDlMdNote": {
+		"message": "제목과 출처 포함, 노트용"
+	},
+	"captionDlSrt": {
+		"message": "SRT 자막"
+	},
+	"captionDlSrtNote": {
+		"message": "시간 정보 포함, 영상 플레이어에서 바로 사용"
+	},
+	"captionDlVtt": {
+		"message": "VTT 자막"
+	},
+	"captionDlVttNote": {
+		"message": "시간 정보 포함, 웹 플레이어용"
+	},
+	"captionDlTxt": {
+		"message": "일반 텍스트"
+	},
+	"captionDlTxtNote": {
+		"message": "한 줄씩, 시간 포함"
 	}
 }

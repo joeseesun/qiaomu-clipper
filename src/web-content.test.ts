@@ -66,6 +66,34 @@ it('keeps explicit study shortcut media discovery available on an X profile with
  expect(document.querySelector('.qiaomu-x')).toBeNull();
 });
 
+it.each(['https://video.twimg.com/tweet_video/demo.mp4', 'https://video.twimg.com/ext_tw_video/demo.mp4'])('keeps an X long article with embedded media in article mode: %s', async src => {
+ vi.stubGlobal('location', {href:'https://x.com/star_flow_ai/status/2097583620936585339'});
+ document.body.innerHTML=`<main><article data-testid="tweet"><article data-testid="twitterArticleReadView"><h1 data-testid="twitter-article-title">X Focus</h1><div data-testid="twitterArticleRichTextView"><p>Article body</p><video src="${src}"></video></div></article><a href="https://x.com/star_flow_ai/status/2097583620936585339"><time>today</time></a></article></main>`;
+ await import('./web-content'); await flush();
+ expect(document.querySelector('.qiaomu-x')).toBeNull();
+ const reply=vi.fn();env.messages[0]({action:'qiaomuWebMediaSource'},null,reply);
+ expect(reply).toHaveBeenCalledWith({url:null,info:undefined});
+});
+
+it('ignores a GIF-only X post, global video metadata and another reply video', async () => {
+ vi.stubGlobal('location', {href:'https://x.com/vista8/status/45678'});
+ document.body.innerHTML='<meta property="og:video" content="https://video.twimg.com/other.mp4"><main><article data-testid="tweet"><a href="https://x.com/vista8/status/45678"><time>today</time></a><video src="https://video.twimg.com/tweet_video/demo.mp4" poster="https://pbs.twimg.com/tweet_video_thumb/demo.jpg"></video></article><article data-testid="tweet"><a href="https://x.com/maker/status/12345"><time>reply</time></a><video></video></article></main>';
+ await import('./web-content'); await flush();
+ expect(document.querySelector('.qiaomu-x')).toBeNull();
+ const reply=vi.fn();env.messages[0]({action:'qiaomuWebMediaSource'},null,reply);
+ expect(reply).toHaveBeenCalledWith({url:null,info:undefined});
+});
+
+it('removes a video toolbar when SPA navigation opens a long article', async () => {
+ vi.stubGlobal('location', {href:'https://x.com/vista8/status/45678'});
+ document.body.innerHTML='<article data-testid="tweet"><a href="https://x.com/vista8/status/45678"><time>today</time></a><video></video></article>';
+ await import('./web-content'); await flush();
+ expect(document.querySelector('.qiaomu-x')).not.toBeNull();
+ const article=document.createElement('article');article.dataset.testid='twitterArticleReadView';article.innerHTML='<p>Article</p><video></video>';
+ document.querySelector('article')!.append(article);await flush();
+ expect(document.querySelector('.qiaomu-x')).toBeNull();
+});
+
 it('places the Xiaohongshu bar inside the current video note and removes it for photos or the feed', async () => {
  const id='6abc2b40000000000a023366',url=`https://www.xiaohongshu.com/explore/${id}`;
  vi.stubGlobal('location',{href:url});

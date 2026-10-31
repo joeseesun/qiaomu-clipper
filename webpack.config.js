@@ -46,14 +46,26 @@ module.exports = (env, argv) => {
 			'youtube-embed': './src/youtube-embed-content.ts',
 			'xiaoyuzhou-panel': './src/xiaoyuzhou-content.ts',
 			'web-panel': './src/web-content.ts',
+			'channels-share': './src/channels-share-content.ts',
 			'note-card': ['./src/note-card-content.ts', './src/note-card.scss'],
 			popup: './src/core/popup.ts',
+			'ai-side-panel': ['./src/core/ai-side-panel.ts', './src/styles/ai-side-panel.scss'],
+			'ai-chat-page': './src/core/ai-chat-page.ts',
 			settings: './src/core/settings.ts',
 			highlights: './src/core/highlights.ts',
 			'reader-page': './src/core/reader-view.ts',
 			'clip-editor': './src/core/clip-editor.ts',
+			write: ['./src/core/write.ts', './src/styles/write.scss'],
+			// Injected into an X Articles tab only while an article is being published (see src/write/publish/x.ts).
+			'x-publish-main': './src/x-publish/main-world.js',
+			'x-publish-content': './src/x-publish/x-content.ts',
+			// Injected on demand when Obsidian hands over an article (src/publish-bridge).
+			'zhihu-publish-content': './src/publish-bridge/zhihu-content.ts',
+			'xhs-publish-content': './src/publish-bridge/xhs-content.ts',
 			content: './src/content.ts',
 			background: './src/background.ts',
+			'image-runner': './src/core/image-runner.ts',
+			'image-library': ['./src/core/image-library.ts', './src/styles/image-library.scss'],
 			style: './src/style.scss',
 			highlighter: './src/highlighter.scss',
 			reader: './src/reader.scss',
@@ -171,10 +183,18 @@ module.exports = (env, argv) => {
 					{ from: "LICENSE", to: "LICENSE.txt" },
 					{ from: "src/popup.html", to: "popup.html" },
 					{ from: "src/side-panel.html", to: "side-panel.html" },
+					{ from: "src/ai-side-panel.html", to: "ai-side-panel.html" },
+					{ from: "src/ai-chat-page.html", to: "ai-chat-page.html" },
+					{ from: "src/image-runner.html", to: "image-runner.html" },
+					{ from: "src/image-library.html", to: "image-library.html" },
 					{ from: "src/settings.html", to: "settings.html" },
 					{ from: "src/highlights.html", to: "highlights.html" },
 					{ from: "src/reader.html", to: "reader.html" },
 					{ from: "src/editor.html", to: "editor.html" },
+					{ from: "src/write.html", to: "write.html" },
+					// Formulas: KaTeX's stylesheet next to its fonts (the css asks for fonts/KaTeX_*).
+					{ from: "node_modules/katex/dist/katex.min.css", to: "katex.css" },
+					{ from: "node_modules/katex/dist/fonts/*.woff2", to: "fonts/[name][ext]" },
 					{ from: "src/icons", to: "icons", globOptions: { ignore: ["**/*.ts"] } },
 					{ from: "node_modules/webextension-polyfill/dist/browser-polyfill.min.js", to: "browser-polyfill.min.js" },
 					{ from: "src/flatten-shadow-dom.js", to: "flatten-shadow-dom.js" },
@@ -199,7 +219,9 @@ module.exports = (env, argv) => {
 			new webpack.DefinePlugin({
 				'process.env.NODE_ENV': JSON.stringify(argv.mode),
 				'DEBUG_MODE': JSON.stringify(!isProduction),
-				'__LOCAL_EDITION__': JSON.stringify(isLocal)
+				'__LOCAL_EDITION__': JSON.stringify(isLocal),
+				// MathJax reads its version from package.json through eval("require") unless this is defined, and extension pages forbid eval.
+				'PACKAGE_VERSION': JSON.stringify('3.2.1')
 			}),
 			{
 				apply(compiler) {

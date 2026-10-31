@@ -1,0 +1,77 @@
+@import 'write-shared';
+
+// The article list inside the settings (page "Write long articles"). Buttons are scoped under `html` so the global button rules lose.
+#write-section, #image-models-section {
+	.write-bar { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-bottom: 14px; }
+	.write-search-wrap { position: relative; flex: 1 1 240px; max-width: 360px; display: flex; align-items: center;
+		svg { position: absolute; inset-inline-start: 10px; color: var(--text-faint); pointer-events: none; mix-blend-mode: normal; }
+		input.write-search { width: 100%; padding-inline-start: 32px; }
+	}
+	.write-tabs { display: flex; gap: 4px; }
+	html & button.write-tab:not(.write-x) { width: auto; height: 30px; padding: 0 12px; border: none; border-radius: 8px; background: transparent; box-shadow: none; color: var(--text-muted); font-size: 13px; cursor: pointer;
+		&:hover { background: var(--background-modifier-hover); box-shadow: none; }
+		&.is-active { background: var(--background-secondary); color: var(--text-normal); font-weight: 600; }
+	}
+	.write-list { display: flex; flex-direction: column; }
+	.write-row { display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--background-modifier-border);
+		&:hover { background: var(--background-modifier-hover); }
+	}
+	.write-row-main { flex: 1; min-width: 0; display: flex; gap: 14px; align-items: center; padding: 14px 8px; cursor: pointer; border-radius: 8px;
+		&:focus-visible { outline: 1px solid var(--text-muted); outline-offset: 2px; }
+	}
+	.write-thumb { flex: none; width: 72px; height: 54px; border-radius: 8px; background: var(--background-secondary); overflow: hidden; display: grid; place-items: center; color: var(--text-faint); img { width: 100%; height: 100%; object-fit: cover; } }
+	.write-info { min-width: 0; flex: 1; }
+	.write-title { font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	.write-excerpt { margin-top: 2px; font-size: 13px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	.write-meta { margin-top: 4px; display: flex; gap: 12px; font-size: 12px; color: var(--text-faint); align-items: center; }
+	.write-badge { padding: 1px 7px; border-radius: 99px; background: var(--background-secondary); color: var(--text-muted); font-size: 11px; }
+	.write-row-actions { display: flex; gap: 2px; padding-inline-end: 6px; opacity: 0; transition: opacity .12s; }
+	.write-row:hover .write-row-actions, .write-row:focus-within .write-row-actions { opacity: 1; }
+	html & button.write-icon:not(.write-x) { width: 30px; height: 30px; padding: 0; border: none; border-radius: 8px; background: transparent; box-shadow: none; color: var(--text-muted); cursor: pointer; svg { mix-blend-mode: normal; }
+		&:hover { background: var(--background-modifier-hover); color: var(--text-normal); box-shadow: none; }
+		&.danger:hover { color: var(--text-error, #c0392b); }
+	}
+	.write-empty { padding: 56px 0; text-align: center; color: var(--text-muted); .write-empty-title { font-size: 15px; color: var(--text-normal); margin-bottom: 4px; } }
+	.write-note { margin-top: 20px; font-size: 12px; color: var(--text-faint); }
+}
+#write-actions { display: flex; gap: 8px; align-items: center; }
+html button.write-btn:not(.write-x) { display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: auto; height: 32px; padding: 0 14px; border: none; border-radius: 8px; background: var(--background-secondary); color: var(--text-normal); box-shadow: none; font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap;
+	svg { mix-blend-mode: normal; flex: none; }
+	&:hover { background: var(--background-modifier-hover); box-shadow: none; }
+	&:focus-visible { outline: 1px solid var(--text-muted); outline-offset: 2px; }
+	&[hidden] { display: none; }
+}
+html button.write-btn.write-btn-primary:not(.write-x) { background: var(--text-normal); color: var(--background-primary); &:hover { background: var(--text-normal); opacity: .86; } }
+html button.write-btn.write-btn-danger:not(.write-x) { background: var(--background-modifier-error); color: var(--text-error, #c0392b); &:hover { background: var(--background-modifier-error-border); } }
+
+// ---- picture models in the settings ---------------------------------------------------------------------------------------
+#image-models-section {
+	.im-bar { display: flex; justify-content: flex-end; margin: 4px 0 10px; }
+	.im-list { display: flex; flex-direction: column; }
+	.im-default { margin-inline-start: 8px; }
+	.im-warn { color: var(--text-error, #c0392b); }
+	.im-row .write-row-main { cursor: default; }
+	.im-row .im-actions { opacity: 1; }
+}
+dialog.im-dialog { width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow-y: auto;
+	.im-sources { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-bottom: 14px; }
+	html & button.im-source:not(.qw-x) { display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; width: auto; height: auto; padding: 10px 12px; border: none; border-radius: 10px; background: var(--background-secondary); box-shadow: none; text-align: start; white-space: normal; cursor: pointer; color: var(--text-normal);
+		&:hover { background: var(--background-modifier-hover); box-shadow: none; }
+		&.active { box-shadow: inset 0 0 0 1.5px var(--text-normal); background: var(--background-primary); }
+		&:focus-visible { outline: 1px solid var(--text-muted); outline-offset: 2px; }
+		.im-source-name { font-size: 13px; font-weight: 600; }
+		.im-source-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+	}
+	.im-field { display: grid; gap: 4px; margin-top: 12px; font-size: 12px; color: var(--text-muted); input { font-size: 14px; } .im-key-link { font-size: 12px; justify-self: start; } }
+	.im-advanced { margin-top: 12px; summary { cursor: pointer; font-size: 12px; color: var(--text-muted); } }
+	.im-error { color: var(--text-error, #c0392b); }
+	.im-group { margin: 14px 0 6px; font-size: 12px; font-weight: 600; color: var(--text-muted); }
+	.im-hint { font-size: 11px; color: var(--text-muted); }
+	.im-chips { display: flex; flex-wrap: wrap; gap: 6px; min-height: 28px; align-items: center; }
+	.im-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 4px 3px 10px; border-radius: 99px; background: var(--background-secondary); font-size: 12px; color: var(--text-normal); &.primary { box-shadow: inset 0 0 0 1px var(--text-normal); } }
+	.im-chip-tag { font-size: 10px; color: var(--text-muted); padding-inline-end: 4px; }
+	html & button.im-chip-btn:not(.qw-x) { width: 20px; height: 20px; padding: 0; border: none; border-radius: 99px; background: transparent; box-shadow: none; color: var(--text-muted); cursor: pointer; font-size: 12px; &:hover { background: var(--background-modifier-hover); color: var(--text-normal); box-shadow: none; } }
+	.im-models { display: flex; flex-direction: column; max-height: 220px; overflow-y: auto; margin-top: 6px; border-radius: 8px; box-shadow: inset 0 0 0 1px var(--background-modifier-border); }
+	html & button.im-model:not(.qw-x) { display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%; height: auto; padding: 7px 10px; border: none; border-radius: 0; background: transparent; box-shadow: none; text-align: start; white-space: normal; font-size: 13px; color: var(--text-normal); cursor: pointer; &:hover { background: var(--background-modifier-hover); box-shadow: none; } &.on { background: var(--background-secondary); font-weight: 600; } &:focus-visible { outline: 1px solid var(--text-muted); outline-offset: -2px; } }
+	.im-load { display: flex; align-items: center; gap: 10px; margin-top: 8px; .qw-dialog-note { margin: 0; } }
+}

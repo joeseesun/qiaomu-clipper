@@ -10,6 +10,7 @@ import { mountEditorOutline } from '../utils/editor-outline';
 import { mountLocalPreviewMedia, preserveLocalPreviewMedia } from '../utils/local-preview-media';
 
 import { t } from '../utils/ui-text';
+import { mountLearningNotes } from '../utils/learning-composer';
 const byId = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
 function renderProperties(properties: Property[]) {
@@ -105,7 +106,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 		onInsert: text => { textarea.value = `${textarea.value.trimEnd()}\n\n${text}\n`; textarea.dispatchEvent(new Event('input')); },
 	});
 	if (generalSettings.editorAutoChat) chat.toggle(true);
-	const bar = createClipBar({ onToggleChat: chat.toggle, mode: 'edit', id, draft, title, domain: new URL(draft.clip.url).hostname.replace(/^www\./, ''), url: draft.clip.url, sync: save, getExport: async () => {
+	const learning = mountLearningNotes({ doc: document, getSource: () => ({ title: title.value || draft.clip.title, url: draft.clip.url }) });
+	const bar = createClipBar({ dailyNoteButton: learning.button, onToggleChat: chat.toggle, mode: 'edit', id, draft, title, domain: new URL(draft.clip.url).hostname.replace(/^www\./, ''), url: draft.clip.url, sync: save, getExport: async () => {
         const exported = structuredClone(draft); await syncDraft(exported, title, false); return {content:exported.local.content, name:exported.local.name};
     } });
 	document.body.prepend(bar);

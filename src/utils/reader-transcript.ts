@@ -239,7 +239,7 @@ export function wireTranscript(
 	disposers.push(mountPlayerCaptions(article, transcript, toggleGroup));
 
  // Keep the heading below the pinned player or clip bar, including after resizing/layout changes.
- const headingOffset=()=>{const layout=article.dataset.ytLayout;const pinned=playerContainer.classList.contains('pin-player')&&layout!=='side'&&layout!=='float';const playerTop=parseFloat(getComputedStyle(playerContainer).top)||0;return Math.max(scroll.getStickyOffset(),pinned?playerTop+playerContainer.getBoundingClientRect().height:0);};
+ const headingOffset=()=>{const layout=article.dataset.ytLayout;const pinned=article.dataset.audioStudy==='true'||(playerContainer.classList.contains('pin-player')&&layout!=='side'&&layout!=='float');const playerTop=parseFloat(getComputedStyle(playerContainer).top)||0;return Math.max(scroll.getStickyOffset(),pinned?playerTop+playerContainer.getBoundingClientRect().height:0);};
  const syncHeading=()=>{
   transcript.style.setProperty('--transcript-heading-top',`${headingOffset()}px`);
   syncTranscriptHeadingCover(transcript);
@@ -251,6 +251,7 @@ export function wireTranscript(
  const headingResize=typeof ResizeObserver!=='undefined'?new ResizeObserver(scheduleHeading):undefined;
  for(const element of [transcript,playerContainer,doc.querySelector('.clip-bar')])if(element)headingResize?.observe(element);
  const headingLayout=new MutationObserver(scheduleHeading);headingLayout.observe(article,{attributes:true,attributeFilter:['data-yt-layout']});headingLayout.observe(playerContainer,{attributes:true,attributeFilter:['class']});
+ headingLayout.observe(doc.documentElement,{attributes:true,attributeFilter:['style','class']});
  disposers.push(()=>{headingResize?.disconnect();headingLayout.disconnect();if(headingFrame)cancelAnimationFrame(headingFrame);transcript.style.removeProperty('--transcript-heading-top');transcript.style.removeProperty('--transcript-heading-cover');});
 
 	const segmentTimes = segments.map(seg => {
@@ -357,7 +358,7 @@ export function wireTranscript(
 		// Show floating button when active segment is out of view
 		if (activeSegment) {
 			const rect = activeSegment.getBoundingClientRect();
-			const stickyOffset = scroll.getStickyOffset();
+			const stickyOffset = headingOffset() + (transcript.querySelector('.transcript-heading-row')?.getBoundingClientRect().height || 0);
 			const isVisible = rect.bottom > stickyOffset && rect.top < window.innerHeight;
 			currentPosButton.classList.toggle('is-visible', !isVisible);
 		} else {

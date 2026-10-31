@@ -357,6 +357,9 @@ def obsidian_vaults():
         return [{'name':Path(v['path']).name,'path':str(Path(v['path']))} for v in found][:20]
     return []
 def handle(message, config, base):
+    if message.get('action') in {'codexImageStatus','codexImageStart','codexImagePoll','codexImageRead','codexImageCancel'}:
+        import codex_images
+        return codex_images.handle(message, base)
     if message.get('action')=='listVaults': return {'ok':True,'vaults':obsidian_vaults(),'current':config.get('vault')}
     if message.get('action')=='chooseVault':
         value=choose_vault(config.get('vault'))
@@ -381,6 +384,13 @@ def handle(message, config, base):
             except Exception: pass
         return {'ok': False, 'error': 'not-found'}
     if message.get('action') in {'attachPick','attachLocal','attachBytes','attachDiscard'}: return attach(message,base)
+    if message.get('action') in {'helperUninstallPlan','helperUninstall'}:
+        # Taking the whole helper away: refused while a subtitle job or engine install is running.
+        sys.path.insert(0,str(Path(__file__).resolve().parent))
+        import asr,uninstall,codex_images
+        if message['action']=='helperUninstallPlan': return {'ok':True,**uninstall.plan()}
+        if asr.active_job(base)[0] or asr.active_install(base)[0] or codex_images.active_job(base): return {'ok':False,'error':'busy'}
+        return uninstall.run()
     if message.get('action') in {'mediaDownloadStart','mediaDownloadPoll','mediaDownloadCancel','mediaDownloadReveal','asrStatus','asrStart','asrPoll','asrCancel','asrCloudTest','asrInstall','asrInstallPoll','asrInstallCancel','asrUninstall','asrUploadStart','asrUploadChunk','asrUploadFinish','asrProbe','asrMediaDownload','asrMediaDownloadPoll','asrMediaDownloadCancel'}:
         # Subtitle generation lives in asr.py next to this file; it needs no vault.
         sys.path.insert(0,str(Path(__file__).resolve().parent))

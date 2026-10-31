@@ -1,6 +1,6 @@
 # 乔木剪藏隐私说明 / Privacy
 
-更新日期：2026-10-08。适用于乔木剪藏 Chrome 扩展。
+更新日期：2026-10-17。适用于乔木剪藏 Chrome 扩展。
 
 剪藏功能读取用户打开的网页、链接、标题、元数据及选中文字，用于提取 Markdown、预览和保存。模板、设置、历史记录、待保存内容及预览草稿存储在浏览器扩展存储中；部分模板和设置通过浏览器同步存储同步。预览草稿最多读取 24 小时，在下次创建预览时清理过期草稿；待重试内容保留到成功或用户清理扩展数据。扩展代码不提供访问统计上传功能。
 
@@ -19,6 +19,10 @@ AI 问题与对话上下文也会发送到用户选择的服务商；用户输�
 可选账号登录：用户可在设置中选择 ChatGPT、Codex 或词元跳动登录，授权页面由对应服务提供。扩展接收授权结果，并与对应服务交换或刷新访问凭证；返回的账号邮箱、账号标识、套餐信息及访问/刷新令牌保存在服务商设置中，可能随浏览器设置同步。词元跳动返回的 API Key 按 AI 服务商凭证保存。相关凭证仅用于所选服务的模型请求，网页脚本无法直接读取；删除该服务商可移除扩展中的凭证，撤销服务端授权需到对应服务操作。ChatGPT 登录使用本机生成的随机主机标识联系认证服务。登录不会让扩展读取用户的密码。
 
 AI 对话的文章地址、标题、问题、所选片段和模型回答保存在本机浏览器存储中，最多保留 40 篇文章、每篇 15 段对话，每段最多 40 条消息。用户可以删除对话记录。三连击快捷键只在本机判断配置的按键序列，输入框内不触发，不上传原始按键记录。
+
+写长文：文章、插图和写作对话保存在本机扩展存储中，文章与插图使用 IndexedDB，不自动同步或上传到乔木服务器；清除扩展数据或卸载会丢失，可导出备份。保存网页图片会请求原图片地址。主动发送写作问题时，问题、对话上下文、选中文字、你附加的图片或引用内容，以及启用「当前文章」时的文章正文，会发送到你选择的 AI 服务商；可以关闭「当前文章」。主动生成配图或封面时，提示词及所选参考内容会发送给选择的生图服务商；生图凭据保存在本机设置。只有点击「发到 X 文章」后，正文和图片才交给已登录的 X 页面写入草稿，扩展不读取 X 密码，也不替你点击发布。推文预览与视频嵌入会向 X、YouTube、哔哩哔哩或 Vimeo 请求对应内容。
+
+可选 Obsidian 发布桥：你在乔木 Publish 插件中发起交接后，扩展通过该插件在本机 127.0.0.1 临时开放的一次性授权接口接收文章、图片和目标平台。内容仅交给你选择并已登录的 X、知乎或小红书页面，用于创建草稿或预填编辑器；这些平台按各自条款处理收到的内容。进度、草稿链接和取消状态返回本机插件，不经过乔木服务器。扩展不自动点击最终发布，取消不能撤回已经传给平台的数据，远端草稿须在对应平台删除。
 
 用户数据仅用于用户选择的剪藏、阅读、编辑、问答和分享功能，不出售用户数据，不用于广告投放、信用评估或与这些功能无关的用途。扩展对用户数据的使用遵循 Chrome Web Store User Data Policy，包括 Limited Use 要求。
 
@@ -42,5 +46,9 @@ Previewing alone does not submit content. Original sites may receive page and im
 AI questions and conversation context are also sent to the chosen provider. User-entered API credentials are stored in extension settings, may sync with browser settings, and are used only with the configured provider.
 
 Optional account sign-in: users may choose ChatGPT, Codex or TokenDance in settings. The provider hosts the authorization page. The extension receives the authorization result and exchanges or refreshes credentials with that provider. Returned email, account identifier, plan information and access/refresh tokens are stored in provider settings and may sync through browser settings. TokenDance API keys are stored as AI provider credentials. Credentials are used only for requests to the selected service and are not directly readable by website scripts. Removing a provider removes its saved credentials from extension settings; revoke server-side authorization through the provider. ChatGPT sign-in sends a locally generated random host identifier to its authentication service. The extension does not read user passwords.
+
+Long articles: articles, images and writing conversations are stored locally in the extension; articles and images use IndexedDB and are not automatically synced or uploaded to Qiaomu servers. Clearing extension data or uninstalling removes them; export backups first. Saving a web image requests its original URL. When you send a writing question, your question, conversation context, selected text, attached images or references, and the article body when Current article is enabled are sent to your selected AI provider. You can disable Current article. Image or cover generation sends the prompt and selected reference content to your chosen image provider; image-provider credentials stay in local settings. Send to X Article explicitly hands text and images to your signed-in X page to create a draft; the extension does not read your X password or press Publish. Post previews and video embeds request corresponding content from X, YouTube, Bilibili or Vimeo.
+
+Optional Obsidian publishing bridge: after you initiate a handoff in Qiaomu Publish, the extension receives the article, images and selected destination through the plugin's temporary one-time-authorized 127.0.0.1 interface. Content goes only to the selected signed-in X, Zhihu or Xiaohongshu platform to create a draft or fill its editor, under that platform's terms. Progress, draft links and cancellation status return to the local plugin, without a Qiaomu server. The extension does not click final Publish. Cancellation cannot retract data already sent to a platform; delete remote drafts on that platform.
 
 AI chat history (article URL/title, questions, selected passages and model answers) stays in local browser storage, limited to 40 articles, 15 conversations per article and 40 messages per conversation. Users can delete conversations. Triple-press shortcuts inspect configured key sequences locally, ignore typing in editable fields, and do not upload raw keystroke logs. User data is used only for the clipping, reading, editing, AI and sharing features the user chooses; it is not sold or used for advertising, creditworthiness or unrelated purposes. Use of user data complies with the Chrome Web Store User Data Policy, including the Limited Use requirements.

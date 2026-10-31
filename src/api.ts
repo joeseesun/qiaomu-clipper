@@ -2,8 +2,8 @@
 // Environment-agnostic — no Node.js or browser dependencies.
 // The caller provides a DocumentParser for their environment.
 
-import DefuddleClass from 'defuddle';
-import { createMarkdownContent } from 'defuddle/full';
+import DefuddleClass from './utils/defuddle';
+import { createMarkdownContent } from './utils/defuddle';
 import {
 	compileTemplate,
 	type AsyncResolver,
@@ -189,7 +189,7 @@ export async function clip(options: ClipOptions): Promise<ClipResult> {
 	const defuddleResult = defuddle.parse();
 
 	// Convert to markdown
-	const markdownContent = createMarkdownContent(defuddleResult.content, url);
+	const markdownContent = createMarkdownContent(defuddleResult.content, url, documentParser);
 
 	// Build template variables
 	const variables = buildVariables({

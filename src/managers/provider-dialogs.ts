@@ -6,6 +6,7 @@ import { detectMagpie, magpieKey } from '../utils/magpie';
 import { ModelConfig, OAuthCredentials, Provider } from '../types/types';
 import { generalSettings, saveSettings } from '../utils/storage-utils';
 import { getMessage } from '../utils/i18n';
+import { t } from '../utils/ui-text';
 import { showModal, hideModal } from '../utils/modal-utils';
 import { startSignIn, PendingSignIn } from '../utils/oauth/accounts';
 import { fallbackModels, fetchProviderModels, ProviderModel } from '../utils/provider-models';
@@ -13,7 +14,7 @@ import { CATALOG, CatalogEntry, GROUP_ORDER, ProviderGroup, brandOf, iconTile } 
 
 type Done = () => void;
 
-const t = getMessage;
+const msg = getMessage;
 const GROUP_LABEL: Record<ProviderGroup, string> = { plan: 'pdGroupPlan', account: 'pdGroupAccount', relay: 'pdGroupRelay', provider: 'pdGroupProvider', local: 'pdGroupLocal' };
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className = '', text = ''): HTMLElementTagNameMap[K] {
@@ -60,18 +61,40 @@ function input(type: string, value = '', placeholder = ''): HTMLInputElement {
 	return i;
 }
 
-interface Dialog { modal: HTMLElement; body: HTMLElement; actions: HTMLElement; close(): void }
+interface Dialog { modal: HTMLElement; body: HTMLElement; actions: HTMLElement; close(): void; reset(): void; onLeave(cleanup: () => void): void; isOpen(): boolean }
+const dialogs = new WeakMap<HTMLElement, Dialog>();
 
 function openDialog(id: string, title: string): Dialog {
 	const modal = document.getElementById(id) as HTMLElement;
+	dialogs.get(modal)?.close();
 	const body = modal.querySelector('.pd-body') as HTMLElement;
 	const actions = modal.querySelector('.pd-actions') as HTMLElement;
 	(modal.querySelector('.pd-title') as HTMLElement).textContent = title;
 	body.textContent = '';
 	actions.textContent = '';
 	showModal(modal);
-	return { modal, body, actions, close: () => hideModal(modal) };
+	const cleanup = new Set<() => void>();
+	const leave = () => { cleanup.forEach(fn => fn()); cleanup.clear(); };
+	const observer = new MutationObserver(() => { if (modal.style.display === 'none') { leave(); observer.disconnect(); } });
+	observer.observe(modal, { attributes: true, attributeFilter: ['style'] });
+	const dlg: Dialog = { modal, body, actions, close: () => { leave(); observer.disconnect(); hideModal(modal); },
+		reset: () => { leave(); body.replaceChildren(); actions.replaceChildren(); }, onLeave: fn => { cleanup.add(fn); }, isOpen: () => modal.style.display !== 'none' };
+	dialogs.set(modal, dlg);
+	return dlg;
 }
+
+function setupStep(dlg: Dialog, current: 1 | 2): void {
+	const steps = el('div', 'pd-steps');
+	[t('配置服务商'), t('选择模型')].forEach((label, index) => {
+		const step = el('span', index + 1 === current ? 'is-current' : '', `${index + 1}  ${label}`);
+		if (index + 1 === current) step.setAttribute('aria-current', 'step');
+		steps.append(step);
+	});
+	dlg.body.append(steps);
+}
+interface SelectionDraft { picked: Map<string, ProviderModel>; query: string; manualId: string; manualName: string; connection?: Provider }
+const selectionDraft = (): SelectionDraft => ({ picked: new Map(), query: '', manualId: '', manualName: '' });
+interface SetupFlow { dlg: Dialog; provider: Provider; draft: SelectionDraft; back(): void }
 
 function newId() { return `${Date.now()}${Math.floor(Math.random() * 1000)}`; }
 
@@ -89,25 +112,25 @@ function galleryEntries(extra: Record<string, { id: string; name: string; baseUr
 function safeHost(url: string): string { try { return new URL(url.replace(/[{}]/g, '')).host; } catch { return ''; } }
 
 export function openProviderPicker(presets: Record<string, any>, done: Done): void {
-	const dlg = openDialog('provider-modal', t('pdAddProviderTitle'));
+	const dlg = openDialog('provider-modal', msg('pdAddProviderTitle'));
 	dlg.modal.classList.add('pd-wide');
 	const entries = galleryEntries(presets);
 	const added = (e: CatalogEntry) => generalSettings.providers.find(p => p && (p.presetId === e.id || p.name === e.name));
 
-	const search = input('search', '', t('pdSearchProviders'));
+	const search = input('search', '', msg('pdSearchProviders'));
 	search.className = 'pd-search';
-	search.setAttribute('aria-label', t('pdSearchProviders'));
+	search.setAttribute('aria-label', msg('pdSearchProviders'));
 	const grid = el('div', 'pd-gallery');
 	dlg.body.append(search, grid);
 
-	const open = (entry: CatalogEntry | null) => showProviderForm(dlg, entry, entry ? added(entry) : undefined, presets, done, () => openProviderPicker(presets, done));
+	const open = (entry: CatalogEntry | null) => showProviderForm(dlg, entry, entry ? added(entry) : undefined, presets, done, () => openProviderPicker(presets, done), selectionDraft());
 
 	const card = (entry: CatalogEntry, existing?: Provider) => {
 		const c = press(el('div', `pd-card${existing ? ' is-added' : ''}`), entry.name, () => open(entry));
 		const text = el('div', 'pd-card-text');
 		text.append(el('div', 'pd-card-name', entry.name), el('div', 'pd-card-sub', entry.sub));
 		c.append(iconTile({ presetId: entry.id, baseUrl: entry.baseUrl, name: entry.name }, 'lg'), text);
-		if (existing) { const ok = el('span', 'pd-card-mark', '✓'); ok.setAttribute('aria-label', t('pdAdded')); c.append(ok); }
+		if (existing) { const ok = el('span', 'pd-card-mark', '✓'); ok.setAttribute('aria-label', msg('pdAdded')); c.append(ok); }
 		return c;
 	};
 
@@ -119,43 +142,46 @@ export function openProviderPicker(presets: Record<string, any>, done: Done): vo
 			const list = entries.filter(e => e.group === group && (!q || `${e.name} ${e.sub} ${e.id}`.toLowerCase().includes(q)));
 			if (!list.length) continue;
 			count += list.length;
-			grid.append(el('div', 'pd-group', t(GROUP_LABEL[group])));
+			grid.append(el('div', 'pd-group', msg(GROUP_LABEL[group])));
 			const row = el('div', 'pd-cards');
 			list.forEach(e => row.append(card(e, added(e))));
 			grid.append(row);
 		}
-		if (!q || t('pdCustomName').toLowerCase().includes(q)) {
-			grid.append(el('div', 'pd-group', t('pdGroupCustom')));
+		if (!q || msg('pdCustomName').toLowerCase().includes(q)) {
+			grid.append(el('div', 'pd-group', msg('pdGroupCustom')));
 			const row = el('div', 'pd-cards');
-			const c = press(el('div', 'pd-card is-custom'), t('pdCustomName'), () => open(null));
+			const c = press(el('div', 'pd-card is-custom'), msg('pdCustomName'), () => open(null));
 			const text = el('div', 'pd-card-text');
-			text.append(el('div', 'pd-card-name', t('pdCustomName')), el('div', 'pd-card-sub', t('pdCustomSub')));
+			text.append(el('div', 'pd-card-name', msg('pdCustomName')), el('div', 'pd-card-sub', msg('pdCustomSub')));
 			c.append(el('span', 'provider-tile is-lg is-plus', '+'), text);
 			row.append(c);
 			grid.append(row);
 			count++;
 		}
-		if (!count) grid.append(el('div', 'pd-empty', t('pdNoMatch')));
+		if (!count) grid.append(el('div', 'pd-empty', msg('pdNoMatch')));
 	};
 	search.addEventListener('input', render);
 	render();
-	dlg.actions.append(button(t('cancel'), '', dlg.close));
+	dlg.actions.append(button(msg('cancel'), '', dlg.close));
 	search.focus();
 }
 
-function showProviderForm(dlg: Dialog, entry: CatalogEntry | null, existing: Provider | undefined, presets: Record<string, any>, done: Done, back: () => void): void {
+function showProviderForm(dlg: Dialog, entry: CatalogEntry | null, existing: Provider | undefined, presets: Record<string, any>, done: Done, back: () => void, draft?: SelectionDraft): void {
 	dlg.modal.classList.remove('pd-wide');
-	dlg.body.textContent = '';
-	dlg.actions.textContent = '';
+	dlg.reset();
+	if (draft) setupStep(dlg, 1);
 	const title = dlg.modal.querySelector('.pd-title') as HTMLElement;
-	title.textContent = existing ? t('pdEditProviderTitle') : t('pdAddProviderTitle');
+	title.textContent = existing ? msg('pdEditProviderTitle') : msg('pdAddProviderTitle');
 
 	let oauth: OAuthCredentials | undefined = existing?.oauth;
 	let pending: PendingSignIn | undefined;
+	let active = true;
+	dlg.onLeave(() => { active = false; pending?.handle.cancel(); pending = undefined; });
+	const current = () => active && dlg.isOpen();
 	const head = el('div', 'pd-head');
 	const preview = { presetId: entry?.id, baseUrl: existing?.baseUrl || entry?.baseUrl || '', name: existing?.name || entry?.name || '' };
 	head.append(iconTile(preview, 'lg'));
-	const nameInput = input('text', existing?.name || '', t('pdFieldNamePlaceholder'));
+	const nameInput = input('text', existing?.name || '', msg('pdFieldNamePlaceholder'));
 	if (entry) head.append(el('strong', '', entry.name)); else head.append(nameInput);
 	dlg.body.append(head);
 
@@ -169,66 +195,69 @@ function showProviderForm(dlg: Dialog, entry: CatalogEntry | null, existing: Pro
 	const urlInput = input('text', existing?.baseUrl || entry?.baseUrl || '', 'https://');
 	let signInBtn: HTMLButtonElement | undefined;
 
-	const setSignedIn = (label: string) => { status.textContent = t('providerSignInDone', label); status.classList.remove('is-error'); if (signInBtn) signInBtn.textContent = t('providerSignInAgain'); };
+	const setSignedIn = (label: string) => { status.textContent = msg('providerSignInDone', label); status.classList.remove('is-error'); if (signInBtn) signInBtn.textContent = msg('providerSignInAgain'); };
 	const run = async () => {
 		if (!signIn || !signInBtn) return;
 		pending?.handle.cancel();
 		signInBtn.disabled = true;
 		status.classList.remove('is-error');
-		status.textContent = t('providerSignInOpen');
+		status.textContent = msg('providerSignInOpen');
 		paste.hidden = false;
 		try {
-			pending = await startSignIn(signIn);
+			const started = await startSignIn(signIn);
+			if (!current()) { started.handle.cancel(); return; }
+			pending = started;
 			const result = await pending.finish();
+			if (!current()) return;
 			if (result.apiKey) { keyInput.value = result.apiKey; oauth = undefined; }
 			if (result.oauth) { oauth = result.oauth; keyInput.value = ''; }
 			setSignedIn(result.label);
+			if (draft) await save();
 		} catch (error) {
+			if (!current()) return;
 			status.textContent = error instanceof Error ? error.message : String(error);
 			status.classList.add('is-error');
-			signInBtn.textContent = t('providerSignInAgain');
+			signInBtn.textContent = msg('providerSignInAgain');
 		} finally {
-			signInBtn.disabled = false;
-			paste.hidden = true;
-			pending = undefined;
+			if (current()) { signInBtn.disabled = false; paste.hidden = true; pending = undefined; }
 		}
 	};
 
 	const paste = el('div', 'pd-paste');
 	paste.hidden = true;
-	const pasteInput = input('text', '', t('providerSignInPaste'));
-	paste.append(pasteInput, button(t('providerSignInPasteButton'), '', () => {
-		if (pending && !pending.handle.submitUrl(pasteInput.value)) { status.textContent = t('pdPasteWrong'); status.classList.add('is-error'); }
+	const pasteInput = input('text', '', msg('providerSignInPaste'));
+	paste.append(pasteInput, button(msg('providerSignInPasteButton'), '', () => {
+		if (pending && !pending.handle.submitUrl(pasteInput.value)) { status.textContent = msg('pdPasteWrong'); status.classList.add('is-error'); }
 	}));
 
 	if (signIn === 'chatgpt' || signIn === 'codex') {
-		note.textContent = t(signIn === 'codex' ? 'providerSignInNoteCodex' : 'providerSignInNoteChatGPT');
-		signInBtn = button(t(signIn === 'codex' ? 'providerSignInCodex' : 'providerSignInChatGPT'), 'pd-primary', () => { void run(); });
+		note.textContent = msg(signIn === 'codex' ? 'providerSignInNoteCodex' : 'providerSignInNoteChatGPT');
+		signInBtn = button(msg(signIn === 'codex' ? 'providerSignInCodex' : 'providerSignInChatGPT'), 'pd-primary', () => { void run(); });
 		const row = el('div', 'pd-signin');
 		row.append(signInBtn);
 		dlg.body.append(note, row, status, paste);
 		if (oauth && oauth.kind === signIn) setSignedIn(oauth.email || entry!.name);
 	} else {
 		if (keySignIn) {
-			note.textContent = t(signIn === 'openrouter' ? 'providerSignInNoteOpenRouter' : 'providerSignInNoteTokenDance');
-			signInBtn = button(t(signIn === 'openrouter' ? 'providerSignInOpenRouter' : 'providerSignInTokenDance'), 'pd-primary', () => { void run(); });
+			note.textContent = msg(signIn === 'openrouter' ? 'providerSignInNoteOpenRouter' : 'providerSignInNoteTokenDance');
+			signInBtn = button(msg(signIn === 'openrouter' ? 'providerSignInOpenRouter' : 'providerSignInTokenDance'), 'pd-primary', () => { void run(); });
 			const row = el('div', 'pd-signin');
 			row.append(signInBtn);
 			dlg.body.append(note, row, status, paste);
 		} else if (entry) {
-			note.textContent = entry.id === 'magpie' ? t('pdMagpieNote') : entry.group === 'local' ? t('pdLocalNote') : '';
+			note.textContent = entry.id === 'magpie' ? msg('pdMagpieNote') : entry.group === 'local' ? msg('pdLocalNote') : '';
 			if (note.textContent) dlg.body.append(note);
 		}
 		const keyHint = el('div', 'pd-hint');
 		if (entry?.apiKeyUrl) {
-			const a = el('a', '', t('pdGetKey'));
+			const a = el('a', '', msg('pdGetKey'));
 			a.href = entry.apiKeyUrl; a.target = '_blank'; a.rel = 'noopener noreferrer';
 			keyHint.append(a);
 		}
-		if (!entry) dlg.body.append(field('pd-url', t('pdFieldUrl'), urlInput, el('div', 'pd-hint', t('pdUrlHintCustom'))));
+		if (!entry) dlg.body.append(field('pd-url', msg('pdFieldUrl'), urlInput, el('div', 'pd-hint', msg('pdUrlHintCustom'))));
 		if (!entry || entry.apiKeyRequired !== false || keySignIn || entry.id === 'magpie') {
-			const keyRow = field('pd-key', keySignIn ? t('pdFieldKeyOr') : t('pdFieldKey'), keyInput, keyHint);
-			const reveal = press(el('span', 'pd-reveal', t('pdShow')), t('pdShow'), () => { keyInput.type = keyInput.type === 'password' ? 'text' : 'password'; reveal.textContent = keyInput.type === 'password' ? t('pdShow') : t('pdHide'); });
+			const keyRow = field('pd-key', keySignIn ? msg('pdFieldKeyOr') : msg('pdFieldKey'), keyInput, keyHint);
+			const reveal = press(el('span', 'pd-reveal', msg('pdShow')), msg('pdShow'), () => { keyInput.type = keyInput.type === 'password' ? 'text' : 'password'; reveal.textContent = keyInput.type === 'password' ? msg('pdShow') : msg('pdHide'); });
 			const wrap = el('div', 'pd-input-wrap');
 			keyInput.replaceWith(wrap);
 			wrap.append(keyInput, reveal);
@@ -237,19 +266,19 @@ function showProviderForm(dlg: Dialog, entry: CatalogEntry | null, existing: Pro
 		}
 		if (entry && entry.group !== 'local') {
 			const more = el('details', 'pd-more');
-			more.append(el('summary', '', t('pdAdvanced')));
-			more.append(field('pd-url', t('pdFieldUrl'), urlInput, el('div', 'pd-hint', t('pdUrlHint'))));
+			more.append(el('summary', '', msg('pdAdvanced')));
+			more.append(field('pd-url', msg('pdFieldUrl'), urlInput, el('div', 'pd-hint', msg('pdUrlHint'))));
 			dlg.body.append(more);
 		} else if (entry) {
-			dlg.body.append(field('pd-url', t('pdFieldUrl'), urlInput));
+			dlg.body.append(field('pd-url', msg('pdFieldUrl'), urlInput));
 		}
 	}
 	if (entry?.id === 'magpie') {
     const result = el('div', 'pd-status'); result.setAttribute('role', 'status');
-    const detect = button(t('pdDetectMagpie'), 'pd-ghost', () => { detect.disabled = true;
+    const detect = button(msg('pdDetectMagpie'), 'pd-ghost', () => { detect.disabled = true;
       void detectMagpie({ presetId: 'magpie', baseUrl: urlInput.value.trim() || entry.baseUrl, apiKey: keyInput.value.trim() })
         .then(version => { if (dlg.modal.classList.contains('is-visible') || result.isConnected) result.textContent = `Magpie ${version}`; })
-        .catch(() => { if (result.isConnected) result.textContent = t('pdMagpieFailed'); })
+        .catch(() => { if (result.isConnected) result.textContent = msg('pdMagpieFailed'); })
         .finally(() => { detect.disabled = false; });
     }); dlg.body.append(detect, result);
   }
@@ -259,18 +288,18 @@ function showProviderForm(dlg: Dialog, entry: CatalogEntry | null, existing: Pro
 
 	let saving = false;
 	const save = async () => {
-		if (saving) return;
+		if (saving || !current()) return;
 		const name = (entry ? entry.name : nameInput.value).trim();
 		const baseUrl = urlInput.value.trim() || entry?.baseUrl || '';
 		const apiKey = keyInput.value.trim();
 		error.textContent = '';
-		if (!name) { error.textContent = t('pdNeedName'); return; }
-		if (!baseUrl) { error.textContent = t('pdNeedUrl'); return; }
-    if (entry?.id === 'magpie') { try { magpieKey({ presetId: 'magpie', baseUrl, apiKey }); } catch { error.textContent = t('pdMagpieSecure'); return; } }
+		if (!name) { error.textContent = msg('pdNeedName'); return; }
+		if (!baseUrl) { error.textContent = msg('pdNeedUrl'); return; }
+    if (entry?.id === 'magpie') { try { magpieKey({ presetId: 'magpie', baseUrl, apiKey }); } catch { error.textContent = msg('pdMagpieSecure'); return; } }
 		if (signIn === 'chatgpt' || signIn === 'codex') {
-			if (!oauth || oauth.kind !== signIn) { error.textContent = t('pdNeedLogin'); return; }
+			if (!oauth || oauth.kind !== signIn) { error.textContent = msg('pdNeedLogin'); return; }
 		} else if ((entry ? entry.apiKeyRequired !== false : true) && !apiKey) {
-			error.textContent = t('pdNeedKey'); return;
+			error.textContent = msg('pdNeedKey'); return;
 		}
 		const provider: Provider = {
 			id: existing?.id || newId(), name, baseUrl,
@@ -283,63 +312,80 @@ function showProviderForm(dlg: Dialog, entry: CatalogEntry | null, existing: Pro
 		const previous = [...generalSettings.providers];
 		const index = existing ? generalSettings.providers.indexOf(existing) : -1;
 		if (index >= 0) generalSettings.providers[index] = provider; else generalSettings.providers.push(provider);
-		try { await saveSettings(); } catch { generalSettings.providers = previous; saving = false; error.textContent = t('failedToSaveProvider'); return; }
+		try { await saveSettings(); } catch { generalSettings.providers = previous; saving = false; if (current()) error.textContent = msg('failedToSaveProvider'); return; }
 		pending?.handle.cancel();
-		dlg.close();
 		done();
+		if (!current()) return;
+		if (draft) {
+			const old = draft.connection;
+			if (old && (old.baseUrl !== provider.baseUrl || old.apiKey !== provider.apiKey || old.oauth?.access !== provider.oauth?.access)) { draft.picked.clear(); draft.manualId = ''; draft.manualName = ''; draft.query = ''; }
+			draft.connection = provider;
+			openModelPicker(done, back, undefined, { dlg, provider, draft, back: () => showProviderForm(dlg, entry, provider, presets, done, back, draft) });
+		} else dlg.close();
 	};
 
-	if (!existing) dlg.actions.append(button(t('pdBack'), 'pd-ghost', () => { pending?.handle.cancel(); back(); }));
-	dlg.actions.append(button(t('cancel'), '', () => { pending?.handle.cancel(); dlg.close(); }), button(existing ? t('save') : t('pdAddProviderButton'), 'pd-primary', () => { void save(); }));
-	(entry ? keyInput : nameInput).focus();
+	if (!existing) dlg.actions.append(button(msg('pdBack'), 'pd-ghost', () => { pending?.handle.cancel(); back(); }));
+	dlg.actions.append(button(msg('cancel'), '', dlg.close), button(draft ? t('下一步：选择模型') : msg('save'), 'pd-primary', () => { void save(); }));
+	(signInBtn || (entry ? keyInput : nameInput)).focus();
 }
 
 export function openProviderEditor(provider: Provider, presets: Record<string, any>, done: Done): void {
-	const dlg = openDialog('provider-modal', t('pdEditProviderTitle'));
+	const dlg = openDialog('provider-modal', msg('pdEditProviderTitle'));
 	const entry = CATALOG.find(e => e.id === provider.presetId || e.name === provider.name) || null;
 	showProviderForm(dlg, entry, provider, presets, done, () => {});
 }
 
 // ---- models ----------------------------------------------------------------------------------
 
-export function openModelPicker(done: Done, openProviders: () => void, editing?: ModelConfig): void {
+export function openModelPicker(done: Done, openProviders: () => void, editing?: ModelConfig, setup?: SetupFlow): void {
 	const providers = generalSettings.providers.filter(Boolean);
-	const dlg = openDialog('model-modal', editing ? t('editModel') : t('pdAddModelTitle'));
+	const dlg = setup?.dlg || openDialog('model-modal', editing ? msg('editModel') : msg('pdAddModelTitle'));
+	if (setup) {
+		dlg.reset();
+		(dlg.modal.querySelector('.pd-title') as HTMLElement).textContent = `${setup.provider.name} · ${t('选择模型')}`;
+		setupStep(dlg, 2);
+		dlg.body.append(el('p', 'pd-note', t('服务商已保存。选择要使用的模型，也可以稍后添加。')));
+	}
 	dlg.modal.classList.add('pd-wide');
 	if (!providers.length) {
 		dlg.modal.classList.remove('pd-wide');
-		dlg.body.append(el('div', 'pd-empty', t('pdNoProviders')));
-		dlg.actions.append(button(t('cancel'), '', dlg.close), button(t('pdAddProviderTitle'), 'pd-primary', () => { dlg.close(); openProviders(); }));
+		dlg.body.append(el('div', 'pd-empty', msg('pdNoProviders')));
+		dlg.actions.append(button(msg('cancel'), '', dlg.close), button(msg('pdAddProviderTitle'), 'pd-primary', () => { dlg.close(); openProviders(); }));
 		return;
 	}
 	if (editing) { showModelEditor(dlg, editing, done); return; }
 
-	let provider: Provider | undefined = providers.length === 1 ? providers[0] : undefined;
-	const picked = new Map<string, ProviderModel>();
+	let provider: Provider | undefined = setup?.provider || (providers.length === 1 ? providers[0] : undefined);
+	const picked = setup?.draft.picked || new Map<string, ProviderModel>();
 	let available: ProviderModel[] = [];
 	let version = 0;
 	let controller: AbortController | undefined;
+	let active = true;
+	dlg.onLeave(() => { active = false; version++; controller?.abort(); });
 
 	const chips = el('div', 'pd-chips');
 	chips.setAttribute('role', 'radiogroup');
-	chips.setAttribute('aria-label', t('pdPickProvider'));
-	const search = input('search', '', t('pdSearchModels'));
+	chips.setAttribute('aria-label', msg('pdPickProvider'));
+	const search = input('search', '', msg('pdSearchModels'));
 	search.className = 'pd-search';
-	search.setAttribute('aria-label', t('pdSearchModels'));
+	search.setAttribute('aria-label', msg('pdSearchModels'));
+	search.value = setup?.draft.query || '';
 	const status = el('div', 'pd-status');
 	status.setAttribute('role', 'status');
 	const list = el('div', 'pd-models');
 	const manual = el('details', 'pd-more');
-	manual.append(el('summary', '', t('pdManual')));
+	manual.append(el('summary', '', msg('pdManual')));
 	const manualId = input('text', '', 'gpt-5.6-luna');
-	const manualName = input('text', '', t('pdManualNamePlaceholder'));
-	manual.append(field('pd-mid', t('providerModelId'), manualId), field('pd-mname', t('pdManualName'), manualName));
+	const manualName = input('text', '', msg('pdManualNamePlaceholder'));
+	manualId.value = setup?.draft.manualId || '';
+	manualName.value = setup?.draft.manualName || '';
+	manual.append(field('pd-mid', msg('providerModelId'), manualId), field('pd-mname', msg('pdManualName'), manualName));
 	dlg.body.append(chips, search, status, list, manual);
 
 	const addBtn = button('', 'pd-primary', () => { void commit(); });
 	const refresh = () => {
 		const n = picked.size + (manualId.value.trim() ? 1 : 0);
-		addBtn.textContent = n ? t('pdAddModels', String(n)) : t('pdAddModelsNone');
+		addBtn.textContent = n ? msg('pdAddModels', String(n)) : msg('pdAddModelsNone');
 		addBtn.disabled = n === 0 || !provider;
 	};
 	const exists = (id: string) => !!provider && generalSettings.models.some(m => m.providerId === provider!.id && m.providerModelId === id);
@@ -353,7 +399,10 @@ export function openModelPicker(done: Done, openProviders: () => void, editing?:
 			const row = press(el('div', `pd-model${picked.has(m.id) ? ' is-picked' : ''}${isIn ? ' is-added' : ''}`), m.name, () => {
 				if (isIn) return;
 				if (picked.has(m.id)) picked.delete(m.id); else picked.set(m.id, m);
-				renderList(); refresh();
+				row.classList.toggle('is-picked', picked.has(m.id));
+				row.setAttribute('aria-checked', String(picked.has(m.id)));
+				row.querySelector('.pd-check')!.textContent = picked.has(m.id) ? '✓' : '';
+				refresh();
 			});
 			row.setAttribute('role', 'checkbox');
 			row.setAttribute('aria-checked', String(isIn || picked.has(m.id)));
@@ -362,8 +411,8 @@ export function openModelPicker(done: Done, openProviders: () => void, editing?:
 			text.append(el('div', 'pd-model-name', m.name));
 			if (m.name !== m.id) text.append(el('div', 'pd-model-id', m.id));
 			row.append(el('span', 'pd-check', isIn || picked.has(m.id) ? '✓' : ''), text);
-			if (rec.has(m.id)) row.append(el('span', 'pd-tag', t('pdRecommended')));
-			if (isIn) row.append(el('span', 'pd-tag', t('pdAdded')));
+			if (rec.has(m.id)) row.append(el('span', 'pd-tag', msg('pdRecommended')));
+			if (isIn) row.append(el('span', 'pd-tag', msg('pdAdded')));
 			list.append(row);
 		}
 	};
@@ -371,43 +420,44 @@ export function openModelPicker(done: Done, openProviders: () => void, editing?:
 	const load = async () => {
 		controller?.abort();
 		const my = ++version;
-		available = []; picked.clear(); list.textContent = ''; refresh();
-		if (!provider) { status.textContent = t('pdPickProviderFirst'); return; }
+		available = []; list.textContent = ''; refresh();
+		if (!provider) { status.textContent = msg('pdPickProviderFirst'); return; }
 		controller = new AbortController();
 		status.classList.remove('is-error');
-		status.textContent = t('providerModelsLoading');
+		status.textContent = msg('providerModelsLoading');
 		try {
-			available = await fetchProviderModels(provider, controller.signal);
-			if (my !== version) return;
-			status.textContent = available.length ? '' : t('providerModelsEmpty');
+			const found = await fetchProviderModels(provider, controller.signal);
+			if (my !== version || !active || !dlg.isOpen()) return;
+			available = found;
+			status.textContent = available.length ? '' : msg('providerModelsEmpty');
 			if (!available.length) manual.open = true;
 			renderList();
 		} catch (error) {
-			if (my !== version) return;
+			if (my !== version || !active || !dlg.isOpen()) return;
 			status.classList.add('is-error');
 			const reason = error instanceof Error ? error.message : '';
-			const base = t(reason === 'missing-api-key' ? 'providerModelsMissingKey' : reason === 'deployment-models' ? 'providerModelsDeployment' : 'providerModelsFailed');
-			const detail = /abort/i.test(reason) ? t('pdReasonTimeout') : /^http-(\d+)$/.test(reason) ? `HTTP ${reason.slice(5)}` : reason === 'invalid-model-list' ? t('pdReasonFormat') : reason.startsWith('network:') ? t('pdReasonNetwork') : '';
+			const base = msg(reason === 'missing-api-key' ? 'providerModelsMissingKey' : reason === 'deployment-models' ? 'providerModelsDeployment' : 'providerModelsFailed');
+			const detail = /abort/i.test(reason) ? msg('pdReasonTimeout') : /^http-(\d+)$/.test(reason) ? `HTTP ${reason.slice(5)}` : reason === 'invalid-model-list' ? msg('pdReasonFormat') : reason.startsWith('network:') ? msg('pdReasonNetwork') : '';
 			status.textContent = detail ? `${base}（${detail}）` : base;
-			const retry = press(el('span', 'pd-retry', t('providerModelsRefresh')), t('providerModelsRefresh'), () => { void load(); });
+			const retry = press(el('span', 'pd-retry', msg('providerModelsRefresh')), msg('providerModelsRefresh'), () => { void load(); });
 			status.append(' ', retry);
 			manual.open = true;
 			// The vendor's list is the truth; only when it cannot be read do the catalogue's common models stand in.
 			const common = fallbackModels(provider);
-			if (common.length) { available = common; status.textContent = t('providerModelsFallback') + ' '; status.append(retry); status.classList.remove('is-error'); renderList(); }
+			if (common.length) { available = common; status.textContent = msg('providerModelsFallback') + ' '; status.append(retry); status.classList.remove('is-error'); renderList(); }
 		}
 	};
 
 	const renderChips = () => {
 		chips.textContent = '';
 		providers.forEach(p => {
-			const c = press(el('div', `pd-chip${provider?.id === p.id ? ' is-on' : ''}`), p.name, () => { if (provider?.id === p.id) return; provider = p; manualId.value = ''; manualName.value = ''; renderChips(); void load(); });
+			const c = press(el('div', `pd-chip${provider?.id === p.id ? ' is-on' : ''}`), p.name, () => { if (provider?.id === p.id) return; provider = p; picked.clear(); manualId.value = ''; manualName.value = ''; renderChips(); void load(); });
 			c.setAttribute('role', 'radio');
 			c.setAttribute('aria-checked', String(provider?.id === p.id));
 			c.append(iconTile(p, 'sm'), el('span', '', p.name));
 			chips.append(c);
 		});
-		if (providers.length === 1) chips.hidden = true;
+		if (providers.length === 1 || setup) chips.hidden = true;
 	};
 
 	let savingModels = false;
@@ -423,43 +473,51 @@ export function openModelPicker(done: Done, openProviders: () => void, editing?:
 			if (exists(m.id)) continue;
 			generalSettings.models.push({ id: newId() + generalSettings.models.length, providerId: provider.id, providerModelId: m.id, name: m.name, enabled: true, reasoningEfforts: m.reasoningEfforts });
 		}
-		try { await saveSettings(); } catch { generalSettings.models = previous; savingModels = false; refresh(); status.classList.add('is-error'); status.textContent = t('failedToSaveModel'); return; }
+		try { await saveSettings(); } catch {
+			generalSettings.models = previous; savingModels = false;
+			if (active && dlg.isOpen()) { refresh(); status.classList.add('is-error'); status.textContent = msg('failedToSaveModel'); }
+			return;
+		}
 		controller?.abort();
-		dlg.close();
+		if (active && dlg.isOpen()) dlg.close();
 		done();
 	};
 
 	search.addEventListener('input', renderList);
 	manualId.addEventListener('input', refresh);
-	dlg.actions.append(button(t('cancel'), '', () => { controller?.abort(); dlg.close(); }), addBtn);
+	if (setup) dlg.actions.append(button(t('返回连接'), 'pd-ghost', () => {
+		setup.draft.query = search.value; setup.draft.manualId = manualId.value; setup.draft.manualName = manualName.value; setup.back();
+	}));
+	dlg.actions.append(button(setup ? t('稍后添加') : msg('cancel'), '', dlg.close), addBtn);
 	renderChips();
 	refresh();
 	void load();
+	search.focus();
 }
 
 function showModelEditor(dlg: Dialog, model: ModelConfig, done: Done): void {
 	dlg.modal.classList.remove('pd-wide');
 	const provider = generalSettings.providers.find(p => p && p.id === model.providerId);
 	const head = el('div', 'pd-head');
-	head.append(iconTile(provider || {}, 'md'), el('strong', '', provider?.name || t('unknownProvider')));
-	const nameInput = input('text', model.name, t('modelName'));
-	const idInput = input('text', model.providerModelId || '', t('providerModelId'));
-  const effort = el('select'); effort.append(new Option(t('pdEffortDefault'), ''));
+	head.append(iconTile(provider || {}, 'md'), el('strong', '', provider?.name || msg('unknownProvider')));
+	const nameInput = input('text', model.name, msg('modelName'));
+	const idInput = input('text', model.providerModelId || '', msg('providerModelId'));
+  const effort = el('select'); effort.append(new Option(msg('pdEffortDefault'), ''));
   for (const value of model.reasoningEfforts || []) effort.append(reasoningEffortOption(value));
   effort.value = model.reasoningEffort || '';
-  if (model.reasoningEfforts?.length) { const row = el('label', 'pd-field', t('pdEffort')); row.append(effort); dlg.body.append(row); }
+  if (model.reasoningEfforts?.length) { const row = el('label', 'pd-field', msg('pdEffort')); row.append(effort); dlg.body.append(row); }
 	const error = el('div', 'pd-status is-error');
 	error.setAttribute('role', 'alert');
-	dlg.body.append(head, field('pd-mname', t('modelName'), nameInput), field('pd-mid', t('providerModelId'), idInput, el('div', 'pd-hint', t('providerModelIdDescription'))), error);
-	dlg.actions.append(button(t('cancel'), '', dlg.close), button(t('save'), 'pd-primary', async () => {
+	dlg.body.append(head, field('pd-mname', msg('modelName'), nameInput), field('pd-mid', msg('providerModelId'), idInput, el('div', 'pd-hint', msg('providerModelIdDescription'))), error);
+	dlg.actions.append(button(msg('cancel'), '', dlg.close), button(msg('save'), 'pd-primary', async () => {
 		const name = nameInput.value.trim();
 		const providerModelId = idInput.value.trim();
-		if (!name || !providerModelId) { error.textContent = t('modelRequiredFields'); return; }
+		if (!name || !providerModelId) { error.textContent = msg('modelRequiredFields'); return; }
 		const index = generalSettings.models.findIndex(m => m.id === model.id);
 		const previous = [...generalSettings.models];
 		const next = { ...model, name, providerModelId, reasoningEffort: providerModelId === model.providerModelId ? effort.value || undefined : undefined, reasoningEfforts: providerModelId === model.providerModelId ? model.reasoningEfforts : undefined };
 		if (index >= 0) generalSettings.models[index] = next; else generalSettings.models.push(next);
-		try { await saveSettings(); } catch { generalSettings.models = previous; error.textContent = t('failedToSaveModel'); return; }
+		try { await saveSettings(); } catch { generalSettings.models = previous; error.textContent = msg('failedToSaveModel'); return; }
 		dlg.close();
 		done();
 	}));

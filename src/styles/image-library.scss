@@ -1,0 +1,64 @@
+.image-library-page { margin: 0; padding: 0; background: var(--background-primary); color: var(--text-normal); }
+html .image-library {
+	color: var(--text-normal); font: 14px/1.5 system-ui, sans-serif; min-width: 0;
+	*, *::before, *::after { box-sizing: border-box; }
+	[hidden] { display: none !important; }
+	svg { mix-blend-mode: normal !important; flex-shrink: 0; }
+	h1, h2, p { margin: 0; }
+	h1 { font-size: 24px; letter-spacing: -.025em; }
+	h2 { font-size: 17px; }
+	.il-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 24px; }
+	.il-tabs { display: flex; gap: 6px; flex-wrap: wrap; padding-bottom: 16px; border-bottom: 1px solid var(--background-modifier-border); margin-bottom: 16px; }
+	button.il-button, a.il-button {
+		appearance: none; width: auto; height: auto; min-height: 34px; margin: 0; padding: 7px 11px; flex-shrink: 0;
+		display: inline-flex; align-items: center; justify-content: center; gap: 7px; border: 1px solid transparent; border-radius: 7px;
+		background: var(--background-secondary); color: var(--text-normal); font: inherit; line-height: 1.3; box-shadow: none; cursor: pointer; text-align: start; white-space: normal;
+		&:hover { background: var(--background-modifier-hover); color: var(--text-normal); box-shadow: none; }
+		&:focus-visible { outline: 1px solid var(--text-muted); outline-offset: 2px; }
+		&[aria-current="page"] { border-color: var(--text-muted); }
+		&.il-primary { background: var(--text-normal); color: var(--background-primary); &:hover { opacity: .85; background: var(--text-normal); color: var(--background-primary); } }
+	}
+	.il-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; &:empty { display: none; } }
+	input.il-field, select.il-field { appearance: none; border: 1px solid var(--background-modifier-border); border-radius: 7px; padding: 9px 11px; min-height: 36px; margin: 0; color: var(--text-normal); background: var(--background-primary); width: auto; max-width: 100%; flex-shrink: 0; font: inherit; box-shadow: none;
+		&:focus { border-color: var(--field-focus-border, var(--text-muted)); box-shadow: var(--field-focus-ring, 0 0 0 1px var(--background-modifier-border)); outline: none; }
+	}
+	select.il-field { padding-right: 28px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%23888'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; }
+	input.il-search { flex: 1 1 180px; min-width: 100px; }
+	.il-status { color: var(--text-muted); white-space: pre-wrap; overflow-wrap: anywhere; margin-bottom: 12px; &:empty { display: none; } }
+	.il-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr)); gap: 16px; margin-bottom: 16px; }
+	.il-card { border: 1px solid var(--background-modifier-border); border-radius: 10px; overflow: hidden; min-width: 0; background: var(--background-primary); }
+	button.il-thumb { display: block; position: relative; width: 100%; height: auto; aspect-ratio: 4 / 3; margin: 0; border: 0; border-radius: 0; padding: 0; background: var(--background-secondary); box-shadow: none; cursor: zoom-in; overflow: hidden;
+		&:hover { background: var(--background-secondary); box-shadow: none; } &:focus-visible { outline: 1px solid var(--text-muted); outline-offset: -3px; }
+		img { display: block; width: 100%; height: 100%; object-fit: contain; }
+	}
+	.il-card-actions { display: flex; align-items: center; gap: 5px; padding: 10px; min-width: 0;
+		input { appearance: auto; width: 15px; height: 15px; flex-shrink: 0; margin: 0 4px 0 0; &::after { display: none; } }
+		button { padding: 6px; min-height: 28px; }
+	}
+	.il-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+	.il-meta { display: block; font-size: 12px; color: var(--text-muted); overflow-wrap: anywhere; }
+	.il-card > .il-meta { margin: 0; padding: 0 12px 12px; }
+	.il-empty { display: grid; place-content: center; min-height: 240px; color: var(--text-muted); }
+	.il-job { border: 1px solid var(--background-modifier-border); border-radius: 9px; padding: 16px; margin-bottom: 12px; display: grid; gap: 10px; }
+	.il-job-head { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; time { color: var(--text-muted); font-size: 12px; } }
+	.il-job-prompt { white-space: pre-wrap; overflow-wrap: anywhere; }
+	.il-job .il-tools { margin-bottom: 0; }
+	.il-error { color: var(--text-error, #b33); overflow-wrap: anywhere; }
+	.il-selection { position: sticky; bottom: 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; border: 1px solid var(--background-modifier-border); border-radius: 9px; padding: 12px; background: var(--background-primary); box-shadow: 0 4px 20px #0001; }
+}
+#image-library { max-width: 1200px; margin: 0 auto; padding: 32px; }
+dialog.il-dialog, dialog.il-preview, dialog.il-settings { border: 1px solid var(--background-modifier-border); border-radius: 14px; background: var(--background-primary); color: var(--text-normal); max-height: calc(100dvh - 32px); padding: 24px; overflow-y: auto; box-shadow: 0 16px 60px #0003; &::backdrop { background: #0005; } }
+dialog.il-dialog { width: min(1060px, calc(100vw - 32px)); > button { float: right; } .il-header { padding-right: 64px; } }
+dialog.il-preview { width: min(900px, calc(100vw - 32px)); img { display: block; max-width: 100%; max-height: 65dvh; margin: 20px auto; object-fit: contain; } h2 { overflow-wrap: anywhere; } }
+dialog.il-settings {
+	width: min(500px, calc(100vw - 32px));
+	label { display: grid; gap: 8px; margin: 16px 0; }
+	p, a { margin: 12px 0; }
+	.il-advanced {
+		margin: 20px 0;
+		summary { width: fit-content; color: var(--text-muted); cursor: pointer; &:hover { color: var(--text-normal); } &:focus-visible { outline: 1px solid var(--text-muted); outline-offset: 2px; } }
+		p { color: var(--text-muted); font-size: 13px; }
+	}
+	.il-tools { justify-content: flex-end; margin-bottom: 0; }
+}
+@media (max-width: 500px) { #image-library { padding: 16px; } dialog.il-dialog, dialog.il-preview, dialog.il-settings { padding: 16px; } html .image-library .il-header { gap: 8px; } }

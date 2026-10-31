@@ -5,6 +5,7 @@ vi.mock('./i18n',()=>({getMessage:(key:string)=>key}));
 vi.mock('./clip-chat',()=>({mountClipChat:()=>({toggle:()=>true})}));
 import {mountPlayerSize} from './youtube-player-size';
 import {wireTranscript} from './reader-transcript';
+vi.mock('./study-download',()=>({mountStudyDownload:vi.fn()}));
 import {mountYouTubeStudy} from './youtube-study';
 it('connects late subtitles to the original handle and iframe without nesting containers or rewriting its URL',async()=>{
  vi.stubGlobal('CSS',{});

@@ -120,7 +120,7 @@ it('says why an install could not start, and uninstalls only after asking', asyn
 	press('下载并安装'); await settled(); expect(el('asr-status').textContent).toContain('磁盘空间不足'); press('关闭');
 	row('local:mlx').click(); const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false); state.send.mockClear(); press('卸载'); await settled(); expect(state.send).not.toHaveBeenCalled();
 	confirm.mockReturnValue(true); state.send.mockResolvedValue({ ok: true, freedMb: 1700, local: [] }); press('卸载'); await settled();
-	expect(state.send).toHaveBeenCalledWith({ action: 'qiaomuAsr', payload: { mode: 'uninstall', engine: 'mlx', model: true } }); expect(el('asr-status').textContent).toContain('已卸载');
+	expect(state.send).toHaveBeenCalledWith({ action: 'qiaomuAsr', payload: { mode: 'uninstall', engine: 'mlx', model: false } }); expect(el('asr-status').textContent).toContain('已卸载');
 });
 
 it('makes an installed engine the default from its dialog, opens rows with the keyboard, and closes dialogs with Escape', async () => {

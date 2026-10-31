@@ -1,4 +1,4 @@
-import Defuddle from 'defuddle/full';
+import Defuddle from './defuddle';
 import browser from './browser-polyfill';
 import { detectBrowser } from './browser-detection';
 import { flattenShadowDom as flattenShadowDomUtil } from './flatten-shadow-dom';
@@ -27,7 +27,7 @@ function hl(): HighlighterAPI {
 import { copyToClipboard } from './clipboard-utils';
 import { getMessage, initializeI18n } from './i18n';
 import { getFontCss, isFontAvailable, FONT_PRESETS } from './font-utils';
-import { createMarkdownContent } from 'defuddle/full';
+import { createMarkdownContent } from './defuddle';
 import { saveFile } from './file-utils';
 import { parseForClip } from './clip-utils';
 import { extractXhsNote } from './xiaohongshu';
@@ -47,6 +47,7 @@ import { mountLearningNotes, learningSelection, learningNotes } from './learning
 import { withReliableBilibili } from './bilibili-captions';
 
 import { t } from './ui-text';
+import { createElement, Type } from 'lucide';
 interface ReaderContent {
 	content: string;
 	title?: string;
@@ -200,12 +201,10 @@ export class Reader {
 		// Trigger button (always visible)
 		const trigger = doc.createElement('button');
 		trigger.className = 'obsidian-reader-settings-trigger nav-btn';
-		trigger.setAttribute('aria-label', getMessage('settings'));
-		trigger.appendChild(this.createSVG({
-			width: '18', height: '18', viewBox: '0 0 24 24', strokeWidth: '1.75',
-			// lucide "a-large-small": the reading-typography glyph, same line weight as the icons beside it.
-			paths: ['M21 14h-5', 'M16 16v-3.5a2.5 2.5 0 0 1 5 0V16', 'M4.5 13h6', 'm3 16 4.5-9 4.5 9'],
-		}));
+		trigger.setAttribute('aria-label', t('字体与排版'));
+		trigger.title = t('字体与排版');
+		const typeIcon = createElement(Type); typeIcon.setAttribute('width', '18'); typeIcon.setAttribute('height', '18'); typeIcon.setAttribute('stroke-width', '1.75');
+		trigger.appendChild(typeIcon);
 		trigger.addEventListener('click', (e) => {
 			e.stopPropagation();
 			clipDropdown.classList.remove('is-open');

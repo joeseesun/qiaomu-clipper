@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { initializeInterpreterSettings } from './interpreter-settings';
 import { generalSettings, saveSettings } from '../utils/storage-utils';
+import { startSignIn } from '../utils/oauth/accounts';
 import { fetchProviderModels, ProviderModel } from '../utils/provider-models';
 
 vi.mock('../utils/storage-utils', () => ({
@@ -27,7 +28,7 @@ const card = (name: string) => $$('#provider-modal .pd-card').find(c => c.getAtt
 beforeEach(async () => {
 	vi.clearAllMocks();
 	vi.mocked(saveSettings).mockReset();
-	vi.mocked(fetchProviderModels).mockReset();
+	vi.mocked(fetchProviderModels).mockReset().mockResolvedValue([]);
 	vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ version: 'test' }))));
 	document.documentElement.innerHTML = readFileSync('src/settings.html', 'utf8');
 	generalSettings.providers = [
@@ -62,20 +63,22 @@ describe('add provider', () => {
 		await openProviders();
 		card('硅基流动').click();
 		expect($('#provider-modal #pd-url')).not.toBeNull();
-		action('pdAddProviderButton').click(); await tick();
+		action('下一步：选择模型').click(); await tick();
 		expect($('#provider-modal .pd-status.is-error').textContent).toBe('pdNeedKey');
 		($('#pd-key') as HTMLInputElement).value = ' sk-1 ';
-		action('pdAddProviderButton').click(); await tick();
+		action('下一步：选择模型').click(); await tick();
 		expect(generalSettings.providers[generalSettings.providers.length - 1]).toMatchObject({ name: '硅基流动', apiKey: 'sk-1', presetId: 'siliconflow', baseUrl: 'https://api.siliconflow.cn/v1/chat/completions' });
 		expect(saveSettings).toHaveBeenCalled();
-		expect($('#provider-modal').style.display).toBe('none');
+		expect($('#provider-modal').style.display).toBe('flex');
+		expect($('#provider-modal .pd-title').textContent).toContain('硅基流动');
+		expect(fetchProviderModels).toHaveBeenCalledWith(generalSettings.providers[generalSettings.providers.length - 1], expect.any(AbortSignal));
 		expect($$('#provider-list .provider-list-item')).toHaveLength(3);
 	});
 	it('needs a sign-in, not a key, for ChatGPT', async () => {
 		await openProviders();
 		card('ChatGPT').click();
 		expect($('#pd-key')).toBeNull();
-		action('pdAddProviderButton').click(); await tick();
+		action('下一步：选择模型').click(); await tick();
 		expect($('#provider-modal .pd-status.is-error').textContent).toBe('pdNeedLogin');
 		expect(generalSettings.providers).toHaveLength(2);
 	});
@@ -85,22 +88,22 @@ describe('add provider', () => {
 		($('#provider-modal .pd-head input') as HTMLInputElement).value = 'My gateway';
 		($('#pd-url') as HTMLInputElement).value = 'https://g.example/v1/chat/completions';
 		($('#pd-key') as HTMLInputElement).value = 'k';
-		action('pdAddProviderButton').click(); await tick();
+		action('下一步：选择模型').click(); await tick();
 		expect(generalSettings.providers[generalSettings.providers.length - 1]).toMatchObject({ name: 'My gateway', baseUrl: 'https://g.example/v1/chat/completions', apiKey: 'k' });
 	});
 	it('rolls back a provider after a failed save instead of duplicating it on retry', async () => {
 		vi.mocked(saveSettings).mockRejectedValueOnce(new Error('quota')).mockResolvedValue(undefined);
 		await openProviders(); card('硅基流动').click();
-		$<HTMLInputElement>('#pd-key').value='test'; action('pdAddProviderButton').click(); await tick();
+		$<HTMLInputElement>('#pd-key').value='test'; action('下一步：选择模型').click(); await tick();
 		expect(generalSettings.providers).toHaveLength(2);
-		action('pdAddProviderButton').click(); await tick(); expect(generalSettings.providers).toHaveLength(3);
+		action('下一步：选择模型').click(); await tick(); expect(generalSettings.providers).toHaveLength(3);
 	});
 	it('ignores repeated provider save clicks until persistence completes', async () => {
 		let resolveSave!: () => void;
 		vi.mocked(saveSettings).mockImplementationOnce(() => new Promise(resolve => { resolveSave = resolve; }));
 		await openProviders(); card('硅基流动').click();
 		$<HTMLInputElement>('#pd-key').value = 'test';
-		const save = action('pdAddProviderButton'); save.click(); save.click();
+		const save = action('下一步：选择模型'); save.click(); save.click();
 		expect(saveSettings).toHaveBeenCalledTimes(1);
 		expect(generalSettings.providers).toHaveLength(3);
 		resolveSave(); await tick();
@@ -110,13 +113,80 @@ describe('add provider', () => {
 		card('DeepSeek').click();
 		expect(($('#pd-key') as HTMLInputElement).value).toBe('a-key');
 		($('#pd-key') as HTMLInputElement).value = 'new';
-		action('save').click(); await tick();
+		action('下一步：选择模型').click(); await tick();
 		expect(generalSettings.providers).toHaveLength(2);
 		expect(generalSettings.providers[0].apiKey).toBe('new');
 	});
 });
 
 describe('add models', () => {
+	it('continues in the same dialog, preserves selection on Back and adds models to the new provider', async () => {
+		vi.mocked(fetchProviderModels).mockResolvedValue([{ id: 'one', name: 'One' }, { id: 'two', name: 'Two' }]);
+		await openProviders(); card('硅基流动').click();
+		$<HTMLInputElement>('#pd-key').value = 'test';
+		const modal = $('#provider-modal');
+		action('下一步：选择模型').click(); await tick();
+		const provider = generalSettings.providers[generalSettings.providers.length - 1]!;
+		expect($('#provider-modal')).toBe(modal);
+		expect($('#model-modal').style.display).not.toBe('flex');
+		expect($('#provider-modal .pd-chips').hidden).toBe(true);
+		const first = $('#provider-modal .pd-model'); first.focus(); first.click();
+		expect(document.activeElement).toBe(first);
+		expect($('#provider-modal .pd-model')).toBe(first);
+		action('返回连接').click();
+		expect($<HTMLInputElement>('#pd-key').value).toBe('test');
+		action('下一步：选择模型').click(); await tick();
+		expect($('#provider-modal .pd-model').getAttribute('aria-checked')).toBe('true');
+		expect(generalSettings.providers.filter(p => p.id === provider.id)).toHaveLength(1);
+		action('pdAddModels:1').click(); await tick();
+		expect(generalSettings.models).toEqual([expect.objectContaining({ providerId: provider.id, providerModelId: 'one', enabled: true })]);
+		expect(modal.style.display).toBe('none');
+	});
+	it('keeps the connection step open if model saving finishes after returning to it', async () => {
+		vi.mocked(fetchProviderModels).mockResolvedValue([{ id: 'new', name: 'New' }]);
+		await openProviders(); card('DeepSeek').click();
+		action('下一步：选择模型').click(); await tick();
+		let finishSave!: () => void;
+		vi.mocked(saveSettings).mockImplementationOnce(() => new Promise(resolve => { finishSave = resolve; }));
+		$('#provider-modal .pd-model').click(); action('pdAddModels:1').click();
+		action('返回连接').click();
+		finishSave(); await tick();
+		expect($('#provider-modal').style.display).toBe('flex');
+		expect($('#pd-key')).not.toBeNull();
+		expect(action('下一步：选择模型')).toBeTruthy();
+		expect(generalSettings.models).toHaveLength(1);
+	});
+	it('automatically continues after OAuth sign-in and ignores a late sign-in after Escape', async () => {
+		const oauth = { kind: 'codex', access: 'test-token', refresh: 'test-refresh', expires: Date.now() + 3600000, clientId: 'test' } as const;
+		const cancel = vi.fn();
+		vi.mocked(startSignIn).mockResolvedValue({ handle: { cancel, submitUrl: vi.fn() }, finish: async () => ({ label: 'Codex', oauth }) } as any);
+		await openProviders(); card('Codex').click();
+		$$<HTMLButtonElement>('#provider-modal button').find(b => b.textContent === 'providerSignInCodex')!.click(); await tick();
+		expect($('#provider-modal .pd-title').textContent).toBe('Codex · 选择模型');
+		expect(generalSettings.providers.filter(p => p.oauth?.kind === 'codex')).toHaveLength(1);
+		action('稍后添加').click();
+		let finish!: (value: any) => void;
+		vi.mocked(startSignIn).mockResolvedValue({ handle: { cancel, submitUrl: vi.fn() }, finish: () => new Promise(resolve => { finish = resolve; }) } as any);
+		await openProviders(); card('ChatGPT').click();
+		$$<HTMLButtonElement>('#provider-modal button').find(b => b.textContent === 'providerSignInChatGPT')!.click(); await tick();
+		document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); await tick();
+		finish({ label: 'Late', oauth: { ...oauth, kind: 'chatgpt' } }); await tick();
+		expect(generalSettings.providers.some(p => p.oauth?.kind === 'chatgpt')).toBe(false);
+		expect($('#provider-modal').style.display).toBe('none');
+		expect(cancel).toHaveBeenCalled();
+	});
+	it('keeps the saved connection when model discovery fails or is deferred, without late list updates', async () => {
+		let finish!: (models: ProviderModel[]) => void;
+		vi.mocked(fetchProviderModels).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+		await openProviders(); card('硅基流动').click();
+		$<HTMLInputElement>('#pd-key').value = 'test'; action('下一步：选择模型').click(); await tick();
+		const provider = generalSettings.providers[generalSettings.providers.length - 1]!;
+		action('稍后添加').click();
+		finish([{ id: 'late', name: 'Late' }]); await tick();
+		expect($('#provider-modal .pd-models').textContent).toBe('');
+		expect(generalSettings.providers.some(p => p.id === provider.id)).toBe(true);
+		expect(generalSettings.models).toHaveLength(0);
+	});
 	it('picks several models at once from the provider list and skips ones already added', async () => {
 		generalSettings.models = [{ id: 'm0', providerId: 'a', providerModelId: 'old', name: 'Old', enabled: true }];
 		vi.mocked(fetchProviderModels).mockResolvedValue([{ id: 'old', name: 'Old' }, { id: 'x', name: 'X' }, { id: 'y', name: 'Y' }]);

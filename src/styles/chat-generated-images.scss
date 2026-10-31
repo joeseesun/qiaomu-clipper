@@ -1,0 +1,31 @@
+html :is(.clip-chat, .qw-chat) .clip-chat-generated {
+	margin-block: 14px 8px; padding-block: 12px; border-block: 1px solid var(--background-modifier-border, #ddd);
+	display: flex; flex-direction: column; gap: 10px; min-width: 0;
+	[hidden] { display: none !important; }
+	.clip-chat-generated-prompt { margin: 0; font-size: 13px; line-height: 1.65; overflow-wrap: anywhere; }
+	.clip-chat-generated-settings { font-size: 12px; summary { cursor: pointer; color: var(--text-muted); } &[open] summary { margin-bottom: 8px; } }
+	.clip-chat-generated-controls { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
+	select {
+		appearance: none; min-width: 0; max-width: 100%; flex: 1 1 160px; height: 32px; margin: 0; padding: 0 28px 0 10px;
+		border: 1px solid var(--background-modifier-border, #ddd); border-radius: 6px;
+		background-color: var(--background-primary); color: var(--text-normal); font: inherit; font-size: 12px; box-shadow: none;
+		background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+		background-repeat: no-repeat; background-position: right 8px center; cursor: pointer;
+		&:last-child { flex: 0 1 88px; }
+		&:hover { border-color: var(--text-muted); }
+		&:focus-visible { outline: none; border-color: var(--field-focus-border, var(--text-muted)); box-shadow: var(--field-focus-ring, 0 0 0 1px #8883); }
+	}
+	.clip-chat-generated-status { margin: 0; color: var(--text-muted); font-size: 12px; overflow-wrap: anywhere; &:empty { display: none; } }
+	img { display: block; width: 100%; height: auto; max-height: 480px; object-fit: contain; border-radius: 6px; }
+	.clip-chat-generated-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+	button.clip-chat-action, a.clip-chat-action {
+		display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: auto; height: auto; min-height: 32px; margin: 0; padding: 6px 10px;
+		border: 0; border-radius: 6px; background: var(--background-secondary, #eee); color: var(--text-normal);
+		box-shadow: none; text-decoration: none; font: inherit; font-size: 12px; cursor: pointer;
+		&:hover { background: var(--background-modifier-hover, #ddd); color: var(--text-normal); }
+		&:active { opacity: .8; }
+		&:disabled { opacity: .5; cursor: default; }
+		&:focus-visible { outline: 1px solid var(--text-muted); outline-offset: 2px; }
+		svg { width: 14px; height: 14px; flex: none; mix-blend-mode: normal !important; }
+	}
+}

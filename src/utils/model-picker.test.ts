@@ -116,3 +116,35 @@ describe('model picker', () => {
 		expect(picker.trigger.title).toBe('Apodex: Apodex 1.1');
 	});
 });
+
+it('remembers reasoning per model, rejects unsupported levels and disables switching during a reply', () => {
+ const { picker, search, rows, onSelect } = mount(); picker.open();
+ const effort = picker.popover.querySelector<HTMLButtonElement>('.clip-chat-effort')!;
+ effort.click();
+ const high = Array.from(picker.popover.querySelectorAll<HTMLButtonElement>('[role=menuitemradio]')).find(b => b.textContent === '高')!;
+ high.click();
+ picker.close(); picker.open(); expect(localStorage.getItem('qiaomuWriteEffort:m1')).toBe('high');
+ expect(effort.textContent).toBe('高');
+ picker.trigger.disabled = true; rows()[1].click(); expect(onSelect).not.toHaveBeenCalled();
+ picker.close(); picker.open(); expect(picker.isOpen()).toBe(false);
+ picker.trigger.disabled = false; picker.setModels('m3'); picker.open(); expect(effort.textContent).toBe('自动');
+ picker.destroy(); expect(picker.isOpen()).toBe(false);
+ localStorage.clear();
+});
+it('shows recent picks without a filter rail for a small catalog and keeps keyboard selection', () => {
+ const { picker, search, rows } = mount(); picker.open(); rows()[2].click(); picker.open();
+ expect(picker.popover.querySelector('.clip-chat-picker-group')!.textContent).toBe('最近使用');
+ expect((picker.popover.querySelector('.clip-chat-picker-filters') as HTMLElement).hidden).toBe(true);
+ expect(rows()[0].textContent).toBe('GPT-5.6 Sol');
+ key(search, 'Enter'); expect(picker.value).toBe('m3'); picker.destroy();
+});
+
+it('navigates reasoning options without changing the model and closes one menu at a time', () => {
+ const {picker, onSelect} = mount(); picker.open();
+ const trigger = picker.popover.querySelector<HTMLButtonElement>('.clip-chat-effort')!;
+ trigger.click(); const menu = picker.popover.querySelector<HTMLElement>('.clip-chat-effort-menu')!;
+ expect(document.activeElement?.getAttribute('role')).toBe('menuitemradio');
+ key(document.activeElement!, 'End'); expect(document.activeElement).toBe(menu.lastElementChild);
+ key(document.activeElement!, 'Escape'); expect(menu.hidden).toBe(true); expect(picker.isOpen()).toBe(true); expect(document.activeElement).toBe(trigger);
+ expect(onSelect).not.toHaveBeenCalled(); key(trigger, 'Escape'); expect(picker.isOpen()).toBe(false); picker.destroy();
+});

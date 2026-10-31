@@ -2193,5 +2193,41 @@
 	},
 	"pdEffortDefault": {
 		"message": "使用模型默认值"
+	},
+	"captionDlTitle": {
+		"message": "下载字幕"
+	},
+	"captionDlDefault": {
+		"message": "默认"
+	},
+	"captionDlDone": {
+		"message": "已下载"
+	},
+	"captionDlFixed": {
+		"message": "下载 {format}（右键选其他格式）"
+	},
+	"captionDlMd": {
+		"message": "Markdown"
+	},
+	"captionDlMdNote": {
+		"message": "带标题和来源，适合放进笔记"
+	},
+	"captionDlSrt": {
+		"message": "SRT 字幕"
+	},
+	"captionDlSrtNote": {
+		"message": "带时间轴，可直接放进播放器"
+	},
+	"captionDlVtt": {
+		"message": "VTT 字幕"
+	},
+	"captionDlVttNote": {
+		"message": "带时间轴，网页播放器通用"
+	},
+	"captionDlTxt": {
+		"message": "纯文本"
+	},
+	"captionDlTxtNote": {
+		"message": "每行一句，带时间"
 	}
 }

@@ -2193,5 +2193,41 @@
 	},
 	"pdEffortDefault": {
 		"message": "Padrão do modelo"
+	},
+	"captionDlTitle": {
+		"message": "Baixar legendas"
+	},
+	"captionDlDefault": {
+		"message": "Padrão"
+	},
+	"captionDlDone": {
+		"message": "Baixado"
+	},
+	"captionDlFixed": {
+		"message": "Baixar {format} (clique direito para outros formatos)"
+	},
+	"captionDlMd": {
+		"message": "Markdown"
+	},
+	"captionDlMdNote": {
+		"message": "Com título e origem, para notas"
+	},
+	"captionDlSrt": {
+		"message": "Legendas SRT"
+	},
+	"captionDlSrtNote": {
+		"message": "Com tempos, pronto para o player de vídeo"
+	},
+	"captionDlVtt": {
+		"message": "Legendas VTT"
+	},
+	"captionDlVttNote": {
+		"message": "Com tempos, para players web"
+	},
+	"captionDlTxt": {
+		"message": "Texto simples"
+	},
+	"captionDlTxtNote": {
+		"message": "Uma linha por vez, com o horário"
 	}
 }

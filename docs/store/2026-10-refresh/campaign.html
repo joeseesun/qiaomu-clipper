@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>乔木剪藏 · 看懂，记住，写出来</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0}body{background:#e9e6df;color:#22241f;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
+.sheet{width:1280px;height:800px;position:relative;overflow:hidden;background:var(--paper,#f0eee6)}
+.brand{position:absolute;top:34px;right:60px;display:flex;align-items:center;gap:10px;font-size:17px;font-weight:650;letter-spacing:.02em}.brand img{width:42px;height:42px}.eyebrow{position:absolute;top:44px;left:64px;font-size:13px;letter-spacing:2px;font-weight:650;color:var(--accent,#a34430)}
+h1{position:absolute;left:60px;top:77px;margin:0;font-size:54px;line-height:1.2;letter-spacing:-2px;font-weight:750}.sub{position:absolute;left:64px;top:152px;margin:0;font-size:21px;line-height:1.5;color:#5c6058;font-weight:400}
+.window{position:absolute;left:64px;top:219px;width:1152px;height:512px;border:1px solid #24251c24;border-radius:12px;background:white;box-shadow:0 18px 45px #28281414;overflow:hidden}
+.window img{display:block;width:1152px;height:512px;object-fit:contain}
+.foot{position:absolute;left:64px;right:64px;bottom:24px;display:flex;justify-content:space-between;font-size:13px;color:#73756d}
+.foot b{font-weight:500;color:#5a5e54}.brandline{position:absolute;left:64px;top:40px;color:#fff8ed;font-size:20px;font-weight:600}
+.marquee{width:1400px;height:560px;position:relative;overflow:hidden;background:#b84d32;color:#fff8ed}
+.marquee>img{width:1400px;height:560px;object-fit:cover;display:block}
+.marquee h1{left:64px;top:165px;max-width:640px;font-size:66px;line-height:1.22;letter-spacing:-2px;font-weight:700}
+.marquee p{position:absolute;left:68px;bottom:97px;font-size:21px;letter-spacing:.06em;color:#fff3df}
+.small{width:440px;height:280px;background:#b84d32;overflow:hidden;position:relative}
+.small img{position:absolute;width:700px;height:280px;max-width:none;right:0;top:0;object-fit:cover}
+.small:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,#a23b27 0%,#a23b27cc 20%,transparent 60%)}
+.small .wordmark{position:absolute;z-index:1;color:#fff8ed;left:24px;top:30px;font-size:26px;font-weight:750;line-height:1.32;letter-spacing:1px}
+.small .caption{position:absolute;z-index:1;color:#fff4df;left:25px;bottom:27px;font-size:15px;line-height:1.5}
+.preview{max-width:1180px;margin:auto;padding:60px 28px 100px}.preview h2{font-size:36px;margin:0 0 14px}.preview p{line-height:1.7;color:#64665f}.preview a{color:#9e402e}.grid{display:grid;grid-template-columns:1fr 1fr;gap:26px;margin:30px 0}.card img{display:block;width:100%;border-radius:10px;border:1px solid #0002}.card p{font-size:14px;margin:8px 0}.hero-preview{width:100%;margin:28px 0;border-radius:12px}
+@media(max-width:700px){.grid{grid-template-columns:1fr}.preview h2{font-size:28px}}
+</style>
+<div id="root"></div>
+<script>
+const frames = [
+ ['read','阅读 · 剪藏','把看过的，变成自己的。','干净阅读，划线留重点。网页、选段，存成可继续使用的 Markdown。','#f1eee5','#a84b34','基础阅读、剪藏与编辑无需配置 AI'],
+ ['study','视频 · 双语学习','长视频，也能逐句读懂。','跟着字幕看，搜一句就跳回那一刻。边看、边问、边记。','#e7edee','#3c6972','字幕可导出 Markdown / SRT / VTT / TXT'],
+ ['chat','网页 · AI 对话','不懂的，就在这一页问。','引用选段，追问图片；需要新资料时，开启联网搜索并查看来源。','#e9eddf','#53643d','AI 与搜索需要连接自己的服务'],
+ ['writing','写作 · AI 助手','从一份素材，到一篇文章。','带着原文和字幕开始写。大纲、润色、配图，在一个编辑器里完成。','#efe7de','#92573a','本地自动保存 · Markdown 与图片 ZIP 导出'],
+ ['gallery','配图 · 个人图库','好内容，也值得一张好图。','说出想法生成配图，或搜索现成图片。找到、收好、插入文章。','#eee7e8','#91515d','生成图片 / 上传 / 本地文件夹 / Unsplash'],
+];
+const root=document.getElementById('root'),params=new URLSearchParams(location.search),page=params.get('page');
+if(page==='marquee'){
+ root.innerHTML='<section class="marquee"><img src="brand-illustration.png"><div class="brandline">乔木剪藏　QIAOMU CLIPPER</div><h1>把看过的，<br>变成自己的。</h1><p>阅读　·　学习　·　AI 写作</p></section>';
+}else if(page==='small'){
+ root.innerHTML='<section class="small"><img src="brand-illustration.png"><div class="wordmark">乔木<br>剪藏</div><div class="caption">看懂 · 记住<br>写出来</div></section>';
+}else if(page && Number(page)>=1 && Number(page)<=5){
+ const i=Number(page)-1,[id,label,title,sub,paper,accent,note]=frames[i];
+ root.innerHTML=`<section class="sheet" style="--paper:${paper};--accent:${accent}"><div class="eyebrow">0${i+1}　/　${label}</div><div class="brand"><img src="icon128.png">乔木剪藏</div><h1>${title}</h1><p class="sub">${sub}</p><div class="window"><img src="ui-${id}.png"></div><div class="foot"><b>${note}</b><span>真实组件界面 · 示例内容${id==='study'?'，播放器为演示画面':''}</span></div></section>`;
+}else{
+ root.innerHTML=`<main class="preview"><p>乔木剪藏 · Chrome 商店改版 / 2026.10</p><h2>把看过的，变成自己的。</h2><p>阅读、学习、AI 对话、写作与配图，围绕一条完整的创作过程展开。以下是可上传规格的设计稿；尚未上传商店。截图使用新版实际组件和原创示例内容，外部服务响应为演示数据，不作为真实模型验收证据。</p><img class="hero-preview" src="marquee-1400x560.png"><p><a href="listing-zh-CN.txt">中文文案</a> · <a href="listing-en.txt">English listing</a> · <a href="READINESS.md">发布检查</a></p><div class="grid">${frames.map((f,i)=>`<div class="card"><a href="screenshot-0${i+1}-${f[0]}.png"><img src="screenshot-0${i+1}-${f[0]}.png"></a><p>0${i+1} / ${f[1]} — ${f[2]}</p></div>`).join('')}<div class="card"><a href="promo-440x280.png"><img style="max-width:440px" src="promo-440x280.png"></a><p>商店小宣传图 / 440 × 280</p></div></div></main>`;
+}
+document.body.dataset.ready='true';
+</script>
+</html>

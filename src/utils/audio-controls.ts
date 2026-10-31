@@ -29,27 +29,16 @@ export function mountAudioControls(doc: Document, media: HTMLMediaElement, label
 	const play = tool('qa-play', ICON.play, labels.play, () => { if (media.paused) void Promise.resolve(media.play()).catch(() => {}); else media.pause(); });
 	const now = make('span', 'qa-time'), total = make('span', 'qa-time qa-total'), seek = make('input', 'qa-seek'); seek.type = 'range'; seek.min = '0'; seek.max = '0'; seek.step = '1'; seek.value = '0'; seek.setAttribute('aria-label', labels.seek);
 	const line = make('div', 'qa-line'); line.append(now, seek, total);
-	const main = make('div', 'qa-main'); main.append(play, line);
-	// Speed is a row of choices, all in view: one press picks it, and there is no pop-up that a top bar or the card's edge could cut off.
+	const main = make('div', 'qa-main');
+	// Keep transport on one compact row; the native picker exposes every existing speed without a clipped custom popover.
 	let rate = load(); media.playbackRate = rate; media.defaultPlaybackRate = rate;
-	const speedWrap = make('div', 'qa-speed'); speedWrap.setAttribute('role', 'radiogroup'); speedWrap.setAttribute('aria-label', labels.speed);
-	const items = SPEEDS.map(value => { const item = make('button', 'qa-rate'); item.type = 'button'; item.setAttribute('role', 'radio'); item.dataset.rate = String(value); item.textContent = speedLabel(value); return item; });
-	speedWrap.append(...items);
-	const paintRate = () => items.forEach(item => { const on = Number(item.dataset.rate) === rate; item.setAttribute('aria-checked', String(on)); item.tabIndex = on ? 0 : -1; });
-	const apply = (value: number) => { rate = value; media.playbackRate = value; media.defaultPlaybackRate = value; save(value); paintRate(); };
-	items.forEach((item, index) => {
-		item.addEventListener('click', () => apply(Number(item.dataset.rate)));
-		// Arrow keys move along the row, as in any group of radio buttons.
-		item.addEventListener('keydown', event => {
-			const step = event.key === 'ArrowRight' || event.key === 'ArrowDown' ? 1 : event.key === 'ArrowLeft' || event.key === 'ArrowUp' ? -1 : 0;
-			if (!step) return; event.preventDefault();
-			const next = items[(index + step + items.length) % items.length]; apply(Number(next.dataset.rate)); next.focus();
-		});
-	});
+	const speed = make('select', 'qa-rate'); speed.setAttribute('aria-label', labels.speed); speed.title = labels.speed;
+	for (const value of SPEEDS) { const option = make('option'); option.value = String(value); option.textContent = speedLabel(value); speed.append(option); }
+	const paintRate = () => { speed.value = String(rate); };
+	speed.addEventListener('change', () => { const value = Number(speed.value); if (!SPEEDS.includes(value)) return; rate = value; media.playbackRate = value; media.defaultPlaybackRate = value; save(value); paintRate(); });
 	paintRate();
-	const tools = make('div', 'qa-tools');
-	tools.append(tool('qa-skip', ICON.back, labels.back, () => { media.currentTime = Math.max(0, media.currentTime - 15); }), tool('qa-skip', ICON.forward, labels.forward, () => { media.currentTime = Math.min(media.duration || Infinity, media.currentTime + 30); }), speedWrap);
-	root.append(main, tools);
+	main.append(play, tool('qa-skip', ICON.back, labels.back, () => { media.currentTime = Math.max(0, media.currentTime - 15); }), tool('qa-skip', ICON.forward, labels.forward, () => { media.currentTime = Math.min(media.duration || Infinity, media.currentTime + 30); }), line, speed);
+	root.append(main);
 
 	// Follow the media; while the viewer drags the timeline the position is theirs.
 	let dragging = false;

@@ -24,7 +24,7 @@ function fixture(t) {
 			const dir = path.join(root, 'build/production', target);
 			fs.mkdirSync(dir, { recursive: true });
 			fs.writeFileSync(path.join(dir, 'manifest.json'), JSON.stringify({ manifest_version: 3, name: 'Fixture', version: '1.17.0', permissions: target === 'chrome-local' ? ['downloads', 'cookies'] : [], ...(target === 'chrome-local' ? { key } : { optional_permissions: ['cookies', 'downloads'] }) }));
-			fs.writeFileSync(path.join(dir, 'content.js'), target === 'chrome-local' ? 'qiaomuDownloadChoice qiaomu-dl-style qiaomu-dl-menu' : 'store payload qiaomu-dl-style googlevideo.com youtube-nocookie.com');
+			fs.writeFileSync(path.join(dir, 'content.js'), target === 'chrome-local' ? 'qiaomuDownloadChoice qiaomu-dl-style qiaomu-dl-menu allowYoutube' : 'store payload qiaomu-dl-style googlevideo.com youtube-nocookie.com');
 			writeBuildInfo(dir, { schema: 1, target, mode: 'production', version: '1.17.0', ...state });
 		}
 	}
@@ -32,6 +32,16 @@ function fixture(t) {
 	const run = (script, ...args) => execFileSync(process.execPath, [path.join(root, 'scripts', script), ...args], { cwd: os.tmpdir(), encoding: 'utf8', stdio: 'pipe' });
 	return { root, build, run, store: path.join(root, 'build/production/chrome-store'), home: path.join(root, 'testing') };
 }
+
+test('edition gate rejects YouTube opt-in in store or missing from standalone', t => {
+	const f = fixture(t);
+	f.run('check-editions.mjs');
+	fs.appendFileSync(path.join(f.store, 'content.js'), ' allowYoutube');
+	assert.throws(() => f.run('check-editions.mjs'), /store package contains/);
+	f.build();
+	fs.writeFileSync(path.join(f.root, 'build/production/chrome-local/content.js'), 'no download opt-in');
+	assert.throws(() => f.run('check-editions.mjs'), /standalone package lacks/);
+});
 
 test('rejects stale source and changed production bytes', t => {
 	const f = fixture(t);

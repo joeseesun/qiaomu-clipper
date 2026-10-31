@@ -2,6 +2,18 @@
   "schema": 1,
   "features": [
     {
+      "id": "douyin-private-message-layout",
+      "title": "抖音学习条避让私信面板，关闭私信后自动恢复",
+      "origin": "fix/douyin-direct-message-toolbar",
+      "files": [
+        "src/utils/web-bar-placement.ts"
+      ],
+      "tests": [
+        "src/utils/web-bar-placement.test.ts",
+        "src/web-content.test.ts"
+      ]
+    },
+    {
       "id": "bilibili-picture-playback",
       "title": "B 站内嵌画面点击播放暂停与画质限制说明",
       "origin": "fix/bilibili-embed-playback-quality",
@@ -370,6 +382,551 @@
         "src/utils/study-download-native.test.ts",
         "src/utils/local-save-learning.test.ts",
         "src/utils/study-media-footer.test.ts"
+      ]
+    },
+    {
+      "id": "channels-playback-bar",
+      "title": "视频号：播放页页内字幕条与分享页「用乔木剪藏打开」入口",
+      "origin": "codex/channels-helper",
+      "files": [
+        "src/utils/channels-study.ts",
+        "src/web-content.ts",
+        "src/utils/web-media-page.ts",
+        "src/utils/web-bar-placement.ts",
+        "src/channels-share-content.ts",
+        "src/utils/audio-study.ts",
+        "src/background.ts"
+      ],
+      "tests": [
+        "src/utils/channels-study.test.ts",
+        "src/channels-share-content.test.ts",
+        "src/utils/web-media-page-channels.test.ts"
+      ]
+    },
+    {
+      "id": "local-youtube-download",
+      "title": "独立版支持 YouTube 视频/音频文件下载（经本地助手），商店版仍不提供",
+      "origin": "codex/local-youtube-download",
+      "files": [
+        "src/utils/media-download-policy.ts",
+        "src/utils/study-download.ts",
+        "src/utils/study-download-native.ts",
+        "src/utils/local-save.ts"
+      ],
+      "tests": [
+        "src/utils/media-download-policy.test.ts",
+        "src/utils/study-download.test.ts",
+        "src/utils/local-save-learning.test.ts"
+      ]
+    },
+    {
+      "id": "podcast-sticky-player",
+      "title": "播客紧凑播放条与文稿吸顶避让",
+      "origin": "小宇宙滚动遮挡反馈",
+      "files": [
+        "src/utils/audio-study.ts",
+        "src/utils/media-study-player.ts",
+        "src/utils/reader-transcript.ts",
+        "src/utils/audio-controls.ts"
+      ],
+      "tests": [
+        "src/utils/media-study-player.test.ts",
+        "src/utils/reader-transcript-timing.test.ts",
+        "src/utils/audio-study.test.ts",
+        "src/utils/transcript-heading.test.ts",
+        "src/utils/audio-controls.test.ts"
+      ]
+    },
+    {
+      "id": "write-long-articles",
+      "title": "写长文：本地文章库、所见即所得编辑器、飞书式大纲、AI 助手（选区上下文、思考强度、提示词库、附件、插入文章）与生图模型（含 ChatGPT/Codex 账号）、三次 U 入口，以及发到 X 文章",
+      "origin": "feat/write-long-form",
+      "files": [
+        "src/write/page.ts",
+        "src/write/articles.ts",
+        "src/write/editor/extensions.ts",
+        "src/write/publish/x.ts",
+        "src/x-publish/main-world.js",
+        "src/x-publish/x-content.ts",
+        "src/managers/write-settings.ts",
+        "src/utils/triple-key.ts",
+        "src/write.html",
+        "src/write/outline.ts",
+        "src/write/ai/chat-panel.ts",
+        "src/write/ai/protocol.ts",
+        "src/write/ai/image-dialog.ts",
+        "src/write/image-models.ts",
+        "src/managers/image-model-settings.ts",
+        "src/managers/settings-section-ui.ts",
+        "src/write/ai/prompt-panel.ts",
+        "src/write/ai/prompt-library.ts",
+        "src/write/ai/attachments.ts",
+        "src/utils/chat-thinking.ts",
+        "src/utils/chat-llm.ts"
+      ],
+      "tests": [
+        "src/write/articles.test.ts",
+        "src/write/editor/roundtrip.test.ts",
+        "src/write/publish/x-prepare.test.ts",
+        "src/triple-key.test.ts",
+        "src/write/outline.test.ts",
+        "src/write/ai/chat-panel.test.ts",
+        "src/write/ai/protocol.test.ts",
+        "src/write/ai/image-dialog.test.ts",
+        "src/write/image-models.test.ts",
+        "src/managers/settings-routing.test.ts",
+        "src/write/editor/slash.test.ts",
+        "src/write/ai/prompts.test.ts",
+        "src/write/ai/attachments.test.ts",
+        "src/utils/chat-thinking.test.ts"
+      ]
+    },
+    {
+      "id": "obsidian-publish-bridge",
+      "title": "Obsidian 乔木 Publish 一键发到 X 文章、知乎和小红书：从 Obsidian 交接文章，在已登录的浏览器里写入草稿",
+      "origin": "feat/publish-bridge",
+      "files": [
+        "src/publish-bridge/index.ts",
+        "src/publish-bridge/client.ts",
+        "src/publish-bridge/protocol.ts",
+        "src/publish-bridge/relay.ts",
+        "src/publish-bridge/x.ts",
+        "src/publish-bridge/zhihu.ts",
+        "src/publish-bridge/zhihu-content.ts",
+        "src/publish-bridge/zhihu-html.ts",
+        "src/publish-bridge/xhs.ts",
+        "src/publish-bridge/xhs-content.ts",
+        "src/publish-bridge/md5.ts",
+        "src/x-publish/driver.ts"
+      ],
+      "tests": [
+        "src/publish-bridge/publish-bridge.test.ts",
+        "src/publish-bridge/content-safety.test.ts",
+        "src/publish-bridge/relay.test.ts"
+      ]
+    },
+    {
+      "id": "write-ai-panel-resize-progress",
+      "title": "写长文助手宽度调整、窄屏布局和长文生成进度",
+      "origin": "codex/write-ai-panel (7ab050a)",
+      "files": [
+        "src/write/ai/chat-panel.ts",
+        "src/write/ai/protocol.ts",
+        "src/styles/write.scss"
+      ],
+      "tests": [
+        "src/write/ai/chat-panel.test.ts",
+        "src/write/ai/protocol.test.ts"
+      ]
+    },
+    {
+      "id": "x-article-study-routing",
+      "title": "X 长文章与 GIF 保持图文沉浸学习，排除回复视频误识别",
+      "origin": "codex/x-article-study-routing",
+      "files": [
+        "src/utils/web-media-page.ts",
+        "src/utils/web-study-path.ts",
+        "src/background.ts"
+      ],
+      "tests": [
+        "src/utils/web-media-page.test.ts",
+        "src/utils/web-study-path.test.ts",
+        "src/web-content.test.ts"
+      ]
+    },
+    {
+      "id": "caption-paragraph-spacing",
+      "title": "合并字幕段落时保留中文句间空格，原始播放字幕与时间不变",
+      "origin": "issue #67",
+      "files": [
+        "src/utils/youtube-dom-transcript.ts"
+      ],
+      "tests": [
+        "src/utils/youtube-dom-transcript.test.ts",
+        "src/utils/youtube-innertube-transcript.test.ts"
+      ]
+    },
+    {
+      "id": "code-block-preservation",
+      "title": "代码块、字符图示与 Markdown 空白保留",
+      "origin": "fix/preserve-code-blocks",
+      "files": [
+        "src/utils/code-preservation.ts",
+        "src/utils/defuddle.ts",
+        "src/styles/reader/code-blocks.scss"
+      ],
+      "tests": [
+        "src/utils/code-preservation.test.ts"
+      ]
+    },
+    {
+      "id": "article-list-preservation",
+      "title": "保留正文段落后的有序和无序列表",
+      "origin": "fix/preserve-article-lists",
+      "files": [
+        "src/utils/defuddle.ts",
+        "src/utils/list-preservation.ts"
+      ],
+      "tests": [
+        "src/utils/list-preservation.test.ts",
+        "src/utils/code-preservation.test.ts"
+      ]
+    },
+    {
+      "id": "independent-ai-sidebar",
+      "title": "原页面 AI 对话、页面上下文与选中文字提问",
+      "origin": "feat/chat-from-original-page",
+      "files": [
+        "src/core/ai-side-panel.ts",
+        "src/core/ai-chat-page.ts",
+        "src/utils/ai-page-context.ts",
+        "src/utils/ai-sidebar.ts",
+        "src/ai-side-panel.html",
+        "src/ai-chat-page.html"
+      ],
+      "tests": [
+        "src/utils/ai-page-context.test.ts",
+        "src/utils/ai-sidebar-chat.test.ts",
+        "src/utils/clip-chat-setup.test.ts",
+        "src/utils/chat-preferences.test.ts",
+        "src/utils/ai-sidebar-layout.test.ts",
+        "src/utils/ai-sidebar.test.ts",
+        "src/core/ai-side-panel.test.ts",
+        "src/core/ai-chat-page.test.ts",
+        "src/utils/chat-history.test.ts"
+      ]
+    },
+    {
+      "id": "jimeng-image-service",
+      "title": "即梦自部署生图、动态图片模型目录、旧配置迁移与真实错误提示",
+      "origin": "codex/jimeng-image-service",
+      "files": [
+        "src/write/image-models.ts",
+        "src/managers/image-model-settings.ts",
+        "src/write/ai/image-dialog.ts"
+      ],
+      "tests": [
+        "src/write/image-models.test.ts",
+        "src/managers/image-model-settings.test.ts",
+        "src/write/ai/image-dialog.test.ts"
+      ]
+    },
+    {
+      "id": "helper-uninstall",
+      "title": "设置页「卸载助手」：一键卸载本地助手、注册文件和已下载引擎",
+      "origin": "feat/helper-uninstall",
+      "files": [
+        "src/managers/general-settings.ts",
+        "src/settings.html",
+        "src/background.ts"
+      ],
+      "tests": [
+        "src/managers/local-helper-settings.test.ts"
+      ]
+    },
+    {
+      "id": "sidebar-image-generation",
+      "title": "普通网页 AI 侧栏调用生图模型、预览下载与聊天历史恢复",
+      "origin": "codex/sidebar-image-generation",
+      "files": [
+        "src/utils/chat-image-generation.ts",
+        "src/utils/chat-generated-images.ts",
+        "src/utils/clip-chat.ts",
+        "src/utils/chat-history.ts",
+        "src/utils/image-generation-error.ts",
+        "src/styles/clip-chat.scss"
+      ],
+      "tests": [
+        "src/utils/clip-chat-generation.test.ts",
+        "src/utils/chat-generated-images.test.ts",
+        "src/utils/chat-history.test.ts",
+        "src/utils/ai-sidebar-chat.test.ts",
+        "src/utils/clip-chat-images.test.ts"
+      ]
+    },
+    {
+      "id": "background-image-library",
+      "title": "后台生图与四入口图库：我的图片、任务、本地文件夹和 Unsplash；Key 优先配置、代理收在高级设置",
+      "origin": "codex/sidebar-image-generation",
+      "files": [
+        "src/utils/image-job-background.ts",
+        "src/utils/image-job-runner.ts",
+        "src/core/image-runner.ts",
+        "src/image-runner.html",
+        "src/utils/image-library-store.ts",
+        "src/utils/image-library.ts",
+        "src/utils/image-library-sources.ts",
+        "src/core/image-library.ts",
+        "src/image-library.html",
+        "src/styles/image-library.scss"
+      ],
+      "tests": [
+        "src/utils/image-job-background.test.ts",
+        "src/utils/image-job-runner.test.ts",
+        "src/utils/image-library-sources.test.ts",
+        "src/utils/chat-generated-images.test.ts",
+        "src/utils/clip-chat-generation.test.ts",
+        "src/write/ai/image-dialog.test.ts"
+      ]
+    },
+    {
+      "id": "local-codex-image-generation",
+      "title": "通过本地助手调用已登录 Codex 的内置生图，并按原任务恢复",
+      "origin": "codex/sidebar-image-generation",
+      "files": [
+        "src/utils/codex-image.ts",
+        "src/managers/image-model-settings.ts"
+      ],
+      "tests": [
+        "src/utils/codex-image.test.ts",
+        "src/utils/image-job-background.test.ts",
+        "src/write/image-models.test.ts",
+        "src/managers/image-model-settings.test.ts"
+      ]
+    },
+    {
+      "id": "provider-model-setup-flow",
+      "title": "服务商配置后在同一弹窗自动选择模型，支持返回、稍后添加与取消异步请求",
+      "origin": "codex/sidebar-image-generation",
+      "files": [
+        "src/managers/provider-dialogs.ts",
+        "src/managers/interpreter-settings.ts",
+        "src/styles/provider-dialog.scss"
+      ],
+      "tests": [
+        "src/managers/interpreter-settings.test.ts",
+        "src/utils/provider-models.test.ts"
+      ]
+    },
+    {
+      "id": "conversational-image-generation",
+      "title": "自然语言直接后台生图、聊天内预览与独立插入，写作顶栏图库及设置入口",
+      "origin": "codex/sidebar-image-generation",
+      "files": [
+        "src/utils/chat-image-generation.ts",
+        "src/utils/clip-chat.ts",
+        "src/write/ai/chat-panel.ts",
+        "src/write/ai/chat-store.ts",
+        "src/write/ai/protocol.ts",
+        "src/write/page.ts",
+        "src/styles/chat-generated-images.scss"
+      ],
+      "tests": [
+        "src/utils/clip-chat-generation.test.ts",
+        "src/write/ai/chat-images.test.ts",
+        "src/write/ai/chat-panel.test.ts",
+        "src/write/ai/protocol.test.ts",
+        "src/utils/chat-history.test.ts"
+      ]
+    },
+    {
+      "id": "assistant-image-web-search",
+      "title": "自然语言搜索 Unsplash、找图生图意图区分、DeepSeek 与 Brave 搜索及读取来源",
+      "origin": "codex/sidebar-image-generation",
+      "files": [
+        "src/utils/chat-agent.ts",
+        "src/utils/chat-tools-types.ts",
+        "src/utils/chat-tools-background.ts",
+        "src/utils/chat-tools-client.ts",
+        "src/utils/chat-tool-view.ts",
+        "src/utils/web-search.ts",
+        "src/managers/web-search-settings.ts",
+        "src/styles/chat-tools.scss"
+      ],
+      "tests": [
+        "src/utils/chat-agent.test.ts",
+        "src/utils/web-search.test.ts",
+        "src/managers/web-search-settings.test.ts",
+        "src/utils/clip-chat-generation.test.ts",
+        "src/write/ai/chat-images.test.ts",
+        "src/utils/image-library-sources.test.ts",
+        "src/utils/chat-tools-background.test.ts"
+      ]
+    },
+    {
+      "id": "shared-chat-model-picker",
+      "title": "普通侧栏和写作共用可搜索的模型选择器、最近使用及每模型思考强度",
+      "origin": "codex/sidebar-image-generation",
+      "files": [
+        "src/utils/model-picker.ts",
+        "src/styles/model-picker.scss",
+        "src/utils/clip-chat.ts",
+        "src/write/ai/chat-panel.ts"
+      ],
+      "tests": [
+        "src/utils/model-picker.test.ts",
+        "src/utils/chat-thinking.test.ts",
+        "src/write/ai/chat-panel.test.ts"
+      ]
+    },
+    {
+      "id": "reader-actions-write-article",
+      "title": "阅读与学习共用更多菜单、顶栏复制、Type 排版图标与视频简介字幕导入文章",
+      "origin": "codex/sidebar-image-generation",
+      "files": [
+        "src/utils/clip-bar.ts",
+        "src/utils/clip-bar-menu.ts",
+        "src/utils/reader-preview-shell.ts",
+        "src/core/reader-view.ts",
+        "src/write/source-import.ts",
+        "src/styles/clip-bar.scss"
+      ],
+      "tests": [
+        "src/utils/clip-bar.test.ts",
+        "src/utils/reader-preview-shell.test.ts",
+        "src/utils/reader-source-draft.test.ts",
+        "src/utils/transcript-export.test.ts",
+        "src/write/source-import.test.ts"
+      ]
+    },
+    {
+      "id": "chat-composer-scroll-layout",
+      "title": "写作独立滚动与 AI 对话输入区统一、引用预览、联网图标、思考菜单及弹窗写文章入口",
+      "origin": "codex/sidebar-image-generation",
+      "files": [
+        "src/core/popup.ts",
+        "src/popup.html",
+        "src/core/ai-chat-page.ts",
+        "src/utils/clip-chat.ts",
+        "src/utils/model-picker.ts",
+        "src/utils/chat-tool-view.ts",
+        "src/write/ai/chat-panel.ts",
+        "src/write/outline.ts",
+        "src/styles/write.scss",
+        "src/styles/clip-chat.scss"
+      ],
+      "tests": [
+        "src/core/ai-chat-page.test.ts",
+        "src/utils/clip-chat-images.test.ts",
+        "src/utils/chat-search-toggle.test.ts",
+        "src/utils/model-picker.test.ts",
+        "src/write/ai/chat-panel.test.ts",
+        "src/write/outline.test.ts",
+        "src/write/source-import.test.ts"
+      ]
+    },
+    {
+      "id": "caption-download-formats",
+      "title": "字幕条下载可选 Markdown / SRT / VTT / TXT，设置中可固定默认格式",
+      "origin": "feat/caption-download-formats",
+      "files": [
+        "src/utils/caption-download.ts",
+        "src/utils/youtube-transcript-bar.ts",
+        "src/managers/general-settings.ts"
+      ],
+      "tests": [
+        "src/utils/caption-download.test.ts",
+        "src/utils/youtube-transcript-bar-download.test.ts",
+        "src/utils/caption-download-wiring.test.ts"
+      ]
+    },
+    {
+      "id": "shared-model-cache-uninstall-safety",
+      "title": "卸载助手和引擎保留共享模型，拒绝旧助手不安全卸载",
+      "origin": "codex/release-1-19-0",
+      "files": [
+        "src/managers/general-settings.ts",
+        "src/managers/asr-settings.ts"
+      ],
+      "tests": [
+        "src/managers/local-helper-settings.test.ts",
+        "src/managers/asr-settings.test.ts"
+      ]
+    },
+    {
+      "id": "transcript-translation-throughput",
+      "title": "字幕翻译按文本预算组批、去重上下文、六路并发及限流降速、DeepSeek 反代关闭思考",
+      "origin": "本次翻译速度优化，不增加译文复用或服务器上传",
+      "files": [
+        "src/utils/youtube-translation.ts",
+        "src/utils/chat-llm.ts",
+        "src/utils/chat-thinking.ts"
+      ],
+      "tests": [
+        "src/utils/youtube-translation.test.ts",
+        "src/utils/youtube-translation-performance.test.ts",
+        "src/utils/chat-thinking.test.ts",
+        "src/utils/chat-llm.test.ts"
+      ]
+    },
+    {
+      "id": "chat-reading-position-preservation",
+      "title": "AI 对话输出不打断阅读位置，按需回到底部并清理尺寸监听",
+      "origin": "PR #98 by water-70689368 at b4f2fd7510834271c5ad22fc2abb7b2fc18628a7",
+      "files": [
+        "src/utils/clip-chat.ts",
+        "src/styles/chat-scroll.scss",
+        "src/styles/clip-chat.scss"
+      ],
+      "tests": [
+        "src/utils/clip-chat-scroll.test.ts",
+        "src/utils/clip-chat-images.test.ts",
+        "src/utils/clip-chat-generation.test.ts"
+      ]
+    },
+    {
+      "id": "chat-image-attachments",
+      "title": "上传、粘贴、拖入图片与网页图片选择共存，附件按历史消息恢复",
+      "origin": "PR #99 with integration fixes",
+      "files": [
+        "src/utils/chat-attachments.ts",
+        "src/utils/chat-attachment-composer.ts",
+        "src/utils/clip-chat.ts"
+      ],
+      "tests": [
+        "src/utils/chat-attachments.test.ts",
+        "src/utils/clip-chat-attachments.test.ts",
+        "src/utils/clip-chat-images.test.ts"
+      ]
+    },
+    {
+      "id": "chat-turn-bookmarks",
+      "title": "对话轮次导航与收藏，保留旧历史的收藏和完整问答",
+      "origin": "PR #100 with #101 migration integration",
+      "files": [
+        "src/utils/chat-turn-navigation.ts",
+        "src/utils/chat-history.ts"
+      ],
+      "tests": [
+        "src/utils/chat-turn-navigation.test.ts",
+        "src/utils/clip-chat-navigation.test.ts",
+        "src/utils/chat-history-bookmarks.test.ts"
+      ]
+    },
+    {
+      "id": "cross-page-chat-history",
+      "title": "跨页面历史、原页面续聊、数据迁移和可恢复清理，长对话按需加载",
+      "origin": "PR #101 with attachment and bookmark preservation",
+      "files": [
+        "src/utils/chat-history-store.ts",
+        "src/utils/chat-history-view.ts",
+        "src/utils/chat-history-legacy.ts",
+        "src/utils/chat-history-media.ts",
+        "src/utils/chat-history-resume.ts"
+      ],
+      "tests": [
+        "src/utils/chat-history.test.ts",
+        "src/utils/chat-history-order.test.ts",
+        "src/utils/chat-history-cleanup.test.ts",
+        "src/utils/chat-history-view.test.ts",
+        "src/utils/chat-history-resume.test.ts",
+        "src/utils/clip-chat-history.test.ts"
+      ]
+    },
+    {
+      "id": "token-plan-native-tools",
+      "title": "Token Plan 原生搜索、抓取、计算和图片工具，思考关闭及只读历史兼容",
+      "origin": "PR #97 with official capability and readonly fixes",
+      "files": [
+        "src/utils/token-plan.ts",
+        "src/utils/token-plan-stream.ts",
+        "src/utils/chat-llm.ts"
+      ],
+      "tests": [
+        "src/utils/token-plan.test.ts",
+        "src/utils/token-plan-view.test.ts",
+        "src/utils/chat-agent.test.ts",
+        "src/utils/chat-thinking.test.ts"
       ]
     }
   ]

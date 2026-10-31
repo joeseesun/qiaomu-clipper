@@ -1,10 +1,11 @@
-import { openClipPreview } from '../utils/clip-preview';
+import { openClipPreview, updateClipPreview, type ClipPreview } from '../utils/clip-preview';
 import { saveLocalClip, LocalSavePayload } from '../utils/local-save';
 import { QiaomuClip, QiaomuResult } from '../utils/qiaomu-rss';
 import dayjs from 'dayjs';
 import { Template, Property, PromptVariable } from '../types/types';
 import { incrementStat, addHistoryEntry, getClipHistory } from '../utils/storage-utils';
 import { generateFrontmatter, saveToObsidian } from '../utils/obsidian-note-creator';
+import { openCurrentAiSidebar } from '../utils/ai-sidebar';
 import { extractPageContent, initializePageContent } from '../utils/content-extractor';
 import { compileTemplate } from '../utils/template-compiler';
 import { initializeIcons, getPropertyTypeIcon } from '../icons/icons';
@@ -294,6 +295,11 @@ function setupMessageListeners() {
 }
 
 document.addEventListener('DOMContentLoaded', async function() {
+	const aiSidebar = document.getElementById('open-ai-sidebar');
+	if (aiSidebar) {
+		aiSidebar.hidden = typeof chrome === 'undefined' || !chrome.sidePanel;
+		aiSidebar.addEventListener('click', () => { void openCurrentAiSidebar().then(() => window.close()).catch(error => { aiSidebar.title = String(error); }); });
+	}
 	loadedSettings = await loadSettings();
 	await initializeQiaomuRss();
 	if (isIframe) {
@@ -1499,6 +1505,38 @@ async function copyContent() {
 window.addEventListener('resize', debouncedSetPopupDimensions);
 
 function setupCompactPopup() {
+    const writeArticle = document.getElementById('write-clip-article')!;
+    writeArticle.querySelector('span')!.textContent = t('写文章');
+    let writing = false, articlePreview: ClipPreview | undefined;
+    writeArticle.addEventListener('click', async event => {
+        event.preventDefault();
+        if (writing || !currentTemplate || !currentTabId) return;
+        writing = true; writeArticle.setAttribute('aria-disabled', 'true');
+        try {
+            const { extractedArticleSource, openClipArticle } = await import('../write/source-import');
+            const tab = await getCurrentTabInfo();
+            if (!tab.url) throw new Error(getMessage('pleaseReload'));
+            if (!articlePreview || articlePreview.clip.url !== tab.url) {
+                const markdown = (document.getElementById('note-content-field') as HTMLTextAreaElement).value;
+                const name = (document.getElementById('note-name-field') as HTMLTextAreaElement).value || tab.title || 'Untitled';
+                const extracted = await memoizedExtractPageContent(currentTabId);
+                articlePreview = {
+                    createdAt: Date.now(),
+                    local: { requestId: crypto.randomUUID(), content: markdown, name: `${sanitizeFileName(name)}.md`, folder: '', vault: '', behavior: 'create' },
+                    clip: { url: tab.url, title: name, markdown, image: tab.image },
+                    articleSource: extracted ? extractedArticleSource(extracted, tab.url) : undefined,
+                    aggregate: false, native: false,
+                };
+                // Persist the source so an unfinished transcript can be resumed from the writer.
+                await updateClipPreview(articlePreview);
+            }
+            await openClipArticle(articlePreview);
+            writeArticle.querySelector('span')!.textContent = t('继续写文章');
+        } catch (error) {
+            const status = document.getElementById('clip-action-status');
+            if (status) status.textContent = String(error);
+        } finally { writing = false; writeArticle.removeAttribute('aria-disabled'); }
+    });
     document.querySelectorAll('[data-i18n-aria-label]').forEach(element => {
         element.setAttribute('aria-label', getMessage(element.getAttribute('data-i18n-aria-label')!));
     });
@@ -1507,22 +1545,27 @@ function setupCompactPopup() {
     const close = () => { menu.hidden = true; toggle.setAttribute('aria-expanded', 'false'); };
     // Turn the triple-press shortcuts off (or back on) for the site of the current page.
     const siteLabel = document.getElementById('toggle-triple-site-label');
+    const siteItem = document.getElementById('toggle-triple-site');
     let siteHost = '';
+    // The row is a switch: on means the shortcuts work on this site.
+    const paintSiteItem = () => {
+        if (siteItem) siteItem.setAttribute('aria-checked', String(!isSiteBlocked(siteHost, generalSettings.tripleKeyBlockedSites)));
+    };
     const refreshSiteItem = async () => {
         try { siteHost = new URL((await getCurrentTabInfo()).url).hostname.replace(/^www\./, ''); } catch { siteHost = ''; }
-        const item = document.getElementById('toggle-triple-site');
-        if (item) item.hidden = !siteHost;
-        if (siteLabel && siteHost) siteLabel.textContent = getMessage(isSiteBlocked(siteHost, generalSettings.tripleKeyBlockedSites) ? 'tripleKeySiteOn' : 'tripleKeySiteOff', siteHost);
+        if (siteItem) siteItem.hidden = !siteHost;
+        if (siteLabel) siteLabel.textContent = siteHost;
+        if (siteHost) paintSiteItem();
     };
-    document.getElementById('toggle-triple-site')?.addEventListener('click', async event => {
+    siteItem?.addEventListener('click', async event => {
         event.preventDefault();
+        event.stopPropagation(); // stay open so the switch visibly flips
         if (!siteHost) return;
         const list = normalizeSites(generalSettings.tripleKeyBlockedSites);
         const blocked = isSiteBlocked(siteHost, list);
         const next = blocked ? list.filter(site => siteHost !== site && !siteHost.endsWith(`.${site}`)) : [...list, siteHost];
         await saveSettings({ ...generalSettings, tripleKeyBlockedSites: next });
-        const status = document.getElementById('clip-action-status');
-        if (status) status.textContent = getMessage(blocked ? 'tripleKeySiteEnabled' : 'tripleKeySiteDisabled', siteHost);
+        paintSiteItem();
     });
     toggle.addEventListener('click', () => {
         menu.hidden = !menu.hidden;

@@ -1,0 +1,51 @@
+import 'fake-indexeddb/auto';
+import { IDBFactory } from 'fake-indexeddb';
+import { beforeEach, afterEach, expect, it, vi } from 'vitest';
+import { ImageJobRunner, type ImageWork } from './image-job-runner';
+import { listLibraryImages, readImageJob, writeImageJob, removeImageJob, readLibraryBlob, type ImageJob } from './image-library-store';
+const config = { id: 'api', sourceId: 'custom', engine: 'api' as const, name: 'API', baseUrl: 'https://example.test', apiKey: 'secret', models: ['img'], model: 'img' };
+const work = (id: string): ImageWork => ({ job: { id, configId: 'api', modelId: 'img', modelLabel: 'API', prompt: 'Cat', aspect: '1:1', created: Date.now(), state: 'queued' }, config });
+beforeEach(() => {
+	vi.stubGlobal('indexedDB', new IDBFactory());
+	vi.stubGlobal('createImageBitmap', async () => ({ width: 100, height: 100, close() {} }));
+});
+afterEach(() => vi.unstubAllGlobals());
+it('bounds concurrency, deduplicates submissions, and keeps output when only a task record is deleted', async () => {
+	const finishes: ((blob: Blob) => void)[] = [];
+	const generate = vi.fn(() => new Promise<Blob>(resolve => finishes.push(resolve)));
+	const runner = new ImageJobRunner(() => {}, generate);
+	await Promise.all([runner.enqueue(work('a')), runner.enqueue(work('a')), runner.enqueue(work('b')), runner.enqueue(work('c'))]);
+	await vi.waitFor(() => expect(generate).toHaveBeenCalledTimes(2));
+	expect((await readImageJob('c'))?.state).toBe('queued');
+	await runner.cancel('c');
+	await removeImageJob('a'); expect(await readImageJob('a')).toBeDefined();
+	finishes[0](new Blob(['a'], { type: 'image/png' }));
+	finishes[1](new Blob(['b'], { type: 'image/png' }));
+	await vi.waitFor(async () => expect((await readImageJob('a'))?.state).toBe('ready'));
+	const imageId = (await readImageJob('a'))!.imageId!;
+	await removeImageJob('a');
+	expect(await readImageJob('a')).toBeUndefined();
+	expect(await readLibraryBlob(imageId)).toBeDefined();
+	expect((await listLibraryImages()).length).toBe(2);
+	expect(generate).toHaveBeenCalledTimes(2);
+	expect(JSON.stringify(await listLibraryImages())).not.toContain('secret');
+});
+it('marks lost running jobs interrupted and never resubmits them on recovery', async () => {
+	const job: ImageJob = { ...work('lost').job, state: 'running' }; await writeImageJob(job);
+	const generate = vi.fn(), runner = new ImageJobRunner(() => {}, generate);
+	await runner.initialize(); await runner.enqueue(work('lost'));
+	expect((await readImageJob('lost'))?.state).toBe('interrupted'); expect(generate).not.toHaveBeenCalled();
+});
+it('discards a late result after explicit cancellation and rejects invalid image bytes', async () => {
+	let finish!: (blob: Blob) => void;
+	const generate = vi.fn(() => new Promise<Blob>(resolve => { finish = resolve; }));
+	const runner = new ImageJobRunner(() => {}, generate);
+	await runner.enqueue(work('cancel')); await vi.waitFor(() => expect(generate).toHaveBeenCalledTimes(1));
+	await runner.cancel('cancel'); finish(new Blob(['png'], { type: 'image/png' }));
+	await vi.waitFor(async () => expect((await readImageJob('cancel'))?.state).toBe('cancelled'));
+	expect(await listLibraryImages()).toEqual([]);
+	const bad = new ImageJobRunner(() => {}, vi.fn(async () => new Blob(['html'], { type: 'text/html' })));
+	await bad.enqueue(work('invalid'));
+	await vi.waitFor(async () => expect((await readImageJob('invalid'))?.state).toBe('failed'));
+	expect(await listLibraryImages()).toEqual([]);
+});

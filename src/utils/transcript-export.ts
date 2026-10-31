@@ -1,6 +1,6 @@
 import type { ClipSyncAction } from './clip-bar';
 import { transcriptHeadingTools } from './transcript-heading';
-import { createMarkdownContent } from 'defuddle/full';
+import { createMarkdownContent } from './defuddle';
 import { type ClipPreview, updateClipPreview } from './clip-preview';
 import { generateFrontmatter } from './obsidian-note-creator';
 
@@ -50,7 +50,8 @@ export function mountTranscriptExport(bar: HTMLElement, draft: ClipPreview): (ac
  const name=doc.createElement('span');name.textContent=t('剪藏内容');
  const menu=captionModeMenu(doc,t('剪藏内容'),[
   {value:'display',label:t('跟随文稿')},{value:'original',label:t('原文')},{value:'translated',label:t('中文')},{value:'bilingual',label:t('双语')}
- ],preference,next=>{revision++;preference=next;void setLocalStorage('qiaomuTranscriptExportMode',next).catch(()=>{});});
+ ],preference,next=>{revision++;preference=next;bar.dataset.transcriptExportMode=next;void setLocalStorage('qiaomuTranscriptExportMode',next).catch(()=>{});});
+ bar.dataset.transcriptExportMode=preference;
  const progress=doc.createElement('span');progress.setAttribute('role','status');
  const cancel=doc.createElement('button');cancel.type='button';cancel.className='clip-transcript-cancel';cancel.textContent=t('取消');cancel.hidden=true;
  let saving:AbortController|undefined;
@@ -58,7 +59,7 @@ export function mountTranscriptExport(bar: HTMLElement, draft: ClipPreview): (ac
  label.append(name,menu.element,progress,cancel);
  const preferenceReady=getLocalStorage('qiaomuTranscriptExportMode').then(value=>{
   if(revision||draft.transcriptExport?.mode||!['display','original','translated','bilingual'].includes(value))return;
-  preference=value as Preference;menu.set(preference);
+  preference=value as Preference;menu.set(preference);bar.dataset.transcriptExportMode=preference;
  }).catch(()=>{});
  const refresh=()=>{
   const transcript=doc.querySelector('article .transcript');

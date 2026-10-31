@@ -134,3 +134,23 @@ it('keeps chapters through grouping, the study-page markup and a copy', async ()
 	expect(formatSegments(lines)).toBe('[0:00] one,\n[0:03] two.\n\n## Part two\n[0:06] three\n[0:09] four');
 	expect(transcriptHtml([{ time: '0:00', text: 'x', chapter: '<b>&' }])).toContain('<h3>&lt;b&gt;&amp;</h3>');
 });
+
+it('separates Chinese caption cues in paragraphs without changing their playback text or timing', async () => {
+	const { groupSegments } = await import('./youtube-dom-transcript');
+	const lines = [
+		{ time: '0:00', start: 0.25, end: 2.5, text: '这是上一条字幕' },
+		{ time: '0:03', start: 3.1, end: 5.5, text: '这是下一条字幕' },
+		{ time: '0:06', start: 6.2, end: 8.5, text: '新的章节', chapter: '第二章' },
+		{ time: '0:09', start: 9.1, end: 11.5, text: '保留原来的标点。' },
+	];
+	expect(groupSegments(lines)).toEqual([
+		{ time: '0:00', start: 0.25, end: 5.5, text: '这是上一条字幕 这是下一条字幕' },
+		{ time: '0:06', start: 6.2, end: 11.5, text: '新的章节 保留原来的标点。', chapter: '第二章' },
+	]);
+	document.body.innerHTML = transcriptHtml(lines);
+	expect(document.querySelector('.transcript-segment')!.textContent).toBe('0:00 这是上一条字幕 这是下一条字幕');
+	expect(JSON.parse(document.querySelector('[data-player-cues]')!.getAttribute('data-player-cues')!)).toEqual(
+		lines.map(({ start, end, text }) => ({ start, end, text })),
+	);
+	expect(transcriptHtml(lines, false)).not.toContain('这是上一条字幕 这是下一条字幕');
+});

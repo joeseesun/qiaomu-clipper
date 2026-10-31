@@ -1,7 +1,27 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from 'vitest';
 vi.mock('./browser-polyfill', () => ({ default: {} }));
-import { activeWebMedia, currentWebMediaAddress, webMediaAddress } from './web-media-page';
+import { activeWebMedia, currentWebMediaAddress, declaredWebMediaAddress, webMediaAddress } from './web-media-page';
+
+it('does not attach a reply video or global metadata to a text-only X post', () => {
+	document.body.innerHTML = '<meta property="og:video" content="https://video.twimg.com/reply.mp4"><article data-testid="tweet"><a href="https://x.com/maker/status/12345"><time>main</time></a><p>Text only</p></article><article data-testid="tweet"><a href="https://x.com/reply/status/67890"><time>reply</time></a><video></video></article>';
+	const url = 'https://x.com/maker/status/12345';
+	expect(currentWebMediaAddress(document, document.querySelector('video')!, url)).toBeNull();
+	expect(declaredWebMediaAddress(document, url)).toBeNull();
+});
+
+it.each(['https://x.com/maker/article/12345', 'https://x.com/i/articles/12345'])('keeps X article focus routes out of media study: %s', url => {
+	document.body.innerHTML = '<article data-testid="tweet"><a href="https://x.com/maker/status/12345"><time>main</time></a><video></video></article>';
+	expect(currentWebMediaAddress(document, document.querySelector('video')!, url)).toBeNull();
+});
+
+it('recognizes GIF posters before the video src loads without excluding normal muted videos or audio', () => {
+	document.body.innerHTML = '<article data-testid="tweet"><a href="https://x.com/maker/status/12345"><time>main</time></a><video poster="https://pbs.twimg.com/tweet_video_thumb/demo.jpg"></video><video muted src="https://video.twimg.com/ext_tw_video/demo.mp4"></video><audio></audio></article>';
+	const url = 'https://x.com/maker/status/12345', videos = document.querySelectorAll('video');
+	expect(currentWebMediaAddress(document, videos[0], url)).toBeNull();
+	expect(currentWebMediaAddress(document, videos[1], url)).toBe(url);
+	expect(currentWebMediaAddress(document, document.querySelector('audio')!, url)).toBe(url);
+});
 
 it('recognizes media items across supported sites without sending feeds or lookalike hosts to recognition', () => {
 	const items = [

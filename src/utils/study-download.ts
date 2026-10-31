@@ -1,7 +1,7 @@
 import browser from './browser-polyfill';
 import { mountDownloadButton } from './download-button';
 import { guessChoice, DownloadError, fetchMediaBlob, downloadFileName } from './media-download';
-import { canDownloadMedia, isYouTubeDownloadUrl } from './media-download-policy';
+import { canDownloadMedia, canDownloadYouTube, isYouTubeDownloadUrl } from './media-download-policy';
 import { saveDownloadedBlob } from './browser-media-save';
 import { downloadWithHelper } from './study-download-native';
 import { t } from './ui-text';
@@ -10,10 +10,11 @@ const mounted = new WeakSet<HTMLElement>();
 export async function mountStudyDownload(article: HTMLElement, player: HTMLVideoElement | undefined, options: { title: string; sourceUrl: string; mediaUrl: string; audioUrl?: string; video: boolean; split?: boolean }): Promise<void> {
 	const manifest = browser.runtime.getManifest();
 	const declared = [...(manifest.permissions || []), ...(manifest.optional_permissions || [])].includes('downloads');
-	if (!declared || player?.mediaKeys || isYouTubeDownloadUrl(options.sourceUrl) || isYouTubeDownloadUrl(options.mediaUrl) || mounted.has(article)) return;
+	const youtube = isYouTubeDownloadUrl(options.sourceUrl) || isYouTubeDownloadUrl(options.mediaUrl), youtubeAllowed = canDownloadYouTube(options.sourceUrl, options.mediaUrl);
+	if (!declared || player?.mediaKeys || (youtube && !youtubeAllowed) || mounted.has(article)) return;
 	try { const source = new URL(options.sourceUrl); if (source.protocol !== 'https:' || source.username || source.password) return; } catch { return; }
 	mounted.add(article);
-	const direct = !options.split && canDownloadMedia(options.sourceUrl, options.mediaUrl);
+	const direct = !options.split && !youtube && canDownloadMedia(options.sourceUrl, options.mediaUrl);
 	const CHOICE_KEY = 'qiaomuDownloadChoice';
 	const kind = guessChoice(options.mediaUrl, options.video);
 	const remembered = await browser.storage.local.get(CHOICE_KEY).then(values => (values as Record<string, string | undefined>)[CHOICE_KEY]).catch(() => undefined);
@@ -40,7 +41,7 @@ export async function mountStudyDownload(article: HTMLElement, player: HTMLVideo
 		label: options.video ? t('下载视频') : t('下载音频'),
 		title: options.title, remembered, sourceUrl: options.sourceUrl,
 		beforeDownload: async () => {
-			if (player?.mediaKeys || isYouTubeDownloadUrl(options.sourceUrl) || isYouTubeDownloadUrl(options.mediaUrl)) throw new DownloadError('policy', t('此来源不支持媒体下载'));
+			if (player?.mediaKeys || (youtube && !youtubeAllowed)) throw new DownloadError('policy', t('此来源不支持媒体下载'));
 			if (direct && !__LOCAL_EDITION__ && !await browser.permissions.request({ permissions: ['downloads'] })) throw new DownloadError('permission', t('未获得下载权限，请再次点击下载并允许。'));
 		},
 		choices: [{ id: kind.kind, label: options.video ? t('视频') : t('音频'), url: options.mediaUrl, kind: kind.kind, ext: kind.ext }],

@@ -2193,5 +2193,41 @@
 	},
 	"pdEffortDefault": {
 		"message": "Model default"
+	},
+	"captionDlTitle": {
+		"message": "Download subtitles"
+	},
+	"captionDlDefault": {
+		"message": "Default"
+	},
+	"captionDlDone": {
+		"message": "Downloaded"
+	},
+	"captionDlFixed": {
+		"message": "Download {format} (right-click for other formats)"
+	},
+	"captionDlMd": {
+		"message": "Markdown"
+	},
+	"captionDlMdNote": {
+		"message": "With title and source, for notes"
+	},
+	"captionDlSrt": {
+		"message": "SRT subtitles"
+	},
+	"captionDlSrtNote": {
+		"message": "Timed, ready for a video player"
+	},
+	"captionDlVtt": {
+		"message": "VTT subtitles"
+	},
+	"captionDlVttNote": {
+		"message": "Timed, works in web players"
+	},
+	"captionDlTxt": {
+		"message": "Plain text"
+	},
+	"captionDlTxtNote": {
+		"message": "One line each, with the time"
 	}
 }

@@ -2193,5 +2193,41 @@
 	},
 	"pdEffortDefault": {
 		"message": "Valor predeterminado del modelo"
+	},
+	"captionDlTitle": {
+		"message": "Descargar subtítulos"
+	},
+	"captionDlDefault": {
+		"message": "Predeterminado"
+	},
+	"captionDlDone": {
+		"message": "Descargado"
+	},
+	"captionDlFixed": {
+		"message": "Descargar {format} (clic derecho para otros formatos)"
+	},
+	"captionDlMd": {
+		"message": "Markdown"
+	},
+	"captionDlMdNote": {
+		"message": "Con título y origen, para notas"
+	},
+	"captionDlSrt": {
+		"message": "Subtítulos SRT"
+	},
+	"captionDlSrtNote": {
+		"message": "Con tiempos, listo para un reproductor"
+	},
+	"captionDlVtt": {
+		"message": "Subtítulos VTT"
+	},
+	"captionDlVttNote": {
+		"message": "Con tiempos, para reproductores web"
+	},
+	"captionDlTxt": {
+		"message": "Texto sin formato"
+	},
+	"captionDlTxtNote": {
+		"message": "Una línea cada vez, con la hora"
 	}
 }

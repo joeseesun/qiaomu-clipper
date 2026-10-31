@@ -2193,5 +2193,41 @@
 	},
 	"pdEffortDefault": {
 		"message": "モデルの既定値"
+	},
+	"captionDlTitle": {
+		"message": "字幕をダウンロード"
+	},
+	"captionDlDefault": {
+		"message": "既定"
+	},
+	"captionDlDone": {
+		"message": "ダウンロードしました"
+	},
+	"captionDlFixed": {
+		"message": "{format} をダウンロード（右クリックで他の形式）"
+	},
+	"captionDlMd": {
+		"message": "Markdown"
+	},
+	"captionDlMdNote": {
+		"message": "タイトルと出典付き。ノート向け"
+	},
+	"captionDlSrt": {
+		"message": "SRT 字幕"
+	},
+	"captionDlSrtNote": {
+		"message": "タイムコード付き。そのまま動画プレーヤーで使えます"
+	},
+	"captionDlVtt": {
+		"message": "VTT 字幕"
+	},
+	"captionDlVttNote": {
+		"message": "タイムコード付き。Web プレーヤー向け"
+	},
+	"captionDlTxt": {
+		"message": "テキスト"
+	},
+	"captionDlTxtNote": {
+		"message": "1 行ずつ、時刻付き"
 	}
 }
