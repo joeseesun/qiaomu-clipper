@@ -1,0 +1,26 @@
+{
+  "version": "1.0.41",
+  "source": "https://docs.x.ai/build/overview",
+  "platforms": {
+    "macos-aarch64": {
+      "url": "https://x.ai/cli/grok-1.0.41-macos-aarch64",
+      "sha256": "9c844eb13365180787d9ad22b2b3748a024be8e1ed845253cc114781b31c591d",
+      "size": 145657952
+    },
+    "macos-x86_64": {
+      "url": "https://x.ai/cli/grok-1.0.41-macos-x86_64",
+      "sha256": "8fce04ab8f33a0f604e405a64b3ec28cf92aa600ca6b80106e4b14e8bf80d95b",
+      "size": 163046304
+    },
+    "windows-x86_64": {
+      "url": "https://x.ai/cli/grok-1.0.41-windows-x86_64.exe",
+      "sha256": "ab5d2a424f08281798acbdbb06076166fe000d7995ede94a673417b805210a25",
+      "size": 154082120
+    },
+    "windows-aarch64": {
+      "url": "https://x.ai/cli/grok-1.0.41-windows-aarch64.exe",
+      "sha256": "ea454a36db52b263a502b6628d55a7f1d24710d00682ac81e241f91dd160c540",
+      "size": 133252424
+    }
+  }
+}

@@ -76,9 +76,17 @@ class InstallTests(unittest.TestCase):
                 steps, _ = eng.plan('faster-whisper', python='C:/Python312/python.exe')
             pip = next(command for _, _, command in steps if 'pip' in command)
             self.assertEqual(pip[0], str(engine / 'Scripts/python.exe'))
+            self.assertIn('msvc-runtime',pip)
+            self.assertIn('os.add_dll_directory',eng.runtime_probe_code('faster-whisper'))
             with patch.object(Path, 'symlink_to', side_effect=OSError('symlinks unavailable')): asr.link_ffmpeg()
             self.assertTrue((base / 'Scripts/ffmpeg.exe').is_file())
             self.assertEqual((base / 'Scripts/ffmpeg.exe').read_bytes(), ffmpeg.read_bytes())
+
+    def test_cpp_runtime_is_only_installed_with_windows_whisper(self):
+        for system,engine in [('darwin','faster-whisper'),('linux','faster-whisper'),('win32','base')]:
+            with patch.object(eng.sys,'platform',system),patch.object(eng,'python_version',return_value=(3,12)):
+                steps,_=eng.plan(engine,python=sys.executable)
+                self.assertFalse(any('msvc-runtime' in command for _,_,command in steps))
 
     def test_windows_old_python_downloads_the_published_executable_without_a_posix_shell(self):
         with patch.object(eng.sys, 'platform', 'win32'), patch.object(eng, 'python_version', lambda path: (3, 9)):

@@ -11,7 +11,10 @@ import { cancelImageJob, submitImageJob, watchImageJobs, imageJobLabel, openImag
 
 export interface ChatImageGeneration { prompt: string; aspect: string; imageId?: string; modelLabel?: string; jobId?: string; error?: string; where?: 'cursor' | 'end' }
 
-export function parseChatImageReply(reply: string): { text: string; images: ChatImageGeneration[]; pending: boolean } {
+export function parseChatImageReply(reply: string, options: { literal?: boolean } = {}): { text: string; images: ChatImageGeneration[]; pending: boolean } {
+	// Verified source translations are text, including quoted action examples.
+	// Do not execute them or normalize whitespace inside their original code.
+	if (options.literal) return { text: reply, images: [], pending: false };
 	const parsed = parseReply(reply);
 	return {
 		text: parsed.text,

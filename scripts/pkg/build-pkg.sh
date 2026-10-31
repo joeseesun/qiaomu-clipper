@@ -25,7 +25,7 @@ const [root, output] = process.argv.slice(2);
 fs.writeFileSync(output, JSON.stringify(require(root + '/scripts/build-info.cjs').sourceState()));
 JS
 ditto "$PY_ARM" "$PAYLOAD/runtime-arm64"; ditto "$PY_X64" "$PAYLOAD/runtime-x86_64"
-for f in install.py host.py asr.py asr_cloud.py asr_engines.py asr_runner.py asr_context.py media_download.py uninstall.py codex_images.py VERSION; do cp "$ROOT/native/$f" "$PAYLOAD/native/$f"; done
+for f in install.py host.py asr.py asr_cloud.py asr_engines.py asr_runner.py asr_context.py media_download.py uninstall.py codex_images.py x_articles.py x_article_source.py x_setup.py grok-runtime.json VERSION; do cp "$ROOT/native/$f" "$PAYLOAD/native/$f"; done
 cp "$ROOT/scripts/pkg/qiaomu-helper" "$PAYLOAD/bin/qiaomu-helper"; chmod +x "$PAYLOAD/bin/qiaomu-helper"
 cp "$ROOT/scripts/pkg/postinstall" "$WORK/scripts/postinstall"; chmod +x "$WORK/scripts/postinstall"
 # Installer.app ignores <meta charset> and shows UTF-8 as mojibake, so the pages must be pure ASCII (&#x...; entities).

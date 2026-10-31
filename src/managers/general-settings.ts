@@ -248,6 +248,7 @@ export async function initializeLocalVaultSettings(): Promise<void> {
 	const help = document.getElementById('local-helper-help');
 	const download = document.getElementById('local-helper-download');
 	const recheck = document.getElementById('local-helper-recheck') as HTMLButtonElement | null;
+	document.getElementById('x-helper-setup')?.addEventListener('click', () => void import('../utils/x-setup-view').then(m => m.openXSetup()));
 	const more = document.getElementById('local-helper-more');
 	const copy = document.getElementById('local-helper-copy') as HTMLButtonElement | null;
 	const uninstall = document.getElementById('local-helper-uninstall') as HTMLButtonElement | null;
@@ -257,6 +258,7 @@ export async function initializeLocalVaultSettings(): Promise<void> {
 	let failure: string | undefined;
 	let current = '';
 	const isMac = isMacHelperPlatform();
+	const isWindows = /Win/i.test(navigator.platform || navigator.userAgent);
 	// A connected helper can still need an update. Keep installation reachable in every state.
 	if (help) help.hidden = false;
 	if (download) download.hidden = !isMac;
@@ -279,25 +281,30 @@ export async function initializeLocalVaultSettings(): Promise<void> {
 		note.textContent = t('已连接 ✓');
 		if (help) help.hidden = false;
 		if (copy) copy.hidden = true;
-		if (uninstall) uninstall.hidden = !isMac;
+		if (uninstall) uninstall.hidden = !isMac && !isWindows;
 	};
 	copy?.addEventListener('click', async () => {
 		try { await navigator.clipboard.writeText(nativeHelperRepairPrompt(browser.runtime.id, failure)); copy.textContent = t('已复制，去发给 AI 助手'); }
 		catch { copy.textContent = t('复制失败，请点“所有安装包”'); }
 	});
 
-	// Removing the whole helper: say what goes and how much space comes back, then the Mac asks for its password once.
+	// macOS removes in place; Windows opens its installed system uninstaller.
 	uninstall?.addEventListener('click', async () => {
 		uninstall.disabled = true;
 		try {
-			const plan = await browser.runtime.sendMessage({ action: 'qiaomuLocalUninstallPlan' }) as { ok?: boolean; freedMb?: number; preservesSharedModels?: boolean };
+			const plan = await browser.runtime.sendMessage({ action: 'qiaomuLocalUninstallPlan' }) as { ok?: boolean; freedMb?: number; preservesSharedModels?: boolean; systemUninstallerAvailable?: boolean };
 			const freed = plan?.ok ? Math.max(1, plan.freedMb || 0) : 0;
 			// A helper from before this feature answers with an error: say so instead of failing at the password step.
 			if (!plan?.ok || plan.preservesSharedModels !== true) { note.textContent = t('当前助手版本较旧，不能在这里卸载。请先下载安装最新助手，再回来卸载。'); return; }
+			if (isWindows && !plan.systemUninstallerAvailable) { note.textContent = t('请在 Windows 设置 → 应用中卸载本地助手，或先安装最新助手。'); return; }
 			const gb = freed >= 1024 ? `${(freed / 1024).toFixed(1)} GB` : `${freed} MB`;
-			if (!window.confirm(t('卸载本地助手？将删除助手及其独立运行环境（约 {0}），需要输入这台 Mac 的密码。笔记和共享模型缓存会保留，需要时可以重新安装。', [freed ? gb : t('一些空间')]))) return;
+			const confirmation = isWindows
+				? t('打开 Windows 卸载程序？将删除助手及其独立运行环境（约 {0}）。笔记和共享模型缓存会保留，需要时可以重新安装。', [gb])
+				: t('卸载本地助手？将删除助手及其独立运行环境（约 {0}），需要输入这台 Mac 的密码。笔记和共享模型缓存会保留，需要时可以重新安装。', [freed ? gb : t('一些空间')]);
+			if (!window.confirm(confirmation)) return;
 			note.textContent = t('正在卸载…');
-			const result = await browser.runtime.sendMessage({ action: 'qiaomuLocalUninstall' }) as { ok?: boolean; cancelled?: boolean; error?: string; freedMb?: number; reason?: string };
+			const result = await browser.runtime.sendMessage({ action: 'qiaomuLocalUninstall' }) as { ok?: boolean; pending?: boolean; cancelled?: boolean; error?: string; freedMb?: number; reason?: string };
+			if (result?.ok && result.pending) { note.textContent = t('已打开 Windows 卸载程序。完成后点击「重新检查」；若取消，助手仍可使用。'); return; }
 			if (result?.ok) { showOffline(t('助手已卸载，释放约 {0}。需要时可以重新下载安装。', [result.freedMb && result.freedMb >= 1024 ? `${(result.freedMb / 1024).toFixed(1)} GB` : `${result.freedMb || 0} MB`])); return; }
 			if (result?.cancelled) note.textContent = t('已取消，助手还在。');
 			else if (result?.error === 'busy') note.textContent = t('正在生成字幕或安装，稍后再试。');

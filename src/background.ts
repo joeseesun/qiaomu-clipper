@@ -1,4 +1,5 @@
 import { handleImageJobs } from './utils/image-job-background';
+import { handleXArticle } from './utils/x-article-background';
 import { handleChatToolPort } from './utils/chat-tools-background';
 import { openAiSidebar } from './utils/ai-sidebar';
 import { handleChatImageSource } from './utils/chat-image-source';
@@ -41,6 +42,7 @@ browser.runtime.onMessage.addListener(handleLearningNativeMessage);
 browser.runtime.onMessage.addListener(handleAsrMessage);
 browser.runtime.onMessage.addListener(handleChatImageSource);
 browser.runtime.onMessage.addListener(handleImageJobs);
+browser.runtime.onMessage.addListener(handleXArticle);
 browser.runtime.onConnect.addListener(handleChatToolPort);
 
 // Accept RSS writes only from our own extension pages, never a website content script.
@@ -1382,7 +1384,11 @@ browser.runtime.onConnect.addListener(port => {
 				|| !validChatTurns(request.messages)) throw new Error(t('无效的 AI 对话请求'));
 			await streamChat({ model, system: request.system, sessionId: request.sessionId, messages: request.messages, reasoningEffort: validEffort(request.reasoningEffort), nativeTools: request.nativeTools === true, signal: controller.signal, onDelta: delta => send({ delta }), onThought: thought => send({ thought }), onNativeTools: nativeTools => send({ nativeTools }) });
 			send({ done: true });
-		} catch (error) { send({ error: error instanceof Error ? error.message : t('AI 请求失败') }); }
+		} catch (error) {
+			const code = error instanceof Error && 'code' in error ? error.code : undefined;
+			send({ error: error instanceof Error ? error.message : t('AI 请求失败'),
+				...(['context-limit', 'output-limit'].includes(String(code)) ? { code } : {}) });
+		}
 	});
 });
 

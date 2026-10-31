@@ -25,7 +25,7 @@ NAME='ai.qiaomu.clipper';BASE=HOME/'.local/share/qiaomu-clipper'
 # The Chrome Web Store build always has this ID, so it is allowed even before the store version is installed.
 STORE_ID='jniolfihillilkoajpnonlbkhfkiicoo'
 def fail(error,hint,**extra):
-    print(json.dumps({'ok':False,'error':error,'hint':hint,**extra},ensure_ascii=False,indent=2));sys.exit(1)
+    print(json.dumps({'ok':False,'error':error,'hint':hint,**extra},ensure_ascii=sys.platform=='win32',indent=2));sys.exit(1)
 def is_ours(entry):
     """Store installs carry the manifest name; unpacked ones point at a folder with manifest.json."""
     name=str((entry.get('manifest') or {}).get('name',''))
@@ -50,9 +50,9 @@ def find_vaults():
         except (OSError,ValueError): continue
         return [Path(v['path']) for v in sorted(vaults,key=lambda v:-v.get('ts',0)) if (Path(v.get('path',''))/'.obsidian').is_dir()]
     return []
-def self_test(host,origin):
+def self_test(host,origin,action='status'):
     """Speak the real native-messaging framing to the installed host, as Chrome would."""
-    body=json.dumps({'action':'status'}).encode()
+    body=json.dumps({'action':action}).encode()
     r=subprocess.run([str(host),origin],input=struct.pack('=I',len(body))+body,capture_output=True,timeout=20)
     n=struct.unpack('=I',r.stdout[:4])[0] if len(r.stdout)>=4 else 0
     return json.loads(r.stdout[4:4+n]) if n else {'ok':False,'error':r.stderr.decode(errors='replace')[-300:] or 'host produced no reply'}
@@ -76,13 +76,19 @@ def registered(label,data):
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER,key) as k: m=Path(winreg.QueryValueEx(k,'')[0])
         return 'HKCU\\'+key,json.loads(m.read_text(encoding='utf8')).get('allowed_origins',[]) if m.is_file() else None
     except OSError: return 'HKCU\\'+key,None
+def windows_launcher(python,script):
+    # cmd.exe otherwise interprets UTF-8 Chinese user paths in the OEM codepage.
+    # Change it on a separate ASCII line before parsing either Unicode path.
+    # Native messaging writes binary frames; chcp output must never reach stdout.
+    safe=lambda value:str(value).replace('%','%%')
+    return '@echo off\r\nsetlocal DisableDelayedExpansion\r\nchcp 65001 >nul\r\n"'+safe(python)+'" -X utf8 "'+safe(script)+'" %*\r\n'
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--vault');p.add_argument('--extension-id',action='append',default=[],help='repeatable; default: auto-detect');p.add_argument('--check',action='store_true',help='diagnose an existing install without changing anything')
     p.add_argument('--uninstall',action='store_true',help='remove the helper, its registrations and private environments; preserve shared model caches (asks for the Mac password to delete the installed package)')
     a=p.parse_args()
     if a.uninstall:
         sys.path.insert(0,str(Path(__file__).resolve().parent));import uninstall
-        result=uninstall.run();print(json.dumps(result,ensure_ascii=False,indent=2));sys.exit(0 if result['ok'] else 1)
+        result=uninstall.run();print(json.dumps(result,ensure_ascii=sys.platform=='win32',indent=2));sys.exit(0 if result['ok'] else 1)
     if HOSTS is None: fail('此系统暂不支持','目前仅支持 macOS / Linux / Windows 的 Chromium 系浏览器（Chrome、Edge、Brave 等）')
     if sys.version_info<(3,9): fail(f'Python 版本过低（{sys.version.split()[0]}）','需要 Python 3.9 或更新版本，请用 python3.9+ 重新运行')
     detected=find_extensions()
@@ -98,6 +104,13 @@ def main():
     # The vault never blocks the install: a connected helper with an unchosen vault beats "helper not connected".
     vault=None;choices=[]
     previous=BASE/'config.json'
+    try: kept_config=json.loads(previous.read_text(encoding='utf8'))
+    except (OSError,ValueError): kept_config={}
+    if not isinstance(kept_config,dict): fail('助手配置格式无效','请保留配置文件并联系维护者修复')
+    # Upgrading must preserve already paired browsers, even if a profile is offline.
+    for origin in [kept_config.get('origin','')]+kept_config.get('origins',[]):
+        match=re.fullmatch(r'chrome-extension://([a-p]{32})/',str(origin))
+        if match and match[1] not in ids: ids.append(match[1])
     if a.vault: vault=Path(a.vault).resolve()
     else:
         try: kept=Path(json.loads(previous.read_text(encoding='utf8')).get('vault',''))
@@ -119,11 +132,11 @@ def main():
         host=BASE/'host';host.write_text('#!/bin/sh\nexec "'+sys.executable+'" "'+str(script)+'" "$@"\n',encoding='utf8');host.chmod(0o700)
     if sys.platform=='win32':
         # Chrome on Windows can't run a .py directly; it launches this wrapper, which forwards the origin argument.
-        host=BASE/'host.bat';host.write_text(f'@echo off\r\n"{sys.executable}" "{script}" %*\r\n',encoding='utf8')
+        host=BASE/'host.bat';host.write_text(windows_launcher(sys.executable,script),encoding='utf8')
     # Subtitle generation (yt-dlp + ffmpeg + Whisper) lives next to the host; the host imports it from its own folder.
-    for module in ('asr.py','asr_cloud.py','asr_engines.py','asr_runner.py','asr_context.py','media_download.py','uninstall.py','codex_images.py','VERSION'): (BASE/module).write_text(Path(__file__).with_name(module).read_text(encoding='utf8'),encoding='utf8');(BASE/module).chmod(0o600)
+    for module in ('asr.py','asr_cloud.py','asr_engines.py','asr_runner.py','asr_context.py','media_download.py','uninstall.py','codex_images.py','x_articles.py','x_article_source.py','x_setup.py','grok-runtime.json','VERSION'): (BASE/module).write_text(Path(__file__).with_name(module).read_text(encoding='utf8'),encoding='utf8');(BASE/module).chmod(0o600)
     origins=[f'chrome-extension://{i}/' for i in ids]
-    config=BASE/'config.json';config.write_text(json.dumps({**({'vault':str(vault)} if vault else {}),'origins':origins},ensure_ascii=False,indent=2),encoding='utf8');config.chmod(0o600)
+    config=BASE/'config.json';config.write_text(json.dumps({**kept_config,**({'vault':str(vault)} if vault else {}),'origins':origins},ensure_ascii=sys.platform=='win32',indent=2),encoding='utf8');config.chmod(0o600)
     manifest={'name':NAME,'description':'Save clipped Markdown silently to the configured Obsidian vault','path':str(host),'type':'stdio','allowed_origins':origins}
     # Register for every browser that has the extension, plus Chrome if present (a not-yet-run profile may still need it).
     targets={label:data for label,(data,_) in detected.items()}
@@ -135,7 +148,9 @@ def main():
         written[label]=register(label,data,manifest)
     test=self_test(host,origins[0])
     if not test.get('ok'): fail('助手已安装，但自检未通过：'+str(test.get('error')),'按错误信息处理（例如库路径失效），再重新运行安装',host=str(host))
-    print(json.dumps({'ok':True,'host':str(host),'vault':str(vault) if vault else None,'vaultChoices':choices,'notes':notes,'extensionIds':ids,'registeredFor':written,'selfTest':test,'next':'在浏览器扩展管理页重新加载「乔木剪藏」，再重新打开剪藏弹窗；无需重启浏览器'},ensure_ascii=False,indent=2))
+    x_test=self_test(host,origins[0],'xSetupStatus')
+    if not x_test.get('ok') or x_test.get('xSetup')!=1: fail('X 助手自检未通过','请重新打开本地助手安装包',host=str(host))
+    print(json.dumps({'ok':True,'host':str(host),'vault':str(vault) if vault else None,'vaultChoices':choices,'notes':notes,'extensionIds':ids,'registeredFor':written,'selfTest':test,'next':'在浏览器扩展管理页重新加载「乔木剪藏」，再重新打开剪藏弹窗；无需重启浏览器'},ensure_ascii=sys.platform=='win32',indent=2))
 def self_asr(host,origin,cloud=False):
     """Optional capabilities: cloud needs base audio tools, never a local recognition engine or model."""
     body=json.dumps({'action':'asrStatus','cloud':cloud}).encode()
@@ -166,5 +181,5 @@ def check(detected):
     if not test.get('ok'): problems.append('助手自检失败：'+str(test.get('error')))
     asr_status=self_asr(host,origins[0]) if origins else None
     cloud_status=self_asr(host,origins[0],cloud=True) if origins else None
-    print(json.dumps({'ok':not problems,'problems':problems,'selfTest':test,'subtitleGeneration':asr_status,'cloudSubtitleGeneration':cloud_status,**report,'hint':'重新运行 python3 native/install.py 通常即可修复' if problems else '助手正常；若扩展仍提示未连接，请在扩展管理页重新加载扩展'},ensure_ascii=False,indent=2));sys.exit(1 if problems else 0)
+    print(json.dumps({'ok':not problems,'problems':problems,'selfTest':test,'subtitleGeneration':asr_status,'cloudSubtitleGeneration':cloud_status,**report,'hint':'重新运行 python3 native/install.py 通常即可修复' if problems else '助手正常；若扩展仍提示未连接，请在扩展管理页重新加载扩展'},ensure_ascii=sys.platform=='win32',indent=2));sys.exit(1 if problems else 0)
 if __name__=='__main__': main()

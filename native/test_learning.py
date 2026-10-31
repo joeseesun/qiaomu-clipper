@@ -1,4 +1,4 @@
-import time, datetime, hashlib, importlib.util, json, os, tempfile, unittest, uuid
+import time, sys, datetime, hashlib, importlib.util, json, os, tempfile, unittest, uuid
 from pathlib import Path
 from unittest.mock import patch
 spec=importlib.util.spec_from_file_location('learning_host',Path(__file__).with_name('host.py'));host=importlib.util.module_from_spec(spec);spec.loader.exec_module(host)
@@ -58,11 +58,16 @@ class LearningDiaryTests(unittest.TestCase):
   p=self.payload();path=self.vault/self.target()['relativePath'];original_write=host.os.write
   def replacing(fd,data):
    replacement=path.with_suffix('.tmp');replacement.write_text('EXTERNAL replacement');os.replace(replacement,path);return original_write(fd,data)
+  if os.name=='nt':
+   # Windows refuses replacement while this handle is open; no external content is overwritten.
+   with patch.object(host.os,'write',replacing),self.assertRaises(PermissionError):self.save(p)
+   self.assertEqual(path.read_text(),'');return
   with patch.object(host.os,'write',replacing):r=self.save(p)
   self.assertEqual(r['status'],'unconfirmed');self.assertEqual(path.read_text(),'EXTERNAL replacement')
   self.assertEqual(self.save(p)['status'],'unconfirmed');self.assertEqual(path.read_text(),'EXTERNAL replacement')
  def test_invalid_id_oversized_and_symlink_target_do_not_write(self):
   p=self.payload();self.assertEqual(self.save({**p,'captureId':'../../evil'})['status'],'failed');self.assertEqual(self.save({**p,'content':'x'*(host.MAX_BYTES+1)})['status'],'failed')
+  if os.name=='nt':self.skipTest('file symlinks require Windows privileges; directory junction escapes covered in test_host')
   outside=self.base/'outside.md';outside.write_text('outside');path=self.vault/self.target()['relativePath'];path.parent.mkdir();path.symlink_to(outside)
   self.assertEqual(self.save(p)['status'],'failed');self.assertEqual(outside.read_text(),'outside')
  def test_midnight_before_first_write_changes_target_without_touching_files(self):
@@ -133,7 +138,7 @@ class AttachmentTests(unittest.TestCase):
   content=text+''.join('\n\n'+host.marker(i['id']) for i in items)
   return {**self.payload(content),'attachments':[i['id'] for i in items]}
  def test_attachment_is_copied_before_the_diary_link_and_staging_is_cleared(self):
-  item=self.stage();p=self.entry(item);r=self.save(p);self.assertEqual(r['status'],'saved')
+  item=self.stage();p=self.entry(item);r=self.save(p);self.assertEqual(r['status'],'saved',r)
   self.assertEqual((self.vault/'shot.png').read_bytes(),b'PNGDATA')  # no attachmentFolderPath: vault root, Obsidian's default
   text=self.path(r).read_text();self.assertIn('![[shot.png]]',text);self.assertNotIn('⟦',text);self.assertFalse((self.state/'staging'/item['id']).exists())
  def test_attachment_folder_setting_absolute_and_relative_to_the_note(self):
@@ -174,6 +179,7 @@ class AttachmentTests(unittest.TestCase):
   item=self.stage();p=self.entry(item)
   self.assertEqual(self.save({**p,'attachments':[item['id']]*2})['status'],'failed')
   self.assertEqual(self.save({**p,'attachments':['../../x']})['status'],'failed')
+  self.assertEqual(self.save({**p,'attachments':[item]})['status'],'failed')
   self.assertEqual(self.save({**p,'content':'no marker here'})['status'],'failed')
  def test_staging_handles_names_size_limits_and_discard(self):
   item=self.stage('we[ir]d#na|me.png');self.assertEqual(item['name'],'we-ir-d-na-me.png');self.assertEqual(item['kind'],'image')
@@ -182,10 +188,20 @@ class AttachmentTests(unittest.TestCase):
   host.handle({'action':'attachDiscard','ids':[item['id'],'../..']},self.config,self.state);self.assertFalse((self.state/'staging'/item['id']).exists())
  def test_local_files_are_staged_by_path_filtered_by_what_the_page_received(self):
   a=self.base/'big movie.mp4';a.write_bytes(b'x'*50);b=self.base/'other.txt';b.write_text('o')
-  with patch.object(host,'clipboard_files',lambda:[str(a),str(b)]):
+  # This exercises macOS clipboard filtering on every test host without calling
+  # the macOS-only clone utility; the Windows picker test uses the real copier.
+  with patch.object(host.sys,'platform','darwin'),patch.object(host,'clipboard_files',lambda:[str(a),str(b)]),patch.object(host,'clone_or_copy',host.shutil.copyfile):
    r=host.handle({'action':'attachLocal','source':'clipboard','names':[{'name':'big movie.mp4','size':50}]},self.config,self.state)
   self.assertEqual([i['origName'] for i in r['items']],['big movie.mp4']);self.assertEqual(r['items'][0]['kind'],'video');self.assertTrue(a.exists())  # copied, the original stays
   with patch.object(host,'pick_files',lambda:None): self.assertTrue(host.handle({'action':'attachPick'},self.config,self.state)['cancelled'])
+ def test_windows_large_files_use_picker_and_only_stage_matching_files(self):
+  a=self.base/'中文 movie.mp4';a.write_bytes(b'x'*50);b=self.base/'other.txt';b.write_text('o')
+  for source in ['clipboard','finder']:
+   with patch.object(host.sys,'platform','win32'),patch.object(host,'pick_files',return_value=[str(a),str(b)]),patch.object(host,'run_osascript') as mac:
+    r=host.handle({'action':'attachLocal','source':source,'names':[{'name':a.name,'size':50}]},self.config,self.state)
+    self.assertEqual([i['origName'] for i in r['items']],[a.name]);mac.assert_not_called()
+   with patch.object(host.sys,'platform','win32'),patch.object(host,'pick_files',return_value=None):
+    self.assertEqual(host.handle({'action':'attachLocal','source':source},self.config,self.state),{'ok':False,'cancelled':True})
  def test_old_stage_entries_are_pruned(self):
   item=self.stage();d=self.state/'staging'/item['id'];old=time.time()-host.STAGE_TTL-10;os.utime(d,(old,old));self.stage('new.png',b'n')
   self.assertFalse(d.exists())

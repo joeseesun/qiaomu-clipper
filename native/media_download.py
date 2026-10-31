@@ -38,7 +38,8 @@ def destination():
     downloads = (Path.home() / 'Downloads').resolve()
     downloads.mkdir(parents=True, exist_ok=True)
     folder = downloads / 'Qiaomu Clipper'
-    if folder.is_symlink(): raise ValueError('Download folder must not be a symbolic link')
+    # Windows junctions redirect directories without being symbolic links.
+    if folder.is_symlink() or folder.resolve() != folder: raise ValueError('Download folder must not be a symbolic link or junction')
     folder.mkdir(exist_ok=True, mode=0o700)
     return folder
 

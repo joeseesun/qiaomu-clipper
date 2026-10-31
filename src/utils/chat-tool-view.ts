@@ -7,6 +7,7 @@ import type { UnsplashPhoto } from './image-library-sources';
 import type { ChatToolResult } from './chat-tools-types';
 import browser from './browser-polyfill';
 import { createElement, Globe } from 'lucide';
+import { readXArticle, xArticleError } from './x-article-client';
 
 export async function keepChatPhoto(photo: UnsplashPhoto, signal?: AbortSignal): Promise<Blob> {
 	const id = `unsplash-${photo.id}`, stored = await readLibraryBlob(id);
@@ -23,6 +24,7 @@ export interface ToolViewOptions {
 }
 export function mountChatTools(parent: HTMLElement, results: ChatToolResult[], options: ToolViewOptions): void {
 	for (const result of results) {
+		if (result.call.type === 'read_x') { mountXArticle(parent, result, options); continue; }
 		if (result.call.type === 'provider_tool') { mountNativeTool(parent, result, options); continue; }
 		if (result.error === 'english-image-query-required' && results.some(r => r.call.type === 'search_images' && r.state === 'done')) continue;
 		const card = h('section', { class: 'qm-tool-result', 'aria-busy': String(result.state === 'running') });
@@ -89,6 +91,36 @@ export function mountChatTools(parent: HTMLElement, results: ChatToolResult[], o
 		if (result.call.type === 'use_image' && result.state === 'done') status.textContent = t('已完成');
 		parent.append(card);
 	}
+}
+
+function mountXArticle(parent: HTMLElement, result: ChatToolResult, options: ToolViewOptions): void {
+	if (result.call.type !== 'read_x') return;
+	const url = result.call.url;
+	const card = h('section', { class: 'qm-tool-result', 'aria-busy': String(result.state === 'running') });
+	card.append(h('div', { class: 'qm-tool-title', text: t('X 原文') }));
+	const status = h('p', { class: 'qm-tool-status', role: 'status', text: result.state === 'running' ? t('正在读取 X 原文…')
+		: result.state === 'done' ? t('已取得原文：{0} 字符', [result.xArticle?.chars || 0]) : result.error === 'interrupted' ? t('X 原文读取已中断，请重新发送链接。') : result.error || t('X 原文读取失败，请检查链接与网络后重试。') });
+	card.append(status, h('a', { href: url, target: '_blank', rel: 'noopener noreferrer', text: result.sources?.[0]?.title || url }));
+	if (result.state === 'done' && result.xArticle) {
+		const original = h('button', { type: 'button', text: t('下载原文') });
+		original.onclick = async () => {
+			original.disabled = true;
+			try {
+				const source = await readXArticle(result.xArticle!.jobId, url);
+				const object = URL.createObjectURL(new Blob([`# ${source.title}\n\n${source.url}\n\n${source.content}`], { type: 'text/markdown;charset=utf-8' }));
+				const link = h('a', { href: object, download: `x-${url.split('/').pop()}.md` });
+				document.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(object), 30000);
+			} catch (error) { status.textContent = xArticleError(error); }
+			finally { original.disabled = false; }
+		}; card.append(original);
+	} else if (result.state === 'error' && !options.readOnly) {
+		const retry = () => options.followup(result.xRequest || url);
+		card.append(h('button', { type: 'button', text: result.xSetup ? t('了解并设置') : t('重试'), onclick: () => {
+			if (result.xSetup) void import('./x-setup-view').then(m => m.openXSetup(retry, result.xSetup));
+			else retry();
+		} }));
+	}
+	parent.append(card);
 }
 
 function mountNativeTool(parent: HTMLElement, result: ChatToolResult, options: ToolViewOptions): void {

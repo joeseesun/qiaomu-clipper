@@ -64,6 +64,9 @@ def transcribe_faster(args, samples, model_factory, candidates):
             model = None; gc.collect()
 
 def faster_whisper(args):
+    # Python venv launchers can run from the bundled interpreter's directory.
+    # Explicitly include this engine's private C++ DLLs for native imports.
+    private_runtime = os.add_dll_directory(str(Path(sys.prefix) / 'Scripts')) if sys.platform == 'win32' else None
     from faster_whisper import WhisperModel
     import ctranslate2
     candidates = compute_candidates(ctranslate2)

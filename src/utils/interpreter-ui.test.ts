@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, afterEach, expect, test, vi } from 'vitest';
+vi.mock('./model-limits', async original => ({ ...await original<any>(), resolveOutputLimit: async () => undefined }));
 import { handleInterpreterUI } from './interpreter';
 import { generalSettings } from './storage-utils';
 import type { ModelConfig, Template } from '../types/types';

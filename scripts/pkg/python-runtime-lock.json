@@ -1,0 +1,11 @@
+{
+  "version": "3.12.16",
+  "release": "20261026",
+  "baseUrl": "https://github.com/astral-sh/python-build-standalone/releases/download/20261026/",
+  "platforms": {
+    "aarch64-apple-darwin": "353d5f1b4fd2715e7053f12f068435d5bbad16b91e057006b5d01e0925709a7e",
+    "x86_64-apple-darwin": "37c38fda76fec1fbf310adcbafb7f0d96af13b5511bf8ea954c3aa8eec185734",
+    "aarch64-pc-windows-msvc": "3b2e4da9209cec3e0eaf4db31176977a88df32d598ff94a7899c34cd8304db04",
+    "x86_64-pc-windows-msvc": "1f2ab53880fc67ea323398c6388e05af28addc99a8e389209f08a51fdff4b149"
+  }
+}

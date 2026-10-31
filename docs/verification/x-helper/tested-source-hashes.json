@@ -1,0 +1,144 @@
+{
+  "testedOn": "2026-10-28",
+  "platform": "Windows x64",
+  "helperVersion": "1.16.13",
+  "comparisonBase": "a2ef532d5082b3394a6d266457c8ac62b8af899e",
+  "files": [
+    {
+      "path": "native/VERSION",
+      "sha256": "55de075e0a29551c57b96932a8178eb7fa6e3acefd21d8db4474b4c60e22eb60"
+    },
+    {
+      "path": "native/asr_engines.py",
+      "sha256": "83c73e664062738b4d5bbdbad95a8bf07ef1d18b77bad5454d76bdeb592e9d1f"
+    },
+    {
+      "path": "native/asr_runner.py",
+      "sha256": "d664d792975c2b3fb18855495562781bc788d992c46ec7d8fa1a81d4b1b1976c"
+    },
+    {
+      "path": "native/grok-runtime.json",
+      "sha256": "2721eb5cbd346fa4a288968f5bba2549269769a8a8d123f4fe90a3f3741261c6"
+    },
+    {
+      "path": "native/host.py",
+      "sha256": "037b6f7ee0771b48a2d800105ffd8e5dbd6688c9d53822056fe5705be3a68bf6"
+    },
+    {
+      "path": "native/install.py",
+      "sha256": "3fa944a0ce910ad82063042b7f0663d9b46eb19f5541c8fd5c384a1aab06b6b4"
+    },
+    {
+      "path": "native/media_download.py",
+      "sha256": "642c162d80220c7d14656f0578e9afb0ace21d5308225705bbc854b7711f2fd8"
+    },
+    {
+      "path": "native/test_asr.py",
+      "sha256": "2306ae790d39c8b57bdab9526ddd79de9f03e5cced696e20677b960b04ba57e8"
+    },
+    {
+      "path": "native/test_asr_cloud.py",
+      "sha256": "f30656449d2a0b1c9a7aa92b44b8096a6696163aa62047dcdcbc5e434187204e"
+    },
+    {
+      "path": "native/test_asr_install.py",
+      "sha256": "5799c5a454037a6ee24ca34f7d6f7a134158bcc68f5c700acaf12ede740ce2a2"
+    },
+    {
+      "path": "native/test_dialogs.py",
+      "sha256": "c6273e05a46c4a5b2e45d5abcf526cdf351ba6bb17a042634c655e85c289c5af"
+    },
+    {
+      "path": "native/test_host.py",
+      "sha256": "3c05396b0c78f32882ccf308230f67d2892917b86b6d36f37ece188287545f71"
+    },
+    {
+      "path": "native/test_install_check.py",
+      "sha256": "ca9f150c20a07fe6b2dac2a967dbb542dd751034488bac3e5058cf6b46a4fb96"
+    },
+    {
+      "path": "native/test_learning.py",
+      "sha256": "0e4e04d59afdd8dc42d61b8660313c4dfb37bb0b085c225ce64917be8bf87f5e"
+    },
+    {
+      "path": "native/test_media_download.py",
+      "sha256": "93de4e7d3b02469f19fad664cf35ff9708edf95e4b37dae5f2e5cf76e4e0ba50"
+    },
+    {
+      "path": "native/test_pkg_signing.py",
+      "sha256": "db47abe8f51e78650d4214563dcd8cb76aff3388bdeb8b5291e213ef28ca454b"
+    },
+    {
+      "path": "native/test_support.py",
+      "sha256": "5d7ee7bfe3e164b49270052a9d3a69e615a7a31fa3dccaac2919b5d27bfaf8e4"
+    },
+    {
+      "path": "native/test_uninstall.py",
+      "sha256": "85e51d44f90d65fee6583e7439a6a1351305b5cc0b0e3daa8d61049eccbb9767"
+    },
+    {
+      "path": "native/test_windows_package.py",
+      "sha256": "119642e38633189fb3ed83042df4bb090530a6f8b212c5114e6def8e5057ac47"
+    },
+    {
+      "path": "native/test_x_articles.py",
+      "sha256": "e42aaa5f742bcc1a8d7f7ea51613e03e8515955ce10264be19e19daa1048385f"
+    },
+    {
+      "path": "native/test_x_setup.py",
+      "sha256": "c19d11e91965312e83a9dc01d490e666aa226a161ee29ee0079efb3963a5e251"
+    },
+    {
+      "path": "native/uninstall.py",
+      "sha256": "dcf580be9ecd3f5ddd218420fcbdef7b87d7dce78f5d5ec265a235e1256cc6cd"
+    },
+    {
+      "path": "native/x_article_source.py",
+      "sha256": "0aede5c79f3de7ec39576fa05542a8df85055468fd333db2b12b607b7542b3e7"
+    },
+    {
+      "path": "native/x_articles.py",
+      "sha256": "5d63401ef3e9ecef95332ecc79d25983ebcb31c794db0d9254c83e50733710cc"
+    },
+    {
+      "path": "native/x_setup.py",
+      "sha256": "f7a3d743862d49346bd0f533b5d166f88c3fc537d48b73ae41d18c5eda93c515"
+    },
+    {
+      "path": "scripts/pkg/build-pkg.sh",
+      "sha256": "334c7b8d6439811904aaa1c5812fde892d790392de43f372bffe169074c639b7"
+    },
+    {
+      "path": "scripts/pkg/conclusion.html",
+      "sha256": "943ad21e682dc0cccb4e0281d3e90b61ba60bb6e91d4585336ca812eef42bf72"
+    },
+    {
+      "path": "scripts/pkg/fetch-runtime.py",
+      "sha256": "857a05b68ca23bbd84de79cf7460dd6db3a3eefb9c9d1aa0b9df67c531b0c987"
+    },
+    {
+      "path": "scripts/pkg/postinstall",
+      "sha256": "4fbf929d589d7ba4e2b17a84d1ddff95afe00ce353b986f40ea2988536860c36"
+    },
+    {
+      "path": "scripts/pkg/python-runtime-lock.json",
+      "sha256": "d4fe7cd33bba5c5d5198f654bec53e7a9afb2678e10e02bdc2865950dfefbc99"
+    },
+    {
+      "path": "scripts/pkg/welcome.html",
+      "sha256": "d9019ebb1263b8cda01d9988fc2c0a88f112b4f2c6658abdca82c0117491bd6f"
+    },
+    {
+      "path": "scripts/windows/build-installer.py",
+      "sha256": "4d8361f48f103a91ece3429e5c6c114e5f84173d568f48028763f166480eccb9"
+    },
+    {
+      "path": "scripts/windows/helper.nsi",
+      "sha256": "e2458f565adf1295a2f480e5c2eb65bb48289af443b5ee37ade1fa8d92191f83"
+    },
+    {
+      "path": "scripts/windows/installer.py",
+      "sha256": "f507364ec4f6204c6bd4f93cb6f2971bb1ab929a9938097b6b66aa58a2a368cd"
+    }
+  ]
+}

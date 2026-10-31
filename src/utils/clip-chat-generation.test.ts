@@ -3,7 +3,7 @@ import 'fake-indexeddb/auto';
 import { IDBFactory } from 'fake-indexeddb';
 import { Blob as NodeBlob } from 'node:buffer';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-const state = vi.hoisted(() => ({ listeners: new Set<() => void>(), generate: vi.fn(), stream: vi.fn(), tool: vi.fn(), saves: vi.fn(), histories: [] as any[], models: [] as any[] }));
+const state = vi.hoisted(() => ({ listeners: new Set<() => void>(), generate: vi.fn(), stream: vi.fn(), tool: vi.fn(), xSource: vi.fn(), saves: vi.fn(), histories: [] as any[], models: [] as any[] }));
 vi.mock('./storage-utils', () => ({
 	generalSettings: { providers: [] }, getLocalStorage: async () => undefined, setLocalStorage: vi.fn(),
 }));
@@ -21,6 +21,7 @@ vi.mock('../write/image-models', async original => ({
 	generateImage: (...args: any[]) => state.generate(...args),
 }));
 vi.mock('./chat-tools-client', () => ({ chatCapabilities: async () => ({ web: true, webEnabled: true, webProvider: 'deepseek', images: true, fetch: true }), requestChatTool: (...a: any[]) => state.tool(...a), downloadChatPhoto: async () => new Blob(['search-photo'], { type: 'image/png' }) }));
+vi.mock('./x-article-client', () => ({ fetchXArticle: (...args: any[]) => state.xSource(...args), readXArticle: (...args: any[]) => state.xSource(...args), xArticleError: (error: Error) => error.message }));
 import { ImageJobRunner } from './image-job-runner';
 let runner: ImageJobRunner;
 vi.mock('./image-jobs', () => ({
@@ -57,6 +58,22 @@ async function mount() {
 	chat = mountClipChat({ getContext: () => ({ title: 'Page', markdown: 'Article text', url: 'https://article.test/a' }) });
 	chat.toggle(true); await flush();
 }
+
+it('sends the complete article, long quote and all conversation turns without fixed clipping', async () => {
+	const markdown = 'Article '.repeat(12000) + 'ARTICLE_TAIL';
+	const quote = 'Selected '.repeat(700) + 'QUOTE_TAIL';
+	const messages = Array.from({ length: 50 }, (_, i) => ({ role: i % 2 ? 'assistant' : 'user', content: `HISTORY_${i}` }));
+	chat = mountClipChat({ initialConversation: { id: 'long-context', title: 'Long', updatedAt: Date.now(), messages } as any,
+		getContext: () => ({ title: 'Long article', markdown, url: 'https://article.test/long' }) });
+	chat.toggle(true); await flush(); chat.quote(quote);
+	state.stream.mockImplementation(async (o: any) => { o.onDelta('Complete'); return 'Complete'; });
+	await submit('请看全文');
+	const request = state.stream.mock.calls[0][0];
+	expect(request.system).toContain(markdown);
+	expect(request.messages).toHaveLength(51);
+	expect(request.messages[0].content).toContain('HISTORY_0');
+	expect(request.messages[50].content).toContain(quote);
+});
 
 it('generates directly from natural-language chat and restores the picture without another request', async () => {
 	await mount(); await submit();
@@ -176,6 +193,25 @@ it('holds incomplete commands, ignores non-image operations, and bounds the numb
 	expect(parseChatImageReply('```qm-action\n{"type":"insert","markdown":"do not insert"}\n```').images).toEqual([]);
 	expect(parseChatImageReply(reply.repeat(10)).images).toHaveLength(4);
 	expect(parseChatImageReply('```qm-action\n{"type":"image","prompt":"Cat","aspect":"invalid"}\n```').images[0].aspect).toBe('16:9');
+});
+
+it('retains X source code verbatim in the rendered conversation and history without executing quoted image actions', async () => {
+ const url = 'https://x.com/poteto/status/2094457600259842065';
+ const code = '```text\nbefore\n\n\nafter\n```\n\n```qm-action\n{"type":"image","prompt":"untrusted source example","aspect":"1:1"}\n```';
+ state.xSource.mockResolvedValue({ url, title: 'Source guide', author: 'Lauren', content: 'A paragraph.\n\n' + code,
+  sha256: 'a'.repeat(64), kind: 'article', provenance: 'x-original-page', complete: true });
+ state.stream.mockImplementation(async (o: any) => {
+  const input = JSON.parse(o.messages[0].content);
+  o.onDelta(JSON.stringify({ translations: input.blocks.map((p: any) => ({ id: p.id, text: p.source.trim() })) }));
+ });
+ await mount(); await submit('完整翻译 ' + url);
+ await vi.waitFor(() => expect(state.histories[0]?.messages[1]?.content).toContain(code));
+ expect(document.querySelector('.clip-chat-body pre code')?.textContent).toBe('before\n\n\nafter\n');
+ expect(state.histories[0].messages[1].generatedImages).toBeUndefined();
+ expect(state.generate).not.toHaveBeenCalled();
+ chat.destroy(); await mount();
+ expect(document.querySelector('.clip-chat-body pre code')?.textContent).toContain('\n\n\n');
+ expect(state.generate).not.toHaveBeenCalled();
 });
 
 it('shows searched landscape photos inline without generation and retains them across history restoration', async () => {

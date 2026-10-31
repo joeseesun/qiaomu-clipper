@@ -156,3 +156,8 @@ it('reports a missing helper and a cancelled picker without throwing',async()=>{
  env.send.mockResolvedValue({ok:false,cancelled:true});expect(await pickAttachments()).toMatchObject({cancelled:true,items:[]});
  env.send.mockClear();discardAttachments([]);expect(env.send).not.toHaveBeenCalled();discardAttachments([id1]);expect(env.send.mock.calls[0][0].payload).toEqual({mode:'discard',ids:[id1]});
 });
+it('cancelling native confirmation skips large files while retaining small attachments',async()=>{
+ const small=new File(['hello'],'note.txt'),big=new File(['x'],'movie.mp4');Object.defineProperty(big,'size',{value:50*1024*1024});
+ env.send.mockImplementation(async message=>message.payload.mode==='local'?{ok:false,cancelled:true}:{ok:true,items:[{id:id1,name:'note.txt',size:5,kind:'other'}]});
+ expect(await addAttachments([big,small],'finder')).toEqual({items:[{id:id1,name:'note.txt',size:5,kind:'other'}],errors:[]});
+});

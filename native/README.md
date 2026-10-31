@@ -2,15 +2,17 @@
 
 Chrome 扩展通过 Native Messaging 按需调用助手，直接保存 Markdown 到指定 Obsidian 库，不使用 obsidian://、剪贴板或网络端口，也不唤起 Obsidian。
 
-安装（macOS / Linux / Windows，Chrome / Edge / Brave / Vivaldi / Chromium / Arc）：先在浏览器里装好扩展，然后无需任何参数：
+普通用户请使用[图形安装与 X 助手设置](X-HELPER-SETUP.md)。macOS / Windows 安装包自带 Python；插件自动检测，Grok 安装与浏览器登录均有按钮。测试版使用随版本提供的安装包。
+
+以下源码安装仅供开发和诊断（macOS / Linux / Windows，Chrome / Edge / Brave / Vivaldi / Chromium / Arc）：
 
 ```sh
 python3 native/install.py
 ```
 
-Windows 上如果没有 `python3` 命令，改用 `python native\install.py` 或 `py -3 native\install.py`。Windows 没有 Native Messaging 的清单目录，安装器会写一个 `host.bat` 启动器，并在 `HKCU\Software\<浏览器厂商>\NativeMessagingHosts\ai.qiaomu.clipper` 注册表项里登记（只写当前用户，不需要管理员权限）。「选择文件夹」用 Tkinter 弹窗；「无字幕视频本机生成字幕」的自动安装目前只在 macOS / Linux 验证过。
+Windows 上如果没有 `python3` 命令，改用 `python native\install.py` 或 `py -3 native\install.py`。Windows 没有 Native Messaging 的清单目录，安装器会写一个 `host.bat` 启动器，并在 `HKCU\Software\<浏览器厂商>\NativeMessagingHosts\ai.qiaomu.clipper` 注册表项里登记（只写当前用户，不需要管理员权限）。「选择文件夹」和附件选择使用捆绑的 Tkinter 弹窗。Windows x64 已验证助手安装生命周期、官方缓存安装本地字幕组件及真实音频推理；公网首次完整下载、X/Grok 联网和 Windows ARM64 仍待验收，见[验证说明](../docs/verification/windows-helper.md)。
 
-安装器会自动找到浏览器里的「乔木剪藏」扩展 ID（商店版与本地加载版都会识别，同时存在则都放行）和 Obsidian 库（读取 Obsidian 的库列表；有多个库时会列出并要求用 `--vault` 指定），为每个检测到的浏览器注册，最后用真实的 Native Messaging 协议自检，输出 JSON，`ok: true` 才算装好。需要 Python 3.9+。
+安装器会自动找到浏览器里的「乔木剪藏」扩展 ID（商店版与本地加载版都会识别，同时存在则都放行）和 Obsidian 库（读取 Obsidian 的库列表；有多个库时先选择最近打开的并列出候选，可从扩展设置重新选择），为每个检测到的浏览器注册，最后用真实的 Native Messaging 协议自检，输出 JSON，`ok: true` 才算装好。需要 Python 3.9+。
 
 遇到「本地保存助手未连接」，先诊断（不改任何文件）：
 
@@ -22,7 +24,7 @@ python3 native/install.py --check
 
 ### Windows
 
-Windows 目前使用源码安装助手。先安装 Python 3.9+，下载或克隆本仓库，在仓库目录打开 PowerShell，运行：
+普通用户打开对应架构的 `.exe` 安装包即可，详见[图形安装说明](X-HELPER-SETUP.md)。以下仅为开发者源码安装方式，需要 Python 3.9+：
 
 ```powershell
 python native/install.py
@@ -49,7 +51,7 @@ agent 注意：不要猜扩展 ID（商店版与本地加载版不同，猜错�
 
 日记使用电脑真实日期和该库 `.obsidian/daily-notes.json` 的目录配置；支持常见数字日期格式。复杂日期格式或已配置日记模板时明确报错，可通过更多菜单“添加到 Obsidian”保留原始行为。
 
-助手安装文件位于 `~/.local/share/qiaomu-clipper/`，Chrome 注册文件位于用户级 `NativeMessagingHosts/ai.qiaomu.clipper.json`。助手不常驻（只有「生成字幕」任务运行期间，会有一个后台识别进程，结束即退出）。卸载：扩展设置 →「本地助手」→「卸载助手」，确认后输入 Mac 密码，会一并删除安装包文件、各浏览器的注册文件、助手目录和独立运行环境；保留笔记和共享模型缓存；助手连不上时，在终端运行 `/Library/QiaomuClipper/bin/qiaomu-helper --uninstall`。如只想停用连接，移除注册文件即可；如需恢复 URI 保存，可清除扩展本地存储的 `qiaomuNativeConfigured` 标记。不要清除全部扩展存储，以免丢失模板和待提交内容。
+助手安装文件位于 `~/.local/share/qiaomu-clipper/`，Chrome 注册文件位于用户级 `NativeMessagingHosts/ai.qiaomu.clipper.json`。助手按需启动；字幕、下载、X 读取或登录等任务可启动有超时与取消机制的后台工作进程。卸载：扩展设置 →「本地助手」→「卸载助手」。macOS 确认后输入系统密码；Windows 打开已注册的系统卸载程序，取消不会报告卸载成功。完成后删除安装包文件、浏览器注册、助手设置和独立环境，保留笔记与共享模型缓存；重装需重新确认笔记库。Windows 也可从系统设置 → 应用卸载；macOS 开发诊断可用 `/Library/QiaomuClipper/bin/qiaomu-helper --uninstall`。如只想停用连接，移除注册文件即可；如需恢复 URI 保存，可清除扩展本地存储的 `qiaomuNativeConfigured` 标记。不要清除全部扩展存储，以免丢失模板和待提交内容。
 
 测试：`python3 -m unittest discover -s native -p 'test_*.py'`。
 

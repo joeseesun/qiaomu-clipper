@@ -1,0 +1,23 @@
+.qm-x-setup {
+	box-sizing: border-box; width: min(520px, calc(100vw - 24px)); max-height: calc(100vh - 32px); overflow: auto;
+	padding: 24px; border: 1px solid var(--background-modifier-border, #d1d5db); border-radius: 12px;
+	background: var(--background-primary, #fff); color: var(--text-normal, #222); font: 14px/1.6 system-ui, sans-serif;
+	&::backdrop { background: #0006; }
+	h2 { margin: 0 0 12px; font-size: 20px; }
+	p { margin: 12px 0; overflow-wrap: anywhere; }
+	.qm-x-setup-note { color: var(--text-muted, #666); font-size: 13px; }
+	.qm-x-setup-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+	button, a.qm-x-setup-primary { display: inline-flex; align-items: center; justify-content: center; width: auto; min-height: 40px; padding: 7px 12px; border: 1px solid var(--background-modifier-border, #ccc); border-radius: 7px; color: inherit; background: transparent; font: inherit; cursor: pointer; text-decoration: none; }
+	button:hover:not(:disabled), a:hover { filter: brightness(.92); }
+	button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px solid var(--interactive-accent, #3759c7); outline-offset: 3px; }
+	button:active:not(:disabled) { transform: translateY(1px); }
+	.qm-x-setup-requirements { border-block: 1px solid var(--background-modifier-border, #d1d5db); padding: 12px 0; margin: 20px 0; }
+	summary { cursor: pointer; font-weight: 600; }
+	.qm-x-setup-links { display: flex; gap: 16px; }
+	.qm-x-setup-links a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+	.qm-x-setup-footer { justify-content: flex-end; }
+	.qm-x-setup-primary { background: var(--interactive-accent, #3759c7); color: var(--text-on-accent, #fff); border-color: transparent; }
+	button:disabled { opacity: .5; cursor: default; }
+	progress { width: 100%; }
+	[hidden] { display: none !important; }
+}

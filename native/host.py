@@ -60,6 +60,16 @@ def vault_directory(value):
     selected=Path(value).resolve()
     if not selected.is_dir() or not (selected/'.obsidian').is_dir(): raise ValueError('该文件夹不是已有的 Obsidian 笔记库，请选择包含 .obsidian 的库目录')
     return selected
+def tk_dialog(method, **options):
+    # The Windows installer includes Tcl/Tk with Python. Keep the native dialog
+    # above the browser; the host has no visible application window of its own.
+    import tkinter
+    from tkinter import filedialog
+    window=tkinter.Tk();window.withdraw()
+    try:
+        window.attributes('-topmost',True)
+        return getattr(filedialog,method)(parent=window,**options)
+    finally: window.destroy()
 def choose_vault(initial=None, prompt='请选择 Obsidian 笔记库文件夹（包含 .obsidian 的目录）'):
     if sys.platform=='darwin':
         script='on run argv\nactivate\nreturn POSIX path of (choose folder with prompt (item 2 of argv) default location (POSIX file (item 1 of argv)))\nend run'
@@ -70,11 +80,7 @@ def choose_vault(initial=None, prompt='请选择 Obsidian 笔记库文件夹（�
             raise ValueError('无法打开文件夹选择器，请手动填写库地址')
         return result.stdout.rstrip('\n')
     try:
-        import tkinter
-        from tkinter import filedialog
-        window=tkinter.Tk();window.withdraw()
-        try: return filedialog.askdirectory(title=prompt,initialdir=initial or str(Path.home()),mustexist=True) or None
-        finally: window.destroy()
+        return tk_dialog('askdirectory',title=prompt,initialdir=initial or str(Path.home()),mustexist=True) or None
     except Exception as e: raise ValueError('此系统无法打开文件夹选择器，请手动填写库地址') from e
 
 def learning_daily_target(root, vault=''):
@@ -151,9 +157,13 @@ def run_osascript(script,args=(),language=None):
     command=['/usr/bin/osascript']+(['-l',language] if language else [])+['-e',script,*map(str,args)]
     return subprocess.run(command,capture_output=True,text=True)
 SEPARATOR='\x1e'
-def pick_files():
+def pick_files(prompt='请选择要加入笔记的附件'):
+    if sys.platform!='darwin':
+        try:
+            return list(tk_dialog('askopenfilenames',title=prompt,initialdir=str(Path.home()))) or None
+        except Exception as error: raise ValueError('无法打开文件选择器，请重试') from error
     script='on run argv\nactivate\nset chosen to choose file with prompt (item 1 of argv) with multiple selections allowed\nset out to {}\nrepeat with f in chosen\nset end of out to POSIX path of f\nend repeat\nset AppleScript\'s text item delimiters to (ASCII character 30)\nreturn out as text\nend run'
-    result=run_osascript(script,['请选择要加入笔记的附件'])
+    result=run_osascript(script,[prompt])
     if result.returncode:
         if '(-128)' in result.stderr: return None
         raise ValueError('无法打开文件选择器')
@@ -185,7 +195,10 @@ def attach(message,base):
         return {'ok':True,'items':items}
     if action=='attachPick': paths=pick_files()
     elif action=='attachLocal':
-        paths=clipboard_files() if message.get('source')=='clipboard' else finder_files()
+        # A browser hides local paths. On non-macOS systems confirm large pasted
+        # or dropped files with the native picker instead of invoking Finder.
+        paths=(clipboard_files() if message.get('source')=='clipboard' else finder_files()) if sys.platform=='darwin' else pick_files('请重新选择刚添加的大文件，以确认本机文件位置')
+        if paths is None: return {'ok':False,'cancelled':True}
         wanted=[(str(x.get('name')),x.get('size')) for x in (message.get('names') or []) if isinstance(x,dict)]
         # Only the files the page actually received: the clipboard or Finder selection may hold others.
         if wanted: paths=[x for x in paths if any(Path(x).name==n and (s is None or (Path(x).is_file() and Path(x).stat().st_size==s)) for n,s in wanted)]
@@ -212,7 +225,8 @@ def publish_file(data,final):
     try:
         clone_or_copy(data,temp)
         if temp.stat().st_size!=data.stat().st_size: raise OSError('复制不完整')
-        fd=os.open(temp,os.O_RDONLY)
+        # Windows _commit (fsync) requires a writable handle, even after copying.
+        fd=os.open(temp,os.O_RDWR)
         try: os.fsync(fd)
         finally: os.close(fd)
         try: os.link(temp,final)
@@ -270,7 +284,7 @@ def save_learning(message, root, base):
     vault=message.get('vault') or ''
     if vault and vault not in {root.name,str(root)}: return {'status':'failed','error':'所选库与本地助手配置不一致'}
     ids=message.get('attachments') or []
-    if not isinstance(ids,list) or len(ids)>MAX_ATTACHMENTS or len(set(ids))!=len(ids) or any(not isinstance(x,str) or not re.fullmatch(r'[0-9a-f]{32}',x) or marker(x) not in content for x in ids): return {'status':'failed','error':'附件列表无效'}
+    if not isinstance(ids,list) or len(ids)>MAX_ATTACHMENTS or any(not isinstance(x,str) or not re.fullmatch(r'[0-9a-f]{32}',x) or marker(x) not in content for x in ids) or len(set(ids))!=len(ids): return {'status':'failed','error':'附件列表无效'}
     digest=hashlib.sha256(content.encode('utf8')).hexdigest()
     def render(links):
         text=content
@@ -357,6 +371,12 @@ def obsidian_vaults():
         return [{'name':Path(v['path']).name,'path':str(Path(v['path']))} for v in found][:20]
     return []
 def handle(message, config, base):
+    if message.get('action') in {'xSetupStatus','xSetupStart','xSetupPoll','xSetupCancel'}:
+        import x_setup
+        return x_setup.handle(message, base)
+    if message.get('action') in {'xArticleStatus','xArticleStart','xArticlePoll','xArticleRead','xArticleCancel'}:
+        import x_articles
+        return x_articles.handle(message, base)
     if message.get('action') in {'codexImageStatus','codexImageStart','codexImagePoll','codexImageRead','codexImageCancel'}:
         import codex_images
         return codex_images.handle(message, base)
@@ -376,9 +396,9 @@ def handle(message, config, base):
     if message.get('action') in {'helperUninstallPlan','helperUninstall'}:
         # Taking the whole helper away: refused while a subtitle job or engine install is running.
         sys.path.insert(0,str(Path(__file__).resolve().parent))
-        import asr,uninstall,codex_images
+        import asr,uninstall,codex_images,x_articles,x_setup
         if message['action']=='helperUninstallPlan': return {'ok':True,**uninstall.plan()}
-        if asr.active_job(base)[0] or asr.active_install(base)[0] or codex_images.active_job(base): return {'ok':False,'error':'busy'}
+        if asr.active_job(base)[0] or asr.active_install(base)[0] or codex_images.active_job(base) or x_articles.active_job(base) or x_setup.active_job(base): return {'ok':False,'error':'busy'}
         return uninstall.run()
     if message.get('action') in {'mediaDownloadStart','mediaDownloadPoll','mediaDownloadCancel','mediaDownloadReveal','asrStatus','asrStart','asrPoll','asrCancel','asrCloudTest','asrInstall','asrInstallPoll','asrInstallCancel','asrUninstall','asrUploadStart','asrUploadChunk','asrUploadFinish','asrProbe'}:
         # Subtitle generation lives in asr.py next to this file; it needs no vault.
@@ -448,7 +468,7 @@ def handle(message, config, base):
                 os.replace(name,target)
             finally:
                 if os.path.exists(name): os.unlink(name)
-        result={'ok':True,'vault':root.name,'path':str(target),'relativePath':str(target.relative_to(root))}
+        result={'ok':True,'vault':root.name,'path':str(target),'relativePath':target.relative_to(root).as_posix()}
         receipts[request_id]={'fingerprint':fingerprint,'result':result}
         atomic_json(receipt_file,dict(list(receipts.items())[-500:]))
         return result

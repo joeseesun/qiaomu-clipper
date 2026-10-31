@@ -1,9 +1,11 @@
 import type { UnsplashPhoto } from './image-library-sources';
 import { TOKEN_PLAN_TOOLS, type TokenPlanTool } from './token-plan';
+import { xArticleUrl, MAX_X_ARTICLE_CHARS } from './x-article';
 
 export type ImageOrientation = '' | 'landscape' | 'portrait' | 'squarish';
 export interface ImageSearchCall { type: 'search_images'; query: string; label: string; count: number; page: number; orientation: ImageOrientation; color: string }
 export type ChatToolCall = ImageSearchCall | { type: 'search_web'; query: string } | { type: 'read_web'; url: string }
+	| { type: 'read_x'; url: string }
 	| { type: 'use_image'; id: string; action: 'insert' | 'save' }
 	| { type: 'provider_tool'; tool: TokenPlanTool; label: string };
 export interface SearchSource { title: string; url: string; snippet: string; content?: string; date?: string }
@@ -11,6 +13,8 @@ export interface ChatToolResult {
 	id: string; call: ChatToolCall; state: 'running' | 'done' | 'error'; error?: string;
 	photos?: UnsplashPhoto[]; sources?: SearchSource[]; content?: string;
 	code?: string; logs?: string; images?: { title: string; url: string }[];
+	xArticle?: { jobId: string; sha256: string; chars: number; kind: 'post' | 'article' };
+	xSetup?: 'helper' | 'grok' | 'login'; xRequest?: string;
 }
 export interface ChatCapabilities { web: boolean; webEnabled: boolean; webProvider: string; images: boolean; fetch: boolean; native?: TokenPlanTool[] }
 export const IMAGE_COLORS = ['black_and_white', 'black', 'white', 'yellow', 'orange', 'red', 'purple', 'magenta', 'green', 'teal', 'blue'];
@@ -50,6 +54,16 @@ export function parseChatTools(reply: string): { text: string; calls: ChatToolCa
 }
 export function normalizeToolResults(raw: unknown): ChatToolResult[] {
 	return (Array.isArray(raw) ? raw : []).slice(0, 10).flatMap(item => {
+		if (item?.call?.type === 'read_x') {
+			const url = xArticleUrl(item.call.url), x = item.xArticle;
+			if (!url || typeof item.id !== 'string') return [];
+			const valid = x && /^[a-f0-9-]{36}$/.test(x.jobId) && /^[a-f0-9]{64}$/.test(x.sha256) && Number.isSafeInteger(x.chars) && x.chars > 0 && x.chars <= MAX_X_ARTICLE_CHARS && ['post', 'article'].includes(x.kind);
+			return [{ id: item.id.slice(0, 100), call: { type: 'read_x' as const, url }, state: item.state === 'done' && valid ? 'done' as const : 'error' as const,
+				...(valid ? { xArticle: { jobId: x.jobId, sha256: x.sha256, chars: x.chars, kind: x.kind } } : {}),
+				...(['helper', 'grok', 'login'].includes(item.xSetup) ? { xSetup: item.xSetup } : {}),
+				...(typeof item.xRequest === 'string' ? { xRequest: item.xRequest } : {}),
+				sources: [{ title: text(item.sources?.[0]?.title, 300) || url, url, snippet: '' }], ...(item.error ? { error: text(item.error, 500) } : item.state !== 'done' || !valid ? { error: 'interrupted' } : {}) }];
+		}
 		if (item?.call?.type === 'provider_tool') {
 			const result = normalizeNativeResult(item, true);
 			return result ? [result] : [];

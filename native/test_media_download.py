@@ -1,6 +1,7 @@
 import json, sys, tempfile, unittest
 from pathlib import Path
 from unittest.mock import patch
+from test_support import directory_link
 sys.path.insert(0, str(Path(__file__).parent))
 import asr, media_download as media
 
@@ -33,7 +34,7 @@ class DownloadTests(unittest.TestCase):
                 target=media.export_file(directory,source,'../../a:b');self.assertEqual(target.parent,(home/'Downloads'/'Qiaomu Clipper').resolve());self.assertEqual(target.read_bytes(),b'media');self.assertNotIn('/',target.name)
                 with self.assertRaises(FileExistsError):media.export_file(directory,source,'../../a:b')
                 self.assertFalse(list(target.parent.glob('*.part')))
-                target.unlink();target.parent.rmdir();target.parent.symlink_to(directory,target_is_directory=True)
+                target.unlink();target.parent.rmdir();directory_link(target.parent,directory)
                 with self.assertRaises(ValueError):media.export_file(directory,source,'Test')
 
     def test_youtube_is_accepted_only_as_an_explicit_watch_page(self):

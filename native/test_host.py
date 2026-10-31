@@ -1,6 +1,7 @@
-import datetime, importlib.util, json, struct, subprocess, sys, tempfile, unittest, uuid
+import datetime, os, importlib.util, json, struct, subprocess, sys, tempfile, unittest, uuid
 from pathlib import Path
 from unittest.mock import patch
+from test_support import directory_link
 spec=importlib.util.spec_from_file_location('clipper_host',Path(__file__).with_name('host.py'));host=importlib.util.module_from_spec(spec);spec.loader.exec_module(host)
 class NativeSaveTests(unittest.TestCase):
  def setUp(self):
@@ -15,7 +16,7 @@ class NativeSaveTests(unittest.TestCase):
  def test_reject_escape_hidden_and_vault_mismatch(self):
   for p in [self.payload(folder='../outside'),self.payload(folder='/tmp'),self.payload(folder='.obsidian'),self.payload(name='../x.md'),self.payload(name='x.js'),self.payload(vault='other')]:
    with self.assertRaises(ValueError):self.save(p)
-  outside=self.base/'outside';outside.mkdir();(self.vault/'link').symlink_to(outside,target_is_directory=True)
+  outside=self.base/'outside';outside.mkdir();directory_link(self.vault/'link',outside)
   with self.assertRaises(ValueError):self.save(self.payload(folder='link'))
   self.assertFalse(list(outside.iterdir()))
  def test_daily_uses_real_local_date_and_configured_folder(self):
@@ -72,7 +73,7 @@ class NativeSaveTests(unittest.TestCase):
   with patch.object(host,'choose_vault',return_value=str(self.vault)):self.assertEqual(self.save({'action':'chooseNoteFolder'})['folder'],'')
   with patch.object(host,'choose_vault',return_value=None):self.assertTrue(self.save({'action':'chooseNoteFolder'})['cancelled'])
  def test_note_folder_picker_rejects_outside_hidden_and_wrong_vault(self):
-  outside=self.base/'outside';outside.mkdir();(self.vault/'escape').symlink_to(outside,target_is_directory=True)
+  outside=self.base/'outside';outside.mkdir();directory_link(self.vault/'escape',outside)
   for folder in [outside,self.vault/'.obsidian',self.vault/'escape']:
    with patch.object(host,'choose_vault',return_value=str(folder)):
     with self.assertRaises(ValueError):self.save({'action':'chooseNoteFolder'})
@@ -90,5 +91,5 @@ class NativeSaveTests(unittest.TestCase):
   (cfg/'obsidian.json').write_text(json.dumps({'vaults':{'1':{'path':str(a),'ts':1},'2':{'path':str(b),'ts':5},'3':{'path':str(gone),'ts':9}}}))
   with patch.object(Path,'home',return_value=home):result=host.handle({'action':'listVaults'},{'vault':str(a)},self.state)
   self.assertEqual([v['name'] for v in result['vaults']],['B','A']);self.assertEqual(result['current'],str(a));self.assertTrue(result['ok'])
-  with patch.object(Path,'home',return_value=self.base/'nowhere'):self.assertEqual(host.handle({'action':'listVaults'},{},self.state)['vaults'],[])
+  with patch.object(Path,'home',return_value=self.base/'nowhere'),patch.dict(os.environ,{'APPDATA':str(self.base/'missing-appdata')}):self.assertEqual(host.handle({'action':'listVaults'},{},self.state)['vaults'],[])
 if __name__=='__main__':unittest.main()
