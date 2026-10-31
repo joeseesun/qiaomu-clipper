@@ -166,6 +166,22 @@
       ]
     },
     {
+      "id": "study-original-language",
+      "title": "沉浸学习保留原文与译文，避免浏览器整页翻译二次改写",
+      "origin": "双语文稿重复中文修复",
+      "files": [
+        "src/core/reader-view.ts",
+        "src/utils/reader.ts",
+        "src/utils/youtube-study.ts"
+      ],
+      "tests": [
+        "src/utils/youtube-study.test.ts",
+        "src/utils/youtube-translation.test.ts",
+        "src/utils/transcript-format.test.ts",
+        "src/utils/transcript-export.test.ts"
+      ]
+    },
+    {
       "id": "doubao-word-captions",
       "title": "豆包逐字/逐词时间与播放器卡拉 OK 高亮",
       "origin": "codex/doubao-karaoke",
@@ -203,6 +219,22 @@
         "src/utils/player-captions.test.ts",
         "src/utils/caption-mode-menu.test.ts",
         "src/utils/caption-geometry.test.ts"
+      ]
+    },
+    {
+      "id": "native-youtube-caption-fullscreen",
+      "title": "YouTube 原生全屏按钮、F 键和双击自动带入双语字幕",
+      "origin": "沉浸学习全屏字幕修复",
+      "files": [
+        "src/utils/player-fullscreen.ts",
+        "src/utils/embedded-player-interaction.ts",
+        "src/utils/player-captions.ts"
+      ],
+      "tests": [
+        "src/utils/player-fullscreen.test.ts",
+        "src/utils/embedded-player-interaction.test.ts",
+        "src/utils/player-captions.test.ts",
+        "src/utils/player-caption-interaction.test.ts"
       ]
     },
     {
@@ -261,6 +293,20 @@
         "src/utils/player-caption-interaction.test.ts",
         "src/utils/embedded-player-interaction.test.ts",
         "src/utils/study-caption-language.test.ts"
+      ]
+    },
+    {
+      "id": "study-control-contrast",
+      "title": "深色主题的学习按钮、菜单和小技巧保持可读对比度",
+      "origin": "沉浸学习控件对比度修复",
+      "files": [
+        "src/reader.scss",
+        "src/styles/reader/study-controls.scss"
+      ],
+      "tests": [
+        "src/utils/study-tips.test.ts",
+        "src/utils/caption-mode-menu.test.ts",
+        "src/utils/player-caption-interaction.test.ts"
       ]
     },
     {

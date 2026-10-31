@@ -33,10 +33,16 @@ type MessageListener = (request: any, sender: any, sendResponse: (response?: any
 let readerPageMessageListener: MessageListener | null = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
+	const params = new URLSearchParams(window.location.search);
+	// Study owns its original/translation pairs. Whole-page translation would
+	// rewrite both the source text and the language controls a second time.
+	if (params.has('study')) {
+		document.documentElement.translate = false;
+		document.documentElement.classList.add('notranslate');
+	}
 	await applyReaderTheme();
 	await initializeI18n();
 
-	const params = new URLSearchParams(window.location.search);
 	const playback = params.has('study') ? takeStudyPlayback(window) : undefined;
 	const previewId = params.get('preview');
 	if (previewId) { await showClipPreview(previewId); return; }

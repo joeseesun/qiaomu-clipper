@@ -1,0 +1,46 @@
+// Reader palettes do not define --background-secondary. Keep these light study
+// controls paired with dark ink instead of inheriting the page's light text.
+html.obsidian-reader-active {
+	--study-control-background: #eee;
+	--study-control-hover: #ddd;
+	--study-control-text: #222;
+	--study-tip-background: #f5f5f5;
+
+	&.theme-dark {
+		// Match the enabled bilingual-caption button in each dark reader palette.
+		--study-control-text: var(--background-primary, #111);
+	}
+
+	:is(.q-caption-controls, .q-caption-menu, .q-player-caption-panel, .q-caption-editor) button,
+	button.clip-transcript-cancel {
+		background: var(--study-control-background) !important;
+		color: var(--study-control-text) !important;
+
+		&:hover { background: var(--study-control-hover) !important; }
+	}
+
+	// Keep the caption toggle's existing selected state distinct from its neighbors.
+	.q-caption-controls > button[aria-pressed="true"] {
+		background: var(--text-normal, #222) !important;
+		color: var(--background-primary, #fff) !important;
+	}
+
+	.q-caption-menu-items {
+		background: var(--study-control-background) !important;
+		color: var(--study-control-text) !important;
+	}
+	.q-caption-menu .q-caption-menu-items button {
+		background: transparent !important;
+		color: var(--study-control-text) !important;
+
+		&:hover, &:focus-visible { background: var(--study-control-hover) !important; }
+	}
+
+	.q-study-tips {
+		background: var(--study-tip-background) !important;
+		color: var(--study-control-text) !important;
+
+		strong, .q-study-tip-text, button { color: inherit !important; }
+		button:hover { background: var(--study-control-hover) !important; }
+	}
+}
