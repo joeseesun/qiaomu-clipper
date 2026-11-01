@@ -12,6 +12,8 @@ export async function executeChatTool(raw: any, signal: AbortSignal): Promise<un
 		const provider = selectedSearchProvider(web);
 		if (typeof raw.modelId === 'string') await loadSettings();
 		const model = generalSettings.models.find(m => m.enabled && m.id === raw.modelId);
+		if (model && generalSettings.providers.some(p => p.id === model.providerId && p.oauth?.kind === 'codex'))
+			return { web: true, webEnabled: web.enabled, webProvider: 'Codex', images: false, fetch: true, codex: true } satisfies ChatCapabilities;
 		const native = model ? tokenPlanProfile(generalSettings.providers.find(p => p.id === model.providerId), model.providerModelId, typeof raw.reasoningEffort === 'string' ? raw.reasoningEffort : undefined) : undefined;
 		return { web: !!native || !!provider, webEnabled: web.enabled, webProvider: native ? 'Token Plan' : provider || '', images: !!(images.key || images.proxy), fetch: !!native || !!provider, ...(native ? { native: native.tools } : {}) } satisfies ChatCapabilities;
 	}

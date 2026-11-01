@@ -6,6 +6,7 @@ import { t } from './ui-text';
 import type { UnsplashPhoto } from './image-library-sources';
 import { parseReply } from '../write/ai/protocol';
 import { tokenPlanInstructions } from './token-plan';
+import { generalSettings } from './storage-utils';
 
 type StreamOptions = Parameters<typeof streamChat>[0];
 export interface AgentOptions extends Omit<StreamOptions, 'onDelta'> {
@@ -49,8 +50,20 @@ export function preferImageSearch(question: string, previous: ChatToolResult[] =
 		|| (previous.some(r => r.call.type === 'search_images' && r.photos?.length) && /换一批|再来|再找|横版|竖版|黑白|more|another|landscape|portrait/i.test(question));
 }
 export async function streamChatAgent(options: AgentOptions): Promise<string> {
+	const codex = generalSettings.providers?.some(p => p.id === options.model.providerId && p.oauth?.kind === 'codex');
+	const initialCapabilities: ChatCapabilities = options.capabilities ?? await chatCapabilities(options.signal, options.model.id, options.reasoningEffort).catch(error => {
+		if (codex) throw error; // Never silently fall back to the old text-only OAuth path.
+		return { web: false, webEnabled: true, webProvider: '', images: false, fetch: false };
+	});
+	if (codex || initialCapabilities.codex) {
+		let streamed = '';
+		const answer = await streamChat({ ...options, nativeTools: true, onNativeTools: options.onTools,
+			onDelta: delta => { streamed += delta; options.onText(streamed); } });
+		options.onText(answer);
+		return answer;
+	}
 	const { onText, onTools, previousTools = [], onUseImage, canInsert = false, capabilities, ...base } = options;
-	const c: ChatCapabilities = capabilities ?? await chatCapabilities(base.signal, base.model.id, base.reasoningEffort).catch(() => ({ web: false, webEnabled: true, webProvider: '', images: false, fetch: false }));
+	const c: ChatCapabilities = initialCapabilities;
 	base.signal?.throwIfAborted();
 	if (c.native?.length) {
 		let answer = '';

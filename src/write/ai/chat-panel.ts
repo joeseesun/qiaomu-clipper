@@ -401,6 +401,7 @@ export function mountChatPanel(host: ChatHost) {
 		const request = new AbortController();
 		controller = request;
 		const chosen = models.find(m => m.id === model.value) ?? models[0];
+		const nativeCodex = generalSettings.providers.some(p => p.id === chosen.providerId && p.oauth?.kind === 'codex');
 		void setLocalStorage(MODEL_KEY, chosen.id);
 		const level = modelEffort(chosen);
 		const { editor } = host;
@@ -422,14 +423,16 @@ export function mountChatPanel(host: ChatHost) {
 		let idle = 0;
 		let completed = false;
 		const active = () => !disposed && current === owner && controller === request && !request.signal.aborted;
-		const watch = () => { window.clearTimeout(idle); idle = window.setTimeout(() => { stalled = true; request.abort(); }, IDLE_MS); };
+		// Native Codex may reason silently for several minutes. Its connection and
+		// terminal events own liveness; the user can always stop the turn.
+		const watch = () => { window.clearTimeout(idle); if (!nativeCodex) idle = window.setTimeout(() => { stalled = true; request.abort(); }, IDLE_MS); };
 		watch();
 		try {
 			imageReady = readyModels(await loadImageModels()).length > 0;
 			if (!active()) return;
 			const system = buildSystemPrompt({ ...systemContext, imageReady });
 			await streamChatAgent({
-				model: chosen, system, messages: turns, signal: request.signal, reasoningEffort: level,
+				model: chosen, system, messages: turns, sessionId: owner.id, signal: request.signal, reasoningEffort: level,
 				onThought: delta => { if (!active()) return; watch(); reply.thought = (reply.thought ?? '') + delta; reply.thinkMs = Date.now() - started; schedule(); },
 				previousTools: owner.messages.flatMap(m => m.tools || []), canInsert: true,
 				onUseImage: async (photo, action) => { const blob = await keepChatPhoto(photo, request.signal); if (active() && action === 'insert') await insertPhoto(photo, blob, active); },

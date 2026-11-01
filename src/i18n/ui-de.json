@@ -1496,5 +1496,8 @@
  "模型服务已达到单次输出上限，回答尚未完成。": "Das Ausgabelimit des Dienstes wurde erreicht. Die Antwort ist unvollständig.",
  "网页超过附件读取上限，请下载正文后粘贴到对话框。": "Die Seite überschreitet das Leselimit für Anhänge. Laden Sie den Text herunter und fügen Sie ihn in den Chat ein.",
  "留空时优先使用服务商公布的模型上限，未公布则沿用服务默认值。可按该服务的文档填写，不能超过服务端上限。": "Leer lassen, um das veröffentlichte Modelllimit zu verwenden, andernfalls den Standardwert des Dienstes. Sie können den dokumentierten Wert eintragen; das Serverlimit gilt weiterhin.",
- "本次完整内容超过了模型服务允许的上下文长度。": "Die vollständige Anfrage überschreitet die vom Dienst erlaubte Kontextlänge."
+ "本次完整内容超过了模型服务允许的上下文长度。": "Die vollständige Anfrage überschreitet die vom Dienst erlaubte Kontextlänge.",
+ "页面内查找": "Auf der Seite suchen",
+ "原生会话": "Native Unterhaltung",
+ "执行进度": "Fortschritt"
 }

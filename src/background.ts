@@ -1380,8 +1380,8 @@ browser.runtime.onConnect.addListener(port => {
 			if (!model || typeof request.system !== 'string' || !Array.isArray(request.messages)
 				|| (request.sessionId !== undefined && !validChatSession(request.sessionId))
 				|| !validChatTurns(request.messages)) throw new Error(t('无效的 AI 对话请求'));
-			await streamChat({ model, system: request.system, sessionId: request.sessionId, messages: request.messages, reasoningEffort: validEffort(request.reasoningEffort), nativeTools: request.nativeTools === true, signal: controller.signal, onDelta: delta => send({ delta }), onThought: thought => send({ thought }), onNativeTools: nativeTools => send({ nativeTools }) });
-			send({ done: true });
+			const answer = await streamChat({ model, system: request.system, sessionId: request.sessionId, messages: request.messages, reasoningEffort: validEffort(request.reasoningEffort), nativeTools: request.nativeTools === true, signal: controller.signal, onDelta: delta => send({ delta }), onThought: thought => send({ thought }), onNativeTools: nativeTools => send({ nativeTools }) });
+			send({ done: true, answer });
 		} catch (error) {
 			const code = error instanceof Error && 'code' in error ? error.code : undefined;
 			send({ error: error instanceof Error ? error.message : t('AI 请求失败'),

@@ -10,6 +10,7 @@ import { normalizeNativeResult, type ChatToolResult } from './chat-tools-types';
 import { loadWebSearch } from './web-search';
 import { positiveTokenLimit, resolveOutputLimit } from './model-limits';
 import { ChatCapacityError, checkChatCapacityError, checkStreamEvent } from './chat-capacity';
+import { streamCodexChat } from './codex-chat';
 
 import { t } from './ui-text';
 import { opencodeHeaders, supportsOpenCodeGoChat } from './opencode-go';
@@ -140,12 +141,12 @@ function streamViaBackground(options: StreamOptions): Promise<string> {
 		};
 		const abort = () => finish(new DOMException('Aborted', 'AbortError'));
 		port.onMessage.addListener(raw => {
-			const message = raw as { delta?: string; thought?: string; nativeTools?: unknown[]; error?: string; code?: string; done?: boolean };
+			const message = raw as { delta?: string; thought?: string; nativeTools?: unknown[]; error?: string; code?: string; done?: boolean; answer?: string };
 			if (typeof message.delta === 'string') { answer += message.delta; options.onDelta(message.delta); }
 			if (typeof message.thought === 'string') options.onThought?.(message.thought);
 			if (Array.isArray(message.nativeTools)) options.onNativeTools?.(message.nativeTools.flatMap(item => { const result = normalizeNativeResult(item); return result ? [result] : []; }));
 			if (message.error) finish(message.code === 'context-limit' || message.code === 'output-limit' ? new ChatCapacityError(message.code) : new Error(message.error));
-			else if (message.done) finish();
+			else if (message.done) { if (typeof message.answer === 'string') answer = message.answer; finish(); }
 		});
 		port.onDisconnect.addListener(() => finish(new Error(t('AI 连接已中断，请重试'))));
 		if (options.signal?.aborted) { abort(); return; }
@@ -165,6 +166,11 @@ export async function streamChat({ model: chosen, system, messages, signal, onDe
 	const provider = generalSettings.providers.find(p => p.id === model.providerId);
 	if (!provider) throw new Error(`Provider not found for model ${model.name}`);
 	if (!provider.oauth && provider.apiKeyRequired && !provider.apiKey) throw new Error(`API key is not set for provider ${provider.name}`);
+
+	if (provider.oauth?.kind === 'codex' && nativeTools) {
+		if (typeof document !== 'undefined') return streamViaBackground({ model: chosen, system, messages, signal, onDelta, onThought, sessionId, reasoningEffort: effort, nativeTools, onNativeTools });
+		return streamCodexChat({ provider, model, system, messages, signal, onDelta, onThought, sessionId, onNativeTools });
+	}
 
 	if (!provider.oauth && !supportsOpenCodeGoChat(provider.baseUrl, model.providerModelId)) throw new Error(t('此 OpenCode Go 模型或端点尚不支持，请从聊天模型列表中选择。'));
 	const native = nativeTools && !provider.oauth ? tokenPlanProfile(provider, model.providerModelId, effort) : undefined;

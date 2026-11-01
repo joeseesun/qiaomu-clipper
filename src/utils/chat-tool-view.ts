@@ -93,10 +93,10 @@ export function mountChatTools(parent: HTMLElement, results: ChatToolResult[], o
 
 function mountNativeTool(parent: HTMLElement, result: ChatToolResult, options: ToolViewOptions): void {
 	if (result.call.type !== 'provider_tool') return;
-	const names = { web_search: t('联网搜索'), web_extractor: t('读取网页'), code_interpreter: t('运行 Python'), web_search_image: t('文字搜图'), image_search: t('以图搜图') };
+	const names = { web_search: t('联网搜索'), web_extractor: t('读取网页'), web_find: t('页面内查找'), codex_session: t('原生会话'), codex_progress: t('执行进度'), code_interpreter: t('运行 Python'), web_search_image: t('文字搜图'), image_search: t('以图搜图') };
 	const name = names[result.call.tool];
 	const card = h('section', { class: 'qm-tool-result', 'aria-busy': String(result.state === 'running') });
-	card.append(h('div', { class: 'qm-tool-title', text: `${name} · Token Plan` }));
+	card.append(h('div', { class: 'qm-tool-title', text: `${name} · ${result.call.provider === 'codex' ? 'Codex' : 'Token Plan'}` }));
 	if (result.call.label) card.append(h('p', { class: 'qm-tool-status', text: result.call.label }));
 	card.append(h('p', { class: 'qm-tool-status', role: 'status', text: result.state === 'running' ? t('正在执行…') : result.state === 'done' ? t('已完成') : result.error === 'interrupted' ? t('工具执行已中断') : result.error || t('工具执行失败') }));
 	if (result.state === 'error' && !options.readOnly) card.append(h('button', { type: 'button', text: t('重试'), onclick: () => options.followup(t('请重试刚才未完成的工具操作。')) }));
@@ -111,7 +111,7 @@ function mountNativeTool(parent: HTMLElement, result: ChatToolResult, options: T
 			h('img', { src: picture.url, alt: picture.title, loading: 'lazy', referrerpolicy: 'no-referrer' }), h('span', { text: String(index + 1) })));
 		card.append(grid);
 	}
-	for (const [label, value] of [[t('执行代码'), result.code], [t('执行结果'), result.logs], [t('网页内容'), result.content]]) if (value) {
+	for (const [label, value] of [[t('执行代码'), result.code], [t('执行结果'), result.logs], [result.call.tool === 'codex_progress' ? t('执行结果') : t('网页内容'), result.content]]) if (value) {
 		const pre = h('pre', { text: value }); pre.style.cssText = 'white-space:pre-wrap;overflow-wrap:anywhere;max-height:320px;overflow:auto';
 		card.append(h('details', {}, h('summary', { text: label }), pre));
 	}

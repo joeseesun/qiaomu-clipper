@@ -1,5 +1,7 @@
 # 本地静默剪藏助手
 
+Codex 原生网页对话使用另一个独立助手，安装条件和限制见 [Codex 原生对话助手](CODEX-CHAT.md)。下述安装命令只安装剪藏/媒体助手，不会安装 Codex 对话助手。
+
 Chrome 扩展通过 Native Messaging 按需调用助手，直接保存 Markdown 到指定 Obsidian 库，不使用 obsidian://、剪贴板或网络端口，也不唤起 Obsidian。
 
 安装（macOS / Linux / Windows，Chrome / Edge / Brave / Vivaldi / Chromium / Arc）：先在浏览器里装好扩展，然后无需任何参数：

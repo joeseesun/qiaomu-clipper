@@ -15,6 +15,13 @@ function run(question: string, extra: any = {}) {
  return { promise, onText, onTools };
 }
 beforeEach(() => { vi.clearAllMocks(); state.tool.mockResolvedValue({ photos: [photo] }); });
+it('routes Codex through one native agent turn without the old search/read loop or prompt limits', async () => {
+ state.stream.mockImplementationOnce(async (o: any) => { expect(o.nativeTools).toBe(true); expect(o.system).not.toContain('最多3次'); o.onDelta('partial'); return 'final with native sources'; });
+ const r = run('查证多个来源', { sessionId: 'persisted-chat', capabilities: { ...capabilities, codex: true } });
+ expect(await r.promise).toBe('final with native sources'); expect(r.onText).toHaveBeenLastCalledWith('final with native sources');
+ expect(state.stream).toHaveBeenCalledTimes(1); expect(state.tool).not.toHaveBeenCalled();
+ expect(state.stream.mock.calls[0][0].sessionId).toBe('persisted-chat');
+});
 it('uses real native tool events without requiring or calling the separate search service', async () => {
  const native = { id: 'native', call: { type: 'provider_tool', tool: 'web_search', label: 'news' }, state: 'done', sources: [{ title: 'Source', url: 'https://example.com/', snippet: '' }] };
  state.stream.mockImplementationOnce(async (o: any) => { expect(o.nativeTools).toBe(true); expect(o.system).not.toContain('尚未连接'); o.onNativeTools([native]); o.onDelta('Found'); });
