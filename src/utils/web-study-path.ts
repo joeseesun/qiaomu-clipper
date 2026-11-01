@@ -19,8 +19,9 @@ export async function webStudyPath(url: string, tabId: number): Promise<string |
 	if (!post) return null;
 	const path = `reader.html?study=web&url=${encodeURIComponent(post)}&sourceTab=${tabId}`;
 	if (scoped) return path;
+	if (isMediaItemAddress(post)) return path;
 	try {
 		const [result] = await browser.scripting.executeScript({ target: { tabId }, func: () => Boolean(document.querySelector('video, audio, iframe[src*="player.vimeo.com"], iframe[src*="player.twitch.tv"], iframe[src*="dailymotion.com"], [data-testid="videoPlayer"], meta[property="og:video"], meta[property="og:video:url"], meta[property="og:audio"]')) });
-		return result?.result || isMediaItemAddress(post) ? path : null;
+		return result?.result ? path : null;
 	} catch { return null; }
 }

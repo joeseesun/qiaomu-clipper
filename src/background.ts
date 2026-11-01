@@ -4,7 +4,8 @@ import { openAiSidebar } from './utils/ai-sidebar';
 import { handleChatImageSource } from './utils/chat-image-source';
 import { validChatTurns } from './utils/chat-content';
 import { validChatSession } from './utils/opencode-go';
-import { channelsPlaybackPage, channelsStudyBridge, getChannelsPlaybackMedia, parseChannelsShare, readChannelsPlayback } from './utils/channels-study';
+import { channelsPlaybackPage, channelsStudyBridge, getChannelsPlaybackMedia, parseChannelsShare, readChannelsPlayback, isChannelsMedia, channelsShareAddress } from './utils/channels-study';
+import { downloadFileName } from './utils/media-download';
 import { protectedPageBridge, snapshotProtectedPage } from './utils/protected-study';
 import { createContentText } from './utils/content-i18n';
 import { getWebPageMedia, isTikTokMedia, snapshotDouyinPlayer, snapshotTikTokPlayer, tabMayLendTikTokMedia, tiktokVideoPath, validateDouyinTracks } from './utils/web-page-media';
@@ -667,8 +668,11 @@ browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime
 		}
 
 		if (typedRequest.action === "qiaomuOpenStudy") {
-			browser.tabs.query({ active: true, currentWindow: true })
-				.then(tabs => tabs[0]?.id ? openStudyForTab(tabs[0].id) : false)
+			const tabPromise = sender.tab?.id
+				? Promise.resolve(sender.tab.id)
+				: browser.tabs.query({ active: true, currentWindow: true }).then(tabs => tabs[0]?.id);
+			tabPromise
+				.then(tabId => tabId ? openStudyForTab(tabId) : false)
 				.then(opened => sendResponse({ opened }))
 				.catch(() => sendResponse({ opened: false }));
 			return true;
@@ -691,11 +695,78 @@ browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime
 		}
 
 		if (typedRequest.action === "qiaomuTripleKey") {
+			const command = String((typedRequest as { command?: string }).command);
 			const tab = sender.tab;
-			if (tab?.id && tab.url && isValidUrl(tab.url) && !isBlankPage(tab.url)) {
-				void runTripleKeyAction(String((typedRequest as { command?: string }).command), tab.id);
+			if (tab?.id) {
+				const execute = (tabId: number) => {
+					runTripleKeyAction(command, tabId)
+						.then(() => sendResponse({ opened: true }))
+						.catch(() => sendResponse({ opened: false }));
+				};
+				if (tab.url && isValidUrl(tab.url) && !isBlankPage(tab.url)) {
+					execute(tab.id);
+				} else {
+					browser.tabs.get(tab.id).then(t => {
+						if (t?.id && t.url && isValidUrl(t.url) && !isBlankPage(t.url)) {
+							execute(t.id);
+						} else {
+							sendResponse({ opened: false });
+						}
+					}).catch(() => sendResponse({ opened: false }));
+				}
+				return true;
 			}
+			browser.tabs.query({ active: true, currentWindow: true }).then(tabs => {
+				const currentTab = tabs[0];
+				if (currentTab?.id && currentTab.url && isValidUrl(currentTab.url) && !isBlankPage(currentTab.url)) {
+					void runTripleKeyAction(command, currentTab.id);
+				}
+			});
 			return undefined;
+		}
+
+		if (typedRequest.action === "qiaomuChannelsDownload") {
+			const req = typedRequest as { url?: string; mediaUrl?: string; title?: string };
+			const sourceUrl = req.url || sender.tab?.url || '';
+			const shareAddress = channelsShareAddress(sourceUrl);
+			void (async () => {
+				try {
+					let mediaUrl = req.mediaUrl;
+					let title = req.title || '视频号视频';
+					if (!mediaUrl || !isChannelsMedia(shareAddress || sourceUrl, mediaUrl)) {
+						if (!shareAddress) {
+							sendResponse({ success: false, error: '无效的视频号链接' });
+							return;
+						}
+						const tabId = sender.tab?.id ?? 0;
+						await channelsStudy(tabId, { mode: 'open', url: shareAddress });
+						const result = await channelsStudy(tabId, { mode: 'read', url: shareAddress });
+						if (result.state === 'login') {
+							await channelsStudy(tabId, { mode: 'show', url: shareAddress });
+							sendResponse({ success: false, error: 'login' });
+							return;
+						}
+						if (result.state !== 'ready' || !result.info?.mediaUrl) {
+							sendResponse({ success: false, error: '未能获取视频播放地址' });
+							return;
+						}
+						mediaUrl = result.info.mediaUrl;
+						if (result.info.title) title = result.info.title;
+					}
+					const filename = downloadFileName(title, 'mp4');
+					await browser.downloads.download({
+						url: mediaUrl,
+						filename: `乔木剪藏/${filename}`,
+						saveAs: false,
+						conflictAction: 'uniquify',
+					});
+					sendResponse({ success: true, title, mediaUrl });
+				} catch (err) {
+					console.error('[qiaomu] channels download failed:', err);
+					sendResponse({ success: false, error: err instanceof Error ? err.message : String(err) });
+				}
+			})();
+			return true;
 		}
 
 		if (typedRequest.action === "getActiveTabAndToggleIframe") {

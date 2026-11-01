@@ -4,10 +4,10 @@ import { t } from './ui-text';
 
 export function channelsShareAddress(address: string): string | undefined {
  try {
-  const u = new URL(address); if (u.protocol !== 'https:' || u.username || u.password || (u.port && u.port !== '443') || u.hash) return;
-  const id = u.hostname === 'weixin.qq.com' && !u.search ? u.pathname.match(/^\/sph\/([A-Za-z0-9]{3,64})\/?$/)?.[1]
-   : u.hostname === 'channels.weixin.qq.com' && u.pathname === '/finder-preview/pages/sph' && Array.from(u.searchParams.keys()).join(',') === 'id' ? u.searchParams.get('id') : undefined;
-  if (id && /^[A-Za-z0-9]{3,64}$/.test(id)) return `https://weixin.qq.com/sph/${id}`;
+  const u = new URL(address); if (u.protocol !== 'https:' || u.username || u.password || (u.port && u.port !== '443')) return;
+  const id = u.hostname === 'weixin.qq.com' && !u.search ? u.pathname.match(/^\/sph\/([A-Za-z0-9_-]{3,64})\/?$/)?.[1]
+   : u.hostname === 'channels.weixin.qq.com' && /^\/finder-preview\/pages\/sph\/?$/.test(u.pathname) ? (u.searchParams.get('id') || u.searchParams.get('sph') || undefined) : undefined;
+  if (id && /^[A-Za-z0-9_-]{3,64}$/.test(id)) return `https://weixin.qq.com/sph/${id}`;
  } catch { /* not a share address */ }
 }
 // The official playback page the user's own session opened (channels.weixin.qq.com/finder-preview/pages/feed?eid=…). The short-lived token is dropped:
@@ -15,7 +15,7 @@ export function channelsShareAddress(address: string): string | undefined {
 export function channelsPlaybackPage(address: string): string | undefined {
  try {
   const u = new URL(address), eid = u.searchParams.get('eid');
-  if (u.protocol !== 'https:' || u.hostname !== 'channels.weixin.qq.com' || u.pathname !== '/finder-preview/pages/feed' || u.username || u.password || (u.port && u.port !== '443') || !eid || eid.length > 200 || /[\u0000-\u001f\s]/.test(eid)) return;
+  if (u.protocol !== 'https:' || u.hostname !== 'channels.weixin.qq.com' || !/^\/finder-preview\/pages\/feed\/?$/.test(u.pathname) || u.username || u.password || (u.port && u.port !== '443') || !eid || eid.length > 200 || /[\u0000-\u001f\s]/.test(eid)) return;
   return `https://channels.weixin.qq.com/finder-preview/pages/feed?eid=${encodeURIComponent(eid)}`;
  } catch { /* not a playback page */ }
 }
