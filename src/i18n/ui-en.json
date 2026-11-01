@@ -1388,6 +1388,8 @@
  "搜索服务": "Search service",
  "搜索网页并读取正文，供当前聊天模型回答。": "Search and read web pages for the current chat model to answer.",
  "搜索网页，供当前聊天模型回答。": "Search the web for the current chat model to answer.",
+ "无需密钥即可搜索网页，供当前聊天模型回答。填写密钥可提高调用频率。": "Search the web for the current chat model to answer. No key needed; add one for higher rate limits.",
+ "API Key（可选）": "API Key (optional)",
  "验证并保存": "Verify and save",
  "移除密钥": "Remove key",
  "请填写 API Key": "Enter an API Key",

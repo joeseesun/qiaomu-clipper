@@ -1388,6 +1388,8 @@
  "搜索服务": "Service de recherche",
  "搜索网页并读取正文，供当前聊天模型回答。": "Recherche des pages et lit leur contenu pour alimenter le modèle actuel.",
  "搜索网页，供当前聊天模型回答。": "Recherche sur le web pour alimenter le modèle actuel.",
+ "无需密钥即可搜索网页，供当前聊天模型回答。填写密钥可提高调用频率。": "Recherche sur le web pour alimenter le modèle actuel, sans clé. Une clé relève la limite de requêtes.",
+ "API Key（可选）": "API Key (facultative)",
  "验证并保存": "Vérifier et enregistrer",
  "移除密钥": "Supprimer la clé",
  "请填写 API Key": "Saisissez une API Key",
