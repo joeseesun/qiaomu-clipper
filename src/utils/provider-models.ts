@@ -6,6 +6,7 @@ import { brandOf } from './provider-catalog';
 import { saveSettings } from './storage-utils';
 import { isOpenCodeGo, supportsOpenCodeGoChat } from './opencode-go';
 import modelNames from './model-names.json';
+import { outputLimitMetadata } from './model-limits';
 
 // A vendor that lists only ids gets a readable name from the bundled snapshot (scripts/update-model-names.mjs). Its own name always wins.
 const NAMES = modelNames as Record<string, string>;
@@ -16,6 +17,7 @@ export function readableName(id: string, name?: string): string {
 }
 
 export interface ProviderModel {
+	maxOutputTokens?: number;
 	reasoningEfforts?: string[];
 	id: string;
 	name: string;
@@ -91,7 +93,7 @@ export async function fetchProviderModels(input: Provider, signal?: AbortSignal)
 				const id = kind === 'gemini' ? entry.name?.replace(/^models\//, '') : kind === 'ollama' ? entry.model || entry.name : entry.id;
 				if (typeof id !== 'string' || !id.trim() || !supportsOpenCodeGoChat(provider.baseUrl, id)) continue;
 				const name = entry.displayName || entry.display_name || (kind !== 'gemini' ? entry.name : undefined);
-				models.set(id, { id, name: readableName(id, typeof name === 'string' ? name : undefined), ...effortMetadata(entry.supported_reasoning_levels ?? entry.reasoning_efforts) });
+				models.set(id, { id, name: readableName(id, typeof name === 'string' ? name : undefined), ...effortMetadata(entry.supported_reasoning_levels ?? entry.reasoning_efforts), ...outputLimitMetadata(entry, kind) });
 			}
 			if (kind === 'gemini' && data.nextPageToken) {
 				url.searchParams.set('pageToken', data.nextPageToken);

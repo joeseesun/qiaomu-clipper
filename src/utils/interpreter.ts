@@ -11,6 +11,8 @@ import { updateTokenCount } from './token-counter';
 import { freshOAuth, responsesRequest, readResponsesStream } from './oauth/accounts';
 
 import { t } from './ui-text';
+import { positiveTokenLimit, resolveOutputLimit } from './model-limits';
+import { checkChatCapacityError } from './chat-capacity';
 const RATE_LIMIT_RESET_TIME = 5000; // guards against double clicks; retries after a failure stay quick
 let lastRequestTime = 0;
 
@@ -79,7 +81,6 @@ export async function sendToLLM(promptContext: string, content: string, promptVa
 					{ role: 'user', content: `${promptContext}` },
 					{ role: 'user', content: `${JSON.stringify(promptContent)}` }
 				],
-				max_tokens: 1600,
 				stream: false
 			};					
 			headers = {
@@ -95,7 +96,6 @@ export async function sendToLLM(promptContext: string, content: string, promptVa
 					{ role: 'user', content: `${promptContext}` },
 					{ role: 'user', content: `${JSON.stringify(promptContent)}` }
 				],
-				max_completion_tokens: 8000,
 				stream: false,
         ...(provider.presetId === 'magpie' && model.reasoningEffort && model.reasoningEfforts?.includes(model.reasoningEffort) ? { reasoning_effort: model.reasoningEffort } : {})
 			};
@@ -112,7 +112,6 @@ export async function sendToLLM(promptContext: string, content: string, promptVa
 					{ role: 'user', content: `${promptContext}` },
 					{ role: 'user', content: `${JSON.stringify(promptContent)}` }
 				],
-				max_tokens: 8000,
 				thinking: {
 					type: 'disabled'
 				},
@@ -141,7 +140,6 @@ export async function sendToLLM(promptContext: string, content: string, promptVa
 					}
 				],
 				generationConfig: {
-					maxOutputTokens: 8000,
 					responseMimeType: 'application/json'
 				}
 			};
@@ -153,7 +151,6 @@ export async function sendToLLM(promptContext: string, content: string, promptVa
 			requestUrl = provider.baseUrl;
 			requestBody = {
 				model: model.providerModelId,
-				max_tokens: 8000,
 				messages: [
 					{ role: 'user', content: `${promptContext}` },
 					{ role: 'user', content: `${JSON.stringify(promptContent)}` }
@@ -170,7 +167,6 @@ export async function sendToLLM(promptContext: string, content: string, promptVa
 			requestUrl = provider.baseUrl;
 			requestBody = {
 				model: model.providerModelId,
-				max_tokens: 8000,
 				messages: [
 					{ role: 'system', content: systemContent },
 					{ role: 'user', content: `
@@ -195,7 +191,6 @@ export async function sendToLLM(promptContext: string, content: string, promptVa
 					{ role: 'user', content: `${JSON.stringify(promptContent)}` }
 				],
 				format: 'json',
-				num_ctx: 120000,
 				stream: false
 			};
 		} else {
@@ -219,6 +214,16 @@ export async function sendToLLM(promptContext: string, content: string, promptVa
 			};
 		}
 
+		const outputLimit = await resolveOutputLimit(provider, model);
+		if (provider.name.toLowerCase().includes('anthropic') && !outputLimit) throw new Error(t('此服务要求填写最大输出 token，但未公布模型上限。请在模型设置中填写服务支持的最大输出 token。'));
+		if (provider.baseUrl.includes('generativelanguage.googleapis.com')) {
+			if (outputLimit) requestBody.generationConfig.maxOutputTokens = outputLimit;
+		} else if (provider.name.toLowerCase().includes('ollama')) {
+			requestBody.options = { ...(positiveTokenLimit(model.ollamaContextTokens) ? { num_ctx: model.ollamaContextTokens } : {}), ...(outputLimit ? { num_predict: outputLimit } : {}) };
+		} else if (outputLimit) {
+			requestBody[provider.baseUrl.includes('openai.azure.com') || new URL(provider.baseUrl).hostname === 'api.openai.com' ? 'max_completion_tokens' : 'max_tokens'] = outputLimit;
+		}
+
 		debugLog('Interpreter', `Sending request to ${provider.name} API:`, requestBody);
 
 		const response = await fetch(requestUrl, {
@@ -229,6 +234,7 @@ export async function sendToLLM(promptContext: string, content: string, promptVa
 
 		if (!response.ok) {
 			const errorText = await response.text();
+			checkChatCapacityError(response.status, errorText);
 			console.error(`${provider.name} error response:`, errorText);
 			
 			// Add specific message for Ollama 403 errors

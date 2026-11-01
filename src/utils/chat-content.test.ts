@@ -1,11 +1,12 @@
 import { expect, it, vi } from 'vitest';
+vi.mock('./model-limits', async original => ({ ...await original<any>(), resolveOutputLimit: async (_p: unknown, model: any) => model.outputTokenLimit }));
 import { streamChat } from './chat-llm';
 import { generalSettings } from './storage-utils';
 import { validChatTurns, MAX_CHAT_IMAGE_PARTS } from './chat-content';
 import { responsesRequest } from './oauth/accounts';
 const image = { dataUrl:'data:image/png;base64,aGVsbG8=', label:'图 2' };
 const messages = [{ role:'user' as const, content:'读图', images:[image] }];
-const model = {id:'m',name:'Flash',providerId:'p',providerModelId:'glm-5.3-flash',enabled:true};
+const model = {outputTokenLimit:64000,id:'m',name:'Flash',providerId:'p',providerModelId:'glm-5.3-flash',enabled:true};
 const response = (event: unknown) => new Response(`data: ${JSON.stringify(event)}\n`);
 
 it.each([

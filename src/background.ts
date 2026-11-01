@@ -1382,7 +1382,11 @@ browser.runtime.onConnect.addListener(port => {
 				|| !validChatTurns(request.messages)) throw new Error(t('无效的 AI 对话请求'));
 			await streamChat({ model, system: request.system, sessionId: request.sessionId, messages: request.messages, reasoningEffort: validEffort(request.reasoningEffort), nativeTools: request.nativeTools === true, signal: controller.signal, onDelta: delta => send({ delta }), onThought: thought => send({ thought }), onNativeTools: nativeTools => send({ nativeTools }) });
 			send({ done: true });
-		} catch (error) { send({ error: error instanceof Error ? error.message : t('AI 请求失败') }); }
+		} catch (error) {
+			const code = error instanceof Error && 'code' in error ? error.code : undefined;
+			send({ error: error instanceof Error ? error.message : t('AI 请求失败'),
+				...(['context-limit', 'output-limit'].includes(String(code)) ? { code } : {}) });
+		}
 	});
 });
 

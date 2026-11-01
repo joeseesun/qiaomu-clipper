@@ -9,7 +9,6 @@ export type Attachment =
 	| { kind: 'article'; id: string; label: string; articleId: string; text: string };
 
 export const MAX_ATTACHMENTS = 6;
-export const MAX_REFERENCE_CHARS = 18000;
 const MAX_PAGE_BYTES = 1_500_000;
 const MAX_EDGE = 1568;
 const MAX_IMAGE_DATA = 4 * 1024 * 1024;
@@ -39,7 +38,7 @@ export function extractWebText(html: string): { title: string; text: string } {
 	doc.querySelectorAll('script,style,noscript,svg,nav,footer,header,aside,form,iframe').forEach(node => node.remove());
 	const title = doc.title.trim();
 	const root = doc.querySelector('article') ?? doc.querySelector('main') ?? doc.body;
-	const text = (root?.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, MAX_REFERENCE_CHARS);
+	const text = (root?.textContent ?? '').replace(/\s+/g, ' ').trim();
 	if (!text) throw new Error(t('这个网页没有可读取的正文，可能需要登录，或内容由脚本动态加载'));
 	return { title, text };
 }
@@ -52,15 +51,16 @@ export async function webAttachment(input: string, signal?: AbortSignal): Promis
 	const final = checkedWebUrl(response.url || url.href);
 	const type = response.headers.get('content-type') ?? '';
 	if (!/html|xml|text\/plain/i.test(type)) throw new Error(t('这个地址不是网页'));
-	const raw = (await response.text()).slice(0, MAX_PAGE_BYTES);
-	const { title, text } = /xml/i.test(type) && !/html/i.test(type) ? { title: '', text: raw.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, MAX_REFERENCE_CHARS) } : extractWebText(raw);
+	const raw = await response.text();
+	if (new TextEncoder().encode(raw).length > MAX_PAGE_BYTES) throw new Error(t('网页超过附件读取上限，请下载正文后粘贴到对话框。'));
+	const { title, text } = /xml/i.test(type) && !/html/i.test(type) ? { title: '', text: raw.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() } : extractWebText(raw);
 	return { kind: 'web', id: newId(), label: title || final.hostname, url: final.href, text };
 }
 
 export async function articleAttachment(articleId: string): Promise<Attachment> {
 	const article = await getArticle(articleId);
 	if (!article) throw new Error(t('找不到这篇文章'));
-	return { kind: 'article', id: newId(), label: article.title.trim() || t('未命名文章'), articleId, text: article.markdown.slice(0, MAX_REFERENCE_CHARS) };
+	return { kind: 'article', id: newId(), label: article.title.trim() || t('未命名文章'), articleId, text: article.markdown };
 }
 
 // A picture the model can read: scaled down, then PNG or JPEG.
