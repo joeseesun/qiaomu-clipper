@@ -1,6 +1,6 @@
 import browser from './browser-polyfill';
 import { chatPageKey, chatSourceLink, chatSource, type ChatSource } from './chat-source';
-import { openCurrentAiSidebar } from './ai-sidebar';
+import { openAiSidebar } from './ai-sidebar';
 
 const PREFIX = 'qiaomu-chat-resume:';
 // The hand-off contains only IDs and a URL, lives in memory (storage.session),
@@ -8,16 +8,17 @@ const PREFIX = 'qiaomu-chat-resume:';
 export async function openChatSource(source: ChatSource, conversationId: string): Promise<void> {
 	const url = chatSourceLink(source.url);
 	if (!url) throw new Error('Original page URL is unavailable.');
-	// Reader/editor pages may not have the native sidebar open yet. Start from
-	// this explicit click; failure on browsers without sidePanel leaves the link usable.
-	void openCurrentAiSidebar().catch(() => {});
 	const tab = await browser.tabs.create({ url, active: false });
 	if (tab.id === undefined) throw new Error('Could not open the original page.');
+	// This explicit resume action opens only its destination tab, never the
+	// reader/editor tab or every page in its window. Keep the link usable when
+	// the browser does not support sidePanel or rejects the gesture.
+	const opened = openAiSidebar({ tabId: tab.id }).catch(() => {});
 	// Even if session storage is unavailable/full, the user's original link
 	// must still open. Report the hand-off failure instead of stranding a tab.
 	try {
 		await browser.storage.session.set({ [PREFIX + tab.id]: { id: conversationId, source: chatSource(source), createdAt: Date.now() } });
-	} finally { await browser.tabs.update(tab.id, { active: true }); }
+	} finally { await browser.tabs.update(tab.id, { active: true }); await opened; }
 }
 
 export async function consumeChatResume(tabId: number, url: string): Promise<{ id: string; pageKey: string } | undefined> {
