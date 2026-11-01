@@ -726,34 +726,45 @@ browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime
 		}
 
 		if (typedRequest.action === "qiaomuChannelsDownload") {
-			const req = typedRequest as { url?: string; mediaUrl?: string; title?: string };
+			const req = typedRequest as { url?: string; title?: string };
 			const sourceUrl = req.url || sender.tab?.url || '';
 			const shareAddress = channelsShareAddress(sourceUrl);
 			void (async () => {
 				try {
-					let mediaUrl = req.mediaUrl;
-					let title = req.title || '视频号视频';
-					if (!mediaUrl || !isChannelsMedia(shareAddress || sourceUrl, mediaUrl)) {
-						if (!shareAddress) {
-							sendResponse({ success: false, error: '无效的视频号链接' });
-							return;
+					if (!shareAddress) {
+						sendResponse({ success: false, error: '无效的视频号链接' });
+						return;
+					}
+					const tabId = sender.tab?.id ?? 0;
+					await channelsStudy(tabId, { mode: 'open', url: shareAddress });
+
+					let result: any = null;
+					for (let i = 0; i < 25; i++) {
+						await new Promise(r => setTimeout(r, 600));
+						result = await channelsStudy(tabId, { mode: 'read', url: shareAddress });
+						if (result.state === 'ready' && result.info?.mediaUrl) {
+							break;
 						}
-						const tabId = sender.tab?.id ?? 0;
-						await channelsStudy(tabId, { mode: 'open', url: shareAddress });
-						const result = await channelsStudy(tabId, { mode: 'read', url: shareAddress });
 						if (result.state === 'login') {
 							await channelsStudy(tabId, { mode: 'show', url: shareAddress });
 							sendResponse({ success: false, error: 'login' });
 							return;
 						}
-						if (result.state !== 'ready' || !result.info?.mediaUrl) {
-							sendResponse({ success: false, error: '未能获取视频播放地址' });
+						if (result.state === 'unavailable') {
+							sendResponse({ success: false, error: '无法解析该视频，请尝试先用乔木剪藏打开' });
 							return;
 						}
-						mediaUrl = result.info.mediaUrl;
-						if (result.info.title) title = result.info.title;
 					}
+
+					if (result?.state !== 'ready' || !result?.info?.mediaUrl) {
+						sendResponse({ success: false, error: '解析超时，请尝试先用乔木剪藏打开' });
+						return;
+					}
+
+					const mediaUrl = result.info.mediaUrl;
+					const title = result.info.title || req.title || '视频号视频';
 					const filename = downloadFileName(title, 'mp4');
+
 					await browser.downloads.download({
 						url: mediaUrl,
 						filename: `乔木剪藏/${filename}`,

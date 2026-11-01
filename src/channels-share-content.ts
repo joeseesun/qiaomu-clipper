@@ -79,41 +79,28 @@ try {
 				downloading = true;
 				dl.style.opacity = '0.7';
 				const prev = dl.textContent;
-				dl.textContent = text('', '正在解析...', 'Parsing...');
-
-				const findMedia = (): string | undefined => {
-					const video = document.querySelector('video');
-					if (video?.src && video.src.startsWith('https://finder.video.qq.com/')) return video.src;
-					if (video?.currentSrc && video.currentSrc.startsWith('https://finder.video.qq.com/')) return video.currentSrc;
-					const entries = performance.getEntriesByType?.('resource') || [];
-					for (let i = entries.length - 1; i >= 0; i--) {
-						const name = (entries[i] as PerformanceResourceTiming).name;
-						if (name && name.startsWith('https://finder.video.qq.com/') && name.includes('stodownload')) return name;
-					}
-				};
+				dl.textContent = text('', '正在获取原视频...', 'Fetching original video...');
 
 				const videoTitle = (document.querySelector('.feed-description, [class*="desc"]') as HTMLElement)?.textContent?.trim()
 					|| document.title.replace(/_.*$/, '').replace(/ - .*$/, '').trim()
 					|| '视频号视频';
 
 				try {
-					const localMedia = findMedia();
 					const answer = await api.runtime.sendMessage({
 						action: 'qiaomuChannelsDownload',
 						url: location.href,
-						mediaUrl: localMedia,
 						title: videoTitle,
 					}) as { success?: boolean; error?: string } | undefined;
 
 					if (answer?.success) {
-						dl.textContent = text('', '已开始下载', 'Downloading...');
-						detail.textContent = text('', '视频已保存到浏览器下载目录', 'Video saved to your downloads');
+						dl.textContent = text('', '已开始下载原视频', 'Downloading original video...');
+						detail.textContent = text('', '原视频已提交至浏览器下载管理器', 'Original video sent to download manager');
 					} else if (answer?.error === 'login') {
 						dl.textContent = text('', '需登录元宝', 'Sign in');
-						detail.textContent = text('', '请先点击“用乔木剪藏打开”，并在弹出的元宝窗口中扫码登录', 'Please sign in to Tencent Yuanbao first');
+						detail.textContent = text('', '请在弹出的元宝窗口中登录后再次点击下载', 'Please sign in to Tencent Yuanbao, then retry');
 					} else {
-						dl.textContent = text('', '解析失败', 'Failed');
-						detail.textContent = answer?.error || text('', '未能获取视频下载地址，请尝试用乔木剪藏打开', 'Could not get video address; try opening in Clipper');
+						dl.textContent = text('', '获取失败', 'Failed');
+						detail.textContent = answer?.error || text('', '未能获取原视频地址，可点击“用乔木剪藏打开”在播放页下载', 'Could not fetch video; try opening in Clipper');
 					}
 				} catch {
 					detail.textContent = text('', '扩展刚更新过，请刷新此页面后再试', 'The extension was updated — reload this page and try again');
@@ -121,7 +108,7 @@ try {
 					setTimeout(() => {
 						downloading = false;
 						dl.style.opacity = '1';
-						if (dl.textContent === text('', '正在解析...', 'Parsing...')) dl.textContent = prev;
+						if (dl.textContent === text('', '正在获取原视频...', 'Fetching original video...')) dl.textContent = prev;
 					}, 3500);
 				}
 			});
