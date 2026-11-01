@@ -19,8 +19,10 @@ def build():
         shutil.rmtree(OUT_DIR)
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     
-    # 2. 复制浏览器扩展 (使用 dist_local，自带固定的扩展 ID 公钥)
-    ext_src = ROOT / "dist_local"
+    # 2. 复制浏览器扩展 (优先使用最新构建的 chrome-local，自带固定的扩展 ID 公钥)
+    ext_src = ROOT / "build" / "production" / "chrome-local"
+    if not ext_src.exists():
+        ext_src = ROOT / "dist_local"
     if not ext_src.exists():
         ext_src = ROOT / "dist"
     ext_dst = OUT_DIR / "1-浏览器扩展(解压加载版)"
@@ -39,6 +41,8 @@ def build():
         "asr_runner.py",
         "asr_context.py",
         "media_download.py",
+        "uninstall.py",
+        "codex_images.py",
         "VERSION",
         "install.py",
         "README.md"
