@@ -12,7 +12,7 @@ export type AiProposal =
 
 const FENCE = /```qm-action[^\S\n]*\n([\s\S]*?)```/g;
 const ASPECTS = ['16:9', '4:3', '3:2', '1:1', '3:4', '2:3', '9:16', '21:9'];
-const str = (value: unknown, max = 20000) => (typeof value === 'string' ? value.slice(0, max) : '');
+const str = (value: unknown, max?: number) => (typeof value === 'string' ? max === undefined ? value : value.slice(0, max) : '');
 
 export function normalizeProposal(raw: unknown): AiProposal | undefined {
 	if (!raw || typeof raw !== 'object') return undefined;
@@ -21,7 +21,7 @@ export function normalizeProposal(raw: unknown): AiProposal | undefined {
 		case 'setTitle': { const title = str(o.title, 200).trim(); return title ? { type: 'setTitle', title } : undefined; }
 		case 'setDigest': { const text = str(o.text, 1000).trim(); return text ? { type: 'setDigest', text } : undefined; }
 		case 'insert': { const markdown = str(o.markdown).trim(); return markdown ? { type: 'insert', where: o.where === 'start' || o.where === 'end' ? o.where : 'cursor', markdown } : undefined; }
-		case 'replace': { const find = str(o.find, 4000); const to = str(o.with ?? o.replace); return find.trim() ? { type: 'replace', find, with: to } : undefined; }
+		case 'replace': { const find = str(o.find); const to = str(o.with ?? o.replace); return find.trim() ? { type: 'replace', find, with: to } : undefined; }
 		case 'image': { const prompt = str(o.prompt, 2000).trim(); return prompt ? { type: 'image', prompt, where: o.where === 'end' ? 'end' : 'cursor', aspect: ASPECTS.includes(String(o.aspect)) ? String(o.aspect) : '16:9' } : undefined; }
 		case 'ask': {
 			const question = str(o.question, 400).trim();
@@ -69,11 +69,8 @@ export function parseReply(text: string): { text: string; proposals: AiProposal[
 }
 
 export interface ChatContext { title: string; digest: string; markdown: string; selection: string; headings: string[]; imageReady: boolean; includeArticle?: boolean; references?: string }
-export const MAX_ARTICLE_CHARS = 12000;
-export const MAX_SELECTION_CHARS = 3000;
-
 export function buildSystemPrompt(ctx: ChatContext): string {
-	const body = ctx.markdown.length > MAX_ARTICLE_CHARS ? `${ctx.markdown.slice(0, MAX_ARTICLE_CHARS)}\n\n（正文过长，只给出了前 ${MAX_ARTICLE_CHARS} 字）` : ctx.markdown;
+	const body = ctx.markdown;
 	return [
 		'你是乔木的写作搭档，在一个所见即所得的 Markdown 写作器里帮作者改文章。回答用作者使用的语言，直接、具体，不说客套话。',
 		'作者问问题、要建议时，直接用文字回答。作者要你改文章时，不要直接贴整篇，而是用下面的指令块提出修改，作者会逐条决定是否应用。指令块之外用一两句话说明理由。',
@@ -92,7 +89,7 @@ export function buildSystemPrompt(ctx: ChatContext): string {
 		`【文章标题】${ctx.title.trim() || '（还没有标题）'}`,
 		ctx.digest.trim() ? `【摘要】${ctx.digest.trim()}` : '',
 		ctx.headings.length ? `【大纲】\n${ctx.headings.map(h => `- ${h}`).join('\n')}` : '',
-		ctx.selection.trim() ? `【作者当前选中的文字】\n${ctx.selection.trim().slice(0, MAX_SELECTION_CHARS)}` : '',
+		ctx.selection.trim() ? `【作者当前选中的文字】\n${ctx.selection.trim()}` : '',
 		ctx.includeArticle === false ? '【正文】（作者这次没有附上正文，只根据对话和附加资料回答）' : `【正文】\n${body.trim() || '（还没有正文）'}`,
 		ctx.references?.trim() ? `\n【作者附加的资料】\n${ctx.references.trim()}` : '',
 	].filter(Boolean).join('\n');

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+vi.mock('./model-limits', async original => ({ ...await original<any>(), resolveOutputLimit: async (_p: unknown, model: any) => model.outputTokenLimit }));
 import { tokenPlanEndpoint, tokenPlanProfile, tokenPlanTools, TOKEN_PLAN_TOOLS } from './token-plan';
 import { readTokenPlanStream, nativeToolResult } from './token-plan-stream';
 import { normalizeChatTool, normalizeToolResults, toolHistory } from './chat-tools-types';

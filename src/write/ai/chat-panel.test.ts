@@ -20,6 +20,9 @@ import { buildExtensions } from '../editor/extensions';
 import { editorMarkdown } from '../markdown-io';
 import { mountChatPanel } from './chat-panel';
 import { loadChat } from './chat-store';
+import { generalSettings } from '../../utils/storage-utils';
+import { streamChat } from '../../utils/chat-llm';
+import * as chatToolsClient from '../../utils/chat-tools-client';
 
 const noRects = Object.assign([], { item: () => null });
 (Range.prototype as any).getClientRects = () => noRects;
@@ -37,6 +40,27 @@ afterEach(() => { panel.destroy(); editor.destroy(); });
 const settle = () => new Promise(resolve => setTimeout(resolve, 50));
 const say = async (text: string) => { const input = document.querySelector<HTMLTextAreaElement>('.qw-chat-input')!; input.value = text; document.querySelector<HTMLButtonElement>('button[title="发送"]')!.click(); await settle(); };
 const block = (json: unknown) => `\`\`\`qm-action\n${JSON.stringify(json)}\n\`\`\``;
+
+it('keeps a silent native Codex turn alive beyond the old idle deadline and still allows stopping', async () => {
+	const provider = generalSettings.providers[0];
+	provider.oauth = { kind: 'codex' } as any;
+	const caps = vi.spyOn(chatToolsClient, 'chatCapabilities').mockResolvedValue({ codex: true, web: true, webEnabled: true, webProvider: 'Codex', images: false, fetch: true });
+	let pending: any;
+	vi.mocked(streamChat).mockImplementationOnce(options => new Promise((_resolve, reject) => { pending = options; options.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError'))); }));
+	try {
+		await panel.toggle(true);
+		vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+		document.querySelector<HTMLTextAreaElement>('.qw-chat-input')!.value = 'Please research';
+		document.querySelector<HTMLButtonElement>('button[title="发送"]')!.click();
+		await vi.waitFor(() => expect(pending).toBeDefined());
+		await vi.advanceTimersByTimeAsync(180_000);
+		expect(pending.signal.aborted).toBe(false);
+		expect(pending.sessionId).toBeTruthy();
+		panel.destroy();
+		expect(pending.signal.aborted).toBe(true);
+		await vi.advanceTimersByTimeAsync(1);
+	} finally { delete provider.oauth; caps.mockRestore(); vi.useRealTimers(); }
+});
 
 it('answers about the article it can see and keeps the conversation', async () => {
 	reply = '这篇文章的开头很直接。';

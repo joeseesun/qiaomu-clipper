@@ -1,18 +1,20 @@
 import type { UnsplashPhoto } from './image-library-sources';
 import { TOKEN_PLAN_TOOLS, type TokenPlanTool } from './token-plan';
 
+export const CODEX_CHAT_TOOLS = ['web_search', 'web_extractor', 'web_find', 'codex_session', 'codex_progress'] as const;
+export type CodexChatTool = typeof CODEX_CHAT_TOOLS[number];
 export type ImageOrientation = '' | 'landscape' | 'portrait' | 'squarish';
 export interface ImageSearchCall { type: 'search_images'; query: string; label: string; count: number; page: number; orientation: ImageOrientation; color: string }
 export type ChatToolCall = ImageSearchCall | { type: 'search_web'; query: string } | { type: 'read_web'; url: string }
 	| { type: 'use_image'; id: string; action: 'insert' | 'save' }
-	| { type: 'provider_tool'; tool: TokenPlanTool; label: string };
+	| { type: 'provider_tool'; tool: TokenPlanTool | CodexChatTool; label: string; provider?: 'codex' };
 export interface SearchSource { title: string; url: string; snippet: string; content?: string; date?: string }
 export interface ChatToolResult {
 	id: string; call: ChatToolCall; state: 'running' | 'done' | 'error'; error?: string;
 	photos?: UnsplashPhoto[]; sources?: SearchSource[]; content?: string;
 	code?: string; logs?: string; images?: { title: string; url: string }[];
 }
-export interface ChatCapabilities { web: boolean; webEnabled: boolean; webProvider: string; images: boolean; fetch: boolean; native?: TokenPlanTool[] }
+export interface ChatCapabilities { web: boolean; webEnabled: boolean; webProvider: string; images: boolean; fetch: boolean; native?: TokenPlanTool[]; codex?: boolean }
 export const IMAGE_COLORS = ['black_and_white', 'black', 'white', 'yellow', 'orange', 'red', 'purple', 'magenta', 'green', 'teal', 'blue'];
 const text = (v: unknown, max: number) => typeof v === 'string' ? v.trim().slice(0, max) : '';
 const integer = (v: unknown, fallback: number, max: number) => Number.isInteger(v) ? Math.max(1, Math.min(max, Number(v))) : fallback;
@@ -49,7 +51,7 @@ export function parseChatTools(reply: string): { text: string; calls: ChatToolCa
 	return { text: shown.trim(), calls: calls.slice(0, 3), pending: at >= 0 };
 }
 export function normalizeToolResults(raw: unknown): ChatToolResult[] {
-	return (Array.isArray(raw) ? raw : []).slice(0, 10).flatMap(item => {
+	return (Array.isArray(raw) ? raw : []).flatMap(item => {
 		if (item?.call?.type === 'provider_tool') {
 			const result = normalizeNativeResult(item, true);
 			return result ? [result] : [];
@@ -76,15 +78,15 @@ export function normalizeToolResults(raw: unknown): ChatToolResult[] {
 // Only transport/persisted results use this shape. normalizeChatTool intentionally rejects it:
 // a model-written qm-tool block cannot fabricate a completed server-side execution.
 export function normalizeNativeResult(item: any, restoring = false): ChatToolResult | undefined {
-	if (item?.call?.type !== 'provider_tool' || !TOKEN_PLAN_TOOLS.includes(item.call.tool) || typeof item.id !== 'string') return;
+	if (item?.call?.type !== 'provider_tool' || !(item.call.provider === 'codex' ? CODEX_CHAT_TOOLS : TOKEN_PLAN_TOOLS).includes(item.call.tool) || typeof item.id !== 'string') return;
 	const state = item.state === 'done' ? 'done' : item.state === 'running' && !restoring ? 'running' : 'error';
-	const sources: SearchSource[] = (Array.isArray(item.sources) ? item.sources : []).slice(0, 20).flatMap((s: any) => {
+	const sources: SearchSource[] = (Array.isArray(item.sources) ? item.sources : []).flatMap((s: any) => {
 		const url = publicWebUrl(s?.url); return url ? [{ title: text(s.title, 300) || url, url, snippet: text(s.snippet, 1200) }] : [];
 	});
 	const images = (Array.isArray(item.images) ? item.images : []).slice(0, 12).flatMap((i: any) => {
 		const url = publicWebUrl(i?.url); return url ? [{ title: text(i.title, 300) || url, url }] : [];
 	});
-	return { id: item.id.slice(0, 100), call: { type: 'provider_tool', tool: item.call.tool, label: text(item.call.label, 300) }, state,
+	return { id: item.id.slice(0, 100), call: { type: 'provider_tool', tool: item.call.tool, label: text(item.call.label, 300), ...(item.call.provider === 'codex' ? { provider: 'codex' as const } : {}) }, state,
 		...(state === 'error' ? { error: text(item.error, 500) || 'interrupted' } : {}),
 		...(sources.length ? { sources } : {}), ...(images.length ? { images } : {}),
 		...(item.content ? { content: text(item.content, 16000) } : {}), ...(item.code ? { code: text(item.code, 12000) } : {}), ...(item.logs ? { logs: text(item.logs, 16000) } : {}) };

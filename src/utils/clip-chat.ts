@@ -47,9 +47,6 @@ export interface ClipChatOptions {
 	onLearningAi?: (answer: string) => void;
 }
 
-const MAX_CONTEXT_CHARS = 80000;
-const MAX_QUOTE_CHARS = 4000;
-
 const icon = (node: Parameters<typeof createElement>[0]) => createElement(node);
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className = '', text = ''): HTMLElementTagNameMap[K] {
@@ -276,12 +273,12 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 		const rules = section('qiaomuChatSectionInstructions', 'qiaomuChatInstructionsNote');
 		const promptEnabled = makeSwitch(preferences.promptEnabled, getMessage('qiaomuChatPromptEnabled'));
 		const switchRow = el('div', 'clip-chat-settings-row'); switchRow.append(el('span', '', getMessage('qiaomuChatPromptEnabled')), promptEnabled.root); rules.append(switchRow);
-		const prompt = el('textarea'); prompt.rows = 5; prompt.maxLength = 4000; prompt.value = preferences.prompt;
+		const prompt = el('textarea'); prompt.rows = 5; prompt.value = preferences.prompt;
 		prompt.placeholder = getMessage('qiaomuChatPromptPlaceholder'); prompt.setAttribute('aria-label', getMessage('qiaomuChatCustomPrompt')); rules.append(prompt);
 		const examples = el('div', 'clip-chat-examples'); examples.append(el('span', '', getMessage('qiaomuChatExamples')));
 		for (const key of ['qiaomuChatExampleLang', 'qiaomuChatExampleConclusion', 'qiaomuChatExampleTimestamp', 'qiaomuChatExampleConcise']) {
 			const chip = el('button', 'clip-chat-chip', getMessage(key)); chip.type = 'button';
-			chip.onclick = () => { const line = getMessage(key); if (!prompt.value.includes(line)) prompt.value = `${prompt.value.trim() ? `${prompt.value.trimEnd()}\n` : ''}${line}`.slice(0, 4000); refresh(); };
+			chip.onclick = () => { const line = getMessage(key); if (!prompt.value.includes(line)) prompt.value = `${prompt.value.trim() ? `${prompt.value.trimEnd()}\n` : ''}${line}`; refresh(); };
 			examples.append(chip);
 		}
 		rules.append(examples, el('p', 'clip-chat-settings-note', getMessage('qiaomuChatPromptScope')));
@@ -323,7 +320,7 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 		function renderQuickEditor(item: QuickPrompt, isNew: boolean) {
 			const box = el('div', 'clip-chat-quick-editor');
 			const name = el('input'); name.type = 'text'; name.maxLength = 40; name.value = item.title;
-			const body = el('textarea'); body.rows = 4; body.maxLength = 2000; body.value = item.body;
+			const body = el('textarea'); body.rows = 4; body.value = item.body;
 			const scope = el('select');
 			for (const value of ['article', 'selection']) { const option = el('option', '', getMessage(value === 'selection' ? 'qiaomuQuickScopeSelection' : 'qiaomuQuickScopeArticle')); option.value = value; scope.append(option); }
 			scope.value = item.scope;
@@ -711,8 +708,7 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 		body.classList.add('is-thinking');
 
 		const { title: articleTitle, markdown, url } = options.getContext();
-		const sourceText = imageAwareArticle(markdown, url, currentImages);
-		const article = sourceText.length > MAX_CONTEXT_CHARS ? `${sourceText.slice(0, MAX_CONTEXT_CHARS)}\n\n[…${getMessage('qiaomuChatTruncated')}]` : sourceText;
+		const article = imageAwareArticle(markdown, url, currentImages);
 		let system = chatSystemPrompt(getMessage('qiaomuChatSystem'), preferences, `# ${articleTitle}\n${url}\n\n${article}`);
 
 		const requestController = new AbortController();
@@ -733,11 +729,8 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 			const imageStore = await loadImageModels();
 			if (requestController.signal.aborted) throw new DOMException('Aborted', 'AbortError');
 			system += chatImageInstructions(readyModels(imageStore).length > 0);
-			let start = Math.max(0, activeConversation.messages.length - 40);
-			while (start > 0 && activeConversation.messages[start]?.role !== 'user') start--;
-			const requestTurns = activeConversation.messages.slice(start);
+			const requestTurns = activeConversation.messages.slice();
 			const messages = requestTurns.map(apiTurn);
-			if (start) system += '\nOnly the most recent conversation turns are supplied. Do not claim access to earlier omitted turns.';
 			for (let i = 0; i < messages.length; i++) {
 				const refs = attachmentRefs(requestTurns[i].attachments);
 				if (refs.length) messages[i].images = await readChatAttachments(refs);
@@ -895,7 +888,7 @@ export function mountClipChat(options: ClipChatOptions): { toggle: (open?: boole
 	function askAbout(text: string) {
 		if (disposed || historyReadOnly) return;
 		// Without a model the panel only guides to the settings; a quote would just sit there.
-		quote = enabledChatModels().length ? text.slice(0, MAX_QUOTE_CHARS) : '';
+		quote = enabledChatModels().length ? text : '';
 		if (panel.hidden) toggle(true);
 		historyView.hide();
 		refreshQuote();

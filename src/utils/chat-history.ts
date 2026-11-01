@@ -34,13 +34,13 @@ export const deleteConversation = removeChat;
 // particular, live page context and image request bytes must not enter history.
 export function snapshotConversation(conversation: Conversation, source: ChatSource, updatedAt = Date.now()): Conversation {
 	return { id: conversation.id, title: conversation.title, source: chatSource(source), messages: conversation.messages.map(({ role, content, quote, imageNumbers, generatedImages, tools, attachments, bookmarked, thought }) => ({
-		role, content, ...(typeof thought === 'string' && thought ? { thought: thought.slice(0, 100000) } : {}), ...(role === 'user' && bookmarked === true ? { bookmarked: true } : {}), ...(attachments?.length ? { attachments: historyAttachments(attachments) } : {}), ...(tools?.length ? { tools: normalizeToolResults(tools) } : {}), ...(quote ? { quote } : {}), ...(imageNumbers?.length ? { imageNumbers: [...imageNumbers] } : {}),
+		role, content, ...(typeof thought === 'string' && thought ? { thought } : {}), ...(role === 'user' && bookmarked === true ? { bookmarked: true } : {}), ...(attachments?.length ? { attachments: historyAttachments(attachments) } : {}), ...(tools?.length ? { tools: normalizeToolResults(tools) } : {}), ...(quote ? { quote } : {}), ...(imageNumbers?.length ? { imageNumbers: [...imageNumbers] } : {}),
 		...(generatedImages?.length ? { generatedImages: generatedImages.slice(0, 4).map(({ prompt, aspect, imageId, modelLabel, jobId, error }) => ({ prompt, aspect, ...(imageId ? { imageId } : {}), ...(modelLabel ? { modelLabel } : {}), ...(jobId ? { jobId } : {}), ...(error ? { error } : {}) })) } : {}),
 	})), updatedAt };
 }
 
-// Retention and model context are separate: keeping history does not increase
-// the request window. Snapshot before queueing so subsequent edits cannot race.
+// Snapshot before queueing so subsequent edits cannot race. The current
+// conversation is retained independently from the paginated history UI.
 export function saveConversation(url: string, articleTitle: string, conversation: Conversation, preserveUrlHash = false): Promise<void> {
 	return storeChat(snapshotConversation(conversation, conversation.source ?? { url, title: articleTitle, preserveUrlHash }), conversation);
 }

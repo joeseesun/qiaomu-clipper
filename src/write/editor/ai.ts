@@ -8,8 +8,6 @@ import { getLocalStorage, setLocalStorage } from '../../utils/storage-utils';
 import { t } from '../../utils/ui-text';
 
 const MODEL_KEY = 'qiaomuChatModel';
-const MAX_SELECTION = 12000;
-const MAX_CONTEXT = 6000;
 
 export function aiReady(): boolean { return enabledChatModels().length > 0; }
 
@@ -45,7 +43,7 @@ export function runAi(editor: Editor, action: AiAction): void {
 		}
 		const isContinue = action === 'continue';
 		const range = isContinue ? { from: editor.state.selection.$to.end(), to: editor.state.selection.$to.end() } : { from, to };
-		const source = isContinue ? markdownOf(editor, 0, editor.state.doc.content.size).slice(-MAX_CONTEXT) : markdownOf(editor, from, to).slice(0, MAX_SELECTION);
+		const source = isContinue ? markdownOf(editor, 0, editor.state.doc.content.size) : markdownOf(editor, from, to);
 		const original = isContinue ? '' : editor.state.doc.textBetween(from, to);
 
 		const saved = await getLocalStorage(MODEL_KEY);
