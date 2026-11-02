@@ -959,6 +959,15 @@
     return toDelete.length + replacements.length;
   }
 
+  function assertImportedMedia(content, uploads, markerPrefix) {
+    const text = content.getPlainText ? content.getPlainText('\n') : '';
+    if (markerTokenPattern(markerPrefix).test(text)) throw new Error('X still contains unfinished media placeholders. Your draft is preserved.');
+    const blocks = content.getBlockMap();
+    for (const upload of uploads) {
+      if (!upload.coverOnly && (!blocks.has(upload.blockKey) || blocks.get(upload.blockKey).getType() !== 'atomic')) throw new Error('An uploaded media block is missing from the X draft. Your draft is preserved.');
+    }
+  }
+
   function kickRender(draftNode) {
     try {
       const EditorState = draftNode.props.editorState.constructor;
@@ -1450,11 +1459,18 @@
 
     progress("Cleaning up import markers...");
     draftNode = findDraftStateNode() || draftNode;
+    // React commits onChange asynchronously. Never kick a render from the
+    // pre-cleanup props: that writes the old marker blocks back into the draft.
+    await sleep(250);
+    draftNode = findDraftStateNode() || draftNode;
     summary.markersCleaned += cleanupMarkers(draftNode, payload.markerPrefix);
+    await sleep(250);
+    draftNode = findDraftStateNode() || draftNode;
     kickRender(draftNode);
     await sleep(250);
     throwIfCancelled();
     assertArticleTextPreserved(expectedArticleText, (findDraftStateNode() || draftNode).props.editorState.getCurrentContent());
+    assertImportedMedia((findDraftStateNode() || draftNode).props.editorState.getCurrentContent(), uploads, payload.markerPrefix);
     if (summary.imgFail || summary.atomicFail || (summary.cover.requested && !summary.cover.graphql?.ok)) {
       const error = new Error("The X draft is incomplete. Some media or special blocks failed; your original Markdown is preserved in local records.");
       error.summary = summary;

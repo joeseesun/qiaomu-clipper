@@ -1107,6 +1107,18 @@
         "src/publish-bridge/web.test.ts",
         "src/publish-bridge/publish-bridge.test.ts"
       ]
+    },
+    {
+      "id": "x-long-draft-completion",
+      "title": "X 长文媒体收尾等待真实状态提交并拒绝残留占位符",
+      "origin": "长图文加 MP4 的实际草稿回读",
+      "files": [
+        "src/x-publish/main-world.js"
+      ],
+      "tests": [
+        "src/x-publish/completion.test.ts",
+        "src/x-publish/media-recovery.test.ts"
+      ]
     }
   ]
 }
