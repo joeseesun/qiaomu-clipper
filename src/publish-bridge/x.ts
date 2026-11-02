@@ -32,7 +32,9 @@ export async function runXJob(tabId: number, job: BridgeJob, client: PublishClie
 			await sendAssets(client, job.assets, post, asset => `${IMAGE_HOST}${asset.id}`, text => void client.status({ state: 'running', text }));
 			post({ type: 'run', markdown });
 		}, describeX);
-		if (result.ok && typeof result.summary?.bodyMediaExpected === 'number') {
+		const expectedBodyMedia = (result.summary?.main as { bodyMediaExpected?: number } | undefined)?.bodyMediaExpected ?? result.summary?.bodyMediaExpected;
+		if (result.ok && typeof expectedBodyMedia !== 'number') result = { ok: false, message: '未收到完整的媒体保存回执，不能确认草稿已完整写入。' };
+		if (result.ok && typeof expectedBodyMedia === 'number') {
 			await client.status({ state: 'running', text: '正在核对保存后的完整草稿…' });
 			await new Promise(resolve => setTimeout(resolve, 3000));
 			if (client.cancelled) throw Object.assign(new Error('已停止'), { stopped: true });
@@ -46,7 +48,7 @@ export async function runXJob(tabId: number, job: BridgeJob, client: PublishClie
 					return { text: editor?.textContent || '', media: editor?.querySelectorAll('section[data-block="true"]').length || 0 };
 				} });
 				const actual = replies[0]?.result as { text: string; media: number } | undefined;
-				if (actual?.text && !/__XPOSTER_\w+__/.test(actual.text) && actual.media >= result.summary.bodyMediaExpected) { verified = true; break; }
+				if (actual?.text && !/__XPOSTER_\w+__/.test(actual.text) && actual.media >= expectedBodyMedia) { verified = true; break; }
 				await new Promise(resolve => setTimeout(resolve, 500));
 			}
 			if (!verified) result = { ok: false, message: '草稿保存后仍有媒体缺失或占位符，已保留草稿，请勿公开发布。' };
