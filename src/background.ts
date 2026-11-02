@@ -1,11 +1,10 @@
 import { handleImageJobs } from './utils/image-job-background';
 import { handleChatToolPort } from './utils/chat-tools-background';
-import { openAiSidebar } from './utils/ai-sidebar';
+import { openAiSidebar, disableGlobalSidebar } from './utils/ai-sidebar';
 import { handleChatImageSource } from './utils/chat-image-source';
 import { validChatTurns } from './utils/chat-content';
 import { validChatSession } from './utils/opencode-go';
-import { channelsPlaybackPage, channelsStudyBridge, getChannelsPlaybackMedia, parseChannelsShare, readChannelsPlayback, isChannelsMedia, channelsShareAddress } from './utils/channels-study';
-import { downloadFileName } from './utils/media-download';
+import { channelsPlaybackPage, channelsStudyBridge, getChannelsPlaybackMedia, parseChannelsShare, readChannelsPlayback } from './utils/channels-study';
 import { protectedPageBridge, snapshotProtectedPage } from './utils/protected-study';
 import { createContentText } from './utils/content-i18n';
 import { getWebPageMedia, isTikTokMedia, snapshotDouyinPlayer, snapshotTikTokPlayer, tabMayLendTikTokMedia, tiktokVideoPath, validateDouyinTracks } from './utils/web-page-media';
@@ -37,6 +36,7 @@ import { registerPublishBridge } from './publish-bridge';
 import { helperInstallUrl } from './utils/helper-install';
 import { pruneHandedFiles } from './utils/file-handoff';
 void pruneHandedFiles();
+void disableGlobalSidebar().catch(error => console.error('Failed to disable global sidebar:', error));
 registerPublishBridge();
 browser.runtime.onMessage.addListener(handleLearningNativeMessage);
 browser.runtime.onMessage.addListener(handleAsrMessage);
@@ -668,11 +668,8 @@ browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime
 		}
 
 		if (typedRequest.action === "qiaomuOpenStudy") {
-			const tabPromise = sender.tab?.id
-				? Promise.resolve(sender.tab.id)
-				: browser.tabs.query({ active: true, currentWindow: true }).then(tabs => tabs[0]?.id);
-			tabPromise
-				.then(tabId => tabId ? openStudyForTab(tabId) : false)
+			browser.tabs.query({ active: true, currentWindow: true })
+				.then(tabs => tabs[0]?.id ? openStudyForTab(tabs[0].id) : false)
 				.then(opened => sendResponse({ opened }))
 				.catch(() => sendResponse({ opened: false }));
 			return true;
@@ -695,89 +692,11 @@ browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime
 		}
 
 		if (typedRequest.action === "qiaomuTripleKey") {
-			const command = String((typedRequest as { command?: string }).command);
 			const tab = sender.tab;
-			if (tab?.id) {
-				const execute = (tabId: number) => {
-					runTripleKeyAction(command, tabId)
-						.then(() => sendResponse({ opened: true }))
-						.catch(() => sendResponse({ opened: false }));
-				};
-				if (tab.url && isValidUrl(tab.url) && !isBlankPage(tab.url)) {
-					execute(tab.id);
-				} else {
-					browser.tabs.get(tab.id).then(t => {
-						if (t?.id && t.url && isValidUrl(t.url) && !isBlankPage(t.url)) {
-							execute(t.id);
-						} else {
-							sendResponse({ opened: false });
-						}
-					}).catch(() => sendResponse({ opened: false }));
-				}
-				return true;
+			if (tab?.id && tab.url && isValidUrl(tab.url) && !isBlankPage(tab.url)) {
+				void runTripleKeyAction(String((typedRequest as { command?: string }).command), tab.id);
 			}
-			browser.tabs.query({ active: true, currentWindow: true }).then(tabs => {
-				const currentTab = tabs[0];
-				if (currentTab?.id && currentTab.url && isValidUrl(currentTab.url) && !isBlankPage(currentTab.url)) {
-					void runTripleKeyAction(command, currentTab.id);
-				}
-			});
 			return undefined;
-		}
-
-		if (typedRequest.action === "qiaomuChannelsDownload") {
-			const req = typedRequest as { url?: string; title?: string };
-			const sourceUrl = req.url || sender.tab?.url || '';
-			const shareAddress = channelsShareAddress(sourceUrl);
-			void (async () => {
-				try {
-					if (!shareAddress) {
-						sendResponse({ success: false, error: '无效的视频号链接' });
-						return;
-					}
-					const tabId = sender.tab?.id ?? 0;
-					await channelsStudy(tabId, { mode: 'open', url: shareAddress });
-
-					let result: any = null;
-					for (let i = 0; i < 25; i++) {
-						await new Promise(r => setTimeout(r, 600));
-						result = await channelsStudy(tabId, { mode: 'read', url: shareAddress });
-						if (result.state === 'ready' && result.info?.mediaUrl) {
-							break;
-						}
-						if (result.state === 'login') {
-							await channelsStudy(tabId, { mode: 'show', url: shareAddress });
-							sendResponse({ success: false, error: 'login' });
-							return;
-						}
-						if (result.state === 'unavailable') {
-							sendResponse({ success: false, error: '无法解析该视频，请尝试先用乔木剪藏打开' });
-							return;
-						}
-					}
-
-					if (result?.state !== 'ready' || !result?.info?.mediaUrl) {
-						sendResponse({ success: false, error: '解析超时，请尝试先用乔木剪藏打开' });
-						return;
-					}
-
-					const mediaUrl = result.info.mediaUrl;
-					const title = result.info.title || req.title || '视频号视频';
-					const filename = downloadFileName(title, 'mp4');
-
-					await browser.downloads.download({
-						url: mediaUrl,
-						filename: `乔木剪藏/${filename}`,
-						saveAs: false,
-						conflictAction: 'uniquify',
-					});
-					sendResponse({ success: true, title, mediaUrl });
-				} catch (err) {
-					console.error('[qiaomu] channels download failed:', err);
-					sendResponse({ success: false, error: err instanceof Error ? err.message : String(err) });
-				}
-			})();
-			return true;
 		}
 
 		if (typedRequest.action === "getActiveTabAndToggleIframe") {
@@ -1022,8 +941,8 @@ browser.commands.onCommand.addListener(async (command, tab) => {
 		tab = tabs[0];
 	}
 
-	if (command === 'open_ai_sidebar' && tab?.windowId !== undefined) {
-		await openAiSidebar(tab.windowId);
+	if (command === 'open_ai_sidebar' && tab?.id !== undefined) {
+		await openAiSidebar({ tabId: tab.id });
 		return;
 	}
 	if (command === 'quick_clip') {
@@ -1143,8 +1062,8 @@ const debouncedUpdateContextMenu = debounce(async (tabId: number) => {
 }, 100); // 100ms debounce time
 
 browser.contextMenus.onClicked.addListener(async (info, tab) => {
-	if (info.menuItemId === 'open-ai-sidebar' && tab?.windowId !== undefined) {
-		await openAiSidebar(tab.windowId);
+	if (info.menuItemId === 'open-ai-sidebar' && tab?.id !== undefined) {
+		await openAiSidebar({ tabId: tab.id });
 	} else if (info.menuItemId === "open-obsidian-clipper") {
 		openPopup();
 	} else if (info.menuItemId === "enter-highlighter" && tab && tab.id) {
@@ -1162,7 +1081,7 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
 	} else if (info.menuItemId === 'open-embedded' && tab && tab.id) {
 		await sendMessageToContentScript(tab.id, { action: "toggle-iframe" });
 	} else if (info.menuItemId === 'open-side-panel' && tab && tab.id && tab.windowId) {
-		await Promise.all([chrome.sidePanel.setOptions({ path: 'side-panel.html', enabled: true }), chrome.sidePanel.open({ tabId: tab.id })]);
+		await Promise.all([chrome.sidePanel.setOptions({ tabId: tab.id, path: 'side-panel.html', enabled: true }), chrome.sidePanel.open({ tabId: tab.id })]);
 		sidePanelOpenWindows.add(tab.windowId);
 		await ensureContentScriptLoadedInBackground(tab.id);
 	} else if (info.menuItemId === 'copy-markdown-to-clipboard' && tab && tab.id) {

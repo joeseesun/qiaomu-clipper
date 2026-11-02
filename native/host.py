@@ -372,17 +372,6 @@ def handle(message, config, base):
         atomic_json(base/'config.json',updated)
         config.update(updated)
         return {'ok':True,'vault':selected.name,'vaultPath':str(selected)}
-    if message.get('action') == 'revealFile':
-        target = message.get('path')
-        if target and Path(target).exists():
-            try:
-                if sys.platform == 'win32':
-                    subprocess.Popen(['explorer.exe', f'/select,{str(Path(target).resolve())}'])
-                elif sys.platform == 'darwin':
-                    subprocess.Popen(['open', '-R', str(Path(target).resolve())])
-                return {'ok': True}
-            except Exception: pass
-        return {'ok': False, 'error': 'not-found'}
     if message.get('action') in {'attachPick','attachLocal','attachBytes','attachDiscard'}: return attach(message,base)
     if message.get('action') in {'helperUninstallPlan','helperUninstall'}:
         # Taking the whole helper away: refused while a subtitle job or engine install is running.
@@ -391,7 +380,7 @@ def handle(message, config, base):
         if message['action']=='helperUninstallPlan': return {'ok':True,**uninstall.plan()}
         if asr.active_job(base)[0] or asr.active_install(base)[0] or codex_images.active_job(base): return {'ok':False,'error':'busy'}
         return uninstall.run()
-    if message.get('action') in {'mediaDownloadStart','mediaDownloadPoll','mediaDownloadCancel','mediaDownloadReveal','asrStatus','asrStart','asrPoll','asrCancel','asrCloudTest','asrInstall','asrInstallPoll','asrInstallCancel','asrUninstall','asrUploadStart','asrUploadChunk','asrUploadFinish','asrProbe','asrMediaDownload','asrMediaDownloadPoll','asrMediaDownloadCancel'}:
+    if message.get('action') in {'mediaDownloadStart','mediaDownloadPoll','mediaDownloadCancel','mediaDownloadReveal','asrStatus','asrStart','asrPoll','asrCancel','asrCloudTest','asrInstall','asrInstallPoll','asrInstallCancel','asrUninstall','asrUploadStart','asrUploadChunk','asrUploadFinish','asrProbe'}:
         # Subtitle generation lives in asr.py next to this file; it needs no vault.
         sys.path.insert(0,str(Path(__file__).resolve().parent))
         import asr

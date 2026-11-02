@@ -8,12 +8,12 @@ import argparse, gc, os, re, subprocess, sys, tempfile
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-if sys.platform == "win32":
-    try:
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
-    except Exception:
-        pass
+def configure_output():
+    # The host decodes runner pipes as UTF-8, including under Windows code pages.
+    if sys.platform != 'win32': return
+    for stream in (sys.stdout, sys.stderr):
+        try: stream.reconfigure(encoding='utf-8', errors='replace')
+        except (AttributeError, OSError, ValueError): pass
 
 def stamp(seconds):
     seconds = max(0.0, float(seconds)); h, rest = divmod(seconds, 3600); m, s = divmod(rest, 60)
@@ -71,12 +71,6 @@ def transcribe_faster(args, samples, model_factory, candidates):
             model = None; gc.collect()
 
 def faster_whisper(args):
-    # Windows 环境下 NO_PROXY 中的 ::1 或 ::1/128 会导致 httpx 报错 Invalid port: ':1'，在此做清理保护
-    for k in ('NO_PROXY', 'no_proxy'):
-        if k in os.environ:
-            cleaned = ','.join(p for p in os.environ[k].split(',') if not p.strip().startswith('::1'))
-            os.environ[k] = cleaned
-
     from faster_whisper import WhisperModel
     import ctranslate2
     candidates = compute_candidates(ctranslate2)
@@ -107,6 +101,7 @@ def qwen3(args):
         scratch.rmdir()
 
 def main():
+    configure_output()
     parser = argparse.ArgumentParser(); parser.add_argument('engine'); parser.add_argument('wav'); parser.add_argument('language')
     parser.add_argument('--model', required=True); parser.add_argument('--ffmpeg', required=True); parser.add_argument('--total', default='0'); parser.add_argument('--context', default='')
     args = parser.parse_args()

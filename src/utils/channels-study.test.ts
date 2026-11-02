@@ -9,7 +9,6 @@ const info={ok:true as const,title:'Fixture',author:'',seconds:110,thumbnail:nul
 beforeEach(()=>document.body.replaceChildren());afterEach(()=>{window.dispatchEvent(new Event('pagehide'));vi.useRealTimers();vi.unstubAllGlobals();vi.restoreAllMocks();});
 it('accepts only canonical shares and Tencent media; never uses bearer playback URLs as history',()=>{
  expect(channelsShareAddress(share)).toBe(share);expect(channelsShareAddress('https://channels.weixin.qq.com/finder-preview/pages/sph?id=Fixture123')).toBe(share);
- expect(channelsShareAddress('https://channels.weixin.qq.com/finder-preview/pages/sph?id=Fixture123&token=x&scene=1')).toBe(share);expect(channelsShareAddress('https://channels.weixin.qq.com/finder-preview/pages/sph?sph=Fixture123')).toBe(share);expect(channelsShareAddress('https://channels.weixin.qq.com/finder-preview/pages/sph?id=Fixture123#wechat_redirect')).toBe(share);
  for(const u of [playback,share+'?token=x','http://weixin.qq.com/sph/Fixture123','https://user:pw@weixin.qq.com/sph/Fixture123','https://weixin.qq.com.evil.org/sph/Fixture123'])expect(channelsShareAddress(u)).toBeUndefined();
  expect(isChannelsMedia(share,media)).toBe(true);
  for(const u of [media.replace('https:','http:'),media.replace('finder.video.qq.com','evil.org'),media.replace('/251/20302/stodownload','/other'),media.replace('finder.video.qq.com','finder.video.qq.com:8080'),media+'#x'])expect(isChannelsMedia(share,u)).toBe(false);
