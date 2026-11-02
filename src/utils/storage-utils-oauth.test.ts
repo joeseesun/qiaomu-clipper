@@ -29,6 +29,13 @@ beforeEach(() => {
 	store.data = { migrationVersion: 1, interpreter_settings: { providers: [{ id: 'p', name: 'ChatGPT', baseUrl: '', apiKey: '', oauth: signIn() }], models: [] } };
 	spent = new Set();
 	refreshes = [];
+	// One shared exclusive queue per lock name, independent of Node's Web Locks support.
+	const tails = new Map<string, Promise<unknown>>();
+	vi.stubGlobal('navigator', { locks: { request: (name: string, work: () => Promise<unknown>) => {
+		const pending = (tails.get(name) || Promise.resolve()).then(work);
+		tails.set(name, pending.catch(() => {}));
+		return pending;
+	} } });
 	// A rotating refresh token: each one works once and is answered with the next.
 	vi.stubGlobal('fetch', vi.fn(async (_url: string, init: RequestInit) => {
 		const token = new URLSearchParams(String(init.body)).get('refresh_token')!;
@@ -66,7 +73,7 @@ it('a page that still holds the spent token takes the renewed one from storage i
 });
 
 it('pages that refresh at the same time spend the refresh token once', async () => {
-	// Web Locks are shared by every page of the extension, as Node's are by both module copies here.
+	// The shared lock fixture serializes independent module copies, as extension Web Locks do.
 	expect(navigator.locks).toBeDefined();
 	const a = await openPage();
 	const b = await openPage();
@@ -114,4 +121,14 @@ it('does not store renewed credentials for an account signed out meanwhile', asy
 	const held = { ...provider(page), oauth: signIn({ refresh: 'r9' }) };
 	await page.accounts.freshOAuth(held, { load: async () => undefined, save: page.settings.oauthStore.save });
 	expect(storedOAuth()).toBeUndefined();
+});
+
+it('still preserves newer credentials on sequential saves when Web Locks are unavailable', async () => {
+	vi.stubGlobal('navigator', {});
+	const a = await openPage();
+	const stale = await openPage();
+	await a.accounts.freshOAuth(provider(a), a.settings.oauthStore);
+	await stale.settings.saveSettings({ showMoreActionsButton: true });
+	expect(storedOAuth()?.refresh).toBe('r2');
+	expect(refreshes).toEqual(['r1']);
 });
