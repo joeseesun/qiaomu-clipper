@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 const state = vi.hoisted(() => ({
-	query: vi.fn(), execute: vi.fn(), load: vi.fn(), mount: vi.fn(),
+	query: vi.fn(), get: vi.fn(), execute: vi.fn(), load: vi.fn(), mount: vi.fn(),
 	chat: { toggle: vi.fn(), quote: vi.fn(), destroy: vi.fn() },
 }));
 vi.mock('../utils/browser-polyfill', () => ({ default: {
-	tabs: { query: state.query }, scripting: { executeScript: state.execute },
+	tabs: { query: state.query, get: state.get }, scripting: { executeScript: state.execute },
 } }));
 vi.mock('../utils/storage-utils', () => ({ loadSettings: state.load }));
 vi.mock('../utils/i18n', () => ({
@@ -23,6 +23,7 @@ beforeEach(() => {
 	document.body.innerHTML = '<strong id="ai-page-title"></strong><p id="ai-page-status"></p><button id="ai-page-quote"></button>';
 	state.load.mockResolvedValue(undefined);
 	state.query.mockResolvedValue([{ id: 10, url, status: 'complete' }]);
+	state.get.mockResolvedValue({ id: 10, url, status: 'complete' });
 	state.execute.mockResolvedValue(result());
 	state.mount.mockReturnValue(state.chat);
 });
@@ -43,7 +44,16 @@ it('rejects same-URL document replacement before sending', async () => {
 it('rejects a page that has started loading before sending', async () => {
 	await start();
 	state.query.mockResolvedValue([{ id: 10, url, status: 'loading' }]);
+	state.get.mockResolvedValue({ id: 10, url, status: 'loading' });
 	await expect(state.mount.mock.calls[0][0].prepareContext()).rejects.toThrow();
+});
+it('keeps initializing its own page after focus switches to another tab', async () => {
+ state.query.mockResolvedValue([{ id: 20, url: 'https://example.com/b', status: 'complete' }]);
+ await start();
+ expect(state.get).toHaveBeenCalledWith(10);
+ expect(state.query).not.toHaveBeenCalled();
+ expect(state.mount).toHaveBeenCalledTimes(1);
+ expect(state.mount.mock.calls[0][0].getContext().url).toBe(url);
 });
 it('disposes the mounted chat on synchronous frame removal', async () => {
 	await start();
