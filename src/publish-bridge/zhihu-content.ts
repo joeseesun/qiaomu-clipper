@@ -63,7 +63,12 @@ async function uploadPicture(picture: Picture): Promise<string> {
 }
 
 async function runImport(message: { title: string; html: string; cover: string; summary: string }, pictures: Map<string, Picture>, post: (message: unknown) => void, state: { cancel: boolean }): Promise<void> {
-	const say = (text: string) => post({ type: 'progress', text });
+	const panel = document.createElement('div');
+	panel.id = 'qiaomu-publish-zhihu-status';
+	panel.setAttribute('role', 'status'); panel.setAttribute('aria-live', 'polite');
+	Object.assign(panel.style, { position: 'fixed', bottom: '24px', left: '24px', zIndex: '2147483647', maxWidth: 'calc(100vw - 48px)', padding: '16px 20px', borderRadius: '12px', color: '#fff', background: '#17212b', font: '14px/1.6 system-ui', boxShadow: '0 4px 20px #0003', pointerEvents: 'none', whiteSpace: 'pre-line' });
+	document.getElementById(panel.id)?.remove(); document.documentElement.appendChild(panel);
+	const say = (text: string) => { panel.textContent = `正在发送文章到知乎\n${text}\n完成后会自动打开草稿。`; post({ type: 'progress', text }); };
 	const check = () => { if (state.cancel) throw new Stopped('已停止'); };
 	try {
 		check();
@@ -105,10 +110,12 @@ async function runImport(message: { title: string; html: string; cover: string; 
 		}
 		const url = `https://zhuanlan.zhihu.com/p/${draftId}/edit`;
 		check();
+		panel.textContent = note;
 		post({ type: 'done', summary: { url, remoteId: draftId }, message: note });
 		window.setTimeout(() => { location.assign(url); }, 400);
 	} catch (error) {
-		if ((error as Stopped)?.stopped) { post({ type: 'cancelled' }); return; }
+		if ((error as Stopped)?.stopped) { panel.textContent = '已停止发送'; post({ type: 'cancelled' }); return; }
+		panel.textContent = `发送未完成：${(error as Error).message || String(error)}`;
 		post({ type: 'error', error: (error as Error).message || String(error) });
 	}
 }

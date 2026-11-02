@@ -18,9 +18,9 @@ export function validateWebPayload(input: unknown): WebPayload {
   if (typeof body !== 'string' || !body.trim() || body.length > 2_000_000) throw new Error('正文为空或过长');
   const ids = new Set<string>(); let total = 0;
   for (const asset of payload.assets) {
-    if (!asset || !/^[\w-]{1,100}$/.test(asset.id) || ids.has(asset.id) || !/^image\/(png|jpeg|webp|gif)$/.test(asset.mime) || typeof asset.base64 !== 'string' || !/^[A-Za-z0-9+/]*={0,2}$/.test(asset.base64) || asset.base64.length > 28_000_000 || (total += asset.base64.length) > 56_000_000 || typeof asset.name !== 'string' || asset.name.length > 200) throw new Error('图片格式无效或过大');
+    if (!asset || !/^[\w-]{1,100}$/.test(asset.id) || ids.has(asset.id) || !(/^image\/(png|jpeg|webp|gif)$/.test(asset.mime) || (job.target === 'x' && asset.mime === 'video/mp4')) || typeof asset.base64 !== 'string' || !/^[A-Za-z0-9+/]*={0,2}$/.test(asset.base64) || asset.base64.length > (asset.mime === 'video/mp4' ? 45_000_000 : 28_000_000) || (total += asset.base64.length) > 56_000_000 || typeof asset.name !== 'string' || asset.name.length > 200) throw new Error('媒体格式无效或过大');
     ids.add(asset.id);
-    if (atob(asset.base64).length !== asset.bytes) throw new Error('图片资源不完整');
+    if (asset.bytes > (asset.mime === 'video/mp4' ? 32 : 20) * 1024 * 1024 || atob(asset.base64).length !== asset.bytes) throw new Error('图片资源不完整');
   }
   if (job.assets.length !== ids.size || job.assets.some(asset => !ids.has(asset.id)) || (job.content.cover && !ids.has(job.content.cover))) throw new Error('图片资源不完整');
   return payload;

@@ -1094,6 +1094,19 @@
         "src/publish-bridge/web.test.ts",
         "src/publish-bridge/publish-bridge.test.ts"
       ]
+    },
+    {
+      "id": "blog-video-publishing",
+      "title": "博客 X 文章自动上传 MP4、知乎显示发送进度",
+      "origin": "真实长文章发布回归与视频上传需求",
+      "files": [
+        "src/publish-bridge/web.ts",
+        "src/publish-bridge/zhihu-content.ts"
+      ],
+      "tests": [
+        "src/publish-bridge/web.test.ts",
+        "src/publish-bridge/publish-bridge.test.ts"
+      ]
     }
   ]
 }

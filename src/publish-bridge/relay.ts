@@ -72,7 +72,7 @@ export function relayPort(port: ReturnType<typeof browser.tabs.connect>, client:
 export async function sendAssets(client: PublishClient, assets: BridgeAsset[], post: (message: unknown) => void, source: (asset: BridgeAsset) => string, report: (text: string) => void): Promise<void> {
 	for (const [index, asset] of assets.entries()) {
 		if (client.cancelled) throw Object.assign(new Error('已停止'), { stopped: true });
-		report(`正在取图片 ${index + 1}/${assets.length}…`);
+		report(`正在准备${asset.mime === 'video/mp4' ? '视频' : '图片'} ${index + 1}/${assets.length}…`);
 		const data = await client.asset(asset);
 		if (client.cancelled) throw Object.assign(new Error('已停止'), { stopped: true });
 		post({ type: 'image', source: source(asset), mime: asset.mime, fileName: asset.name, bytes: data.byteLength, base64: bytesToBase64(data) });

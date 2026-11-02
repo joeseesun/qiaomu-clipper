@@ -42,3 +42,12 @@ describe('direct browser publishing', () => {
     expect(await handleWebPublish({ kind: 'unknown' }, sender(30))).toMatchObject({ error: expect.any(String) });
   });
 });
+
+it('accepts MP4 bytes for X but never sends video into the Zhihu image adapter', () => {
+  const video = { id: 'video-1', mime: 'video/mp4', bytes: 3, name: 'video-1.mp4' };
+  const x = article('x');
+  const payload = { ...x, job: { ...x.job, assets: [video] }, assets: [{ ...video, base64: 'AQID' }] };
+  expect(validateWebPayload(payload)).toEqual(payload);
+  expect(() => validateWebPayload({ ...payload, job: { ...payload.job, target: 'zhihu' } })).toThrow();
+  expect(() => validateWebPayload({ ...payload, assets: [{ ...video, bytes: 33 * 1024 * 1024, base64: 'AQID' }] })).toThrow();
+});
