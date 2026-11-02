@@ -1,5 +1,5 @@
 import { magpieKey } from './magpie';
-import { generalSettings, saveSettings } from './storage-utils';
+import { generalSettings, oauthStore } from './storage-utils';
 import { freshOAuth, responsesRequest, responsesText } from './oauth/accounts';
 import browser from './browser-polyfill';
 import type { ModelConfig, Provider } from '../types/types';
@@ -165,7 +165,7 @@ export async function streamChat({ model: chosen, system, messages, signal, onDe
 	if (!provider.oauth && !supportsOpenCodeGoChat(provider.baseUrl, model.providerModelId)) throw new Error(t('此 OpenCode Go 模型或端点尚不支持，请从聊天模型列表中选择。'));
 	const native = nativeTools && !provider.oauth ? tokenPlanProfile(provider, model.providerModelId, effort) : undefined;
 	let { url, init } = provider.oauth
-		? responsesRequest(await freshOAuth(provider, () => saveSettings()), model, system, messages)
+		? responsesRequest(await freshOAuth(provider, oauthStore), model, system, messages)
 		: buildRequest(provider, model, system, messages, sessionId, effort);
 	if (native) {
 		if (!native.vision && messages.some(m => m.images?.length)) throw new Error(t('当前模型不支持看图，请选择支持图片的模型。'));
