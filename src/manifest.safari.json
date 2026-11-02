@@ -170,6 +170,17 @@
 			],
 			"all_frames": true,
 			"run_at": "document_idle"
+		},
+		{
+			"matches": [
+				"https://blog.qiaomu.ai/*",
+				"http://localhost/*",
+				"http://127.0.0.1/*"
+			],
+			"js": [
+				"web-publish-content.js"
+			],
+			"run_at": "document_start"
 		}
 	],
 	"web_accessible_resources": [

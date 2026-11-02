@@ -1,6 +1,6 @@
 import browser from '../utils/browser-polyfill';
 import { connect, injectEngine } from '../x-publish/driver';
-import type { BridgeClient } from './client';
+import type { PublishClient } from './client';
 import type { BridgeJob } from './protocol';
 import { finalStatus, relayPort, sendAssets, waitForTab } from './relay';
 
@@ -20,7 +20,7 @@ const PROGRESS: [RegExp, (m: RegExpMatchArray) => string][] = [
 export const describeX = (text: string) => { for (const [pattern, make] of PROGRESS) { const m = text.match(pattern); if (m) return make(m); } return text; };
 
 /** Writes the article into the X Articles editor of `tabId`, using the same engine as the Clipper writer. */
-export async function runXJob(tabId: number, job: BridgeJob, client: BridgeClient): Promise<void> {
+export async function runXJob(tabId: number, job: BridgeJob, client: PublishClient): Promise<void> {
 	if (!job.content.markdown) { await client.status({ state: 'error', error: { message: '这篇笔记没有可写入的正文' } }); return; }
 	try {
 		await client.status({ state: 'running', text: '正在打开 X 文章…' });

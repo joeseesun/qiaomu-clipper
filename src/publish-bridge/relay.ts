@@ -1,5 +1,5 @@
 import browser from '../utils/browser-polyfill';
-import { BridgeClient, bytesToBase64 } from './client';
+import { PublishClient, bytesToBase64 } from './client';
 import type { BridgeAsset, BridgeStatus } from './protocol';
 
 // The page-side scripts (X, Zhihu, Xiaohongshu) all speak the same small port protocol:
@@ -45,7 +45,7 @@ export async function connectToPage(tabId: number, portName: string, routeMessag
 export interface RelayResult { ok: boolean; cancelled?: boolean; message?: string; summary?: { url?: string; remoteId?: string } & Record<string, unknown> }
 
 /** Passes the page's progress on to Obsidian and the stop request from Obsidian to the page, until the page finishes. */
-export function relayPort(port: ReturnType<typeof browser.tabs.connect>, client: BridgeClient, send: (post: (message: unknown) => void) => Promise<void>, describe: (text: string) => string = text => text): Promise<RelayResult> {
+export function relayPort(port: ReturnType<typeof browser.tabs.connect>, client: PublishClient, send: (post: (message: unknown) => void) => Promise<void>, describe: (text: string) => string = text => text): Promise<RelayResult> {
 	return new Promise(resolve => {
 		let settled = false;
 		const beat = setInterval(() => {
@@ -69,7 +69,7 @@ export function relayPort(port: ReturnType<typeof browser.tabs.connect>, client:
 	});
 }
 
-export async function sendAssets(client: BridgeClient, assets: BridgeAsset[], post: (message: unknown) => void, source: (asset: BridgeAsset) => string, report: (text: string) => void): Promise<void> {
+export async function sendAssets(client: PublishClient, assets: BridgeAsset[], post: (message: unknown) => void, source: (asset: BridgeAsset) => string, report: (text: string) => void): Promise<void> {
 	for (const [index, asset] of assets.entries()) {
 		if (client.cancelled) throw Object.assign(new Error('已停止'), { stopped: true });
 		report(`正在取图片 ${index + 1}/${assets.length}…`);

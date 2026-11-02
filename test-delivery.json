@@ -1080,6 +1080,20 @@
         "src/utils/oauth/accounts.test.ts",
         "src/utils/storage-utils.test.ts"
       ]
+    },
+    {
+      "id": "blog-direct-publishing",
+      "title": "博客直接发送 X/知乎草稿，无命令和本机服务",
+      "origin": "博客发布自动化需求",
+      "files": [
+        "src/publish-bridge/web.ts",
+        "src/publish-bridge/web-protocol.ts",
+        "src/web-publish-content.ts"
+      ],
+      "tests": [
+        "src/publish-bridge/web.test.ts",
+        "src/publish-bridge/publish-bridge.test.ts"
+      ]
     }
   ]
 }

@@ -1,5 +1,5 @@
 import browser from '../utils/browser-polyfill';
-import type { BridgeClient } from './client';
+import type { PublishClient } from './client';
 import type { BridgeJob } from './protocol';
 import { connectToPage, finalStatus, relayPort, scrubFragment, sendAssets, waitForTab } from './relay';
 
@@ -8,7 +8,7 @@ export const ZHIHU_SCRIPT = 'zhihu-publish-content.js';
 export const ZHIHU_IMAGE_SCHEME = 'qp-asset://';
 
 /** The Zhihu API calls run inside the Zhihu tab itself, so they carry the page's own origin and cookies. */
-export async function runZhihuJob(tabId: number, job: BridgeJob, client: BridgeClient): Promise<void> {
+export async function runZhihuJob(tabId: number, job: BridgeJob, client: PublishClient): Promise<void> {
 	if (!job.content.html) { await client.status({ state: 'error', error: { message: '这篇笔记没有可写入的正文' } }); return; }
 	try {
 		await client.status({ state: 'running', text: '正在打开知乎…' });

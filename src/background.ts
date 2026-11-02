@@ -1,3 +1,4 @@
+import { registerWebPublish } from './publish-bridge/web';
 import { handleImageJobs } from './utils/image-job-background';
 import { handleChatToolPort } from './utils/chat-tools-background';
 import { openAiSidebar, disableGlobalSidebar } from './utils/ai-sidebar';
@@ -38,6 +39,7 @@ import { pruneHandedFiles } from './utils/file-handoff';
 void pruneHandedFiles();
 void disableGlobalSidebar().catch(error => console.error('Failed to disable global sidebar:', error));
 registerPublishBridge();
+registerWebPublish();
 browser.runtime.onMessage.addListener(handleLearningNativeMessage);
 browser.runtime.onMessage.addListener(handleAsrMessage);
 browser.runtime.onMessage.addListener(handleChatImageSource);

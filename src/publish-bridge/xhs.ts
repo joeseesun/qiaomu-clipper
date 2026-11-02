@@ -1,4 +1,4 @@
-import type { BridgeClient } from './client';
+import type { PublishClient } from './client';
 import type { BridgeJob } from './protocol';
 import { connectToPage, finalStatus, relayPort, scrubFragment, sendAssets, waitForTab } from './relay';
 import browser from '../utils/browser-polyfill';
@@ -8,7 +8,7 @@ export const XHS_SCRIPT = 'xhs-publish-content.js';
 export const XHS_CARD_SCHEME = 'qp-asset://';
 
 /** Fills the Xiaohongshu creator page with the cards, title, body and topics. The person reviews and presses publish. */
-export async function runXhsJob(tabId: number, job: BridgeJob, client: BridgeClient): Promise<void> {
+export async function runXhsJob(tabId: number, job: BridgeJob, client: PublishClient): Promise<void> {
 	const cards = job.content.cards ?? [];
 	if (!cards.length) { await client.status({ state: 'error', error: { message: '没有可上传的图文卡片' } }); return; }
 	try {

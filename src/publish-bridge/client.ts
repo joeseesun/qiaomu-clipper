@@ -5,7 +5,13 @@ export class BridgeError extends Error {
 }
 
 /** Talks to the loopback server the plugin opened for this one job. */
-export class BridgeClient {
+export interface PublishClient {
+	cancelled: boolean;
+	asset(asset: BridgeAsset): Promise<ArrayBuffer>;
+	status(status: BridgeStatus): Promise<void>;
+}
+
+export class BridgeClient implements PublishClient {
 	private session = '';
 	cancelled = false;
 
