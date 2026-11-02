@@ -1,6 +1,6 @@
 {
 	"name": "qiaomu-clipper",
-	"version": "1.19.0",
+	"version": "1.19.1",
 	"description": "Turn what you read and watch into notes and articles. Clip pages, study captions, ask AI, write Markdown and add images.",
 	"bin": {
 		"obsidian-clipper": "./build/cli/cli.cjs"

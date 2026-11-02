@@ -75,6 +75,24 @@
       ]
     },
     {
+      "id": "ai-sidebar-tab-isolation",
+      "title": "AI 侧栏按目标标签独立打开与关闭",
+      "origin": "fix/ai-sidebar-per-tab",
+      "files": [
+        "src/background.ts",
+        "src/utils/ai-sidebar.ts",
+        "src/core/ai-side-panel.ts",
+        "src/core/ai-chat-page.ts",
+        "src/utils/chat-history-resume.ts"
+      ],
+      "tests": [
+        "src/utils/ai-sidebar.test.ts",
+        "src/core/ai-side-panel.test.ts",
+        "src/core/ai-chat-page.test.ts",
+        "src/utils/chat-history-resume.test.ts"
+      ]
+    },
+    {
       "id": "build-identity",
       "title": "测试版本与构建来源显示",
       "origin": "codex/build-test-workflow",
@@ -556,6 +574,19 @@
         "src/styles/reader/code-blocks.scss"
       ],
       "tests": [
+        "src/utils/code-preservation.test.ts"
+      ]
+    },
+    {
+      "id": "article-list-preservation",
+      "title": "保留正文段落后的有序和无序列表",
+      "origin": "fix/preserve-article-lists",
+      "files": [
+        "src/utils/defuddle.ts",
+        "src/utils/list-preservation.ts"
+      ],
+      "tests": [
+        "src/utils/list-preservation.test.ts",
         "src/utils/code-preservation.test.ts"
       ]
     },

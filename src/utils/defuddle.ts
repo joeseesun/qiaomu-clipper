@@ -1,6 +1,7 @@
 import UpstreamDefuddle, { type DefuddleOptions, type DefuddleResponse } from 'defuddle';
 import { createMarkdownContent as upstreamMarkdown } from 'defuddle/full';
 import { protectCodeBlocks, restoreCodeHtml, restoreCodeMarkdown, countHtmlWords, type CodeBlock } from './code-preservation';
+import { protectArticleLists, restoreArticleLists } from './list-preservation';
 
 const normalizedText = (text: string) => text.replace(/\s+/g, ' ').trim();
 interface ImageDescription { alt: string; title: string | null; sourceText: string }
@@ -37,6 +38,7 @@ export function createMarkdownContent(content: string, url: string, parser: Pick
 export default class Defuddle {
 	private parser: UpstreamDefuddle;
 	private blocks: CodeBlock[];
+	private listMarkers: string[];
 	private url: string;
 	private imageDescriptions = new Map<string, ImageDescription>();
 	private imageDoc: Document;
@@ -61,11 +63,12 @@ export default class Defuddle {
 			this.imageDescriptions.set(token, { alt, title: image.getAttribute('title'), sourceText });
 			image.setAttribute('title', token);
 		}
+		this.listMarkers = protectArticleLists(clone);
 		this.parser = new UpstreamDefuddle(clone, { ...options, url: this.url, markdown: false, separateMarkdown: false });
 	}
 	private restore(result: DefuddleResponse): DefuddleResponse {
 		const before = result.content;
-		result.content = restoreCodeHtml(result.content, this.blocks);
+		result.content = restoreArticleLists(restoreCodeHtml(result.content, this.blocks), this.listMarkers);
 		if (this.imageDescriptions.size) {
 			const container = this.imageDoc.createElement('div');
 			container.innerHTML = result.content;

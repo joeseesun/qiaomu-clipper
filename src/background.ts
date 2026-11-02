@@ -1,6 +1,6 @@
 import { handleImageJobs } from './utils/image-job-background';
 import { handleChatToolPort } from './utils/chat-tools-background';
-import { openAiSidebar } from './utils/ai-sidebar';
+import { openAiSidebar, disableGlobalSidebar } from './utils/ai-sidebar';
 import { handleChatImageSource } from './utils/chat-image-source';
 import { validChatTurns } from './utils/chat-content';
 import { validChatSession } from './utils/opencode-go';
@@ -36,6 +36,7 @@ import { registerPublishBridge } from './publish-bridge';
 import { helperInstallUrl } from './utils/helper-install';
 import { pruneHandedFiles } from './utils/file-handoff';
 void pruneHandedFiles();
+void disableGlobalSidebar().catch(error => console.error('Failed to disable global sidebar:', error));
 registerPublishBridge();
 browser.runtime.onMessage.addListener(handleLearningNativeMessage);
 browser.runtime.onMessage.addListener(handleAsrMessage);
@@ -940,8 +941,8 @@ browser.commands.onCommand.addListener(async (command, tab) => {
 		tab = tabs[0];
 	}
 
-	if (command === 'open_ai_sidebar' && tab?.windowId !== undefined) {
-		await openAiSidebar(tab.windowId);
+	if (command === 'open_ai_sidebar' && tab?.id !== undefined) {
+		await openAiSidebar({ tabId: tab.id });
 		return;
 	}
 	if (command === 'quick_clip') {
@@ -1061,8 +1062,8 @@ const debouncedUpdateContextMenu = debounce(async (tabId: number) => {
 }, 100); // 100ms debounce time
 
 browser.contextMenus.onClicked.addListener(async (info, tab) => {
-	if (info.menuItemId === 'open-ai-sidebar' && tab?.windowId !== undefined) {
-		await openAiSidebar(tab.windowId);
+	if (info.menuItemId === 'open-ai-sidebar' && tab?.id !== undefined) {
+		await openAiSidebar({ tabId: tab.id });
 	} else if (info.menuItemId === "open-obsidian-clipper") {
 		openPopup();
 	} else if (info.menuItemId === "enter-highlighter" && tab && tab.id) {
@@ -1080,7 +1081,7 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
 	} else if (info.menuItemId === 'open-embedded' && tab && tab.id) {
 		await sendMessageToContentScript(tab.id, { action: "toggle-iframe" });
 	} else if (info.menuItemId === 'open-side-panel' && tab && tab.id && tab.windowId) {
-		await Promise.all([chrome.sidePanel.setOptions({ path: 'side-panel.html', enabled: true }), chrome.sidePanel.open({ tabId: tab.id })]);
+		await Promise.all([chrome.sidePanel.setOptions({ tabId: tab.id, path: 'side-panel.html', enabled: true }), chrome.sidePanel.open({ tabId: tab.id })]);
 		sidePanelOpenWindows.add(tab.windowId);
 		await ensureContentScriptLoadedInBackground(tab.id);
 	} else if (info.menuItemId === 'copy-markdown-to-clipboard' && tab && tab.id) {

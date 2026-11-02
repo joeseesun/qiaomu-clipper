@@ -26,13 +26,14 @@ async function start() {
 	await translatePage();
 	if (disposed) return;
 	const params = new URLSearchParams(location.search);
-	const tabId = Number(params.get('tab')), windowId = Number(params.get('window'));
+	const tabId = Number(params.get('tab'));
 	const expected = params.get('url') || '';
 	let documentId: string | undefined;
 	let context = { title: t('普通对话'), url: expected || `qiaomu-chat://tab/${tabId}`, markdown: '', available: false };
 	const pageChanged = () => new Error(t('页面已切换，请在当前页重新提问。'));
 	async function assertCurrent(generation: number) {
-		const [tab] = await browser.tabs.query({ active: true, windowId });
+		// A hidden panel remains attached to its owning page while another tab is active.
+		const tab = await browser.tabs.get(tabId);
 		if (disposed || generation !== refreshGeneration || tab?.id !== tabId || tab.status === 'loading' || !sameAiPage(expected, tab.url || '')) throw pageChanged();
 	}
 	async function refresh() {
