@@ -715,7 +715,11 @@
     }
     await sleep(80);
 
+    draftNode = findDraftStateNode() || draftNode;
     const before = existingMediaEntities(draftNode.props.editorState.getCurrentContent());
+    // A stale render must never make a previously completed block look new.
+    before.blockKeys ||= new Set();
+    for (const key of existingAtomicBlocks) before.blockKeys.add(key);
     const preparedFile = await requestPreparedFile(imageOperation);
     throwIfCancelled();
     const file = base64ToFile(preparedFile.base64, preparedFile.fileName, preparedFile.mime);
@@ -963,7 +967,10 @@
     const text = content.getPlainText ? content.getPlainText('\n') : '';
     if (markerTokenPattern(markerPrefix).test(text)) throw new Error('X still contains unfinished media placeholders. Your draft is preserved.');
     const blocks = content.getBlockMap();
+    const unique = new Set();
     for (const upload of uploads) {
+      if (!upload.coverOnly && unique.has(upload.blockKey)) throw new Error('Two uploads resolved to the same X media block. Your draft is preserved.');
+      unique.add(upload.blockKey);
       if (!upload.coverOnly && (!blocks.has(upload.blockKey) || blocks.get(upload.blockKey).getType() !== 'atomic')) throw new Error('An uploaded media block is missing from the X draft. Your draft is preserved.');
     }
   }
@@ -1477,6 +1484,7 @@
       throw error;
     }
     if (payload.sourceMarkdown) recovery = null;
+    summary.bodyMediaExpected = uploads.filter(upload => !upload.coverOnly).length;
     post("done", { summary });
     } catch (error) {
       // Keep completed images and readable source links when a later image fails.

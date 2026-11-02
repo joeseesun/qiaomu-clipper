@@ -1119,6 +1119,19 @@
         "src/x-publish/completion.test.ts",
         "src/x-publish/media-recovery.test.ts"
       ]
+    },
+    {
+      "id": "x-persisted-media-verification",
+      "title": "X 媒体不可重复记账，自动重载核对实际保存内容",
+      "origin": "1.19.4 长文真实复验",
+      "files": [
+        "src/x-publish/main-world.js",
+        "src/publish-bridge/x.ts"
+      ],
+      "tests": [
+        "src/x-publish/completion.test.ts",
+        "src/publish-bridge/x-saved-draft.test.ts"
+      ]
     }
   ]
 }

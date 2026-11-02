@@ -28,10 +28,29 @@ export async function runXJob(tabId: number, job: BridgeJob, client: PublishClie
 		await injectEngine(tabId);
 		const port = await connect(tabId);
 		const markdown = job.content.markdown;
-		const result = await relayPort(port, client, async post => {
+		let result = await relayPort(port, client, async post => {
 			await sendAssets(client, job.assets, post, asset => `${IMAGE_HOST}${asset.id}`, text => void client.status({ state: 'running', text }));
 			post({ type: 'run', markdown });
 		}, describeX);
+		if (result.ok && typeof result.summary?.bodyMediaExpected === 'number') {
+			await client.status({ state: 'running', text: '正在核对保存后的完整草稿…' });
+			await new Promise(resolve => setTimeout(resolve, 3000));
+			if (client.cancelled) throw Object.assign(new Error('已停止'), { stopped: true });
+			await browser.tabs.reload(tabId);
+			await waitForTab(tabId);
+			let verified = false;
+			for (let attempt = 0; attempt < 20; attempt++) {
+				if (client.cancelled) throw Object.assign(new Error('已停止'), { stopped: true });
+				const replies = await browser.scripting.executeScript({ target: { tabId }, func: () => {
+					const editor = document.querySelector('[contenteditable="true"][role="textbox"]');
+					return { text: editor?.textContent || '', media: editor?.querySelectorAll('section[data-block="true"]').length || 0 };
+				} });
+				const actual = replies[0]?.result as { text: string; media: number } | undefined;
+				if (actual?.text && !/__XPOSTER_\w+__/.test(actual.text) && actual.media >= result.summary.bodyMediaExpected) { verified = true; break; }
+				await new Promise(resolve => setTimeout(resolve, 500));
+			}
+			if (!verified) result = { ok: false, message: '草稿保存后仍有媒体缺失或占位符，已保留草稿，请勿公开发布。' };
+		}
 		await client.status(finalStatus(result, '草稿已写入，请在 X 里检查后再发布。', '没能写入 X'));
 		if (result.ok) void browser.tabs.update(tabId, { active: true }).catch(() => {});
 		try { port.disconnect(); } catch { /* done */ }

@@ -26,3 +26,15 @@ it('refuses success when a placeholder or an uploaded body media block is still 
   expect(() => check(content('完整正文', false), uploads, 'test')).toThrow();
   expect(() => check(content('完整正文', true), uploads, 'test')).not.toThrow();
 });
+it('never credits a previously completed media block as the next upload when props are stale', async () => {
+  const state = {}, draft = { props: { editorState: { getCurrentContent: () => state } } };
+  const args = { throwIfCancelled: () => {}, placeSelectionAtMarker: () => ({ blockKey: 'marker', offset: 0, length: 6, exact: true }), sleep: async () => {},
+    findDraftStateNode: () => draft, existingMediaEntities: () => Object.assign(new Set(), { blockKeys: new Set() }), requestPreparedFile: async () => ({ base64: 'AQID' }),
+    base64ToFile: () => ({ type: 'image/png' }), findOnFilesAdded: () => () => {}, observeNativeMediaUpload: () => ({ status: () => ({ state: 'ready' }), dispose: () => {} }),
+    findNewMediaUpload: (_content: unknown, before: { blockKeys: Set<string> }) => ({ blockKey: before.blockKeys.has('completed') ? 'new-upload' : 'completed', entityKey: 'entity', state: 'ready' }),
+    MEDIA_UPLOAD_BASE_TIMEOUT_MS: 90000, articleIdFromUrl: () => '42', progress: vi.fn(), Date, console, LOG: 'fixture' };
+  const begin = engine.indexOf('  async function uploadImageAtMarker('), end = engine.indexOf('  function replaceMarkerText(', begin);
+  const upload = new Function(...Object.keys(args), engine.slice(begin,end) + ';return uploadImageAtMarker;')(...Object.values(args));
+  const result = await upload(draft, { marker: 'marker', op: { file: {} } }, new Set(['completed']), {});
+  expect(result.blockKey).toBe('new-upload');
+});
