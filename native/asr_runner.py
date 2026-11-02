@@ -8,6 +8,13 @@ import argparse, gc, os, re, subprocess, sys, tempfile
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+def configure_output():
+    # The host decodes runner pipes as UTF-8, including under Windows code pages.
+    if sys.platform != 'win32': return
+    for stream in (sys.stdout, sys.stderr):
+        try: stream.reconfigure(encoding='utf-8', errors='replace')
+        except (AttributeError, OSError, ValueError): pass
+
 def stamp(seconds):
     seconds = max(0.0, float(seconds)); h, rest = divmod(seconds, 3600); m, s = divmod(rest, 60)
     return f'{int(h):02d}:{int(m):02d}:{s:06.3f}'
@@ -94,6 +101,7 @@ def qwen3(args):
         scratch.rmdir()
 
 def main():
+    configure_output()
     parser = argparse.ArgumentParser(); parser.add_argument('engine'); parser.add_argument('wav'); parser.add_argument('language')
     parser.add_argument('--model', required=True); parser.add_argument('--ffmpeg', required=True); parser.add_argument('--total', default='0'); parser.add_argument('--context', default='')
     args = parser.parse_args()
