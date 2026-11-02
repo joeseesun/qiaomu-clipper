@@ -119,7 +119,9 @@ it('does not store renewed credentials for an account signed out meanwhile', asy
 	const page = await openPage();
 	(store.data.interpreter_settings as any).providers[0].oauth = undefined;
 	const held = { ...provider(page), oauth: signIn({ refresh: 'r9' }) };
-	await page.accounts.freshOAuth(held, { load: async () => undefined, save: page.settings.oauthStore.save });
+	await expect(page.accounts.freshOAuth(held, { load: async () => undefined, save: page.settings.oauthStore.save })).rejects.toThrow();
+	expect(held.oauth).toBeUndefined();
+	expect(provider(page).oauth).toBeUndefined();
 	expect(storedOAuth()).toBeUndefined();
 });
 
@@ -131,4 +133,26 @@ it('still preserves newer credentials on sequential saves when Web Locks are una
 	await stale.settings.saveSettings({ showMoreActionsButton: true });
 	expect(storedOAuth()?.refresh).toBe('r2');
 	expect(refreshes).toEqual(['r1']);
+});
+
+it('does not overwrite a new sign-in while an older refresh is in flight', async () => {
+	const a = await openPage();
+	const b = await openPage();
+	let release!: () => void;
+	const waiting = new Promise<void>(r => { release = r; });
+	let entered!: () => void;
+	const started = new Promise<void>(r => { entered = r; });
+	vi.mocked(fetch).mockImplementationOnce(async () => {
+		entered(); await waiting;
+		return new Response(JSON.stringify({ access_token: 'old-response', refresh_token: 'r2', expires_in: 3600 }));
+	});
+	const refresh = a.accounts.freshOAuth(provider(a), a.settings.oauthStore);
+	await started;
+	provider(b).oauth = signIn({ refresh: 'new-login', access: 'new-account', expires: Date.now() + 3_600_000 });
+	await b.settings.saveSettings();
+	release();
+	const result = await refresh;
+	expect(storedOAuth()?.refresh).toBe('new-login');
+	expect(result.refresh).toBe('new-login');
+	expect(provider(a).oauth?.refresh).toBe('new-login');
 });

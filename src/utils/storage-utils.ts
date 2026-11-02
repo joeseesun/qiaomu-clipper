@@ -288,19 +288,25 @@ async function storedOAuth(providerId: string): Promise<OAuthCredentials | undef
 }
 
 // Writes one provider's renewed credentials into the stored settings, leaving everything else as stored.
-async function saveProviderOAuth(providerId: string, oauth: OAuthCredentials): Promise<void> {
-	await oneWriter(async () => {
+async function saveProviderOAuth(providerId: string, oauth: OAuthCredentials, expectedRefresh: string): Promise<OAuthCredentials | undefined> {
+	const persisted = await oneWriter(async () => {
 		const raw = await browser.storage.sync.get(null);
 		const stored = decodeInterpreterSettings(raw);
 		const provider = stored?.providers?.find(p => p.id === providerId);
 		// Removed or signed out on another page meanwhile: that choice stands.
 		if (!stored || !provider?.oauth) return;
+		// A fresh sign-in may have replaced this account while its old network request waited.
+		if (provider.oauth.refresh !== expectedRefresh) return provider.oauth;
 		provider.oauth = oauth;
 		await writeInterpreterSettings(encodeInterpreterSettings(stored), raw[INTERPRETER_KEY]);
+		return oauth;
 	});
 	const mine = generalSettings.providers.find(p => p.id === providerId);
-	if (mine) mine.oauth = oauth;
-	oauthSeen.set(providerId, oauth.refresh);
+	if (mine) {
+		if (persisted) mine.oauth = persisted; else delete mine.oauth;
+	}
+	oauthSeen.set(providerId, persisted?.refresh || '');
+	return persisted;
 }
 
 export const oauthStore: OAuthStore = { load: storedOAuth, save: saveProviderOAuth };

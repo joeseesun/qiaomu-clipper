@@ -10,7 +10,7 @@ const model = { providerModelId: 'gpt-x' } as ModelConfig;
 const oauth = (over: Partial<OAuthCredentials> = {}): OAuthCredentials => ({ kind: 'codex', clientId: 'c', access: 'old', refresh: 'r1', expires: Date.now() + 3_600_000, accountId: 'acct', ...over });
 const provider = (o: OAuthCredentials): Provider => ({ id: 'p', name: 'P', baseUrl: '', apiKey: '', oauth: o });
 const lastSignInUrl = () => new URL(vi.mocked(openSignIn).mock.lastCall![0]);
-const memory = (saved?: OAuthCredentials) => ({ load: vi.fn(async () => saved), save: vi.fn(async () => {}) }) satisfies OAuthStore;
+const memory = (saved?: OAuthCredentials) => ({ load: vi.fn(async () => saved), save: vi.fn(async (_id: string, next: OAuthCredentials) => next) }) satisfies OAuthStore;
 
 beforeEach(() => vi.stubGlobal('fetch', vi.fn()));
 afterEach(() => vi.unstubAllGlobals());
@@ -54,7 +54,7 @@ describe('oauth accounts', () => {
 		const next = await freshOAuth(p, store);
 		expect(next).toMatchObject({ access: 'new', refresh: 'r2', accountId: 'acct', clientId: 'c' });
 		expect(p.oauth).toBe(next);
-		expect(store.save).toHaveBeenCalledExactlyOnceWith('p', next);
+		expect(store.save).toHaveBeenCalledExactlyOnceWith('p', next, 'r1');
 	});
 	it('asks to sign in again when the refresh token is refused, keeping the cause', async () => {
 		vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({ error: 'invalid_grant' }), { status: 400 }));

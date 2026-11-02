@@ -165,7 +165,7 @@ export async function startSignIn(kind: 'tokendance' | 'openrouter' | OAuthKind,
 // so the store, not the page, is the source of truth for a rotating refresh token.
 export interface OAuthStore {
 	load(providerId: string): Promise<OAuthCredentials | undefined>;
-	save(providerId: string, oauth: OAuthCredentials): Promise<void>;
+	save(providerId: string, oauth: OAuthCredentials, expectedRefresh: string): Promise<OAuthCredentials | undefined>;
 }
 
 // OpenAI's terminal refresh errors: the refresh token can no longer be used.
@@ -206,16 +206,22 @@ async function renew(provider: Provider, store: OAuthStore): Promise<OAuthCreden
 	// Another page may have renewed or signed in again while this one waited for the lock.
 	let current = (await store.load(provider.id).catch(() => undefined)) || provider.oauth!;
 	if (!usable(current)) {
+		let expectedRefresh = current.refresh;
 		try {
 			current = await refresh(current);
 		} catch (error) {
 			// A page outside the lock (or an older build) may have rotated the token meanwhile.
 			const latest = isSpent(error) ? await store.load(provider.id).catch(() => undefined) : undefined;
 			if (!latest || latest.refresh === current.refresh) throw error;
+			expectedRefresh = latest.refresh;
 			current = usable(latest) ? latest : await refresh(latest);
 		}
-		provider.oauth = current;
-		await store.save(provider.id, current);
+		const saved = await store.save(provider.id, current, expectedRefresh);
+		if (!saved) {
+			delete provider.oauth;
+			throw new Error(t('{0} 还没有登录', [provider.name]));
+		}
+		current = saved;
 	}
 	provider.oauth = current;
 	return current;
