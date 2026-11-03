@@ -3,16 +3,17 @@ import { publicWebUrl, type SearchSource } from './chat-tools-types';
 import { t } from './ui-text';
 import { parseHTML } from 'linkedom';
 
-export type SearchProvider = 'deepseek' | 'brave';
+export type SearchProvider = 'deepseek' | 'brave' | 'keenable';
 export interface WebSearchSettings { enabled: boolean; provider: SearchProvider; keys: Record<SearchProvider, string> }
 export const WEB_SEARCH_KEY = 'qiaomuWebSearch';
 export async function loadWebSearch(): Promise<WebSearchSettings> {
 	const s = await getLocalStorage(WEB_SEARCH_KEY);
-	return { enabled: s?.enabled !== false, provider: s?.provider === 'brave' ? 'brave' : 'deepseek',
-		keys: { deepseek: typeof s?.keys?.deepseek === 'string' ? s.keys.deepseek : '', brave: typeof s?.keys?.brave === 'string' ? s.keys.brave : '' } };
+	return { enabled: s?.enabled !== false, provider: s?.provider === 'brave' || s?.provider === 'keenable' ? s.provider : 'deepseek',
+		keys: { deepseek: typeof s?.keys?.deepseek === 'string' ? s.keys.deepseek : '', brave: typeof s?.keys?.brave === 'string' ? s.keys.brave : '', keenable: typeof s?.keys?.keenable === 'string' ? s.keys.keenable : '' } };
 }
 export const saveWebSearch = (s: WebSearchSettings) => setLocalStorage(WEB_SEARCH_KEY, s);
-export const selectedSearchProvider = (s: WebSearchSettings): SearchProvider | undefined => s.keys[s.provider] ? s.provider : s.keys.deepseek ? 'deepseek' : s.keys.brave ? 'brave' : undefined;
+// Keenable also works without a key, but only once the user has chosen it; it is never a fallback.
+export const selectedSearchProvider = (s: WebSearchSettings): SearchProvider | undefined => s.keys[s.provider] || s.provider === 'keenable' ? s.provider : s.keys.deepseek ? 'deepseek' : s.keys.brave ? 'brave' : undefined;
 export function searchFailure(error: unknown): string {
 	const code = error instanceof Error ? error.message : String(error);
 	if (code === 'search-unconfigured') return t('先连接搜索服务，即可继续查找。');
@@ -42,10 +43,13 @@ export async function searchWeb(query: string, settings: WebSearchSettings, sign
 	if (!provider) throw new Error('search-unconfigured');
 	const q = query.trim();
 	if (!q || [...q].length > (provider === 'deepseek' ? 128 : 400)) throw new Error(t('搜索词过长，请拆成更短的问题。'));
+	const keenableKey = settings.keys.keenable;
 	const raw = provider === 'deepseek'
 		? await jsonRequest('https://api.deepseek.com/v1/tools/search', { method: 'POST', headers: { Authorization: `Bearer ${settings.keys.deepseek}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ query: q, count: 6, need_content: false }) }, signal)
-		: await jsonRequest(`https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(q)}&count=6`, { headers: { 'X-Subscription-Token': settings.keys.brave, Accept: 'application/json' } }, signal);
-	const rows = provider === 'deepseek' ? raw.results : raw.web?.results;
+		: provider === 'keenable'
+			? await jsonRequest(keenableKey ? 'https://api.keenable.ai/v1/search' : 'https://api.keenable.ai/v1/search/public', { method: 'POST', headers: { ...(keenableKey ? { 'X-API-Key': keenableKey } : {}), 'X-Keenable-Title': 'Qiaomu Clipper', 'Content-Type': 'application/json' }, body: JSON.stringify({ query: q, max_results: 6 }) }, signal)
+			: await jsonRequest(`https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(q)}&count=6`, { headers: { 'X-Subscription-Token': settings.keys.brave, Accept: 'application/json' } }, signal);
+	const rows = provider === 'brave' ? raw.web?.results : raw.results;
 	if (!Array.isArray(rows)) throw new Error('invalid-search-response');
 	const seen = new Set<string>();
 	return rows.flatMap((r: any): SearchSource[] => {
@@ -67,7 +71,7 @@ export async function fetchSearchPage(url: string, settings: WebSearchSettings, 
 	return { url, title: String(raw.title || url).slice(0, 300), snippet: raw.content.slice(0, 500), content: raw.content.slice(0, 18000) };
 }
 
-// Brave supplies search results; read the chosen public page directly without cookies.
+// Brave and Keenable supply search results; read the chosen public page directly without cookies.
 // Refuse redirects rather than letting a public URL redirect a background fetch into a local service.
 async function readPublicPage(url: string, signal?: AbortSignal): Promise<SearchSource> {
 	const response = await fetch(url, { signal, credentials: 'omit', redirect: 'error', headers: { Accept: 'text/html,text/plain' } });

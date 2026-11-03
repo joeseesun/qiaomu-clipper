@@ -1389,6 +1389,8 @@
  "搜索服务": "Serviço de pesquisa",
  "搜索网页并读取正文，供当前聊天模型回答。": "Pesquisa páginas e lê o conteúdo para o modelo atual responder.",
  "搜索网页，供当前聊天模型回答。": "Pesquisa na web para o modelo atual responder.",
+ "无需密钥即可搜索网页，供当前聊天模型回答。填写密钥可提高调用频率。": "Pesquisa na web para o modelo atual responder, sem chave. Com uma chave, o limite de solicitações aumenta.",
+ "API Key（可选）": "API Key (opcional)",
  "验证并保存": "Verificar e salvar",
  "移除密钥": "Remover chave",
  "请填写 API Key": "Insira uma API Key",

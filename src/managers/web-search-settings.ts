@@ -2,19 +2,21 @@ import { h } from '../write/editor/dom';
 import { t } from '../utils/ui-text';
 import { loadWebSearch, saveWebSearch, searchWeb, searchFailure, type SearchProvider } from '../utils/web-search';
 
+const SEARCH_SERVICES: Record<SearchProvider, string> = { deepseek: 'DeepSeek Search', brave: 'Brave Search', keenable: 'Keenable' };
+
 export async function openWebSearchSettings(onSaved?: () => void): Promise<void> {
 	const config = await loadWebSearch();
 	const drafts = { ...config.keys };
 	const dialog = h('dialog', { class: 'qm-search-settings', 'aria-label': t('联网搜索') });
 	const service = h('select', { 'aria-label': t('搜索服务') });
-	for (const [id, name] of [['deepseek', 'DeepSeek Search'], ['brave', 'Brave Search']]) service.append(h('option', { value: id, text: name }));
+	for (const [id, name] of Object.entries(SEARCH_SERVICES)) service.append(h('option', { value: id, text: name }));
 	service.value = config.provider;
 	const key = h('input', { type: 'password', autocomplete: 'off', 'aria-label': 'API Key', placeholder: 'API Key' });
 	const link = h('a', { target: '_blank', rel: 'noopener noreferrer', text: t('获取密钥') });
 	const note = h('p'), status = h('p', { class: 'qm-search-status', role: 'status' });
 	const enabled = h('input', { type: 'checkbox' }); enabled.checked = config.enabled;
 	let selected = config.provider, alive = true, controller: AbortController | undefined;
-	const refresh = () => { key.value = drafts[selected]; remove.hidden = !config.keys[selected]; link.href = selected === 'deepseek' ? 'https://platform.deepseek.com/api_keys' : 'https://api-dashboard.search.brave.com/'; note.textContent = selected === 'deepseek' ? t('搜索网页并读取正文，供当前聊天模型回答。') : t('搜索网页，供当前聊天模型回答。'); };
+	const refresh = () => { key.value = drafts[selected]; key.placeholder = selected === 'keenable' ? t('API Key（可选）') : 'API Key'; remove.hidden = !config.keys[selected]; link.href = selected === 'deepseek' ? 'https://platform.deepseek.com/api_keys' : selected === 'keenable' ? 'https://app.keenable.ai/console' : 'https://api-dashboard.search.brave.com/'; note.textContent = selected === 'deepseek' ? t('搜索网页并读取正文，供当前聊天模型回答。') : selected === 'keenable' ? t('无需密钥即可搜索网页，供当前聊天模型回答。填写密钥可提高调用频率。') : t('搜索网页，供当前聊天模型回答。'); };
 	service.onchange = () => { drafts[selected] = key.value.trim(); selected = service.value as SearchProvider; status.textContent = ''; refresh(); };
 	const close = () => { alive = false; controller?.abort(); dialog.close(); dialog.remove(); };
 	dialog.oncancel = event => { event.preventDefault(); close(); };
@@ -28,7 +30,7 @@ export async function openWebSearchSettings(onSaved?: () => void): Promise<void>
 	};
 	save.onclick = () => {
 		config.keys[selected] = key.value.trim(); config.provider = selected; config.enabled = enabled.checked;
-		if (!config.keys[selected]) { status.textContent = t('请填写 API Key'); return; }
+		if (!config.keys[selected] && selected !== 'keenable') { status.textContent = t('请填写 API Key'); return; }
 		controller = new AbortController(); const signal = controller.signal;
 		save.disabled = service.disabled = remove.disabled = key.disabled = true; status.textContent = t('正在验证搜索服务…');
 		void searchWeb('Obsidian official website', { ...config, enabled: true }, signal).then(async rows => {
@@ -47,7 +49,7 @@ export async function initializeWebSearchSettings(): Promise<void> {
 	const config = await loadWebSearch();
 	root.replaceChildren();
 	root.append(h('p', { text: t('支持原生工具的 Token Plan 模型直接使用已配置的模型密钥，无需在这里填写搜索密钥。聊天中的联网开关同时控制原生搜索、抓取和搜图。') }));
-	const connected = Object.entries(config.keys).filter(([, key]) => key).map(([id]) => `${id === 'deepseek' ? 'DeepSeek Search' : 'Brave Search'}${id === config.provider ? ` (${t('默认')})` : ''}`).join(' · ');
+	const connected = (Object.keys(SEARCH_SERVICES) as SearchProvider[]).filter(id => config.keys[id] || (id === 'keenable' && config.provider === 'keenable')).map(id => `${SEARCH_SERVICES[id]}${id === config.provider ? ` (${t('默认')})` : ''}`).join(' · ');
 	root.append(h('p', { text: connected || t('连接搜索服务，让助手查找最新资料并提供来源。') }),
 		h('button', { type: 'button', text: t('配置搜索服务'), onclick: () => void openWebSearchSettings(() => void initializeWebSearchSettings()) }));
 }
