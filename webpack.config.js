@@ -76,6 +76,9 @@ module.exports = (env, argv) => {
 			// Start from an empty folder: files left by older builds must not end up in a package.
 			clean: true,
 			filename: '[name].js',
+			// Named chunks from a shared dependency path can start with "_".
+			// Chrome reserves that prefix, so keep a safe prefix on emitted chunks.
+			chunkFilename: 'chunk-[id].js',
 			module: false,
 		},
 		devtool: isProduction ? false : 'source-map',
@@ -207,7 +210,8 @@ module.exports = (env, argv) => {
 				],
 			}),
 			new MiniCssExtractPlugin({
-				filename: '[name].css'
+				filename: '[name].css',
+				chunkFilename: 'chunk-[id].css'
 			}),
 			{
 				apply: (compiler) => {
