@@ -2102,19 +2102,23 @@ export class Reader {
 				doc.body.removeAttribute(doc.body.attributes[0].name);
 			}
 
-			// Clean the html element but preserve lang and dir attributes
+			// Preserve language/translation semantics while removing page layout state.
 			const htmlElement = doc.documentElement;
 			const lang = htmlElement.getAttribute('lang');
 			const dir = htmlElement.getAttribute('dir');
+			const translate = htmlElement.getAttribute('translate');
+			const noTranslate = htmlElement.classList.contains('notranslate');
 
 			// Clear all html element attributes (e.g. scroll-locking classes/styles from the original page)
 			while (htmlElement.attributes.length > 0) {
 				htmlElement.removeAttribute(htmlElement.attributes[0].name);
 			}
 
-			// Restore lang and dir if they existed
+			// Study's original text must stay protected after the reader rebuilds the page.
 			if (lang) htmlElement.setAttribute('lang', lang);
 			if (dir) htmlElement.setAttribute('dir', dir);
+			if (translate !== null) htmlElement.setAttribute('translate', translate);
+			if (noTranslate) htmlElement.classList.add('notranslate');
 
 			// Clean up head - remove unwanted elements but keep meta tags and non-stylesheet links
 			const head = doc.head;
