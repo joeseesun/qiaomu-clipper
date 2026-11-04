@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fallbackModels, fetchProviderModels, modelListRequest, readableName } from './provider-models';
 import { Provider } from '../types/types';
+import { CATALOG } from './provider-catalog';
 
 const provider: Provider = { id: 'one', name: 'Renamed gateway', baseUrl: 'https://gateway.example/proxy/v1/chat/completions', apiKey: 'test-key', apiKeyRequired: true };
 const reply = (body: unknown) => new Response(JSON.stringify(body));
@@ -19,6 +20,10 @@ describe('provider model discovery', () => {
 	});
 	it('uses the actual DeepSeek list endpoint', () => {
 		expect(modelListRequest({ ...provider, baseUrl: 'https://api.deepseek.com/v1/chat/completions' }).url.href).toBe('https://api.deepseek.com/v1/models');
+	});
+	it('uses the Cheaper Inference list endpoint from its preset', () => {
+		const preset = CATALOG.find(entry => entry.id === 'cheaperinference')!;
+		expect(modelListRequest({ ...provider, baseUrl: preset.baseUrl }).url.href).toBe('https://api.cheaperinference.com/v1/models');
 	});
 	it('supports root and responses endpoints without changing the gateway prefix', () => {
 		for (const path of ['/v1', '/v1/', '/v1/responses', '/v1/chat/completions']) expect(modelListRequest({ ...provider, baseUrl: `https://gateway.example${path}` }).url.pathname).toBe('/v1/models');

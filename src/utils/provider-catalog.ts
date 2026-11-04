@@ -39,6 +39,8 @@ export const CATALOG: CatalogEntry[] = [
 	{ id: 'openrouter', name: 'OpenRouter', group: 'relay', sub: 'openrouter.ai', icon: 'openrouter', baseUrl: 'https://openrouter.ai/api/v1/chat/completions', apiKeyUrl: 'https://openrouter.ai/settings/keys', apiKeyRequired: true, signIn: 'openrouter' },
 	{ id: 'opencode-go', name: 'OpenCode Go', group: 'relay', get sub() { return 'opencode.ai · ' + t('仅显示当前支持的聊天模型'); }, icon: 'opencode', baseUrl: 'https://opencode.ai/zen/go/v1/chat/completions', apiKeyUrl: 'https://opencode.ai/auth', apiKeyRequired: true,
 		popularModels: [{ id: 'deepseek-v4.1-flash', name: 'DeepSeek V4.1 Flash', recommended: true }, { id: 'glm-5.3-flash', name: 'GLM-5.3 Flash' }, { id: 'kimi-k3', name: 'Kimi K3' }, { id: 'longcat-2.0', name: 'LongCat-2.0' }, { id: 'mimo-v2.6-flash', name: 'MiMo-V2.6 Flash' }] },
+	{ id: 'cheaperinference', name: 'Cheaper Inference', group: 'relay', sub: 'api.cheaperinference.com', baseUrl: 'https://api.cheaperinference.com/v1/chat/completions', apiKeyUrl: 'https://cheaperinference.com', apiKeyRequired: true,
+		popularModels: [{ id: 'gpt-5.4-mini', name: 'GPT-5.4 mini', recommended: true }, { id: 'claude-sonnet-5', name: 'Claude Sonnet 5' }, { id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash' }] },
 
 	{ id: 'openai', name: 'OpenAI', group: 'provider', sub: 'api.openai.com', icon: 'openai', baseUrl: 'https://api.openai.com/v1/chat/completions', apiKeyUrl: 'https://platform.openai.com/api-keys', apiKeyRequired: true },
 	{ id: 'anthropic', name: 'Anthropic', group: 'provider', sub: 'api.anthropic.com', icon: 'anthropic', baseUrl: 'https://api.anthropic.com/v1/messages', apiKeyUrl: 'https://console.anthropic.com/settings/keys', apiKeyRequired: true },
