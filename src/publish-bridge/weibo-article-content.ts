@@ -79,7 +79,7 @@ async function uploadPicture(picture: Picture): Promise<Uploaded | null> {
 	} catch { return null; }
 }
 
-const assetOf = (src: string | null): string | null => (src?.startsWith('qp-asset://') ? src.slice('qp-asset://'.length) : null);
+const assetOf = (src: string | null): string | null => (src?.startsWith('qp-asset://') ? src : null);
 
 /** Replaces every inline `qp-asset://` image with the uploaded Weibo picture, keeping Weibo's figure/srcset shape. */
 async function rewriteHtml(html: string, pictures: Map<string, Picture>, cache: Map<string, Uploaded>, say: (text: string) => void, check: () => void): Promise<string> {
