@@ -3,6 +3,8 @@ import { BridgeClient } from './client';
 import { parseHandoff, TARGET_HOSTS, type PublishTargetId } from './protocol';
 import { scrubFragment } from './relay';
 import { runXJob } from './x';
+import { runWeiboJob } from './weibo';
+import { runWeiboArticleJob } from './weibo-article';
 import { runXhsJob } from './xhs';
 import { runZhihuJob } from './zhihu';
 
@@ -16,6 +18,8 @@ async function runHandoff(tabId: number, target: PublishTargetId, client: Bridge
 	void browser.tabs.update(tabId, { active: true }).catch(() => {});
 	if (target === 'x') await runXJob(tabId, job, client);
 	else if (target === 'zhihu') await runZhihuJob(tabId, job, client);
+	else if (target === 'weibo') await runWeiboJob(tabId, job, client);
+	else if (target === 'weibo-article') await runWeiboArticleJob(tabId, job, client);
 	else await runXhsJob(tabId, job, client);
 }
 
