@@ -32,17 +32,18 @@ const blobOf = (picture: Picture): Blob => {
 	return new Blob([bytes], { type: picture.mime || 'image/jpeg' });
 };
 
+/** Reads the signed-in uid from the page's MAIN world by injecting a tiny script (isolated content scripts can't see page globals). */
+function pageUid(): string {
+	const probe = document.createElement('script');
+	probe.textContent = `try{document.documentElement.setAttribute('data-qm-uid',String((window.ERR_UID)||(window.userInfo&&window.userInfo.uid)||(window.__WB_GET_CONFIG&&window.__WB_GET_CONFIG().config.uid)||''));}catch(e){}`;
+	(document.head || document.documentElement).appendChild(probe);
+	probe.remove();
+	return document.documentElement.getAttribute('data-qm-uid') || '';
+}
+
 /** The signed-in account id. The v5 editor exposes it as `window.ERR_UID` / `window.userInfo.uid`; older pages used `$CONFIG['uid']`. */
 async function accountId(): Promise<string> {
-	const fromWindow = (): string => {
-		const w = window as unknown as { ERR_UID?: string; userInfo?: { uid?: string | number }; __WB_GET_CONFIG?: () => { config?: { uid?: string | number } } };
-		if (w.ERR_UID) return String(w.ERR_UID);
-		if (w.userInfo?.uid) return String(w.userInfo.uid);
-		const cfg = w.__WB_GET_CONFIG?.();
-		if (cfg?.config?.uid) return String(cfg.config.uid);
-		return '';
-	};
-	const here = fromWindow();
+	const here = pageUid();
 	if (here) return here;
 	for (const endpoint of ENDPOINTS) {
 		try {
@@ -241,7 +242,9 @@ async function runFill(message: RunMessage, pictures: Map<string, Picture>, post
 			if (!draftId) continue;
 			const saved = await saveDraft(endpoint, message, content, cover, draftId, account);
 			if (saved) {
-				post({ type: 'done', summary: { url: endpoint.editorUrl }, message: '草稿已写入微博长文，请在微博编辑器里检查后发布。' });
+				const draftUrl = `${endpoint.editorUrl}#/draft/${saved}`;
+				try { location.hash = `#/draft/${saved}`; } catch { /* SPA may have its own router */ }
+				post({ type: 'done', summary: { url: draftUrl }, message: '草稿已写入微博长文，请在微博编辑器里检查后发布。' });
 				return;
 			}
 			throw new Error('草稿保存失败，微博接口可能已变动，请把内容手动粘贴到微博长文编辑器。');
