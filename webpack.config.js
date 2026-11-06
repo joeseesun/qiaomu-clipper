@@ -62,6 +62,8 @@ module.exports = (env, argv) => {
 			// Injected on demand when Obsidian hands over an article (src/publish-bridge).
 			'zhihu-publish-content': './src/publish-bridge/zhihu-content.ts',
 			'xhs-publish-content': './src/publish-bridge/xhs-content.ts',
+			'weibo-publish-content': './src/publish-bridge/weibo-content.ts',
+			'weibo-article-publish-content': './src/publish-bridge/weibo-article-content.ts',
 			content: './src/content.ts',
 			background: './src/background.ts',
 			'image-runner': './src/core/image-runner.ts',

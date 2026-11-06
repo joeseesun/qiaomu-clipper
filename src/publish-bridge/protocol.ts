@@ -1,7 +1,7 @@
 // Hand-off contract with the Qiaomu Publish Obsidian plugin (protocol v1). Keep in step with src/bridge/protocol.ts there.
 // The plugin listens on 127.0.0.1 for one job and opens an editor page with `#qp=<port>.<token>`; this side reads the fragment,
 // removes it from the address bar and exchanges the one-time token for the job.
-export type PublishTargetId = 'x' | 'zhihu' | 'xhs';
+export type PublishTargetId = 'x' | 'zhihu' | 'xhs' | 'weibo' | 'weibo-article';
 
 export interface BridgeAsset { id: string; name: string; mime: string; bytes: number }
 
@@ -12,6 +12,7 @@ export interface BridgeJobContent {
 	topics?: string[];
 	cover?: string;
 	cards?: string[];
+	images?: string[];
 	summary?: string;
 }
 
@@ -38,6 +39,8 @@ export const TARGET_HOSTS: Record<PublishTargetId, string[]> = {
 	x: ['x.com', 'twitter.com'],
 	zhihu: ['zhuanlan.zhihu.com'],
 	xhs: ['creator.xiaohongshu.com'],
+	weibo: ['weibo.com', 'www.weibo.com'],
+	'weibo-article': ['card.weibo.com'],
 };
 
 export interface Handoff { port: number; token: string }
