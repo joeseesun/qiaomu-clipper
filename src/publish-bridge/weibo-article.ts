@@ -23,6 +23,9 @@ export async function runWeiboArticleJob(tabId: number, job: BridgeJob, client: 
 		});
 		await client.status(finalStatus(result, '草稿已写入微博，请检查后再发布。', '没能写入微博'));
 		try { port.disconnect(); } catch { /* done */ }
+		if (result.ok && result.summary?.url) {
+			try { await browser.tabs.update(tabId, { url: String(result.summary.url) }); } catch { /* best-effort navigation */ }
+		}
 	} catch (error) {
 		if ((error as { stopped?: boolean }).stopped) await client.status({ state: 'cancelled', text: '已停止' });
 		else await client.status({ state: 'error', error: { message: (error as Error).message || String(error) } });
