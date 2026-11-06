@@ -119,6 +119,15 @@ async function rewriteHtml(html: string, pictures: Map<string, Picture>, cache: 
 		figure.appendChild(replacement);
 		image.replaceWith(figure);
 	}
+	// Strip any wiki / Markdown image markers that survived rendering (e.g. `![[name.png]]` or `![alt](url)`).
+	const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+	let textNode: Node | null;
+	while ((textNode = walker.nextNode())) {
+		const text = textNode.textContent || '';
+		if (/!\[\[|\!\[/.test(text)) {
+			textNode.textContent = text.replace(/!\[\[[^\]]*\]\]/g, '').replace(/!\[[^\]]*\]\([^)]*\)/g, '');
+		}
+	}
 	return doc.body.innerHTML;
 }
 
