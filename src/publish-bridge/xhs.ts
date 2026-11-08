@@ -1,6 +1,6 @@
 import type { BridgeClient } from './client';
 import type { BridgeJob } from './protocol';
-import { connectToPage, finalStatus, relayPort, scrubFragment, sendAssets, waitForTab } from './relay';
+import { connectToPage, finalStatus, relayPort, sendAssets, waitForTab } from './relay';
 import browser from '../utils/browser-polyfill';
 
 export const XHS_PORT = 'qiaomu-publish-xhs';
@@ -14,7 +14,6 @@ export async function runXhsJob(tabId: number, job: BridgeJob, client: BridgeCli
 	try {
 		await client.status({ state: 'running', text: '正在打开小红书创作平台…' });
 		await waitForTab(tabId);
-		await scrubFragment(tabId);
 		await browser.scripting.executeScript({ target: { tabId }, files: [XHS_SCRIPT] });
 		const port = await connectToPage(tabId, XHS_PORT, '这个标签页不是小红书发布页，请先登录小红书创作平台');
 		const result = await relayPort(port, client, async post => {

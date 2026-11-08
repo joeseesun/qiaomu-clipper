@@ -1,17 +1,18 @@
 import browser from '../utils/browser-polyfill';
 import { BridgeClient } from './client';
 import { parseHandoff, TARGET_HOSTS, type PublishTargetId } from './protocol';
-import { scrubFragment } from './relay';
 import { runXJob } from './x';
 import { runXhsJob } from './xhs';
 import { runZhihuJob } from './zhihu';
 
 const handled = new Set<string>();
 
-async function runHandoff(tabId: number, target: PublishTargetId, client: BridgeClient): Promise<void> {
+async function runHandoff(tabId: number, target: PublishTargetId, cleanUrl: string, client: BridgeClient): Promise<void> {
+	// Restart the tab on the address without the hand-off fragment. Scrubbing the fragment after load (history.replaceState
+	// mid-boot) resets Xiaohongshu's own router and blanks the page, so the runner then finds nothing to click.
+	void browser.tabs.update(tabId, { url: cleanUrl }).catch(() => {});
 	let job;
 	try { job = await client.fetchJob(); } catch (error) { console.warn('[qiaomu publish]', (error as Error).message); return; }
-	await scrubFragment(tabId);
 	if (job.target !== target) { await client.status({ state: 'error', error: { code: 'wrong-page', message: '打开的网页和要发布的平台对不上，请重新发布。' } }); return; }
 	void browser.tabs.update(tabId, { active: true }).catch(() => {});
 	if (target === 'x') await runXJob(tabId, job, client);
@@ -27,10 +28,11 @@ export function registerPublishBridge(): void {
 	if (!browser.tabs?.onUpdated || !browser.scripting) return;
 	browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 		if (!changeInfo.url && !changeInfo.status) return;
-		const parsed = parseHandoff(changeInfo.url ?? tab.url);
+		const address = changeInfo.url ?? tab.url;
+		const parsed = parseHandoff(address);
 		if (!parsed || handled.has(parsed.handoff.token)) return;
 		handled.add(parsed.handoff.token);
-		void runHandoff(tabId, parsed.target, new BridgeClient(parsed.handoff));
+		void runHandoff(tabId, parsed.target, (address ?? '').replace(/#qp=\d{4,5}\.[0-9a-f]{32}$/, ''), new BridgeClient(parsed.handoff));
 	});
 }
 
