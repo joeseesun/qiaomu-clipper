@@ -1,7 +1,7 @@
 import browser from '../utils/browser-polyfill';
 import type { BridgeClient } from './client';
 import type { BridgeJob } from './protocol';
-import { connectToPage, finalStatus, relayPort, scrubFragment, sendAssets, waitForTab } from './relay';
+import { connectToPage, finalStatus, relayPort, sendAssets, waitForTab } from './relay';
 
 export const ZHIHU_PORT = 'qiaomu-publish-zhihu';
 export const ZHIHU_SCRIPT = 'zhihu-publish-content.js';
@@ -13,7 +13,6 @@ export async function runZhihuJob(tabId: number, job: BridgeJob, client: BridgeC
 	try {
 		await client.status({ state: 'running', text: '正在打开知乎…' });
 		await waitForTab(tabId);
-		await scrubFragment(tabId);
 		await browser.scripting.executeScript({ target: { tabId }, files: [ZHIHU_SCRIPT] });
 		const port = await connectToPage(tabId, ZHIHU_PORT, '这个标签页不是知乎写文章页');
 		const content = job.content;
