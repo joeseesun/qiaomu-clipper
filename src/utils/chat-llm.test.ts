@@ -1,10 +1,22 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { generalSettings } from './storage-utils';
 import { normalizeOpenAIChatEndpoint, opencodeHeaders, streamChat } from './chat-llm';
+import { CATALOG } from './provider-catalog';
 
 const stream = (chunks: string[]) => new Response(new ReadableStream({ start(controller) { chunks.forEach(c => controller.enqueue(new TextEncoder().encode(c))); controller.close(); } }));
 const model = (providerId: string) => ({ id: 'm', providerId, providerModelId: 'x', name: 'X', enabled: true });
 afterEach(() => vi.unstubAllGlobals());
+
+it('streams split SSE chunks through the Atlas Cloud preset endpoint and model', async () => {
+ const preset = CATALOG.find(p => p.id === 'atlascloud')!;
+ generalSettings.providers = [{ ...preset, apiKey: 'fixture-key' }] as any;
+ const fetchMock = vi.fn().mockResolvedValue(stream(['data: {"choices":[{"delta":{"content":"Atlas"}}]}\n', 'data: {"choices":[{"delta":{"con', 'tent":" reply"}}]}\ndata: [DONE]\n']));
+ vi.stubGlobal('fetch', fetchMock);
+ const selected = { ...model(preset.id), providerModelId: preset.popularModels![0].id };
+ expect(await streamChat({ model: selected, system: 's', messages: [], onDelta() {} })).toBe('Atlas reply');
+ expect(fetchMock.mock.calls[0][0]).toBe(preset.baseUrl);
+ expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({ stream: true, model: selected.providerModelId });
+});
 
 it('normalizes OpenAI-compatible gateway endpoints without duplicating complete paths', () => {
 	expect(normalizeOpenAIChatEndpoint('https://magpie.example')).toBe('https://magpie.example/v1/chat/completions');

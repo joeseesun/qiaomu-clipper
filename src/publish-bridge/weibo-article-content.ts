@@ -158,8 +158,8 @@ function draftForm(message: RunMessage, content: string, cover: string, draftId:
 	form.append('is_ai_plugins', '0');
 	form.append('is_aigc_used', '0');
 	form.append('is_v4', '0');
-	form.append('follow_to_read', '1');
-	form.append('follow_to_read_detail[result]', '1');
+	form.append('follow_to_read', '0');
+	form.append('follow_to_read_detail[result]', '0');
 	form.append('follow_to_read_detail[x]', '0');
 	form.append('follow_to_read_detail[y]', '0');
 	form.append('follow_to_read_detail[readme_link]', 'http://t.cn/A6UnJsqW');
@@ -207,12 +207,8 @@ async function saveDraft(endpoint: typeof ENDPOINTS[number], message: RunMessage
 	url.searchParams.set('uid', account);
 	url.searchParams.set('id', draftId);
 	url.searchParams.set('_rid', String(Date.now()));
-	for (let attempt = 0; attempt < 2; attempt += 1) {
-		const result = await postJson(url.toString(), { method: 'POST', body: draftForm(message, content, cover, draftId, account, endpoint.version) });
-		if (result.ok && result.json?.code === SUCCESS_CODE) return draftId;
-		if (!result.ok) continue;
-		return null;
-	}
+	const result = await postJson(url.toString(), { method: 'POST', body: draftForm(message, content, cover, draftId, account, endpoint.version) });
+	if (result.ok && result.json?.code === SUCCESS_CODE) return draftId;
 	return null;
 }
 
@@ -248,8 +244,10 @@ async function runFill(message: RunMessage, pictures: Map<string, Picture>, post
 		for (const endpoint of ENDPOINTS) {
 			say(`正在写入微博长文草稿（${endpoint.version}）…`);
 			const draftId = await createDraft(endpoint, account);
-			if (!draftId) continue;
+			check();
+			if (!draftId) throw new Error('未能确认草稿是否创建，请先检查微博草稿箱后重试。');
 			const saved = await saveDraft(endpoint, message, content, cover, draftId, account);
+			check();
 			if (saved) {
 				const draftUrl = `${endpoint.editorUrl}#/draft/${saved}`;
 				try { location.hash = `#/draft/${saved}`; } catch { /* SPA may have its own router */ }

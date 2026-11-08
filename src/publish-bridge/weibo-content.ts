@@ -5,7 +5,7 @@ const PORT_NAME = 'qiaomu-publish-weibo';
 declare global { interface Window { __qiaomuPublishWeibo?: boolean } }
 
 const SEL = {
-	composer: 'textarea[placeholder*="新鲜事"], textarea[placeholder*="分享"], textarea[placeholder*="说点"], textarea',
+	composer: 'textarea[placeholder*="新鲜事"], textarea[placeholder*="分享"], textarea[placeholder*="说点"]',
 	fileInput: 'input[type="file"]',
 	remove: 'i[title="删除"]',
 	loading: '[class*="Image_loading"], [class*="uploading"]',
@@ -31,10 +31,8 @@ async function waitFor<T>(find: () => T | null | undefined | false, timeoutMs: n
 
 function findComposer(): HTMLTextAreaElement | null {
 	const candidates = Array.from(document.querySelectorAll<HTMLTextAreaElement>(SEL.composer)).filter(visible);
-	return candidates.find(node => (node.placeholder ?? '').includes('新鲜事'))
-		?? candidates.find(node => node.closest('[class*="Form"], [class*="compose"], [class*="editor"]'))
-		?? candidates[0]
-		?? null;
+	const matches = candidates.filter(node => (node.placeholder ?? '').includes('新鲜事'));
+	return matches.length === 1 ? matches[0] : null;
 }
 
 /** Writes into the composer the way a person would, so the page's own state (counter, topic parsing) updates. */
@@ -48,16 +46,11 @@ function setComposerValue(composer: HTMLTextAreaElement, value: string): void {
 
 /** The picture input belongs to the composer; the page has other file inputs (avatar, background) we must not touch. */
 function findFileInput(composer: HTMLTextAreaElement): HTMLInputElement | null {
-	const inputs = Array.from(document.querySelectorAll<HTMLInputElement>(SEL.fileInput))
+	const root = composer.closest('[class*="Form"], [class*="compose"], [class*="editor"]');
+	if (!root || root === document.body || root === document.documentElement) return null;
+	const inputs = Array.from(root.querySelectorAll<HTMLInputElement>(SEL.fileInput))
 		.filter(node => !node.accept || /image|jpe?g|png|gif|webp/i.test(node.accept));
-	const near = inputs.find(node => {
-		let parent: HTMLElement | null = composer.parentElement;
-		for (let depth = 0; depth < 8 && parent; depth += 1, parent = parent.parentElement) {
-			if (parent.contains(node)) return true;
-		}
-		return false;
-	});
-	return near ?? inputs[0] ?? null;
+	return inputs.length === 1 ? inputs[0] : null;
 }
 
 async function runFill(message: { text: string; topics: string[]; images: string[] }, pictures: Map<string, Picture>, post: (message: unknown) => void, state: { cancel: boolean }): Promise<void> {
@@ -71,6 +64,9 @@ async function runFill(message: { text: string; topics: string[]; images: string
 		if (!composer) throw new Error('没找到微博输入框，请确认已登录微博；微博页面可能改版了');
 		check();
 
+		if (composer.value.trim()) throw new Error('微博发布框已有草稿，请先保存或清空后重试。');
+		const composeRoot = composer.closest('[class*="Form"], [class*="compose"], [class*="editor"]');
+		if (composeRoot?.querySelector(SEL.remove)) throw new Error('微博发布框已有图片，请先保存或清空后重试。');
 		say('正在填写正文…');
 		const topicLine = message.topics.map(topic => `#${topic}#`).join(' ');
 		setComposerValue(composer, topicLine ? `${message.text.trim()}\n${topicLine}` : message.text.trim());
@@ -94,13 +90,13 @@ async function runFill(message: { text: string; topics: string[]; images: string
 			input.dispatchEvent(new Event('change', { bubbles: true }));
 
 			const previews = await waitFor(() => {
-				const count = document.querySelectorAll(SEL.remove).length;
+				const count = composeRoot!.querySelectorAll(SEL.remove).length;
 				return count >= files.length ? count : null;
 			}, 120000, 500, check);
-			if (!previews) throw new Error(`图片尚未全部就绪（需要 ${files.length} 张，看到 ${document.querySelectorAll(SEL.remove).length} 张），请在微博里检查后重试。`);
+			if (!previews) throw new Error(`图片尚未全部就绪（需要 ${files.length} 张，看到 ${composeRoot!.querySelectorAll(SEL.remove).length} 张），请在微博里检查后重试。`);
 			check();
 			say('正在等待图片上传完成…');
-			const settled = await waitFor(() => document.querySelectorAll(SEL.loading).length === 0, 90000, 500, check);
+			const settled = await waitFor(() => composeRoot!.querySelectorAll(SEL.loading).length === 0, 90000, 500, check);
 			if (!settled) throw new Error('图片上传还没有完成，请在微博发布框里等它转完再试。');
 			check();
 		}
