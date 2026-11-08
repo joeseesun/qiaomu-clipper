@@ -16,13 +16,6 @@ export async function waitForTab(tabId: number, timeoutMs = 30000): Promise<void
 	throw new Error('页面加载太慢，请检查网络后重试');
 }
 
-/** Removes `#qp=…` from the address bar. Run only after the token has been exchanged, so it is already useless. */
-export async function scrubFragment(tabId: number): Promise<void> {
-	try {
-		await browser.scripting.executeScript({ target: { tabId }, func: () => { history.replaceState(null, '', location.pathname + location.search); } });
-	} catch { /* the page may still be loading; the token is spent either way */ }
-}
-
 export async function connectToPage(tabId: number, portName: string, routeMessage: string): Promise<ReturnType<typeof browser.tabs.connect>> {
 	for (let attempt = 0; attempt < 12; attempt++) {
 		const port = browser.tabs.connect(tabId, { name: portName });
