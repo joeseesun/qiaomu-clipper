@@ -1,6 +1,6 @@
 import type { BridgeClient } from './client';
 import type { BridgeJob } from './protocol';
-import { connectToPage, finalStatus, relayPort, scrubFragment, sendAssets, waitForTab } from './relay';
+import { connectToPage, finalStatus, relayPort, sendAssets, waitForTab } from './relay';
 import browser from '../utils/browser-polyfill';
 
 export const WEIBO_PORT = 'qiaomu-publish-weibo';
@@ -15,7 +15,6 @@ export async function runWeiboJob(tabId: number, job: BridgeJob, client: BridgeC
 	try {
 		await client.status({ state: 'running', text: '正在打开微博…' });
 		await waitForTab(tabId);
-		await scrubFragment(tabId);
 		await browser.scripting.executeScript({ target: { tabId }, files: [WEIBO_SCRIPT] });
 		const port = await connectToPage(tabId, WEIBO_PORT, '这个标签页不是微博发布页，请先登录微博');
 		const result = await relayPort(port, client, async post => {

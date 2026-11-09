@@ -8,8 +8,6 @@ function port(name: string) {
 }
 beforeEach(() => {
  vi.resetModules(); vi.useFakeTimers(); document.body.innerHTML = '';
- (window as any).ERR_UID = '123';
- document.documentElement.setAttribute('data-qm-uid', '123');
  delete window.__qiaomuPublishWeibo; delete window.__qiaomuPublishWeiboArticle;
  vi.stubGlobal('chrome', { runtime: { onConnect: { addListener: (fn: any) => { connect = fn; } } } });
  vi.stubGlobal('location', { hostname: 'weibo.com', href: 'https://weibo.com/', hash: '' });
@@ -46,7 +44,7 @@ async function article() {
  vi.stubGlobal('location', { hostname: 'card.weibo.com', href: 'https://card.weibo.com/article/v5/editor', hash: '' });
  await import('./weibo-article-content'); return port('qiaomu-publish-weibo-article');
 }
-const articleRun = { type: 'run', title: 'Title', html: '<p>Body</p>', cover: '', summary: '' };
+const articleRun = { type: 'run', title: 'Title', html: '<p>Body</p>', cover: '', summary: '', pageAccount: '123' };
 it('does not save or report success after cancellation during draft creation', async () => {
  const p = await article();
  const fetcher = vi.fn(async (url: any) => {
@@ -69,5 +67,5 @@ it('does not silently require following the author to read a draft', async () =>
  p.send(articleRun); await vi.advanceTimersByTimeAsync(100);
  expect(p.messages.filter(m => m.type === 'error')).toEqual([]);
  expect(saved!.get('follow_to_read')).toBe('0');
- expect(p.messages.some(m => m.type === 'done')).toBe(true);
+ expect(p.messages.find(m => m.type === 'done')).toMatchObject({ summary: { remoteId: 'draft', url: 'https://card.weibo.com/article/v5/editor#/draft/draft' } });
 });

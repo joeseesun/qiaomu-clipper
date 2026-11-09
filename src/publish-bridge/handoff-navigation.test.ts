@@ -3,7 +3,7 @@ import { beforeEach, expect, it, vi } from 'vitest';
 const mock = vi.hoisted(() => ({
   listen: vi.fn(), get: vi.fn(), update: vi.fn(), execute: vi.fn(),
   fetchJob: vi.fn(), status: vi.fn(),
-  xhs: vi.fn(), x: vi.fn(), zhihu: vi.fn(),
+  xhs: vi.fn(), x: vi.fn(), zhihu: vi.fn(), weibo: vi.fn(), article: vi.fn(),
 }));
 vi.mock('../utils/browser-polyfill', () => ({ default: {
   tabs: { onUpdated: { addListener: mock.listen }, get: mock.get, update: mock.update },
@@ -17,6 +17,8 @@ vi.mock('./client', () => ({ BridgeClient: class {
 vi.mock('./x', () => ({ runXJob: mock.x }));
 vi.mock('./zhihu', () => ({ runZhihuJob: mock.zhihu }));
 vi.mock('./xhs', () => ({ runXhsJob: mock.xhs }));
+vi.mock('./weibo', () => ({ runWeiboJob: mock.weibo }));
+vi.mock('./weibo-article', () => ({ runWeiboArticleJob: mock.article }));
 import { registerPublishBridge } from './index';
 
 let nonce = 0;
@@ -42,6 +44,8 @@ it.each([
   ['xhs', xhs, mock.xhs],
   ['x', 'https://x.com/compose/articles', mock.x],
   ['zhihu', 'https://zhuanlan.zhihu.com/write', mock.zhihu],
+  ['weibo', 'https://weibo.com/', mock.weibo],
+  ['weibo-article', 'https://card.weibo.com/article/v5/editor', mock.article],
 ])('dispatches %s once and only after the clean navigation is ready', async (target, cleanUrl, runner) => {
   const { address, tagged, listener } = handoff(cleanUrl, target);
   listener(7, { status: 'complete' }, tagged);

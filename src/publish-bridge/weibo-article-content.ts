@@ -21,7 +21,7 @@ const ENDPOINTS = [
 ];
 
 interface Picture { base64: string; mime: string; fileName: string; bytes: number }
-interface RunMessage { title: string; html: string; cover: string; summary: string }
+interface RunMessage { title: string; html: string; cover: string; summary: string; pageAccount?: string }
 interface Uploaded { pid: string; width: number; height: number }
 class Stopped extends Error { stopped = true; }
 
@@ -32,26 +32,16 @@ const blobOf = (picture: Picture): Blob => {
 	return new Blob([bytes], { type: picture.mime || 'image/jpeg' });
 };
 
-/** Reads the signed-in uid from the page's MAIN world by injecting a tiny script (isolated content scripts can't see page globals). */
-function pageUid(): string {
-	const probe = document.createElement('script');
-	probe.textContent = `try{document.documentElement.setAttribute('data-qm-uid',String((window.ERR_UID)||(window.userInfo&&window.userInfo.uid)||(window.__WB_GET_CONFIG&&window.__WB_GET_CONFIG().config.uid)||''));}catch(e){}`;
-	(document.head || document.documentElement).appendChild(probe);
-	probe.remove();
-	return document.documentElement.getAttribute('data-qm-uid') || '';
-}
-
-/** The signed-in account id. The v5 editor exposes it as `window.ERR_UID` / `window.userInfo.uid`; older pages used `$CONFIG['uid']`. */
-async function accountId(): Promise<string> {
-	const here = pageUid();
-	if (here) return here;
+/** Use the editor snapshot, with an HTML fallback for browsers without MAIN-world injection. */
+async function accountId(pageAccount?: string): Promise<string> {
+	if (typeof pageAccount === 'string' && /^\d{1,20}$/.test(pageAccount)) return pageAccount;
 	for (const endpoint of ENDPOINTS) {
 		try {
 			const response = await fetch(endpoint.editorUrl, { credentials: 'include' });
 			if (!response.ok) continue;
 			const text = await response.text();
 			const match = text.match(/(?:\$CONFIG\['uid'\]|ERR_UID)\s*=\s*['"]?(\d+)/) || text.match(/"uid"\s*:\s*(\d+)/);
-			if (match) return match[1];
+			if (match && /^\d{1,20}$/.test(match[1])) return match[1];
 		} catch { /* try the next version */ }
 	}
 	return '';
@@ -199,7 +189,7 @@ async function createDraft(endpoint: typeof ENDPOINTS[number], account: string):
 	url.searchParams.set('_rid', String(Date.now()));
 	const result = await postJson(url.toString(), { method: 'POST' });
 	const id = result.ok ? result.json?.data?.id : null;
-	return id ? String(id) : null;
+	return id && /^[\w-]{1,80}$/.test(String(id)) ? String(id) : null;
 }
 
 async function saveDraft(endpoint: typeof ENDPOINTS[number], message: RunMessage, content: string, cover: string, draftId: string, account: string): Promise<string | null> {
@@ -220,7 +210,7 @@ async function runFill(message: RunMessage, pictures: Map<string, Picture>, post
 		if (!isEditorRoute()) throw new Error('这个标签页不是微博长文编辑器，请先登录微博');
 		if (!message.html?.trim()) throw new Error('这篇笔记没有可写入的正文');
 		say('正在确认微博账号…');
-		const account = await accountId();
+		const account = await accountId(message.pageAccount);
 		if (!account) throw new Error('没拿到微博账号信息，请确认已登录微博后重试');
 		check();
 
@@ -250,8 +240,7 @@ async function runFill(message: RunMessage, pictures: Map<string, Picture>, post
 			check();
 			if (saved) {
 				const draftUrl = `${endpoint.editorUrl}#/draft/${saved}`;
-				try { location.hash = `#/draft/${saved}`; } catch { /* SPA may have its own router */ }
-				post({ type: 'done', summary: { url: draftUrl }, message: '草稿已写入微博长文，请在微博编辑器里检查后发布。' });
+				post({ type: 'done', summary: { url: draftUrl, remoteId: saved }, message: '草稿已写入微博长文，请在微博编辑器里检查后发布。' });
 				return;
 			}
 			throw new Error('草稿保存失败，微博接口可能已变动，请把内容手动粘贴到微博长文编辑器。');
