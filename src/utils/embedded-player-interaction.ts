@@ -1,11 +1,13 @@
 import { containedPictureRect } from './caption-geometry';
 import browser from './browser-polyfill';
+import { mountEmbeddedFullscreen } from './player-fullscreen';
 
 // Runs only in an iframe owned by an extension page. No access is added to a normal site's player.
 export function mountEmbeddedPlayerInteraction(kind:'youtube'|'bilibili'):()=>void {
  if(window.top===window)return ()=>{};
  let origin='';try{const url=new URL(browser.runtime.getURL('/'));origin=`${url.protocol}//${url.host}`;}catch{return ()=>{};}
  const ancestor=location.ancestorOrigins?.[0];if(ancestor&&ancestor!==origin)return ()=>{};
+ const stopFullscreen=kind==='youtube'?mountEmbeddedFullscreen(origin):()=>{};
  const visible=(selector:string)=>Array.from(document.querySelectorAll<HTMLElement>(selector)).some(el=>{const style=getComputedStyle(el),rect=el.getBoundingClientRect();if(el.checkVisibility?.({checkOpacity:true,checkVisibilityCSS:true})===false)return false;return !el.hidden&&style.display!=='none'&&style.visibility!=='hidden'&&style.opacity!=='0'&&rect.width>0&&rect.height>0;});
  const menus=kind==='youtube'?'.ytp-settings-menu,.ytp-popup,[role="menu"]':'.bpx-player-contextmenu,.bpx-player-ctrl-setting-box,.bpx-player-ctrl-playbackrate-menu,.bilibili-player-video-context-menu,[role="menu"]';
  const controls=kind==='youtube'?'.ytp-chrome-bottom':'.bpx-player-control-bottom,.bilibili-player-video-control-bottom';
@@ -29,5 +31,5 @@ export function mountEmbeddedPlayerInteraction(kind:'youtube'|'bilibili'):()=>vo
  let scheduled:ReturnType<typeof setTimeout>|undefined;
  const soon=(event:Event)=>{if(['pointermove','pointerup','keydown'].includes(event.type))activity=Date.now();if(scheduled===undefined)scheduled=setTimeout(()=>{scheduled=undefined;tell();},40);};
  types.forEach(type=>document.addEventListener(type,soon,true));window.addEventListener('message',message);const timer=setInterval(tell,400);tell();
- return ()=>{clearInterval(timer);clearTimeout(scheduled);types.forEach(type=>document.removeEventListener(type,soon,true));window.removeEventListener('message',message);};
+ return ()=>{stopFullscreen();clearInterval(timer);clearTimeout(scheduled);types.forEach(type=>document.removeEventListener(type,soon,true));window.removeEventListener('message',message);};
 }
