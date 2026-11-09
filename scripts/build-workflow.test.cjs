@@ -5,6 +5,21 @@ const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const { assertVersion, sourceState, writeBuildInfo, verifyBuild } = require('./build-info.cjs');
+const { readDelivery } = require('./test-delivery.cjs');
+
+test('delivery includes native helper sources and tests while rejecting unsafe or non-test paths', t => {
+	const root = fs.mkdtempSync(path.join(os.tmpdir(), 'clipper-native-delivery-'));
+	t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+	const files = ['src/view.ts', 'src/view.test.ts', 'native/x_setup.py', 'native/test_x_setup.py', 'scripts/windows/helper.nsi'];
+	for (const file of files) { const full = path.join(root, file); fs.mkdirSync(path.dirname(full), { recursive: true }); fs.writeFileSync(full, 'fixture'); }
+	const feature = { id: 'native-helper', title: 'Native helper', files: [files[0], files[2], files[4]], tests: [files[1], files[3]] };
+	const save = value => fs.writeFileSync(path.join(root, 'test-delivery.json'), JSON.stringify({ schema: 1, features: [value] }));
+	save(feature); assert.deepEqual(readDelivery(root).features, [feature]);
+	for (const file of ['../outside.py', '/tmp/outside.py', 'native/../src/view.ts']) {
+		save({ ...feature, files: [file] }); assert.throws(() => readDelivery(root), /Missing delivery source/);
+	}
+	save({ ...feature, tests: ['native/x_setup.py'] }); assert.throws(() => readDelivery(root), /regression test/);
+});
 
 function fixture(t) {
 	const root = fs.mkdtempSync(path.join(os.tmpdir(), 'clipper-build-test-'));
@@ -51,6 +66,29 @@ test('rejects stale source and changed production bytes', t => {
 	f.build();
 	fs.writeFileSync(path.join(f.root, 'new-source.ts'), 'new source');
 	assert.throws(() => verifyBuild(f.store, { cwd: f.root }), /Source changed/);
+});
+
+test('rejects reserved Chrome output names before replacing a working test install', t => {
+	const f = fixture(t);
+	f.run('prepare-test.mjs', '--root', f.home);
+	const installed = path.join(f.home, 'extension/build-info.json');
+	const before = fs.readFileSync(installed, 'utf8');
+	const info = JSON.parse(fs.readFileSync(path.join(f.store, 'build-info.json')));
+	for (const name of ['_shared_dependency.js', '_empty-chunks']) {
+		const file = path.join(f.store, name);
+		if (name.endsWith('.js')) fs.writeFileSync(file, 'shared dependency');
+		else fs.mkdirSync(file);
+		writeBuildInfo(f.store, info);
+		assert.throws(() => verifyBuild(f.store, { cwd: f.root }), /Chrome reserved filename/);
+		assert.throws(() => f.run('prepare-test.mjs', '--root', f.home), /Chrome reserved filename/);
+		assert.equal(fs.readFileSync(installed, 'utf8'), before);
+		fs.rmSync(file, { recursive: true });
+	}
+	fs.mkdirSync(path.join(f.store, '_locales/en'), { recursive: true });
+	fs.writeFileSync(path.join(f.store, '_locales/en/messages.json'), '{}');
+	fs.writeFileSync(path.join(f.store, 'chunk-_shared_dependency.js'), 'shared dependency');
+	writeBuildInfo(f.store, info);
+	assert.equal(verifyBuild(f.store, { cwd: f.root }).target, 'chrome-store');
 });
 
 test('one fixed test path switches editions, retains previous, leaves production unchanged', t => {
