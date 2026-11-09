@@ -7,6 +7,7 @@ const { sourceState, writeBuildInfo, assertVersion } = require('./scripts/build-
 const package = require('./package.json');
 const webpack = require('webpack');
 const TerserPlugin = require('terser-webpack-plugin');
+const { pageSharedChunks, ExtensionPageScriptsPlugin } = require('./scripts/extension-page-chunks.cjs');
 
 // Remove .DS_Store files
 function removeDSStore(dir) {
@@ -82,6 +83,7 @@ module.exports = (env, argv) => {
 		},
 		devtool: isProduction ? false : 'source-map',
 		optimization: {
+			splitChunks: pageSharedChunks(),
 			minimize: true,
 			minimizer: [
 				new TerserPlugin({
@@ -99,6 +101,7 @@ module.exports = (env, argv) => {
 							module: false
 						},
 						format: {
+							// Chrome rejects injected scripts containing Unicode noncharacters (e.g. KaTeX U+FFFF).
 							ascii_only: true,
 							comments: false,
 							ecma: 2020
@@ -111,8 +114,8 @@ module.exports = (env, argv) => {
 					extractComments: false
 				})
 			],
-			moduleIds: 'named',
-			chunkIds: 'named'
+			moduleIds: isProduction ? 'deterministic' : 'named',
+			chunkIds: isProduction ? 'deterministic' : 'named'
 		},
 		experiments: {
 			outputModule: false,
@@ -161,6 +164,7 @@ module.exports = (env, argv) => {
 			]
 		},
 		plugins: [
+			new ExtensionPageScriptsPlugin(),
 			new CopyPlugin({
 				patterns: [
 					{ 

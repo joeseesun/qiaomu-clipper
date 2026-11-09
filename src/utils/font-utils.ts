@@ -1,6 +1,6 @@
 // 朱雀仿宋 (SIL OFL 1.1, TrionesType) ships inside the extension; declare it on demand so pages and iframes can use it.
 const BUNDLED_FACES: Record<string, { family: string; file: string }> = {
-	__zhuque__: { family: 'Qiaomu Zhuque Fangsong', file: 'fonts/ZhuqueFangsong-Regular.woff' },
+	__zhuque__: { family: 'Qiaomu Zhuque Fangsong', file: 'fonts/ZhuqueFangsong-Regular.woff2' },
 };
 
 function ensureBundledFace(value: string): void {
@@ -12,7 +12,7 @@ function ensureBundledFace(value: string): void {
 		if (!url) return;
 		const style = document.createElement('style');
 		style.id = `qiaomu-face-${value}`;
-		style.textContent = `@font-face { font-family: "${face.family}"; src: url("${url}") format("woff"); font-display: swap; }`;
+		style.textContent = `@font-face { font-family: "${face.family}"; src: url("${url}") format("woff2"); font-display: swap; }`;
 		document.head.appendChild(style);
 	} catch { /* font stays optional; the stack falls back to installed Fangsong/Songti */ }
 }

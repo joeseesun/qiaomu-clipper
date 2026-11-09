@@ -36,7 +36,7 @@
 		"dev:local": "webpack --watch --env BROWSER=chrome --env EDITION=local --mode development",
 		"build:local": "webpack --env BROWSER=chrome --env EDITION=local --mode production",
 		"test:prepare": "node scripts/prepare-test.mjs",
-		"test:workflow": "node --test scripts/build-workflow.test.cjs scripts/check-injected-functions.test.cjs",
+		"test:workflow": "node --test scripts/build-workflow.test.cjs scripts/check-injected-functions.test.cjs scripts/extension-page-chunks.test.cjs",
 		"check:injections": "node scripts/check-injected-functions.cjs",
 		"check:i18n": "node scripts/check-i18n.cjs",
 		"build:store": "webpack --env BROWSER=chrome --mode production",
