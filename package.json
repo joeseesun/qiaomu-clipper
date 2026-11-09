@@ -1,6 +1,6 @@
 {
 	"name": "qiaomu-clipper",
-	"version": "1.19.1",
+	"version": "1.19.6",
 	"description": "Turn what you read and watch into notes and articles. Clip pages, study captions, ask AI, write Markdown and add images.",
 	"bin": {
 		"obsidian-clipper": "./build/cli/cli.cjs"
@@ -36,7 +36,7 @@
 		"dev:local": "webpack --watch --env BROWSER=chrome --env EDITION=local --mode development",
 		"build:local": "webpack --env BROWSER=chrome --env EDITION=local --mode production",
 		"test:prepare": "node scripts/prepare-test.mjs",
-		"test:workflow": "node --test scripts/build-workflow.test.cjs scripts/check-injected-functions.test.cjs",
+		"test:workflow": "node --test scripts/build-workflow.test.cjs scripts/check-injected-functions.test.cjs scripts/extension-page-chunks.test.cjs",
 		"check:injections": "node scripts/check-injected-functions.cjs",
 		"check:i18n": "node scripts/check-i18n.cjs",
 		"build:store": "webpack --env BROWSER=chrome --mode production",

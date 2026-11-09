@@ -6,21 +6,15 @@ import type { BridgeAsset, BridgeStatus } from './protocol';
 //   in : ping | image {source,mime,fileName,bytes,base64} | run {...} | cancel
 //   out: pong {route} | progress {text} | done {summary,message} | cancelled | error {error}
 
-export async function waitForTab(tabId: number, timeoutMs = 30000): Promise<void> {
+export async function waitForTab(tabId: number, timeoutMs = 30000, previousUrl?: string): Promise<browser.Tabs.Tab> {
 	const deadline = Date.now() + timeoutMs;
 	while (Date.now() < deadline) {
 		const tab = await browser.tabs.get(tabId);
-		if (tab.status === 'complete') return;
+		if (tab.status === 'complete' && (!tab.pendingUrl || tab.pendingUrl === tab.url) &&
+			(previousUrl === undefined || tab.url !== previousUrl)) return tab;
 		await new Promise(resolve => setTimeout(resolve, 300));
 	}
 	throw new Error('页面加载太慢，请检查网络后重试');
-}
-
-/** Removes `#qp=…` from the address bar. Run only after the token has been exchanged, so it is already useless. */
-export async function scrubFragment(tabId: number): Promise<void> {
-	try {
-		await browser.scripting.executeScript({ target: { tabId }, func: () => { history.replaceState(null, '', location.pathname + location.search); } });
-	} catch { /* the page may still be loading; the token is spent either way */ }
 }
 
 export async function connectToPage(tabId: number, portName: string, routeMessage: string): Promise<ReturnType<typeof browser.tabs.connect>> {

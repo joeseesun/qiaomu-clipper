@@ -198,7 +198,7 @@
 		{
 			"resources": [
 				"reader.css",
-				"fonts/ZhuqueFangsong-Regular.woff",
+				"fonts/ZhuqueFangsong-Regular.woff2",
 				"reader-script.js",
 				"browser-polyfill.min.js",
 				"style.css",

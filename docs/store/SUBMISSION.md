@@ -313,3 +313,10 @@ Reviewer instructions (under 500 characters):
 1.18.7: Clip/read/edit/export public articles without login. Open Write long articles to create/save/export locally; AI uses your provider. Optional Qiaomu Publish handoff sends selected content via localhost to signed-in X/Zhihu/Xiaohongshu draft editors; no final Publish click. Captions may use a separately installed helper/model. Downloads exclude YouTube. Cookies are optional and passed only to the local helper. Channels resolution uses your Yuanbao login. RSS is off by default. No DRM decryption.
 
 上传及提交结果以后台实际状态为准，此处不代表已经送审。
+
+
+## 1.19.6 更新说明
+
+商店只上传本次 `chrome-store.zip`。此次未新增扩展权限；发布桥仍由用户在 Obsidian 主动发起，所选正文和图片只发到所选平台。微博长文使用当前微博编辑页的账号标识来完成草稿请求，不发送到乔木服务器。Atlas Cloud 为可选的自带 API Key 的模型服务，与其他用户选择的 AI 服务采用相同的传输边界。公开隐私页已同步微博草稿的数据流。
+
+审核复现：搭配支持微博的乔木 Publish 版本，在已登录的对应平台打开一篇测试笔记的发布预览，选中少量测试图片并发送到草稿。短微博仅预填，长文只创建草稿；停止或跳离编辑页后不应继续写入。测试账号、笔记及 API Key 由审核方自行准备。不要公开发帖。
