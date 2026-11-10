@@ -41,6 +41,8 @@ export const CATALOG: CatalogEntry[] = [
 		popularModels: [{ id: 'deepseek-v4.1-flash', name: 'DeepSeek V4.1 Flash', recommended: true }, { id: 'glm-5.3-flash', name: 'GLM-5.3 Flash' }, { id: 'kimi-k3', name: 'Kimi K3' }, { id: 'longcat-2.0', name: 'LongCat-2.0' }, { id: 'mimo-v2.6-flash', name: 'MiMo-V2.6 Flash' }] },
 	{ id: 'atlascloud', name: 'Atlas Cloud', group: 'relay', sub: 'api.atlascloud.ai', baseUrl: 'https://api.atlascloud.ai/v1/chat/completions', apiKeyUrl: 'https://console.atlascloud.ai/api-keys', apiKeyRequired: true, modelsList: 'https://www.atlascloud.ai/models',
 		popularModels: [{ id: 'deepseek-ai/deepseek-v4.1-flash', name: 'DeepSeek V4.1 Flash', recommended: true }, { id: 'zai-org/glm-5.3-flash', name: 'GLM-5.3 Flash' }, { id: 'moonshotai/kimi-k3', name: 'Kimi K3' }] },
+	{ id: 'uberllm', name: 'UberLLM', group: 'relay', sub: 'api.uberllm.dev', baseUrl: 'https://api.uberllm.dev/v1/chat/completions', apiKeyUrl: 'https://uberllm.dev/signup', apiKeyRequired: true, modelsList: 'https://uberllm.dev/models',
+		popularModels: [{ id: 'deepseek/deepseek-v4.1-flash', name: 'DeepSeek V4.1 Flash', recommended: true }, { id: 'z-ai/glm-5.3-flash', name: 'GLM-5.3 Flash' }, { id: 'moonshotai/kimi-k3', name: 'Kimi K3' }, { id: 'qwen/qwen3.8-flash', name: 'Qwen3.8 Flash' }] },
 
 	{ id: 'openai', name: 'OpenAI', group: 'provider', sub: 'api.openai.com', icon: 'openai', baseUrl: 'https://api.openai.com/v1/chat/completions', apiKeyUrl: 'https://platform.openai.com/api-keys', apiKeyRequired: true },
 	{ id: 'anthropic', name: 'Anthropic', group: 'provider', sub: 'api.anthropic.com', icon: 'anthropic', baseUrl: 'https://api.anthropic.com/v1/messages', apiKeyUrl: 'https://console.anthropic.com/settings/keys', apiKeyRequired: true },

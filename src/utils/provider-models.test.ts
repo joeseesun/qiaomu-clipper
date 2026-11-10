@@ -23,6 +23,9 @@ describe('provider model discovery', () => {
 	it('lists Atlas Cloud models from its own /v1/models endpoint', () => {
 		expect(modelListRequest({ ...provider, baseUrl: 'https://api.atlascloud.ai/v1/chat/completions' }).url.href).toBe('https://api.atlascloud.ai/v1/models');
 	});
+	it('lists UberLLM models from its own /v1/models endpoint', () => {
+		expect(modelListRequest({ ...provider, baseUrl: 'https://api.uberllm.dev/v1/chat/completions' }).url.href).toBe('https://api.uberllm.dev/v1/models');
+	});
 	it('supports root and responses endpoints without changing the gateway prefix', () => {
 		for (const path of ['/v1', '/v1/', '/v1/responses', '/v1/chat/completions']) expect(modelListRequest({ ...provider, baseUrl: `https://gateway.example${path}` }).url.pathname).toBe('/v1/models');
 	});
