@@ -18,6 +18,17 @@ it('streams split SSE chunks through the Atlas Cloud preset endpoint and model',
  expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({ stream: true, model: selected.providerModelId });
 });
 
+it('streams split SSE chunks through the UberLLM preset endpoint and model', async () => {
+ const preset = CATALOG.find(p => p.id === 'uberllm')!;
+ generalSettings.providers = [{ ...preset, apiKey: 'fixture-key' }] as any;
+ const fetchMock = vi.fn().mockResolvedValue(stream(['data: {"choices":[{"delta":{"content":"Uber"}}]}\n', 'data: {"choices":[{"delta":{"con', 'tent":"LLM reply"}}]}\ndata: [DONE]\n']));
+ vi.stubGlobal('fetch', fetchMock);
+ const selected = { ...model(preset.id), providerModelId: preset.popularModels![0].id };
+ expect(await streamChat({ model: selected, system: 's', messages: [], onDelta() {} })).toBe('UberLLM reply');
+ expect(fetchMock.mock.calls[0][0]).toBe(preset.baseUrl);
+ expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({ stream: true, model: selected.providerModelId });
+});
+
 it('normalizes OpenAI-compatible gateway endpoints without duplicating complete paths', () => {
 	expect(normalizeOpenAIChatEndpoint('https://magpie.example')).toBe('https://magpie.example/v1/chat/completions');
 	expect(normalizeOpenAIChatEndpoint('https://magpie.example/v1')).toBe('https://magpie.example/v1/chat/completions');
