@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, expect, it, vi } from 'vitest';
 const state = vi.hoisted(() => ({ save: vi.fn(), search: vi.fn() }));
-vi.mock('../utils/web-search', () => ({ loadWebSearch: async () => ({ enabled: true, provider: 'deepseek', keys: { deepseek: 'existing', brave: '' } }), saveWebSearch: (...a: any[]) => state.save(...a), searchWeb: (...a: any[]) => state.search(...a), searchFailure: (e: Error) => e.message }));
+vi.mock('../utils/web-search', () => ({ loadWebSearch: async () => ({ enabled: true, provider: 'deepseek', keys: { deepseek: 'existing', brave: '', keirolabs: '' } }), saveWebSearch: (...a: any[]) => state.save(...a), searchWeb: (...a: any[]) => state.search(...a), searchFailure: (e: Error) => e.message }));
 import { openWebSearchSettings } from './web-search-settings';
 beforeEach(() => { vi.clearAllMocks(); document.body.replaceChildren(); HTMLDialogElement.prototype.showModal = function() { this.open = true; }; HTMLDialogElement.prototype.close = function() { this.open = false; }; state.search.mockResolvedValue([{ title:'OK' }]); state.save.mockResolvedValue(undefined); });
 const button = (name: string) => Array.from(document.querySelectorAll('button')).find(b => b.textContent === name)!;
@@ -10,7 +10,17 @@ it('verifies and saves only the chosen provider while preserving previously save
  const key=document.querySelector<HTMLInputElement>('input[type=password]')!, service=document.querySelector('select')!;
  key.value='unverified-change'; service.value='brave'; service.dispatchEvent(new Event('change')); key.value='new-brave'; button('验证并保存').click();
  await vi.waitFor(() => expect(saved).toHaveBeenCalled());
- expect(state.search.mock.calls[0][1].provider).toBe('brave'); expect(state.save.mock.calls[0][0].keys).toEqual({ deepseek:'existing', brave:'new-brave' }); expect(document.querySelector('dialog')).toBeNull();
+ expect(state.search.mock.calls[0][1].provider).toBe('brave'); expect(state.save.mock.calls[0][0].keys).toEqual({ deepseek:'existing', brave:'new-brave', keirolabs:'' }); expect(document.querySelector('dialog')).toBeNull();
+});
+it('offers Keirolabs with its own key page and saves its key alone', async () => {
+ await openWebSearchSettings();
+ const service=document.querySelector('select')!, key=document.querySelector<HTMLInputElement>('input[type=password]')!;
+ expect(Array.from(service.options).map(o => o.textContent)).toEqual(['DeepSeek Search','Brave Search','Keirolabs Search']);
+ service.value='keirolabs'; service.dispatchEvent(new Event('change'));
+ expect(document.querySelector<HTMLAnchorElement>('dialog a')!.href).toBe('https://platform.keirolabs.cloud/dashboard/keys');
+ key.value='keiro-key'; button('验证并保存').click();
+ await vi.waitFor(() => expect(state.save).toHaveBeenCalled());
+ expect(state.save.mock.calls[0][0]).toMatchObject({ provider:'keirolabs', keys:{ deepseek:'existing', brave:'', keirolabs:'keiro-key' } });
 });
 it('retains the dialog and previous settings after a failed verification', async () => {
  state.search.mockRejectedValue(new Error('HTTP 401')); await openWebSearchSettings(); button('验证并保存').click();

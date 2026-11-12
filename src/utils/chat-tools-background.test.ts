@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-const state=vi.hoisted(()=>({ search:vi.fn(), images:vi.fn(), download:vi.fn(), source:{key:'image-secret',proxy:''}, web:{enabled:true,provider:'deepseek',keys:{deepseek:'web-secret',brave:''}} }));
+const state=vi.hoisted(()=>({ search:vi.fn(), images:vi.fn(), download:vi.fn(), source:{key:'image-secret',proxy:''}, web:{enabled:true,provider:'deepseek',keys:{deepseek:'web-secret',brave:'',keirolabs:''}} }));
 vi.mock('./browser-polyfill',()=>({default:{runtime:{id:'own-id'}}}));
 vi.mock('./web-search',()=>({loadWebSearch:async()=>state.web,saveWebSearch:vi.fn(),selectedSearchProvider:()=> 'deepseek',searchWeb:(...a:any[])=>state.search(...a),fetchSearchPage:vi.fn()}));
 vi.mock('./image-library-sources',()=>({loadUnsplashSource:async()=>state.source,searchUnsplash:(...a:any[])=>state.images(...a),unsplashDownloadUrl:(...a:any[])=>state.download(...a)}));
